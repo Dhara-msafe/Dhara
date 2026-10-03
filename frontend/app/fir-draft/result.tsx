@@ -94,7 +94,9 @@ export default function FIRResult() {
     if (!sessionId) return;
     const loadSections = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/fir/session/${sessionId}`);
+        const res = await fetch(`${API_BASE}/api/fir/session/${sessionId}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
         if (!res.ok) return;
         const sess = await res.json();
         if (sess.suggested_sections?.length > 0) {
@@ -106,7 +108,7 @@ export default function FIRResult() {
       } catch { /* best effort */ }
     };
     loadSections();
-  }, [sessionId]);
+  }, [sessionId, token]);
 
   // ── Copy to clipboard ──────────────────────────────────────────────────────
   const handleCopy = useCallback(() => {
@@ -198,13 +200,21 @@ pre{white-space:pre-wrap;font-size:13px;line-height:1.7;font-family:'Courier New
     try {
       const pdfUrl = `${API_BASE}/api/fir/session/${sessionId}/draft.pdf`;
       if (Platform.OS === 'web') {
-        Linking.openURL(pdfUrl);
+        // Can't attach an Authorization header to a plain URL navigation —
+        // fetch the PDF as a blob with the header, then open that blob.
+        const res = await fetch(pdfUrl, { headers: token ? { Authorization: `Bearer ${token}` } : undefined });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        Linking.openURL(blobUrl);
         return;
       }
       const dir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
       if (!dir) throw new Error('No directory');
       const fileUri = dir + `FIR_Draft_${sessionId.slice(0, 8)}.pdf`;
-      const dl = await FileSystem.downloadAsync(pdfUrl, fileUri);
+      const dl = await FileSystem.downloadAsync(pdfUrl, fileUri, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       if (dl.status === 200) {
         const canShare = await Sharing.isAvailableAsync();
         if (canShare) {
@@ -220,7 +230,7 @@ pre{white-space:pre-wrap;font-size:13px;line-height:1.7;font-family:'Courier New
     } finally {
       setDownloadingPdf(false);
     }
-  }, [sessionId]);
+  }, [sessionId, token]);
 
   if (draftLoading) {
     return (

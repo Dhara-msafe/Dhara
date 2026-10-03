@@ -247,7 +247,9 @@ export default function FirDraftScreen() {
       const saved = await AsyncStorage.getItem(FIR_SESSION_KEY);
       if (saved) {
         try {
-          const res = await fetch(`${API_BASE}/api/fir/session/${saved}`);
+          const res = await fetch(`${API_BASE}/api/fir/session/${saved}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          });
           if (res.ok) {
             const sess = await res.json();
             if (sess.status !== 'completed' && sess.status !== 'cancelled') {
@@ -263,7 +265,7 @@ export default function FirDraftScreen() {
       setCheckingResume(false);
     };
     init();
-  }, [params.resumeId]);
+  }, [params.resumeId, token]);
 
   const saveLanguage = async (code: string) => {
     setLanguage(code);
@@ -382,7 +384,9 @@ export default function FirDraftScreen() {
     setSessionStarted(true);
     setMessages([]);
     try {
-      const res = await fetch(`${API_BASE}/api/fir/session/${sid}`);
+      const res = await fetch(`${API_BASE}/api/fir/session/${sid}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       if (!res.ok) throw new Error('Session not found');
       const sess = await res.json();
       setSessionId(sid);
@@ -425,7 +429,10 @@ export default function FirDraftScreen() {
         // Fetch the probe definition via a "continue" turn
         const tRes = await fetch(`${API_BASE}/api/fir/session/${sid}/turn`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
           body: JSON.stringify({ action: 'resume' }),
         });
         if (tRes.ok) {
@@ -446,7 +453,7 @@ export default function FirDraftScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [addMessage, applyTurn]);
+  }, [addMessage, applyTurn, token]);
 
   // Home/complaint cards already express the user's intention to continue.
   // Wait for local language hydration, then resume once rather than asking twice.
@@ -476,7 +483,10 @@ export default function FirDraftScreen() {
       if (action) body.action = action;
       const res = await fetch(`${API_BASE}/api/fir/session/${sessionId}/turn`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error(`Turn failed: ${res.status}`);
@@ -487,7 +497,7 @@ export default function FirDraftScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [sessionId, isLoading, skipLabel, evidenceFiles.length, addMessage, applyTurn]);
+  }, [sessionId, isLoading, skipLabel, evidenceFiles.length, addMessage, applyTurn, token]);
 
   // ── GPS capture ────────────────────────────────────────────────────────────
   const handleGetGPS = async () => {
@@ -565,6 +575,7 @@ Allowed: JPG, PNG, HEIC, MP4, MOV, PDF, DOC, DOCX`);
           }
           const res = await fetch(`${API_BASE}/api/fir/session/${sessionId}/evidence`, {
             method: 'POST',
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
             body: formData,
           });
           // v3.3: 413 error
@@ -602,7 +613,10 @@ Allowed: JPG, PNG, HEIC, MP4, MOV, PDF, DOC, DOCX`);
   const handleRemoveEvidence = async (fileId: string) => {
     if (!sessionId) return;
     try {
-      await fetch(`${API_BASE}/api/fir/session/${sessionId}/evidence/${fileId}`, { method: 'DELETE' });
+      await fetch(`${API_BASE}/api/fir/session/${sessionId}/evidence/${fileId}`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       setEvidenceFiles(prev => prev.filter(f => f.file_id !== fileId));
     } catch {
       Alert.alert('Error', 'Could not remove file. Please try again.');
@@ -621,12 +635,15 @@ Allowed: JPG, PNG, HEIC, MP4, MOV, PDF, DOC, DOCX`);
       try {
         await fetch(`${API_BASE}/api/fir/session/${sessionId}/evidence/${fileId}/caption`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
           body: JSON.stringify({ caption }),
         });
       } catch { /* best effort */ }
     }, 500);
-  }, [sessionId]);
+  }, [sessionId, token]);
 
   // ── Voice recording ────────────────────────────────────────────────────────
   const startRecording = async () => {
@@ -762,7 +779,10 @@ Allowed: JPG, PNG, HEIC, MP4, MOV, PDF, DOC, DOCX`);
   const handlePause = async () => {
     try {
       if (sessionId) {
-        await fetch(`${API_BASE}/api/fir/session/${sessionId}/pause`, { method: 'POST' });
+        await fetch(`${API_BASE}/api/fir/session/${sessionId}/pause`, {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
         // Keep session_id in AsyncStorage so user can resume
       }
     } catch { /* best effort */ }
@@ -774,7 +794,10 @@ Allowed: JPG, PNG, HEIC, MP4, MOV, PDF, DOC, DOCX`);
     if (!sessionId || isLoading) return;
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/fir/session/${sessionId}/back`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/api/fir/session/${sessionId}/back`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       if (!res.ok) return;
       const data = await res.json();
       if (data.ok) {
