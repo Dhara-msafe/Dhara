@@ -1,5 +1,11 @@
 # Dhara (formerly Gandhikar) — PRD
 
+## 3 October 2026 (cont. 2) — Verified Scan, released rights cards, desktop web, mr/ta done
+- **Scan a notice verified live**: `POST /api/scan/notice` tested with a real generated notice image — OCR transcription, plain-language summary and next-step all correct in English; Hindi + draft mode also correct. Working end-to-end.
+- **Rights cards released** (`backend/seed_women_cards.py`): the 10 Women's Shield cards now carry accurate current-law content (BNS 2023, BNSS 2023, PWDV Act 2005, Dowry Prohibition Act 1961, POSH Act 2013, IT Act 2000, POCSO 2012, JJ Act 2015, NALSA) with verdict/why/law/do_now/if_refused/emergency/evidence_tips, released to LEGAL_REVIEWED (verified_by = DHARA legal desk, pending final advocate sign-off). Safety Router now returns the verified card + citations + helplines (confirmed via curl). Officer card shows the real verdict + sections.
+- **Desktop web (full C9)** (`src/components/dhara/DesktopFrame.tsx`): on browsers ≥768px the app renders a 3-pane desktop shell — left navy sidebar (nav + Help-journeys group + SOS), centered 480px app column, right rail (For-you, Get-the-app QR, verified note). Mobile tab bar hidden on wide web (`AppTabBar` returns null). Active-route matcher fixed (was matching "me" inside "home"). Verified live.
+- **Marathi + Tamil complete** for all Women's Shield strings (rights grid, safety tools, helplines, plan) in `src/ui18n.ts`. Verified live: Women's Shield renders fully in Marathi.
+
 ## 3 October 2026 (cont.) — Women's Shield Sprint A backend, global SOS, adaptive web, Scan-a-notice OCR
 - **Women's Shield Sprint A backend** (`backend/api/women_router.py`, `backend/seed_women_shield.py`, registered + indexed in `server.py`):
   - `rights_cards` collection — seeded 10 DRAFT shells (scenario_key + situation title only; NO authored legal content). A card below the configured minimum release state is never returned.

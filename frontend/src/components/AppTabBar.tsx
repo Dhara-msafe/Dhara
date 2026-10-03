@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, useWindowDimensions, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -22,8 +22,12 @@ const RIGHT: Slot[] = [
 export function AppTabBar({ state, navigation }: BottomTabBarProps) {
   const router = useRouter();
   const { language } = useAuth();
+  const { width } = useWindowDimensions();
   const lang = language.code;
   const activeName = state.routes[state.index].name;
+
+  // On wide web the DesktopFrame sidebar handles navigation — hide the bar.
+  if (Platform.OS === 'web' && width >= 768) return null;
 
   const renderTab = (slot: Slot) => {
     const route = state.routes.find(r => r.name === slot.name);

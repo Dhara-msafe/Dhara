@@ -10,6 +10,7 @@ import { PostHogProvider, usePostHog } from "posthog-react-native";
 
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
 import { useAppFonts } from "@/src/hooks/use-app-fonts";
+import { DesktopFrame } from "@/src/components/dhara/DesktopFrame";
 import { AuthProvider, useAuth } from "@/src/auth";
 import { consentVersionKey, isCurrentConsent } from "@/src/consentStorage";
 import { theme } from "@/src/theme";
@@ -185,13 +186,15 @@ export default function RootLayout() {
               <AnalyticsScreenTracker />
               <ConsentGuard />
               <StatusBar style="dark" />
-              <View style={{ flex: 1, backgroundColor: isWideWeb ? theme.colors.deepNavy : theme.colors.surface, alignItems: isWideWeb ? 'center' : 'stretch' }}>
-                <View style={isWideWeb
-                  ? { flex: 1, width: 460, maxWidth: '100%', backgroundColor: theme.colors.surface, overflow: 'hidden', ...(Platform.OS === 'web' ? { boxShadow: '0 10px 40px rgba(0,0,0,0.35)' } as any : null) }
-                  : { flex: 1 }}>
+              {isWideWeb ? (
+                <DesktopFrame>
+                  <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.surface } }} />
+                </DesktopFrame>
+              ) : (
+                <View style={{ flex: 1 }}>
                   <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.surface } }} />
                 </View>
-              </View>
+              )}
             </AuthProvider>
           </PostHogProvider>
         </KeyboardProvider>
