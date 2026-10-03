@@ -16,7 +16,7 @@ export default function OfficerCard() {
 
   useEffect(() => {
     safetyRoute({ scenario_key: params.scenario || 'police_wont_file', lang: language.code }).then(setRes);
-  }, [params.scenario]);
+  }, [params.scenario, language.code]);
 
   const card = res?.card;
 

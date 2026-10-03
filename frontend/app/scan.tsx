@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Linking, Platform, Share } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Linking, Share, Image } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
@@ -17,6 +17,7 @@ export default function Scan() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [img, setImg] = useState<string | null>(null);
+  const [lastB64, setLastB64] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [showText, setShowText] = useState(false);
 
@@ -53,11 +54,31 @@ export default function Scan() {
       return;
     }
     const opts: ImagePicker.ImagePickerOptions = { base64: true, quality: 0.5, allowsEditing: true, mediaTypes: ['images'] };
-    const res = fromCamera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
-    if (res.canceled || !res.assets?.[0]?.base64) return;
-    setImg(res.assets[0].uri);
-    setResult(null);
-    await analyze(res.assets[0].base64, 'summary');
+    try {
+      const res = fromCamera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
+      if (res.canceled || !res.assets?.[0]?.base64) return;
+      setImg(res.assets[0].uri);
+      setLastB64(res.assets[0].base64);
+      setResult(null);
+      await analyze(res.assets[0].base64, 'summary');
+    } catch {
+      // The camera can be unavailable in a sandboxed web preview (camera access
+      // is blocked inside the iframe). Fall back to picking an image so the user
+      // is never dead-ended; on a phone the live camera opens normally.
+      if (fromCamera) {
+        try {
+          const res2 = await ImagePicker.launchImageLibraryAsync(opts);
+          if (!res2.canceled && res2.assets?.[0]?.base64) {
+            setImg(res2.assets[0].uri); setLastB64(res2.assets[0].base64); setResult(null);
+            await analyze(res2.assets[0].base64, 'summary');
+            return;
+          }
+        } catch { /* ignore and show guidance below */ }
+        setError('The camera can\u2019t open in this preview. Open DHARA on your phone to use the camera, or tap “Choose from gallery”.');
+      } else {
+        setError('Could not open the gallery. Please try again.');
+      }
+    }
   };
 
   const share = async () => {
@@ -98,6 +119,7 @@ export default function Scan() {
 
         {result && !busy && (
           <View>
+            {img ? <Image source={{ uri: img }} style={styles.preview} resizeMode="cover" /> : null}
             <View style={styles.card}>
               <Text style={styles.cardLabel}>{result.mode === 'draft' ? 'DRAFTED REPLY' : 'WHAT THIS MEANS'}</Text>
               <Text style={styles.summary}>{result.summary}</Text>
@@ -119,9 +141,14 @@ export default function Scan() {
               <Pressable style={styles.secBtn} onPress={share}>
                 <Ionicons name="share-outline" size={18} color={c.navy} /><Text style={styles.secTxt}>Share</Text>
               </Pressable>
-              {result.mode !== 'draft' && img && (
-                <Pressable style={styles.secBtn} onPress={() => { /* re-run draft from same image requires base64; ask re-pick */ setResult(null); setError('Tap “Take photo” again to draft a reply.'); }}>
+              {result.mode !== 'draft' && lastB64 && (
+                <Pressable style={styles.secBtn} onPress={() => analyze(lastB64, 'draft')}>
                   <Ionicons name="create-outline" size={18} color={c.navy} /><Text style={styles.secTxt}>Draft a reply</Text>
+                </Pressable>
+              )}
+              {result.mode === 'draft' && lastB64 && (
+                <Pressable style={styles.secBtn} onPress={() => analyze(lastB64, 'summary')}>
+                  <Ionicons name="reader-outline" size={18} color={c.navy} /><Text style={styles.secTxt}>Explain instead</Text>
                 </Pressable>
               )}
             </View>
@@ -158,6 +185,7 @@ const styles = StyleSheet.create({
   settingsBtn: { backgroundColor: c.navy, borderRadius: 10, paddingVertical: 10, alignItems: 'center', marginTop: 6 },
   settingsTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14 },
   card: { backgroundColor: c.navy, borderRadius: 18, padding: 20, marginTop: 8 },
+  preview: { width: '100%', height: 160, borderRadius: 14, marginBottom: 12, backgroundColor: c.surfaceTertiary },
   cardLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.gold, letterSpacing: 1.2 },
   summary: { fontFamily: theme.fonts.body, fontSize: 17, color: '#fff', lineHeight: 26, marginTop: 10 },
   actionCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.goldMuted, borderRadius: 14, padding: 16, marginTop: 14 },

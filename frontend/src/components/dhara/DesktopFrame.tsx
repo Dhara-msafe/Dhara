@@ -1,5 +1,5 @@
-import { ReactNode } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { ReactNode, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, ScrollView, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
 import { theme } from '../../theme';
@@ -35,6 +35,7 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
     { label: tr('all.emergency', lang), icon: 'warning-outline', route: '/emergency', match: 'emergency' },
   ];
   const active = (m: string) => !!pathname && pathname.includes('/' + m);
+  const [q, setQ] = useState('');
 
   const Item = ({ it }: { it: NavItem }) => (
     <Pressable style={[styles.navItem, active(it.match) && styles.navItemActive]} onPress={() => router.push(it.route as any)}>
@@ -44,7 +45,47 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
   );
 
   return (
-    <View style={styles.row}>
+    <View style={styles.shell}>
+      {/* ── Top bar: search + sign-in + SOS ── */}
+      <View style={styles.topbar}>
+        <View style={styles.search}>
+          <Ionicons name="search" size={18} color={c.onNavyMuted} />
+          <TextInput
+            value={q}
+            onChangeText={setQ}
+            placeholder="Search help, rights or forms…"
+            placeholderTextColor={c.onNavyMuted}
+            style={styles.searchInput}
+            onSubmitEditing={() => router.push('/all-help')}
+            returnKeyType="search"
+          />
+        </View>
+        <View style={styles.topRight}>
+          <Pressable style={styles.topLink} onPress={() => router.push('/(tabs)/advocate')}>
+            <Text style={styles.topLinkTxt}>For advocates</Text>
+          </Pressable>
+          <Pressable style={styles.langPill} onPress={() => router.push('/language')}>
+            <Ionicons name="globe-outline" size={14} color="#fff" />
+            <Text style={styles.langTxt}>{language.native}</Text>
+          </Pressable>
+          {user ? (
+            <Pressable style={styles.userPill} onPress={() => router.push('/(tabs)/me')}>
+              <View style={styles.userAvatar}><Text style={styles.userAvatarTxt}>{(user.name || 'U').charAt(0).toUpperCase()}</Text></View>
+              <Text style={styles.userTxt} numberOfLines={1}>{(user.name || 'Me').split(' ')[0]}</Text>
+            </Pressable>
+          ) : (
+            <Pressable style={styles.signInTop} onPress={() => router.push('/login')}>
+              <Text style={styles.signInTopTxt}>Sign in</Text>
+            </Pressable>
+          )}
+          <Pressable style={styles.sosTop} onPress={() => router.push('/emergency')}>
+            <Ionicons name="warning-outline" size={16} color="#fff" />
+            <Text style={styles.sosTopTxt}>SOS</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.row}>
       {/* ── Sidebar ── */}
       <View style={styles.sidebar}>
         <Pressable style={styles.brand} onPress={() => router.push('/(tabs)/home')}>
@@ -94,11 +135,29 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
           <Pressable style={styles.signIn} onPress={() => router.push('/login')}><Text style={styles.signInTxt}>Sign in</Text></Pressable>
         )}
       </ScrollView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  shell: { flex: 1, backgroundColor: c.deepNavy },
+  topbar: { flexDirection: 'row', alignItems: 'center', gap: 16, height: 60, paddingHorizontal: 20, backgroundColor: c.navy, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' },
+  search: { flex: 1, maxWidth: 520, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 999, paddingHorizontal: 16, height: 40 },
+  searchInput: { flex: 1, color: '#fff', fontFamily: theme.fonts.body, fontSize: 15, ...(({ outlineStyle: 'none' }) as any) },
+  topRight: { flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 'auto' },
+  topLink: { paddingHorizontal: 6 },
+  topLinkTxt: { color: c.onNavyMuted, fontFamily: theme.fonts.bodySemiBold, fontSize: 14 },
+  langPill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 12, height: 36, borderRadius: 999 },
+  langTxt: { color: '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 13 },
+  userPill: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.1)', paddingLeft: 4, paddingRight: 14, height: 36, borderRadius: 999 },
+  userAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.gold, alignItems: 'center', justifyContent: 'center' },
+  userAvatarTxt: { color: c.navy, fontFamily: theme.fonts.bodyBold, fontSize: 13 },
+  userTxt: { color: '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 14, maxWidth: 90 },
+  signInTop: { backgroundColor: c.gold, borderRadius: 999, paddingHorizontal: 18, height: 36, alignItems: 'center', justifyContent: 'center' },
+  signInTopTxt: { color: c.navy, fontFamily: theme.fonts.bodyBold, fontSize: 14 },
+  sosTop: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.emergencyRed, borderRadius: 999, paddingHorizontal: 14, height: 36 },
+  sosTopTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14 },
   row: { flex: 1, flexDirection: 'row', backgroundColor: c.deepNavy, justifyContent: 'center' },
   sidebar: { width: 264, backgroundColor: c.navy, paddingHorizontal: 16, paddingTop: 24, paddingBottom: 16 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 22, paddingHorizontal: 6 },

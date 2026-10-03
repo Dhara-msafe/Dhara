@@ -14,6 +14,8 @@ Non-negotiables honoured:
     an append-only `women_audit` log. Only IDs + event types are logged.
   * Portable: standard FastAPI + MongoDB, reuses the existing X-Admin-Key.
 """
+import json
+import os
 import re
 import uuid
 from datetime import datetime, timezone
@@ -21,10 +23,26 @@ from typing import Optional, List
 
 from fastapi import APIRouter, HTTPException, Header, Query
 from pydantic import BaseModel, Field
+from dotenv import load_dotenv
+
+from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 from dependencies import db, logger, check_admin_key
 
+load_dotenv()
+
 router = APIRouter()
+
+EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
+TRANSLATE_MODEL = os.environ.get("TRANSLATE_MODEL", "gpt-4o-mini")
+LANG_NAMES = {
+    "hi": "Hindi", "mr": "Marathi", "ta": "Tamil", "bn": "Bengali", "te": "Telugu",
+    "kn": "Kannada", "ml": "Malayalam", "gu": "Gujarati", "pa": "Punjabi", "or": "Odia",
+    "as": "Assamese", "ur": "Urdu", "ne": "Nepali", "sa": "Sanskrit", "kok": "Konkani",
+    "mni": "Manipuri", "sat": "Santali", "mai": "Maithili", "doi": "Dogri", "brx": "Bodo",
+    "ks": "Kashmiri", "sd": "Sindhi",
+}
+TRANSLATABLE = ["situation", "verdict", "why", "if_refused", "evidence_tips"]
 
 # ── Feature flags (db.settings, _id = "app_flags") ───────────────────────────
 FLAGS_ID = "app_flags"
@@ -147,6 +165,60 @@ async def _audit(action: str, target: str, detail: Optional[dict] = None) -> Non
     })
 
 
+async def _translate_card(doc: dict, lang: str) -> dict:
+    """Return a copy of the card with user-facing text in `lang`. Translation of
+    the already-vetted English is cached in the card's `translation.<lang>` so it
+    is a one-time cost per card per language. Law citations and helpline numbers
+    are never changed. Falls back to English on any failure."""
+    if lang == "en" or lang not in LANG_NAMES:
+        return doc
+    cached = (doc.get("translation") or {}).get(lang)
+    if isinstance(cached, dict) and cached.get("verdict"):
+        merged = dict(doc)
+        for k in TRANSLATABLE:
+            if cached.get(k):
+                merged[k] = cached[k]
+        if isinstance(cached.get("do_now"), list) and cached["do_now"]:
+            merged["do_now"] = cached["do_now"]
+        return merged
+    if not EMERGENT_LLM_KEY:
+        return doc
+    payload = {k: doc.get(k, "") for k in TRANSLATABLE}
+    payload["do_now"] = doc.get("do_now", [])
+    try:
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"wtr-{os.urandom(4).hex()}",
+            system_message=(
+                f"Translate this Indian legal-help text into {LANG_NAMES[lang]}. Keep it "
+                "simple, faithful and natural. Do NOT change or translate law names, "
+                "section numbers (e.g. BNSS §173) or helpline numbers, and do not add "
+                "any new facts. Reply ONLY as compact JSON with exactly the same keys "
+                "(including a do_now array of the same length)."
+            ),
+        ).with_model("openai", TRANSLATE_MODEL)
+        reply = await chat.send_message(UserMessage(text=json.dumps(payload, ensure_ascii=False)))
+        text = reply if isinstance(reply, str) else str(reply)
+        m = re.search(r"\{.*\}", text, re.DOTALL)
+        tr = json.loads(m.group(0)) if m else None
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"[women] translate failed ({lang}): {type(e).__name__}")
+        return doc
+    if not isinstance(tr, dict):
+        return doc
+    try:
+        await db.rights_cards.update_one({"card_id": doc["card_id"]}, {"$set": {f"translation.{lang}": tr}})
+    except Exception:
+        pass
+    merged = dict(doc)
+    for k in TRANSLATABLE:
+        if tr.get(k):
+            merged[k] = tr[k]
+    if isinstance(tr.get("do_now"), list) and tr["do_now"]:
+        merged["do_now"] = tr["do_now"]
+    return merged
+
+
 # ── Public endpoints ─────────────────────────────────────────────────────────
 
 @router.get("/women/flags")
@@ -220,6 +292,7 @@ async def safety_route(body: RouteIn):
         doc = await db.rights_cards.find_one({"scenario_key": scenario_key, "language": body.lang}, {"_id": 0}) \
             or await db.rights_cards.find_one({"scenario_key": scenario_key, "language": "en"}, {"_id": 0})
         if doc and _meets_min(doc.get("release_state", "DRAFT"), flags["women_cards_min_release_state"]):
+            doc = await _translate_card(doc, body.lang)
             card = _card_public(doc)
 
     # Services: emergency first; add women_support + the scenario's natural category.
