@@ -57,7 +57,7 @@ export default function AllHelp() {
         <View style={styles.searchWrap}>
           <Ionicons name="search" size={18} color={c.muted} />
           <TextInput placeholder={tr('all.search', lang)} placeholderTextColor={c.muted} style={styles.search} />
-          <Pressable style={styles.searchMic} onPress={() => router.push('/ask')}>
+          <Pressable style={styles.searchMic} onPress={() => router.push('/(tabs)')}>
             <Ionicons name="mic" size={18} color={c.navy} />
           </Pressable>
         </View>

@@ -1,5 +1,5 @@
 import { ReactNode, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, TextInput } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, TextInput, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
 import { theme } from '../../theme';
@@ -23,7 +23,7 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
   const nav: NavItem[] = [
     { label: tr('nav.home', lang), icon: 'home-outline', route: '/(tabs)/home', match: 'home' },
     { label: tr('nav.rights', lang), icon: 'book-outline', route: '/(tabs)/rights', match: 'rights' },
-    { label: tr('nav.ask', lang), icon: 'mic-outline', route: '/ask', match: 'ask' },
+    { label: tr('nav.ask', lang), icon: 'mic-outline', route: '/(tabs)', match: 'ask' },
     { label: tr('nav.myfiles', lang), icon: 'folder-outline', route: '/(tabs)/myfiles', match: 'myfiles' },
     { label: tr('nav.me', lang), icon: 'person-outline', route: '/(tabs)/me', match: 'me' },
   ];
@@ -89,7 +89,7 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
       {/* ── Sidebar ── */}
       <View style={styles.sidebar}>
         <Pressable style={styles.brand} onPress={() => router.push('/(tabs)/home')}>
-          <View style={styles.logo}><Ionicons name="shield-checkmark" size={22} color={c.gold} /></View>
+          <View style={styles.logo}><Image source={require('../../../assets/images/dhara_icon.png')} style={styles.logoImg} resizeMode="cover" /></View>
           <View>
             <Text style={styles.brandTxt}>DHARA</Text>
             <Text style={styles.brandSub}>{tr('shell.tagline', lang)}</Text>
@@ -158,10 +158,11 @@ const styles = StyleSheet.create({
   signInTopTxt: { color: c.navy, fontFamily: theme.fonts.bodyBold, fontSize: 14 },
   sosTop: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.emergencyRed, borderRadius: 999, paddingHorizontal: 14, height: 36 },
   sosTopTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14 },
-  row: { flex: 1, flexDirection: 'row', backgroundColor: c.deepNavy, justifyContent: 'center' },
+  row: { flex: 1, flexDirection: 'row', backgroundColor: c.deepNavy },
   sidebar: { width: 264, backgroundColor: c.navy, paddingHorizontal: 16, paddingTop: 24, paddingBottom: 16 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 22, paddingHorizontal: 6 },
-  logo: { width: 42, height: 42, borderRadius: 11, borderWidth: 1.5, borderColor: c.gold, alignItems: 'center', justifyContent: 'center' },
+  logo: { width: 42, height: 42, borderRadius: 11, borderWidth: 1.5, borderColor: c.gold, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: '#fff' },
+  logoImg: { width: '100%', height: '100%' },
   brandTxt: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 20, letterSpacing: 1 },
   brandSub: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 11 },
   navItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 12, borderRadius: 12, marginBottom: 2 },
@@ -171,9 +172,9 @@ const styles = StyleSheet.create({
   group: { color: 'rgba(255,255,255,0.4)', fontFamily: theme.fonts.bodyBold, fontSize: 11, letterSpacing: 1.2, marginTop: 20, marginBottom: 8, paddingHorizontal: 12 },
   sos: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.emergencyRed, borderRadius: 12, paddingVertical: 13 },
   sosTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14 },
-  centerWrap: { width: 480, maxWidth: '100%', backgroundColor: c.surface },
-  center: { flex: 1, overflow: 'hidden' },
-  rail: { width: 320 },
+  centerWrap: { flex: 1, backgroundColor: c.surface, alignItems: 'center' },
+  center: { flex: 1, width: '100%', maxWidth: 600, overflow: 'hidden' },
+  rail: { width: 340 },
   railCard: { backgroundColor: c.surface, borderRadius: 18, padding: 18, borderWidth: 1, borderColor: c.lines },
   railTag: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   railTagTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 11, color: c.darkGold, letterSpacing: 1 },

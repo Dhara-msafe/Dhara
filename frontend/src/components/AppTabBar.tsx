@@ -63,7 +63,7 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
           accessibilityRole="button"
           accessibilityLabel={tr('nav.ask', lang)}
           style={styles.askSlot}
-          onPress={() => router.push('/ask')}
+          onPress={() => router.push('/(tabs)')}
         >
           <View style={styles.askCircle}>
             <Ionicons name="mic" size={26} color={c.navy} />
