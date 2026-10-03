@@ -11,6 +11,7 @@ import { PostHogProvider, usePostHog } from "posthog-react-native";
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
 import { useAppFonts } from "@/src/hooks/use-app-fonts";
 import { DesktopFrame } from "@/src/components/dhara/DesktopFrame";
+import { GlobalHelpButton } from "@/src/components/dhara/GlobalHelpButton";
 import { AuthProvider, useAuth } from "@/src/auth";
 import { consentVersionKey, isCurrentConsent } from "@/src/consentStorage";
 import { theme } from "@/src/theme";
@@ -193,8 +194,10 @@ export default function RootLayout() {
               ) : (
                 <View style={{ flex: 1 }}>
                   <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.surface } }} />
+                  <GlobalHelpButton />
                 </View>
               )}
+              {isWideWeb && <GlobalHelpButton />}
             </AuthProvider>
           </PostHogProvider>
         </KeyboardProvider>

@@ -1,42 +1,58 @@
-import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
+import { API_BASE } from '@/src/apiBase';
 
 const c = theme.colors;
-const STEPS = [
-  { icon: 'power', title: 'Find your power button', body: 'It is the button on the side you use to lock the screen.' },
-  { icon: 'repeat', title: 'Press it quickly 3 times', body: 'On most Android phones this silently calls 112 and shares your location.' },
-  { icon: 'call', title: '112 connects you', body: 'Police, ambulance and women\u2019s help — all on one number, 24x7.' },
-  { icon: 'settings-outline', title: 'Turn it on once', body: 'Open phone Settings \u2192 Safety & emergency \u2192 Emergency SOS, and switch it on.' },
-];
+type Step = { icon: string; title: string; body: string };
+type LessonConfig = { intro: string; steps: Step[]; note: string };
 
 export default function PanicLesson() {
   const router = useRouter();
+  const [lesson, setLesson] = useState<LessonConfig | null>(null);
+
+  useEffect(() => {
+    // A6 — wording comes from the backend (never hard-coded on-device) so it
+    // can be corrected centrally without shipping a new app build.
+    const platform = Platform.OS === 'ios' ? 'ios' : 'android';
+    fetch(`${API_BASE}/api/women/panic-lesson?platform=${platform}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setLesson(d))
+      .catch(() => setLesson(null));
+  }, []);
+
   return (
     <View style={styles.root}>
       <ScreenHeader title="20-second panic trigger" subtitle="Call 112 even with DHARA closed" />
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
-        <Text style={styles.intro}>Your phone can call for help on its own — no app needed. Learn it once; it works even if your screen is locked.</Text>
-        {STEPS.map((s, i) => (
-          <View key={i} style={styles.step}>
-            <View style={styles.num}><Text style={styles.numTxt}>{i + 1}</Text></View>
-            <View style={styles.iconWrap}><Ionicons name={s.icon as any} size={22} color={c.navy} /></View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.stepTitle}>{s.title}</Text>
-              <Text style={styles.stepBody}>{s.body}</Text>
-            </View>
-          </View>
-        ))}
-        <View style={styles.note}>
-          <Ionicons name="information-circle-outline" size={18} color={c.darkGold} />
-          <Text style={styles.noteTxt}>Exact steps vary a little by phone brand. iPhone: press the side button 5 times, or hold side + volume.</Text>
+      {!lesson ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color={c.navy} />
         </View>
-        <Pressable style={styles.btn} onPress={() => router.back()}>
-          <Text style={styles.btnTxt}>I understand</Text>
-        </Pressable>
-      </ScrollView>
+      ) : (
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+          <Text style={styles.intro}>{lesson.intro}</Text>
+          {lesson.steps.map((s, i) => (
+            <View key={i} style={styles.step}>
+              <View style={styles.num}><Text style={styles.numTxt}>{i + 1}</Text></View>
+              <View style={styles.iconWrap}><Ionicons name={s.icon as any} size={22} color={c.navy} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.stepTitle}>{s.title}</Text>
+                <Text style={styles.stepBody}>{s.body}</Text>
+              </View>
+            </View>
+          ))}
+          <View style={styles.note}>
+            <Ionicons name="information-circle-outline" size={18} color={c.darkGold} />
+            <Text style={styles.noteTxt}>{lesson.note}</Text>
+          </View>
+          <Pressable style={styles.btn} onPress={() => router.back()}>
+            <Text style={styles.btnTxt}>I understand</Text>
+          </Pressable>
+        </ScrollView>
+      )}
     </View>
   );
 }

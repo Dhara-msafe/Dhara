@@ -28,6 +28,7 @@ from dotenv import load_dotenv
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 from dependencies import db, logger, check_admin_key
+from engine.law_status_guard import check_provision
 
 load_dotenv()
 
@@ -233,6 +234,34 @@ async def women_flags():
     return await get_flags()
 
 
+async def _law_guard_ok(doc: dict) -> bool:
+    """A1 — Citation Guard + Law Status Guard, run at serve time (not just at
+    import time), so a section that is later repealed/struck down is blocked
+    on the very next request even if nobody re-reviews the card. Pure code —
+    Layer S (law_status_guard) does a registry lookup, no model call, 0 ECU."""
+    for entry in (doc.get("law") or []):
+        status_label, _ = check_provision({"act_name": entry.get("act", ""), "section": entry.get("section", "")})
+        if status_label == "INACTIVE":
+            try:
+                await db.women_audit.insert_one({
+                    "id": str(uuid.uuid4()),
+                    "event": "law_guard_blocked",
+                    "card_id": doc.get("card_id"),
+                    "scenario_key": doc.get("scenario_key"),
+                    "act": entry.get("act"),
+                    "section": entry.get("section"),
+                    "at": datetime.now(timezone.utc).isoformat(),
+                })
+            except Exception:
+                pass
+            logger.warning(
+                "[women_shield] law guard blocked card %s: %s %s is INACTIVE",
+                doc.get("card_id"), entry.get("act"), entry.get("section"),
+            )
+            return False
+    return True
+
+
 @router.get("/women/cards")
 async def list_cards(language: str = "en"):
     flags = await get_flags()
@@ -241,7 +270,13 @@ async def list_cards(language: str = "en"):
     minimum = flags["women_cards_min_release_state"]
     cursor = db.rights_cards.find({"language": language}, {"_id": 0})
     docs = await cursor.to_list(length=200)
-    visible = [_card_public(d) for d in docs if _meets_min(d.get("release_state", "DRAFT"), minimum)]
+    visible = []
+    for d in docs:
+        if not _meets_min(d.get("release_state", "DRAFT"), minimum):
+            continue
+        if not await _law_guard_ok(d):
+            continue
+        visible.append(_card_public(d))
     return {"enabled": True, "count": len(visible), "cards": visible}
 
 
@@ -296,7 +331,7 @@ async def safety_route(body: RouteIn):
     if flags["women_shield_enabled"] and scenario_key:
         doc = await db.rights_cards.find_one({"scenario_key": scenario_key, "language": body.lang}, {"_id": 0}) \
             or await db.rights_cards.find_one({"scenario_key": scenario_key, "language": "en"}, {"_id": 0})
-        if doc and _meets_min(doc.get("release_state", "DRAFT"), flags["women_cards_min_release_state"]):
+        if doc and _meets_min(doc.get("release_state", "DRAFT"), flags["women_cards_min_release_state"]) and await _law_guard_ok(doc):
             doc = await _translate_card(doc, body.lang)
             card = _card_public(doc)
 
@@ -336,6 +371,41 @@ class FlagsIn(BaseModel):
     discreet_mode_enabled: Optional[bool] = None
     trusted_circle_enabled: Optional[bool] = None
     evidence_locker_enabled: Optional[bool] = None
+
+
+_PANIC_LESSON_DEFAULT = {
+    "android": {
+        "intro": "Your phone can call for help on its own — no app needed. Learn it once; it works even with your screen locked.",
+        "steps": [
+            {"icon": "power-outline", "title": "Find your power button", "body": "It is the button on the side you use to lock the screen."},
+            {"icon": "repeat-outline", "title": "Press it quickly 3 times", "body": "On most Android phones this silently calls 112 and shares your location."},
+            {"icon": "call-outline", "title": "112 connects you", "body": "Police, ambulance and women's help — all on one number, 24x7."},
+            {"icon": "settings-outline", "title": "Turn it on once", "body": "Open phone Settings → Safety & emergency → Emergency SOS, and switch it on."},
+        ],
+        "note": "Exact steps vary a little by phone brand.",
+    },
+    "ios": {
+        "intro": "Your phone can call for help on its own — no app needed. Learn it once; it works even with your screen locked.",
+        "steps": [
+            {"icon": "power-outline", "title": "Find your side button", "body": "It is the button on the right edge of your iPhone."},
+            {"icon": "repeat-outline", "title": "Press it quickly 5 times", "body": "This triggers Emergency SOS, which can call 112 and alert your contacts."},
+            {"icon": "call-outline", "title": "112 connects you", "body": "Police, ambulance and women's help — all on one number, 24x7."},
+            {"icon": "settings-outline", "title": "Turn it on once", "body": "Open Settings → Emergency SOS, and switch on 'Call with Hold and Release' or 'Call with 5 Presses'."},
+        ],
+        "note": "Exact steps vary a little by iOS version.",
+    },
+}
+
+
+@router.get("/women/panic-lesson")
+async def panic_lesson(platform: str = "android"):
+    """A6 — wording is served from the backend settings collection, never
+    hard-coded on-device, so it can be corrected centrally without an app
+    release. Falls back to a sensible default until an admin supplies and
+    overrides the wording via the settings collection (_id: panic_lesson_config)."""
+    doc = await db.settings.find_one({"_id": "panic_lesson_config"})
+    config = (doc or {}).get("config", _PANIC_LESSON_DEFAULT)
+    return config.get(platform, config.get("android", {}))
 
 
 @router.post("/women/admin/flags")

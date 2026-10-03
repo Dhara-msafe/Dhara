@@ -9,6 +9,7 @@ export type Helpline = {
 export type RightsCard = {
   card_id: string; scenario_key: string; language: string; situation: string;
   verdict: string; why: string; law: any[]; do_now: string[]; if_refused: string;
+  original?: { verdict: string; why: string } | null;
   emergency: string | null; evidence_tips: string; release_state: string;
 };
 export type Flags = {
