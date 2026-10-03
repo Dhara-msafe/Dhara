@@ -26,6 +26,33 @@ from fir_storage import init_storage, upload_evidence, download_evidence
 router = APIRouter()
 
 
+async def _get_owned_session(session_id: str, user: Optional[dict], projection: Optional[dict] = None) -> dict:
+    """Fetch a FIR session and enforce ownership (SEC-001 fix, extending the
+    existing P0-Fix1 pattern from /fir/session/{id}/draft repo-wide).
+
+    Anonymous sessions (user_id starts with 'anon-', or empty) are owned by
+    whoever holds the session_id UUID — that UUID is never exposed except
+    through the interview flow itself, so knowledge of it is treated as
+    sufficient proof of ownership (unchanged behaviour for anonymous users,
+    who must not be blocked by a login wall while reporting an incident).
+
+    Sessions created by a real account require the caller to be
+    authenticated AND to match the recorded owner — this is the part that
+    was previously missing on most routes below.
+    """
+    doc = await db.fir_sessions.find_one({"session_id": session_id}, projection or {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Session not found")
+    owner_id: str = doc.get("user_id") or ""
+    is_anon = owner_id.startswith("anon-") or owner_id == ""
+    if not is_anon:
+        if user is None:
+            raise HTTPException(401, "Authentication required")
+        if owner_id != user["id"]:
+            raise HTTPException(403, "Access denied")
+    return doc
+
+
 class FirDraftIn(BaseModel):
     draft_id: Optional[str] = None          # None → create new
     user_id: str
@@ -69,7 +96,7 @@ async def fir_upsert_draft(body: FirDraftIn):
     login wall while reporting an incident). `user_id` may be a real
     logged-in user's id, or a locally-generated anonymous id supplied
     by the frontend for guests."""
-    now = datetime.now(timezone.utc).isoformat()
+    now = _dt.now(timezone.utc).isoformat()
     if body.draft_id:
         doc = await db.fir_drafts.find_one({"id": body.draft_id, "user_id": body.user_id})
         if doc:
@@ -91,7 +118,16 @@ async def fir_upsert_draft(body: FirDraftIn):
 
 
 @router.get("/fir/drafts/{user_id}")
-async def fir_list_drafts(user_id: str, user: dict = Depends(current_user)):
+async def fir_list_drafts(user_id: str, user: Optional[dict] = Depends(current_user_optional)):
+    """List FIR drafts for a user_id. SEC-001 fix: a real user_id requires
+    the caller to be authenticated AND match it; an anon-id is owned by
+    whoever holds that exact (unguessable, UUID-based) id string."""
+    is_anon = user_id.startswith("anon-") or user_id == ""
+    if not is_anon:
+        if user is None:
+            raise HTTPException(401, "Authentication required")
+        if user_id != user["id"]:
+            raise HTTPException(403, "Access denied")
     docs = await db.fir_drafts.find(
         {"user_id": user_id}, {"_id": 0}
     ).sort("updated_at", -1).to_list(50)
@@ -99,10 +135,17 @@ async def fir_list_drafts(user_id: str, user: dict = Depends(current_user)):
 
 
 @router.get("/fir/draft/{draft_id}")
-async def fir_get_draft(draft_id: str, user: dict = Depends(current_user)):
+async def fir_get_draft(draft_id: str, user: Optional[dict] = Depends(current_user_optional)):
     doc = await db.fir_drafts.find_one({"id": draft_id}, {"_id": 0})
     if not doc:
         raise HTTPException(404, "Draft not found")
+    owner_id: str = doc.get("user_id") or ""
+    is_anon = owner_id.startswith("anon-") or owner_id == ""
+    if not is_anon:
+        if user is None:
+            raise HTTPException(401, "Authentication required")
+        if owner_id != user["id"]:
+            raise HTTPException(403, "Access denied")
     return doc
 
 
@@ -183,11 +226,14 @@ async def fir_followup_gone():
 
 
 @router.post("/fir/session")
-async def fir_create_session(body: FirSessionIn):
-    """Create a fresh, blank FIR session (Safety Gate stage)."""
+async def fir_create_session(body: FirSessionIn, user: Optional[dict] = Depends(current_user_optional)):
+    """Create a fresh, blank FIR session (Safety Gate stage).
+    SEC-001 hardening: a logged-in caller cannot attribute a new session to
+    someone else's account — their own id always wins over the body."""
+    owner_id = user["id"] if user else body.user_id
     return await create_session(
         db,
-        user_id=body.user_id,
+        user_id=owner_id,
         language=body.language,
         session_location_start=body.session_location_start,
         incident_type=body.incident_type,
@@ -195,8 +241,9 @@ async def fir_create_session(body: FirSessionIn):
 
 
 @router.post("/fir/session/{session_id}/turn")
-async def fir_session_turn(session_id: str, body: FirTurnIn):
+async def fir_session_turn(session_id: str, body: FirTurnIn, user: Optional[dict] = Depends(current_user_optional)):
     """Process one conversation turn in the FIR interview engine."""
+    await _get_owned_session(session_id, user, {"_id": 0, "user_id": 1})
     # Propagate selectedLanguage into the session on every turn so language changes
     # mid-session are honoured immediately (language sync fix).
     if body.language:
@@ -216,29 +263,28 @@ async def fir_session_turn(session_id: str, body: FirTurnIn):
 
 
 @router.post("/fir/session/{session_id}/gps")
-async def fir_log_gps(session_id: str, body: FirGpsLogIn):
+async def fir_log_gps(session_id: str, body: FirGpsLogIn, user: Optional[dict] = Depends(current_user_optional)):
     """Silently log GPS at session start or end."""
+    await _get_owned_session(session_id, user, {"_id": 0, "user_id": 1})
     gps_data = {"lat": body.lat, "lng": body.lng, "address": body.address or "",
-                "timestamp": datetime.now(timezone.utc).isoformat()}
+                "timestamp": _dt.now(timezone.utc).isoformat()}
     field = "session_location_start" if body.log_type == "start" else "session_location_end"
     await db.fir_sessions.update_one(
         {"session_id": session_id},
-        {"$set": {field: gps_data, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        {"$set": {field: gps_data, "updated_at": _dt.now(timezone.utc).isoformat()}},
     )
     return {"ok": True}
 
 
 @router.post("/fir/session/{session_id}/evidence")
-async def fir_upload_evidence(session_id: str, file: UploadFile = File(...)):
+async def fir_upload_evidence(session_id: str, file: UploadFile = File(...), user: Optional[dict] = Depends(current_user_optional)):
     """Upload one evidence file (max 20 MB). Stored via Emergent Object Storage."""
     MAX_SIZE = 20 * 1024 * 1024
     data = await file.read()
     if len(data) > MAX_SIZE:
         raise HTTPException(413, "File too large — maximum 20 MB per file")
 
-    session = await db.fir_sessions.find_one({"session_id": session_id})
-    if not session:
-        raise HTTPException(404, "Session not found")
+    session = await _get_owned_session(session_id, user)
     if len(session.get("evidence_files", [])) >= 10:
         raise HTTPException(400, "Maximum 10 files per session")
 
@@ -255,18 +301,16 @@ async def fir_upload_evidence(session_id: str, file: UploadFile = File(...)):
     await db.fir_sessions.update_one(
         {"session_id": session_id},
         {"$push": {"evidence_files": meta},
-         "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}},
+         "$set": {"updated_at": _dt.now(timezone.utc).isoformat()}},
     )
     return {"ok": True, "file": meta}
 
 
 @router.get("/fir/session/{session_id}/evidence/{file_id}")
-async def fir_download_evidence(session_id: str, file_id: str):
+async def fir_download_evidence(session_id: str, file_id: str, user: Optional[dict] = Depends(current_user_optional)):
     """Download an evidence file by file_id."""
     from fastapi.responses import Response
-    session = await db.fir_sessions.find_one({"session_id": session_id})
-    if not session:
-        raise HTTPException(404, "Session not found")
+    session = await _get_owned_session(session_id, user)
     ev = next((e for e in session.get("evidence_files", []) if e.get("file_id") == file_id), None)
     if not ev:
         raise HTTPException(404, "File not found")
@@ -275,8 +319,15 @@ async def fir_download_evidence(session_id: str, file_id: str):
 
 
 @router.get("/fir/sessions/{user_id}")
-async def fir_list_sessions(user_id: str):
-    """List all FIR sessions for a user (for pause/resume)."""
+async def fir_list_sessions(user_id: str, user: Optional[dict] = Depends(current_user_optional)):
+    """List all FIR sessions for a user (for pause/resume). SEC-001 fix:
+    a real user_id requires the caller to be authenticated AND match it."""
+    is_anon = user_id.startswith("anon-") or user_id == ""
+    if not is_anon:
+        if user is None:
+            raise HTTPException(401, "Authentication required")
+        if user_id != user["id"]:
+            raise HTTPException(403, "Access denied")
     docs = await db.fir_sessions.find(
         {"user_id": user_id}, {"_id": 0, "narrative_turns": 0}
     ).sort("updated_at", -1).to_list(20)
@@ -284,12 +335,9 @@ async def fir_list_sessions(user_id: str):
 
 
 @router.get("/fir/session/{session_id}")
-async def fir_get_session(session_id: str):
+async def fir_get_session(session_id: str, user: Optional[dict] = Depends(current_user_optional)):
     """Get a FIR session by session_id."""
-    doc = await db.fir_sessions.find_one({"session_id": session_id}, {"_id": 0})
-    if not doc:
-        raise HTTPException(404, "Session not found")
-    return doc
+    return await _get_owned_session(session_id, user)
 
 
 # ── P0-Fix1: Secure draft retrieval — no PII in URL ───────────────────────────
@@ -336,11 +384,12 @@ async def fir_get_session_draft(
 
 # ── v3.3: Pause session ───────────────────────────────────────────────────────
 @router.post("/fir/session/{session_id}/pause")
-async def fir_pause_session(session_id: str):
+async def fir_pause_session(session_id: str, user: Optional[dict] = Depends(current_user_optional)):
     """Mark session as paused (Save & Continue Later)."""
+    await _get_owned_session(session_id, user, {"_id": 0, "user_id": 1})
     result = await db.fir_sessions.update_one(
         {"session_id": session_id},
-        {"$set": {"status": "paused", "updated_at": datetime.now(timezone.utc).isoformat()}},
+        {"$set": {"status": "paused", "updated_at": _dt.now(timezone.utc).isoformat()}},
     )
     if result.matched_count == 0:
         raise HTTPException(404, "Session not found")
@@ -349,12 +398,10 @@ async def fir_pause_session(session_id: str):
 
 # ── v3.3: Back navigation ─────────────────────────────────────────────────────
 @router.post("/fir/session/{session_id}/back")
-async def fir_back_session(session_id: str):
+async def fir_back_session(session_id: str, user: Optional[dict] = Depends(current_user_optional)):
     """Go back one probe step, restoring the previous question and clearing its answer."""
     from fir_engine import PROBE_Q
-    session = await db.fir_sessions.find_one({"session_id": session_id})
-    if not session:
-        raise HTTPException(404, "Session not found")
+    session = await _get_owned_session(session_id, user)
 
     probe_history = list(session.get("probe_history", []))
     if not probe_history:
@@ -376,7 +423,7 @@ async def fir_back_session(session_id: str):
     if current:
         pending.insert(0, current)
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = _dt.now(timezone.utc).isoformat()
     await db.fir_sessions.update_one(
         {"session_id": session_id},
         {"$set": {
@@ -402,12 +449,10 @@ async def fir_back_session(session_id: str):
 
 # ── v3.3: Delete evidence file ────────────────────────────────────────────────
 @router.delete("/fir/session/{session_id}/evidence/{file_id}")
-async def fir_delete_evidence(session_id: str, file_id: str):
+async def fir_delete_evidence(session_id: str, file_id: str, user: Optional[dict] = Depends(current_user_optional)):
     """Remove an evidence file from a session."""
     from fir_storage import delete_evidence as _del_ev
-    session = await db.fir_sessions.find_one({"session_id": session_id})
-    if not session:
-        raise HTTPException(404, "Session not found")
+    session = await _get_owned_session(session_id, user)
     ev_list = session.get("evidence_files", [])
     ev = next((e for e in ev_list if e.get("file_id") == file_id), None)
     if not ev:
@@ -421,7 +466,7 @@ async def fir_delete_evidence(session_id: str, file_id: str):
     await db.fir_sessions.update_one(
         {"session_id": session_id},
         {"$pull": {"evidence_files": {"file_id": file_id}},
-         "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}},
+         "$set": {"updated_at": _dt.now(timezone.utc).isoformat()}},
     )
     return {"ok": True, "deleted_file_id": file_id}
 
@@ -431,11 +476,9 @@ class EvidenceCaptionBody(BaseModel):
     caption: str = ""
 
 @router.patch("/fir/session/{session_id}/evidence/{file_id}/caption")
-async def fir_update_evidence_caption(session_id: str, file_id: str, body: EvidenceCaptionBody):
+async def fir_update_evidence_caption(session_id: str, file_id: str, body: EvidenceCaptionBody, user: Optional[dict] = Depends(current_user_optional)):
     """Save a caption for an evidence file in the session."""
-    session = await db.fir_sessions.find_one({"session_id": session_id})
-    if not session:
-        raise HTTPException(404, "Session not found")
+    session = await _get_owned_session(session_id, user)
     ev_list = session.get("evidence_files", [])
     if not any(e.get("file_id") == file_id for e in ev_list):
         raise HTTPException(404, "Evidence file not found")
@@ -443,7 +486,7 @@ async def fir_update_evidence_caption(session_id: str, file_id: str, body: Evide
         {"session_id": session_id, "evidence_files.file_id": file_id},
         {"$set": {
             "evidence_files.$.caption": body.caption,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": _dt.now(timezone.utc).isoformat(),
         }},
     )
     return {"ok": True, "file_id": file_id, "caption": body.caption}
@@ -451,7 +494,7 @@ async def fir_update_evidence_caption(session_id: str, file_id: str, body: Evide
 
 # ── v3.3: PDF export ──────────────────────────────────────────────────────────
 @router.get("/fir/session/{session_id}/draft.pdf")
-async def fir_get_pdf(session_id: str):
+async def fir_get_pdf(session_id: str, user: Optional[dict] = Depends(current_user_optional)):
     """Generate and return a PDF of the FIR draft."""
     import io
     from reportlab.lib.pagesizes import A4
@@ -460,9 +503,7 @@ async def fir_get_pdf(session_id: str):
     from reportlab.lib.units import cm
     from fastapi.responses import Response as _Resp
 
-    session = await db.fir_sessions.find_one({"session_id": session_id})
-    if not session:
-        raise HTTPException(404, "Session not found")
+    session = await _get_owned_session(session_id, user)
     draft = (session.get("draft") or "").strip()
     if not draft:
         raise HTTPException(400, "No draft generated yet. Please complete the interview first.")
