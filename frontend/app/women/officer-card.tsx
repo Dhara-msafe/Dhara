@@ -42,7 +42,7 @@ export default function OfficerCard() {
             <Text style={styles.big}>I have the right to be heard, and my complaint must be recorded.</Text>
             <View style={styles.pendingChip}><Ionicons name="time-outline" size={14} color={c.navy} /><Text style={styles.pendingTxt}>Detailed law is being advocate-verified</Text></View>
             <Text style={styles.why}>Open DHARA and ask your question to get the exact section and procedure, checked against current law before you see it.</Text>
-            <Pressable style={styles.askBtn} onPress={() => router.push('/ask')}>
+            <Pressable style={styles.askBtn} onPress={() => router.push('/(tabs)')}>
               <Ionicons name="mic" size={18} color={c.navy} />
               <Text style={styles.askTxt}>Ask DHARA now</Text>
             </Pressable>

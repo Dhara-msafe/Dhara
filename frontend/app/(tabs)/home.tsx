@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Pressable, StyleSheet, Image } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, Image, useWindowDimensions, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,8 @@ export default function Home() {
   const lang = language.code;
   const name = user?.name?.split(' ')[0] || tr('me.guest', lang);
   const place = user?.state_name || 'India';
+  const { width } = useWindowDimensions();
+  const isWide = Platform.OS === 'web' && width >= 768;
 
   const journeys = [
     { key: 'j.shield',   sub: 'महिला सुरक्षा', icon: 'shield-half', route: '/women-shield', navy: true, isNew: true },
@@ -32,6 +34,7 @@ export default function Home() {
       <ScrollView contentContainerStyle={{ paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
         {/* ── Navy header ─────────────────────────────── */}
         <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+          {!isWide && (
           <View style={styles.headerRow}>
             <View style={styles.brandRow}>
               <View style={styles.logo}>
@@ -49,6 +52,7 @@ export default function Home() {
               </Pressable>
             </View>
           </View>
+          )}
 
           <Text style={styles.greeting}>{tr('home.greeting', lang)}, {name}</Text>
           <View style={styles.metaRow}>
@@ -67,12 +71,12 @@ export default function Home() {
         <View style={styles.askCard}>
           <Text style={styles.askTitle}>{tr('home.askTitle', lang)}</Text>
           <Text style={styles.askSub}>{tr('home.askSub', lang)}</Text>
-          <Pressable style={styles.micBtn} onPress={() => router.push('/ask')} testID="home-mic">
+          <Pressable style={styles.micBtn} onPress={() => router.push('/(tabs)')} testID="home-mic">
             <Ionicons name="mic" size={40} color={c.navy} />
           </Pressable>
           <Text style={styles.holdTxt}>{tr('home.holdToSpeak', lang)}</Text>
           <View style={styles.askActions}>
-            <Pressable style={styles.askAction} onPress={() => router.push('/ask?mode=type')}>
+            <Pressable style={styles.askAction} onPress={() => router.push('/(tabs)')}>
               <Ionicons name="create-outline" size={18} color={c.navy} />
               <Text style={styles.askActionTxt}>{tr('home.type', lang)}</Text>
             </Pressable>
@@ -83,7 +87,7 @@ export default function Home() {
           </View>
           <Text style={styles.tryLabel}>{tr('home.trySaying', lang).toUpperCase()}</Text>
           {['home.try1', 'home.try2', 'home.try3'].map(k => (
-            <Pressable key={k} style={styles.tryChip} onPress={() => router.push('/ask')}>
+            <Pressable key={k} style={styles.tryChip} onPress={() => router.push('/(tabs)')}>
               <Text style={styles.tryChipTxt}>{tr(k, lang)}</Text>
             </Pressable>
           ))}
@@ -156,7 +160,7 @@ export default function Home() {
             <Text style={{ fontFamily: theme.fonts.bodyBold, color: c.ink }}>{tr('home.verified', lang)} </Text>
             {tr('home.verifiedSub', lang)}
           </Text>
-          <Pressable onPress={() => router.push('/ask')}><Text style={styles.verifiedWhy}>{tr('home.why', lang)}</Text></Pressable>
+          <Pressable onPress={() => router.push('/(tabs)')}><Text style={styles.verifiedWhy}>{tr('home.why', lang)}</Text></Pressable>
         </View>
 
         {/* ── My files preview ─────────────────────────── */}

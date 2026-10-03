@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
+import { speakNative, stopNativeTTS } from '@/src/voice/native-tts';
 
 const c = theme.colors;
 
@@ -15,6 +16,13 @@ export default function ActionPlan() {
   const { language, user } = useAuth();
   const lang = language.code;
   const [answered, setAnswered] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const spoken = 'They must write it down. For a serious, cognizable offence, any police station must record your complaint, even if it happened in another area. This is called a Zero FIR, under BNSS section 173.';
+  const onListen = () => {
+    if (speaking) { stopNativeTTS(); setSpeaking(false); return; }
+    setSpeaking(true);
+    speakNative(spoken, language.code, 'female', () => setSpeaking(false));
+  };
 
   const steps = [
     { n: 1, title: 'Show this to the officer', body: 'A large-text card with the law, in Hindi and English.', btn: 'Open officer card', icon: 'shield-outline', route: '/women/officer-card' },
@@ -29,7 +37,7 @@ export default function ActionPlan() {
       <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <Pressable onPress={() => router.back()} style={styles.iconBtn}><Ionicons name="chevron-back" size={24} color={c.navy} /></Pressable>
         <Text style={styles.headerTitle}>{tr('ap.title', lang)}</Text>
-        <Pressable style={styles.listenPill} onPress={() => {}}><Ionicons name="volume-high" size={20} color={c.darkGold} /></Pressable>
+        <Pressable style={styles.listenPill} onPress={onListen}><Ionicons name={speaking ? 'stop' : 'volume-high'} size={20} color={c.darkGold} /></Pressable>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
@@ -38,7 +46,7 @@ export default function ActionPlan() {
           <View style={styles.chip}><Ionicons name="sparkles" size={13} color={c.darkGold} /><Text style={styles.chipTxt}>Police refusing complaint</Text></View>
           <View style={styles.chip}><Ionicons name="location-outline" size={13} color={c.darkGold} /><Text style={styles.chipTxt}>{user?.state_name || 'India'}</Text></View>
         </View>
-        <Pressable onPress={() => router.push('/ask')}><Text style={styles.notRight}>{tr('ap.notright', lang)}</Text></Pressable>
+        <Pressable onPress={() => router.push('/(tabs)')}><Text style={styles.notRight}>{tr('ap.notright', lang)}</Text></Pressable>
 
         {/* Your right card */}
         <View style={styles.rightCard}>
@@ -50,9 +58,9 @@ export default function ActionPlan() {
             <View style={[styles.badge, styles.badgeGreen]}><Ionicons name="checkmark-circle" size={13} color={c.verifiedGreen} /><Text style={[styles.badgeTxt, { color: c.verifiedGreen }]}>{tr('ap.inforce', lang)}</Text></View>
           </View>
           <View style={styles.verifiedBadge}><Ionicons name="ribbon-outline" size={14} color={c.gold} /><Text style={styles.verifiedBadgeTxt}>{tr('ap.verified', lang)}</Text></View>
-          <Pressable style={styles.listenBtn} onPress={() => {}}>
-            <Ionicons name="volume-high" size={18} color={c.navy} />
-            <Text style={styles.listenBtnTxt}>{tr('ap.listen', lang)} {language.native}</Text>
+          <Pressable style={styles.listenBtn} onPress={onListen}>
+            <Ionicons name={speaking ? 'stop' : 'volume-high'} size={18} color={c.navy} />
+            <Text style={styles.listenBtnTxt}>{speaking ? 'Stop' : tr('ap.listen', lang)} {language.native}</Text>
           </Pressable>
         </View>
 
