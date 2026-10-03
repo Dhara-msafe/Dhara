@@ -1,0 +1,217 @@
+/**
+ * UI strings for the redesigned DHARA shell + Women's Shield.
+ *
+ * Every visible label routes through tr(key, lang) so the WHOLE app switches
+ * language when the user changes it. English is the default and the fallback;
+ * Hindi is complete (matches the design). Other languages fall back to English
+ * until their tables are filled in (tr() handles this gracefully).
+ *
+ * NOTE: all legal substance (section numbers, rights text, helpline numbers)
+ * comes from the backend corpus / service directory — never authored here.
+ */
+type L = { en: string; hi?: string; mr?: string; ta?: string; [k: string]: string | undefined };
+
+export const UI: Record<string, L> = {
+  // ── Bottom navigation ────────────────────────────────────────────
+  'nav.home':    { en: 'Home',     hi: 'होम',       mr: 'होम',      ta: 'முகப்பு' },
+  'nav.rights':  { en: 'Rights',   hi: 'अधिकार',    mr: 'हक्क',     ta: 'உரிமைகள்' },
+  'nav.ask':     { en: 'Ask · पूछें', hi: 'पूछें',  mr: 'विचारा',   ta: 'கேள்' },
+  'nav.myfiles': { en: 'My files', hi: 'मेरी फाइलें', mr: 'माझ्या फायली', ta: 'எனது கோப்புகள்' },
+  'nav.me':      { en: 'Me',       hi: 'मैं',       mr: 'मी',       ta: 'நான்' },
+
+  // ── Global shell ─────────────────────────────────────────────────
+  'shell.help':  { en: 'Help / मदद', hi: 'मदद' },
+  'shell.sos':   { en: 'SOS', hi: 'SOS' },
+  'shell.tagline': { en: 'Your legal rights', hi: 'आपके कानूनी अधिकार', mr: 'तुमचे कायदेशीर हक्क', ta: 'உங்கள் சட்ட உரிமைகள்' },
+
+  // ── Home ─────────────────────────────────────────────────────────
+  'home.greeting':   { en: 'Namaste', hi: 'नमस्ते', mr: 'नमस्कार', ta: 'வணக்கம்' },
+  'home.offline':    { en: 'Offline pack ready', hi: 'ऑफ़लाइन पैक तैयार', mr: 'ऑफलाइन पॅक तयार', ta: 'ஆஃப்லைன் தயார்' },
+  'home.askTitle':   { en: 'Tell DHARA what happened', hi: 'DHARA को बताएं क्या हुआ', mr: 'DHARA ला सांगा काय झाले', ta: 'நடந்ததை DHARA-விடம் கூறுங்கள்' },
+  'home.askSub':     { en: 'Speak — DHARA understands your language', hi: 'बोलिए — DHARA आपकी भाषा समझती है', mr: 'बोला — DHARA तुमची भाषा समजते', ta: 'பேசுங்கள் — DHARA உங்கள் மொழியைப் புரிந்துகொள்கிறது' },
+  'home.holdToSpeak':{ en: 'Hold to speak · any Indian language', hi: 'बोलने के लिए दबाकर रखें · कोई भी भारतीय भाषा', mr: 'बोलण्यासाठी दाबून धरा', ta: 'பேச அழுத்திப் பிடிக்கவும்' },
+  'home.type':       { en: 'Type', hi: 'लिखें', mr: 'टाइप करा', ta: 'தட்டச்சு' },
+  'home.scan':       { en: 'Scan a notice', hi: 'नोटिस स्कैन करें', mr: 'नोटीस स्कॅन करा', ta: 'அறிவிப்பை ஸ்கேன்' },
+  'home.trySaying':  { en: 'Try saying', hi: 'ऐसे कहें', mr: 'असे म्हणा', ta: 'இப்படி சொல்லுங்கள்' },
+  'home.try1':       { en: '“Police won\u2019t write my FIR”', hi: '“पुलिस FIR नहीं लिख रही”' },
+  'home.try2':       { en: '“Landlord won\u2019t return deposit”', hi: '“मकान मालिक जमा नहीं लौटा रहा”' },
+  'home.try3':       { en: '“I lost my passport”', hi: '“मेरा पासपोर्ट खो गया”' },
+  'home.forYou':     { en: 'For you right now', hi: 'अभी आपके लिए', mr: 'आत्ता तुमच्यासाठी', ta: 'இப்போது உங்களுக்காக' },
+  'home.journeys':   { en: 'Help journeys', hi: 'मदद के रास्ते', mr: 'मदतीचे मार्ग', ta: 'உதவி வழிகள்' },
+  'home.journeysSub':{ en: 'Pick one, or just speak', hi: 'एक चुनें, या बस बोलें', mr: 'एक निवडा, किंवा बोला', ta: 'ஒன்றைத் தேர்வுசெய்யவும்' },
+  'home.allHelp':    { en: 'All help', hi: 'सारी मदद', mr: 'सर्व मदत', ta: 'அனைத்து உதவி' },
+  'home.verified':   { en: 'Every answer is checked', hi: 'हर उत्तर जाँचा जाता है', mr: 'प्रत्येक उत्तर तपासले जाते', ta: 'ஒவ்வொரு பதிலும் சரிபார்க்கப்படும்' },
+  'home.verifiedSub':{ en: 'against current Indian law before you hear it.', hi: 'वर्तमान भारतीय कानून के अनुसार, सुनाने से पहले।', mr: 'सध्याच्या भारतीय कायद्यानुसार.', ta: 'தற்போதைய இந்திய சட்டத்தின்படி.' },
+  'home.why':        { en: 'Why?', hi: 'क्यों?', mr: 'का?', ta: 'ஏன்?' },
+  'home.myFiles':    { en: 'My files', hi: 'मेरी फाइलें', mr: 'माझ्या फायली', ta: 'எனது கோப்புகள்' },
+  'home.seeAll':     { en: 'See all', hi: 'सभी देखें', mr: 'सर्व पहा', ta: 'அனைத்தையும்' },
+  'common.new':      { en: 'NEW', hi: 'नया', mr: 'नवीन', ta: 'புதிது' },
+
+  // ── Journey tiles ────────────────────────────────────────────────
+  'j.shield':        { en: 'Women\u2019s Shield', hi: 'महिला सुरक्षा', mr: 'महिला सुरक्षा', ta: 'பெண்கள் கவசம்' },
+  'j.shield.sub':    { en: 'महिला सुरक्षा', hi: 'महिला सुरक्षा' },
+  'j.missing':       { en: 'Missing person', hi: 'गुमशुदा व्यक्ति', mr: 'हरवलेली व्यक्ती', ta: 'காணாமல் போனவர்' },
+  'j.missing.sub':   { en: 'गुमशुदा', hi: 'गुमशुदा' },
+  'j.police':        { en: 'Police & FIR', hi: 'पुलिस और FIR', mr: 'पोलिस आणि FIR', ta: 'காவல் & FIR' },
+  'j.police.sub':    { en: 'पुलिस', hi: 'पुलिस' },
+  'j.visitor':       { en: 'Visitor help', hi: 'पर्यटक सहायता', mr: 'पर्यटक मदत', ta: 'பார்வையாளர் உதவி' },
+  'j.visitor.sub':   { en: 'पर्यटक', hi: 'पर्यटक' },
+  'j.cyber':         { en: 'Cyber fraud', hi: 'साइबर धोखा', mr: 'सायबर फसवणूक', ta: 'சைபர் மோசடி' },
+  'j.cyber.sub':     { en: 'साइबर', hi: 'साइबर' },
+  'j.consumer':      { en: 'Consumer', hi: 'उपभोक्ता', mr: 'ग्राहक', ta: 'நுகர்வோர்' },
+  'j.consumer.sub':  { en: 'उपभोक्ता', hi: 'उपभोक्ता' },
+  'j.voter':         { en: 'Voter help', hi: 'मतदाता सहायता', mr: 'मतदार मदत', ta: 'வாக்காளர் உதவி' },
+  'j.voter.sub':     { en: 'मतदाता', hi: 'मतदाता' },
+
+  // ── All help ─────────────────────────────────────────────────────
+  'all.title':       { en: 'All help', hi: 'सारी मदद', mr: 'सर्व मदत', ta: 'அனைத்து உதவி' },
+  'all.search':      { en: 'Say or type your problem…', hi: 'अपनी समस्या बोलें या लिखें…', mr: 'तुमची समस्या सांगा किंवा लिहा…', ta: 'உங்கள் சிக்கலைச் சொல்லுங்கள்…' },
+  'all.f.all':       { en: 'All', hi: 'सभी', mr: 'सर्व', ta: 'அனைத்தும்' },
+  'all.f.safety':    { en: 'Safety', hi: 'सुरक्षा', mr: 'सुरक्षा', ta: 'பாதுகாப்பு' },
+  'all.f.police':    { en: 'Police & court', hi: 'पुलिस और अदालत', mr: 'पोलिस व न्यायालय', ta: 'காவல் & நீதிமன்றம்' },
+  'all.f.everyday':  { en: 'Everyday', hi: 'रोज़मर्रा', mr: 'रोजचे', ta: 'அன்றாடம்' },
+  'all.sec.safety':  { en: 'SAFETY', hi: 'सुरक्षा', mr: 'सुरक्षा', ta: 'பாதுகாப்பு' },
+  'all.sec.police':  { en: 'POLICE & COURT', hi: 'पुलिस और अदालत', mr: 'पोलिस व न्यायालय', ta: 'காவல் & நீதிமன்றம்' },
+  'all.sec.everyday':{ en: 'EVERYDAY RIGHTS', hi: 'रोज़मर्रा के अधिकार', mr: 'रोजचे हक्क', ta: 'அன்றாட உரிமைகள்' },
+  'all.sec.visitor': { en: 'FOR VISITORS', hi: 'पर्यटकों के लिए', mr: 'पर्यटकांसाठी', ta: 'பார்வையாளர்களுக்கு' },
+  'all.sec.soon':    { en: 'COMING SOON', hi: 'जल्द आ रहा है', mr: 'लवकरच', ta: 'விரைவில்' },
+  'all.soon':        { en: 'Tell me when it\u2019s ready', hi: 'तैयार होने पर बताएं', mr: 'तयार झाल्यावर सांगा', ta: 'தயாரானதும் சொல்லுங்கள்' },
+  'all.shield.sub':  { en: 'Rights, safe journeys, private evidence', hi: 'अधिकार, सुरक्षित यात्रा, निजी सबूत' },
+  'all.missing.sub': { en: 'Report, share poster, next steps', hi: 'रिपोर्ट, पोस्टर, अगले कदम' },
+  'all.emergency':   { en: 'Emergency', hi: 'आपातकाल', mr: 'आणीबाणी', ta: 'அவசரம்' },
+  'all.emergency.sub':{ en: '112 and nearest help', hi: '112 और नज़दीकी मदद' },
+  'all.children':    { en: 'Children', hi: 'बच्चे', mr: 'मुले', ta: 'குழந்தைகள்' },
+  'all.children.sub':{ en: 'Childline 1098, POCSO help', hi: 'चाइल्डलाइन 1098, POCSO मदद' },
+  'all.checkcase':   { en: 'Check my case', hi: 'मेरा केस देखें', mr: 'माझे प्रकरण पहा', ta: 'வழக்கைச் சரிபார்' },
+  'all.checkcase.sub':{ en: 'eCourts status, next date', hi: 'eCourts स्थिति, अगली तारीख' },
+  'all.bail':        { en: 'Bail & hearing', hi: 'ज़मानत और सुनवाई', mr: 'जामीन व सुनावणी', ta: 'ஜாமீன் & விசாரணை' },
+  'all.bail.sub':    { en: 'What happens next', hi: 'आगे क्या होगा' },
+  'all.consumer.sub':{ en: 'Refunds, faulty goods', hi: 'रिफंड, खराब सामान' },
+  'all.rent':        { en: 'Rent & home', hi: 'किराया और घर', mr: 'भाडे व घर', ta: 'வாடகை & வீடு' },
+  'all.rent.sub':    { en: 'Deposit, eviction', hi: 'जमा, बेदखली' },
+  'all.work':        { en: 'Work & wages', hi: 'काम और वेतन', mr: 'काम व वेतन', ta: 'வேலை & ஊதியம்' },
+  'all.work.sub':    { en: 'Unpaid salary, harassment', hi: 'बकाया वेतन, उत्पीड़न' },
+  'all.voter.sub':   { en: 'Name missing, Form 6/8', hi: 'नाम गायब, फॉर्म 6/8' },
+  'all.cyber.sub':   { en: '1930, freeze, report', hi: '1930, फ्रीज़, रिपोर्ट' },
+  'all.intlvisitor': { en: 'International visitor', hi: 'अंतरराष्ट्रीय पर्यटक', mr: 'आंतरराष्ट्रीय पर्यटक', ta: 'சர்வதேச பார்வையாளர்' },
+  'all.intlvisitor.sub': { en: 'Lost passport, FRRO, interpreter', hi: 'खोया पासपोर्ट, FRRO, दुभाषिया' },
+  'all.land':        { en: 'Land records', hi: 'भूमि रिकॉर्ड', mr: 'जमीन नोंदी', ta: 'நில பதிவுகள்' },
+  'all.rti':         { en: 'RTI request', hi: 'RTI अनुरोध', mr: 'RTI विनंती', ta: 'RTI கோரிக்கை' },
+
+  // ── Women's Shield ───────────────────────────────────────────────
+  'ws.title':        { en: 'Women\u2019s Shield', hi: 'महिला सुरक्षा', mr: 'महिला सुरक्षा', ta: 'பெண்கள் கவசம்' },
+  'ws.subtitle':     { en: 'महिला सुरक्षा · मेरे अधिकार', hi: 'महिला सुरक्षा · मेरे अधिकार' },
+  'ws.discreet':     { en: 'Discreet mode is on', hi: 'गुप्त मोड चालू है', mr: 'गुप्त मोड सुरू आहे', ta: 'மறைவு பயன்முறை இயக்கம்' },
+  'ws.discreet.sub': { en: 'Neutral icon, PIN, nothing on the home screen', hi: 'सामान्य आइकन, PIN, होम स्क्रीन पर कुछ नहीं' },
+  'ws.rights':       { en: 'Know your rights', hi: 'अपने अधिकार जानें', mr: 'तुमचे हक्क जाणा', ta: 'உங்கள் உரிமைகளை அறியுங்கள்' },
+  'ws.rights.sub':   { en: 'Two-sentence answers, read aloud', hi: 'दो-पंक्ति उत्तर, बोलकर', mr: 'दोन ओळींची उत्तरे', ta: 'இரு வரி பதில்கள்' },
+  'ws.r.police':     { en: 'Police won\u2019t file', hi: 'पुलिस दर्ज नहीं कर रही' },
+  'ws.r.violence':   { en: 'Violence at home', hi: 'घर में हिंसा' },
+  'ws.r.thrown':     { en: 'Thrown out of home', hi: 'घर से निकाला' },
+  'ws.r.dowry':      { en: 'Dowry demands', hi: 'दहेज की मांग' },
+  'ws.r.work':       { en: 'Harassment at work', hi: 'काम पर उत्पीड़न' },
+  'ws.r.stalking':   { en: 'Stalking & online abuse', hi: 'पीछा करना और ऑनलाइन दुर्व्यवहार' },
+  'ws.r.photos':     { en: 'Private photos leaked', hi: 'निजी तस्वीरें लीक' },
+  'ws.r.assault':    { en: 'After an assault', hi: 'हमले के बाद' },
+  'ws.r.arrested':   { en: 'If a woman is arrested', hi: 'महिला की गिरफ्तारी पर' },
+  'ws.r.children':   { en: 'Children\u2019s safety', hi: 'बच्चों की सुरक्षा' },
+  'ws.tools':        { en: 'Safety tools', hi: 'सुरक्षा उपकरण', mr: 'सुरक्षा साधने', ta: 'பாதுகாப்பு கருவிகள்' },
+  'ws.circle':       { en: 'Trusted circle', hi: 'भरोसेमंद लोग' },
+  'ws.circle.sub':   { en: '2 of 3 people added', hi: '3 में से 2 जोड़े गए' },
+  'ws.manage':       { en: 'Manage', hi: 'प्रबंधन', mr: 'व्यवस्थापन', ta: 'நிர்வகி' },
+  'ws.checkin':      { en: 'Safe-journey check-in', hi: 'सुरक्षित-यात्रा चेक-इन' },
+  'ws.checkin.sub':  { en: 'Alerts your circle if you don\u2019t arrive', hi: 'न पहुंचने पर आपके लोगों को सूचना' },
+  'ws.locker':       { en: 'Evidence locker', hi: 'सबूत लॉकर' },
+  'ws.locker.sub':   { en: '3 items · sealed · works offline', hi: '3 आइटम · सील · ऑफ़लाइन' },
+  'ws.open':         { en: 'Open', hi: 'खोलें', mr: 'उघडा', ta: 'திற' },
+  'ws.code':         { en: 'Code phrase', hi: 'गुप्त वाक्य' },
+  'ws.code.sub':     { en: 'An ordinary sentence that opens help', hi: 'एक सामान्य वाक्य जो मदद खोलता है' },
+  'ws.setup':        { en: 'Set up', hi: 'सेट करें', mr: 'सेट करा', ta: 'அமை' },
+  'ws.talk':         { en: 'Talk to someone', hi: 'किसी से बात करें', mr: 'कोणाशी बोला', ta: 'யாரிடமாவது பேசுங்கள்' },
+  'ws.talk.sub':     { en: 'Tap to call — DHARA picks the right one for you', hi: 'कॉल करने के लिए दबाएं — DHARA सही नंबर चुनती है' },
+  'ws.plan':         { en: 'My safety plan', hi: 'मेरी सुरक्षा योजना' },
+  'ws.plan.sub':     { en: 'Answer 8 questions at your own pace. Nothing is shared unless you choose.', hi: '8 सवालों के जवाब अपनी गति से दें। जब तक आप न चाहें, कुछ साझा नहीं होता।' },
+  'ws.start':        { en: 'Start', hi: 'शुरू करें', mr: 'सुरू करा', ta: 'தொடங்கு' },
+  'hl.emergency':    { en: 'Emergency', hi: 'आपातकाल' },
+  'hl.women':        { en: 'Women', hi: 'महिला' },
+  'hl.ncw':          { en: 'NCW', hi: 'NCW' },
+  'hl.cyber':        { en: 'Cyber', hi: 'साइबर' },
+  'hl.legalaid':     { en: 'Legal aid', hi: 'कानूनी सहायता' },
+  'hl.talk':         { en: 'Talk', hi: 'बातचीत' },
+
+  // ── Emergency ────────────────────────────────────────────────────
+  'em.danger':       { en: 'YOU MAY BE IN DANGER', hi: 'आप खतरे में हो सकते हैं', mr: 'तुम्ही धोक्यात असू शकता', ta: 'நீங்கள் ஆபத்தில் இருக்கலாம்' },
+  'em.quickexit':    { en: 'Quick exit', hi: 'तुरंत बाहर', mr: 'त्वरित बाहेर', ta: 'விரைவு வெளியேறு' },
+  'em.tapcall':      { en: 'Tap to call', hi: 'कॉल करने के लिए दबाएं', mr: 'कॉल करण्यासाठी दाबा', ta: 'அழைக்க தட்டவும்' },
+  'em.oneNumber':    { en: 'Police · ambulance · women\u2019s help — one number', hi: 'पुलिस · एम्बुलेंस · महिला मदद — एक नंबर' },
+  'em.silent':       { en: 'Silent alert', hi: 'मौन अलर्ट' },
+  'em.silent.sub':   { en: 'Location to my circle', hi: 'मेरे लोगों को लोकेशन' },
+  'em.record':       { en: 'Record now', hi: 'अभी रिकॉर्ड करें' },
+  'em.record.sub':   { en: 'Works without network', hi: 'बिना नेटवर्क काम करता है' },
+  'em.officer':      { en: 'Officer card', hi: 'अधिकारी कार्ड' },
+  'em.officer.sub':  { en: 'Show my rights', hi: 'मेरे अधिकार दिखाएं' },
+  'em.nearest':      { en: 'Nearest help', hi: 'नज़दीकी मदद' },
+  'em.nearest.sub':  { en: 'Police 1.2 km · OSC 3.4 km', hi: 'पुलिस 1.2 किमी · OSC 3.4 किमी' },
+  'em.powerTip':     { en: 'Even with DHARA closed: press your phone\u2019s power button 3 times to call 112.', hi: 'DHARA बंद होने पर भी: 112 कॉल करने के लिए पावर बटन 3 बार दबाएं।' },
+  'em.safe':         { en: 'I\u2019m safe now', hi: 'अब मैं सुरक्षित हूँ', mr: 'आता मी सुरक्षित आहे', ta: 'இப்போது நான் பாதுகாப்பாக இருக்கிறேன்' },
+
+  // ── Listening ────────────────────────────────────────────────────
+  'listen.auto':     { en: 'auto', hi: 'स्वतः' },
+  'listen.listening':{ en: 'LISTENING… release when done', hi: 'सुन रहे हैं… पूरा होने पर छोड़ें' },
+  'listen.weheard':  { en: 'WE HEARD', hi: 'हमने सुना' },
+  'listen.yes':      { en: 'Yes, that\u2019s right', hi: 'हाँ, सही है', mr: 'होय, बरोबर', ta: 'ஆம், சரி' },
+  'listen.edit':     { en: 'Edit', hi: 'संपादित', mr: 'संपादन', ta: 'திருத்து' },
+  'listen.again':    { en: 'Say again', hi: 'फिर कहें', mr: 'पुन्हा सांगा', ta: 'மீண்டும்' },
+  'listen.notstored':{ en: 'Your voice is not stored', hi: 'आपकी आवाज़ संग्रहीत नहीं होती' },
+  'listen.hold':     { en: 'Hold the mic and speak', hi: 'माइक दबाकर बोलें' },
+
+  // ── Action plan ──────────────────────────────────────────────────
+  'ap.title':        { en: 'Your action plan', hi: 'आपकी कार्य योजना', mr: 'तुमची कृती योजना', ta: 'உங்கள் செயல் திட்டம்' },
+  'ap.notright':     { en: 'Not right?', hi: 'सही नहीं?', mr: 'बरोबर नाही?', ta: 'சரியில்லையா?' },
+  'ap.yourright':    { en: 'YOUR RIGHT', hi: 'आपका अधिकार', mr: 'तुमचा हक्क', ta: 'உங்கள் உரிமை' },
+  'ap.inforce':      { en: 'In force', hi: 'लागू', mr: 'लागू', ta: 'அமலில்' },
+  'ap.verified':     { en: 'Advocate verified', hi: 'अधिवक्ता सत्यापित' },
+  'ap.listen':       { en: 'Listen', hi: 'सुनें', mr: 'ऐका', ta: 'கேள்' },
+  'ap.question':     { en: 'ONE QUICK QUESTION', hi: 'एक छोटा सवाल', mr: 'एक छोटा प्रश्न', ta: 'ஒரு கேள்வி' },
+  'ap.yes':          { en: 'Yes', hi: 'हाँ', mr: 'होय', ta: 'ஆம்' },
+  'ap.no':           { en: 'No', hi: 'नहीं', mr: 'नाही', ta: 'இல்லை' },
+  'ap.skip':         { en: 'Skip', hi: 'छोड़ें', mr: 'वगळा', ta: 'தவிர்' },
+  'ap.whattodo':     { en: 'What to do now', hi: 'अब क्या करें', mr: 'आता काय करावे', ta: 'இப்போது என்ன செய்வது' },
+  'ap.save':         { en: 'Save to My files (private)', hi: 'मेरी फाइलों में सहेजें (निजी)' },
+  'ap.checkedOn':    { en: 'Checked against current law on', hi: 'वर्तमान कानून के अनुसार जाँचा गया' },
+  'ap.notlawyer':    { en: 'This is legal information, not a lawyer\u2019s advice.', hi: 'यह कानूनी जानकारी है, वकील की सलाह नहीं।' },
+
+  // ── My files ─────────────────────────────────────────────────────
+  'mf.title':        { en: 'My files', hi: 'मेरी फाइलें', mr: 'माझ्या फायली', ta: 'எனது கோப்புகள்' },
+  'mf.pin':          { en: 'PIN protected', hi: 'PIN सुरक्षित', mr: 'PIN संरक्षित', ta: 'PIN பாதுகாப்பு' },
+  'mf.active':       { en: 'Active', hi: 'सक्रिय', mr: 'सक्रिय', ta: 'செயலில்' },
+  'mf.evidence':     { en: 'Evidence', hi: 'सबूत', mr: 'पुरावा', ta: 'ஆதாரம்' },
+  'mf.documents':    { en: 'Documents', hi: 'दस्तावेज़', mr: 'कागदपत्रे', ta: 'ஆவணங்கள்' },
+  'mf.ontrack':      { en: 'On track', hi: 'सही राह पर' },
+  'mf.namedby':      { en: 'Named by you', hi: 'आपके द्वारा नामित' },
+  'mf.step':         { en: 'Step', hi: 'चरण', mr: 'पायरी', ta: 'படி' },
+  'mf.nextstep':     { en: 'NEXT STEP', hi: 'अगला कदम', mr: 'पुढील पायरी', ta: 'அடுத்த படி' },
+  'mf.due':          { en: 'DUE IN 3 DAYS', hi: '3 दिन में', mr: '3 दिवसांत', ta: '3 நாட்களில்' },
+  'mf.draftit':      { en: 'Draft it', hi: 'मसौदा बनाएं' },
+  'mf.remind':       { en: 'Remind me', hi: 'याद दिलाएं' },
+  'mf.empty':        { en: 'No files yet', hi: 'अभी कोई फाइल नहीं' },
+  'mf.emptySub':     { en: 'Start a help journey and DHARA keeps it here, private and PIN-protected.', hi: 'मदद शुरू करें — DHARA इसे यहाँ निजी और PIN-सुरक्षित रखती है।' },
+
+  // ── Me / profile ─────────────────────────────────────────────────
+  'me.title':        { en: 'Me', hi: 'मैं', mr: 'मी', ta: 'நான்' },
+  'me.guest':        { en: 'Guest', hi: 'अतिथि', mr: 'पाहुणा', ta: 'விருந்தினர்' },
+  'me.language':     { en: 'Language', hi: 'भाषा', mr: 'भाषा', ta: 'மொழி' },
+  'me.state':        { en: 'State', hi: 'राज्य', mr: 'राज्य', ta: 'மாநிலம்' },
+  'me.history':      { en: 'Chat history', hi: 'चैट इतिहास', mr: 'गप्पा इतिहास', ta: 'அரட்டை வரலாறு' },
+  'me.saved':        { en: 'Saved answers', hi: 'सहेजे उत्तर', mr: 'जतन उत्तरे', ta: 'சேமித்த பதில்கள்' },
+  'me.advocate':     { en: 'Advocates', hi: 'अधिवक्ता', mr: 'वकील', ta: 'வழக்கறிஞர்' },
+  'me.settings':     { en: 'Settings', hi: 'सेटिंग्स', mr: 'सेटिंग्ज', ta: 'அமைப்புகள்' },
+  'me.signout':      { en: 'Sign out', hi: 'साइन आउट', mr: 'साइन आउट', ta: 'வெளியேறு' },
+};
+
+/** Translate a UI key for the given language code. Falls back to English. */
+export function tr(key: string, lang: string): string {
+  const m = UI[key];
+  if (!m) return key;
+  return (m as any)[lang] ?? m.en ?? key;
+}

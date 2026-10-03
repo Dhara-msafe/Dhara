@@ -9,6 +9,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PostHogProvider, usePostHog } from "posthog-react-native";
 
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
+import { useAppFonts } from "@/src/hooks/use-app-fonts";
 import { AuthProvider, useAuth } from "@/src/auth";
 import { consentVersionKey, isCurrentConsent } from "@/src/consentStorage";
 import { theme } from "@/src/theme";
@@ -144,7 +145,10 @@ function AnalyticsIdentitySync() {
 }
 
 export default function RootLayout() {
-  const [loaded, error] = useIconFonts();
+  const [iconsLoaded, iconError] = useIconFonts();
+  const [brandLoaded, brandError] = useAppFonts();
+  const loaded = iconsLoaded && brandLoaded;
+  const error = iconError || brandError;
   // Safety net: never block app boot forever on a font fetch. If icons
   // haven't resolved within 4s (e.g. a stalled network request), render the
   // app anyway — icons repaint themselves the instant the font does arrive,

@@ -1,176 +1,251 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { setStatusBarStyle } from 'expo-status-bar';
+import { View, Text, ScrollView, Pressable, StyleSheet, Image } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
-import { trackEvent } from '@/src/analytics';
-import { ComplaintsList } from '@/src/home/ComplaintsList';
-import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
-import { MarqueeBanner } from '@/src/components/MarqueeBanner';
-import { ConsentPublicHelp } from '@/src/components/ConsentPublicHelp';
-import { consentCopy } from '@/src/consentCopy';
+import { useAuth } from '@/src/auth';
+import { tr } from '@/src/ui18n';
+import { SosPill } from '@/src/components/dhara/SosPill';
 
-const colors = theme.colors;
+const c = theme.colors;
+
 export default function Home() {
-  const { user, language } = useAuth();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [emergency, setEmergency] = useState(false);
-  const [question, setQuestion] = useState('');
-  const openChat = (voice = false) => {
-    router.push({ pathname: '/(tabs)', params: { draft: question, entry: String(Date.now()), voiceHint: voice ? '1' : '' } });
-    setQuestion('');
-  };
-  const entrance = useRef(new Animated.Value(0)).current;
-  useEffect(() => { Animated.timing(entrance, { toValue: 1, duration: 280, useNativeDriver: true }).start(); }, [entrance]);
-  useFocusEffect(useCallback(() => { setStatusBarStyle('light'); return () => setStatusBarStyle('dark'); }, []));
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-  const firstName = user?.name?.trim().split(/\s+/)[0] || 'there';
-  const help = [
-    { id: 'rights', label: 'Know Your\nRights', icon: 'shield-checkmark-outline' as const, action: () => { trackEvent('quick_help_tap', { card_type: 'rights', language: language.code }); router.push('/(tabs)/rights'); } },
-    { id: 'advocate', label: 'Find an\nAdvocate', icon: 'call-outline' as const, action: () => { trackEvent('quick_help_tap', { card_type: 'advocate', language: language.code }); router.push('/(tabs)/advocate'); } },
-    { id: 'emergency', label: 'Emergency\nHelplines', icon: 'shield-outline' as const, action: () => { trackEvent('quick_help_tap', { card_type: 'emergency', language: language.code }); setEmergency(true); } },
+  const { user, language } = useAuth();
+  const lang = language.code;
+  const name = user?.name?.split(' ')[0] || tr('me.guest', lang);
+  const place = user?.state_name || 'India';
+
+  const journeys = [
+    { key: 'j.shield',   sub: 'महिला सुरक्षा', icon: 'shield-half', route: '/women-shield', navy: true, isNew: true },
+    { key: 'j.missing',  sub: 'गुमशुदा',      icon: 'people-outline', route: '/missing' },
+    { key: 'j.police',   sub: 'पुलिस',        icon: 'ribbon-outline', route: '/fir-draft' },
+    { key: 'j.visitor',  sub: 'पर्यटक',       icon: 'globe-outline', route: '/visitor' },
+    { key: 'j.cyber',    sub: 'साइबर',        icon: 'desktop-outline', route: '/fraud-checklist' },
+    { key: 'j.consumer', sub: 'उपभोक्ता',     icon: 'cart-outline', route: '/all-help' },
+    { key: 'j.voter',    sub: 'मतदाता',       icon: 'checkbox-outline', route: '/(tabs)/voter-roll' },
+    { key: 'home.allHelp', sub: 'सारी मदद',   icon: 'apps-outline', route: '/all-help', allHelp: true },
   ];
-  return <SafeAreaView style={styles.safe} edges={['top']} testID="home-screen">
-    <View testID="home-header" style={styles.header}>
-      <Image source={require('../../assets/images/dhara_icon.png')} style={styles.logo} resizeMode="contain" />
-      <View testID="home-brand-wrap" style={styles.brandWrap}><Text testID="home-brand" style={styles.brand} numberOfLines={1} adjustsFontSizeToFit>Dhara</Text><Text testID="home-tagline" style={styles.tagline}>YOUR LEGAL RIGHTS</Text></View>
-      <Pressable testID="home-pro-chip" accessibilityRole="button" accessibilityLabel={user?.is_pro ? 'Manage Dhara Pro' : 'View Dhara Pro'} style={styles.proChip} onPress={() => router.push('/upgrade')}><View style={styles.proChipBadge}><Ionicons name="star" size={12} color={colors.onGold} /><Text testID="home-pro-label" style={styles.proChipText}>Pro</Text></View></Pressable>
-      <Pressable testID="home-language" accessibilityRole="button" accessibilityLabel="Change language" style={styles.language} onPress={() => router.push({ pathname: '/language', params: { from: 'home' } })}>
-        <Ionicons name="globe-outline" size={15} color={colors.onBrandPrimary} /><Text testID="home-language-label" style={styles.languageText} numberOfLines={1}>{language.code.toUpperCase()}</Text>
-      </Pressable>
-      <Pressable testID="home-profile" accessibilityRole="button" accessibilityLabel="Your profile" style={styles.profile} onPress={() => router.push('/(tabs)/settings')}><Ionicons name="person-outline" size={20} color={colors.onBrandPrimary} /></Pressable>
+
+  return (
+    <View style={styles.root}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
+        {/* ── Navy header ─────────────────────────────── */}
+        <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+          <View style={styles.headerRow}>
+            <View style={styles.brandRow}>
+              <View style={styles.logo}>
+                <Ionicons name="shield-checkmark" size={22} color={c.gold} />
+              </View>
+              <View>
+                <Text style={styles.brand}>DHARA</Text>
+                <Text style={styles.tagline}>धारा · {tr('shell.tagline', lang)}</Text>
+              </View>
+            </View>
+            <View style={styles.headerActions}>
+              <Pressable style={styles.langPill} onPress={() => router.push('/language')}>
+                <Ionicons name="globe-outline" size={14} color="#fff" />
+                <Text style={styles.langTxt} numberOfLines={1}>{language.native}</Text>
+              </Pressable>
+              <SosPill />
+            </View>
+          </View>
+
+          <Text style={styles.greeting}>{tr('home.greeting', lang)}, {name}</Text>
+          <View style={styles.metaRow}>
+            <View style={styles.metaChip}>
+              <Ionicons name="location-outline" size={13} color="#fff" />
+              <Text style={styles.metaTxt}>{place}</Text>
+            </View>
+            <View style={styles.metaChip}>
+              <Ionicons name="checkmark-circle-outline" size={13} color="#fff" />
+              <Text style={styles.metaTxt}>{tr('home.offline', lang)}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* ── Ask card ─────────────────────────────────── */}
+        <View style={styles.askCard}>
+          <Text style={styles.askTitle}>{tr('home.askTitle', lang)}</Text>
+          <Text style={styles.askSub}>{tr('home.askSub', lang)}</Text>
+          <Pressable style={styles.micBtn} onPress={() => router.push('/ask')} testID="home-mic">
+            <Ionicons name="mic" size={40} color={c.navy} />
+          </Pressable>
+          <Text style={styles.holdTxt}>{tr('home.holdToSpeak', lang)}</Text>
+          <View style={styles.askActions}>
+            <Pressable style={styles.askAction} onPress={() => router.push('/ask?mode=type')}>
+              <Ionicons name="create-outline" size={18} color={c.navy} />
+              <Text style={styles.askActionTxt}>{tr('home.type', lang)}</Text>
+            </Pressable>
+            <Pressable style={styles.askAction} onPress={() => router.push('/ask?mode=scan')}>
+              <Ionicons name="camera-outline" size={18} color={c.navy} />
+              <Text style={styles.askActionTxt}>{tr('home.scan', lang)}</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.tryLabel}>{tr('home.trySaying', lang).toUpperCase()}</Text>
+          {['home.try1', 'home.try2', 'home.try3'].map(k => (
+            <Pressable key={k} style={styles.tryChip} onPress={() => router.push('/ask')}>
+              <Text style={styles.tryChipTxt}>{tr(k, lang)}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {/* ── For you right now ────────────────────────── */}
+        <View style={styles.section}>
+          <View style={styles.sectionTitleRow}>
+            <Ionicons name="sparkles" size={18} color={c.darkGold} />
+            <Text style={styles.sectionTitle}>{tr('home.forYou', lang)}</Text>
+          </View>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelf}>
+          <View style={[styles.forYouCard, { backgroundColor: c.navy }]}>
+            <View style={styles.forYouTag}>
+              <Ionicons name="time-outline" size={13} color={c.gold} />
+              <Text style={styles.forYouTagTxt}>FILE #2</Text>
+            </View>
+            <Text style={styles.forYouTitle}>Your next step is due in 3 days</Text>
+            <Text style={styles.forYouBody}>Collect your medical report. I can draft the request for you.</Text>
+            <Pressable style={styles.goldBtn} onPress={() => router.push('/(tabs)/myfiles')}>
+              <Text style={styles.goldBtnTxt}>Review</Text>
+            </Pressable>
+          </View>
+          <View style={[styles.forYouCard, styles.forYouCardLight]}>
+            <View style={styles.forYouTag}>
+              <Ionicons name="navigate-outline" size={13} color={c.darkGold} />
+              <Text style={[styles.forYouTagTxt, { color: c.darkGold }]}>TONIGHT</Text>
+            </View>
+            <Text style={[styles.forYouTitle, { color: c.ink }]}>Heading out?</Text>
+            <Text style={[styles.forYouBody, { color: c.muted }]}>Start a safe-journey check-in with your trusted circle.</Text>
+            <Pressable style={styles.navyBtn} onPress={() => router.push('/women-shield')}>
+              <Text style={styles.navyBtnTxt}>Start</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+
+        {/* ── Help journeys ────────────────────────────── */}
+        <View style={styles.section}>
+          <View style={styles.rowBetween}>
+            <View>
+              <Text style={styles.h2}>{tr('home.journeys', lang)}</Text>
+              <Text style={styles.h2sub}>{tr('home.journeysSub', lang)}</Text>
+            </View>
+            <Pressable onPress={() => router.push('/all-help')}>
+              <Text style={styles.link}>{tr('home.allHelp', lang)}</Text>
+            </Pressable>
+          </View>
+          <View style={styles.grid}>
+            {journeys.map(j => (
+              <Pressable
+                key={j.key}
+                style={[styles.tile, j.navy && styles.tileNavy]}
+                onPress={() => router.push(j.route as any)}
+                testID={`journey-${j.key}`}
+              >
+                {j.isNew && <View style={styles.newBadge}><Text style={styles.newTxt}>{tr('common.new', lang)}</Text></View>}
+                <Ionicons name={j.icon as any} size={26} color={j.navy ? c.gold : c.navy} />
+                <Text style={[styles.tileTitle, j.navy && { color: '#fff' }]} numberOfLines={2}>{tr(j.key, lang)}</Text>
+                <Text style={[styles.tileSub, j.navy && { color: c.onNavyMuted }]} numberOfLines={1}>{j.sub}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        {/* ── Verified strip ───────────────────────────── */}
+        <View style={styles.verified}>
+          <Ionicons name="checkmark-circle" size={20} color={c.verifiedGreen} />
+          <Text style={styles.verifiedTxt}>
+            <Text style={{ fontFamily: theme.fonts.bodyBold, color: c.ink }}>{tr('home.verified', lang)} </Text>
+            {tr('home.verifiedSub', lang)}
+          </Text>
+          <Pressable onPress={() => router.push('/ask')}><Text style={styles.verifiedWhy}>{tr('home.why', lang)}</Text></Pressable>
+        </View>
+
+        {/* ── My files preview ─────────────────────────── */}
+        <View style={styles.section}>
+          <View style={styles.rowBetween}>
+            <Text style={styles.h2}>{tr('home.myFiles', lang)}</Text>
+            <Pressable onPress={() => router.push('/(tabs)/myfiles')}><Text style={styles.link}>{tr('home.seeAll', lang)}</Text></Pressable>
+          </View>
+          <Pressable style={styles.fileCard} onPress={() => router.push('/(tabs)/myfiles')}>
+            <View style={styles.fileIcon}><Ionicons name="lock-closed-outline" size={20} color={c.darkGold} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.fileTitle}>File #2</Text>
+              <Text style={styles.fileSub}>{tr('mf.step', lang)} 2 of 6 · updated 27 Sep</Text>
+              <View style={styles.progressTrack}><View style={[styles.progressFill, { width: '33%' }]} /></View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={c.onSurfaceTertiary} />
+          </Pressable>
+        </View>
+      </ScrollView>
     </View>
-    <MarqueeBanner variant="dark" />
-    <KeyboardAvoidingView style={styles.scroll} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    <ScrollView testID="home-scroll" style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Animated.View testID="home-content" style={{ opacity: entrance, transform: [{ translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] }}>
-        <View testID="home-greeting-panel" style={styles.greeting}><Text testID="home-greeting" style={styles.greetingText}>{greeting}, {firstName}</Text></View>
-        <Text testID="home-quick-help-heading" style={styles.sectionTitle}>QUICK HELP</Text>
-        <View style={styles.helpRow}>{help.map((item, i) => <Pressable key={item.id} testID={`home-help-${item.id}`} accessibilityRole="button" onPress={item.action} style={({ pressed }) => [styles.helpCard, pressed && styles.pressed]}>
-          <View style={[styles.helpIcon, i === 1 ? styles.goldIcon : i === 2 ? styles.greenIcon : null]}><Ionicons name={item.icon} size={24} color={i === 1 ? colors.brandSecondary : i === 2 ? colors.success : colors.primary} /></View>
-          <Text style={styles.helpLabel}>{item.label}</Text>
-        </Pressable>)}</View>
-
-        {/* ── Someone is Missing — Emergency Card ───────────────────────── */}
-        <Pressable
-          testID="home-missing-person"
-          accessibilityRole="button"
-          style={({ pressed }) => [styles.missingCard, pressed && styles.pressed]}
-          onPress={() => router.push('/missing')}
-        >
-          <View style={styles.missingLeft}>
-            <Ionicons name="alert-circle" size={23} color={colors.error} />
-            <View>
-              <Text style={styles.missingTitle}>
-                {language.code === 'hi'
-                  ? 'कोई लापता है'
-                  : language.code === 'mr'
-                  ? 'कोणी बेपत्ता आहे'
-                  : 'Someone is missing'}
-              </Text>
-              <Text style={styles.missingSub}>
-                {language.code === 'hi'
-                  ? 'शिकायत तैयार करें'
-                  : language.code === 'mr'
-                  ? 'तक्रार तयार करा'
-                  : 'Prepare written complaint'}
-              </Text>
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.error} />
-        </Pressable>
-
-        {/* ── International Visitor entry ───────────────────────────────── */}
-        <Pressable
-          testID="home-visitor-mode"
-          accessibilityRole="button"
-          style={({ pressed }) => [styles.visitorCard, pressed && styles.pressed]}
-          onPress={() => router.push('/visitor')}
-        >
-          <View style={styles.missingLeft}>
-            <Text style={styles.visitorFlag}>🌍</Text>
-            <View>
-              <Text style={styles.visitorTitle}>International Visitor?</Text>
-              <Text style={styles.missingSub}>Lost passport · Emergency help · Speak For Me</Text>
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.primary} />
-        </Pressable>
-        <View style={styles.sectionRow}><Text testID="home-complaints-heading" style={styles.sectionTitle}>YOUR COMPLAINTS</Text>
-          <Pressable testID="home-see-all" accessibilityRole="button" style={styles.seeAll} onPress={() => router.push('/(tabs)/complaints')}><Text style={styles.link}>See all →</Text></Pressable>
-        </View>
-        <ComplaintsList />
-        <Text testID="home-ask-heading" style={[styles.sectionTitle, styles.askHeading]}>ASK YOUR LEGAL QUESTION</Text>
-        <View testID="home-ask-row" style={styles.askRow}>
-          <TextInput testID="home-question-input" accessibilityLabel={`Ask in ${language.native}`} style={styles.askInput} placeholder={`Ask in ${language.native}…`} placeholderTextColor={colors.onSurfaceTertiary} value={question} onChangeText={setQuestion} returnKeyType="go" onSubmitEditing={() => openChat()} />
-          <Pressable testID="home-ask-action" accessibilityRole="button" accessibilityLabel={question.trim() ? 'Open question in Ask AI' : 'Open voice chat'} style={styles.askButton} onPress={() => openChat(!question.trim())}><Ionicons name={question.trim() ? 'arrow-forward' : 'mic'} size={22} color={colors.onGold} /></Pressable>
-        </View>
-        <View style={styles.disclaimer}><DisclaimerBanner testID="home-legal-disclaimer" /></View>
-      </Animated.View>
-    </ScrollView>
-    </KeyboardAvoidingView>
-    <ConsentPublicHelp mode={emergency ? 'emergency' : null} onClose={() => setEmergency(false)} copy={{ ...consentCopy.en, back: 'Back to Home' }} />
-  </SafeAreaView>;
+  );
 }
+
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.primary },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 12 },
-  logo: { width: 34, height: 34 },
-  brandWrap: { flex: 1, minWidth: 0, flexShrink: 1 },
-  brand: { color: colors.onBrandPrimary, fontWeight: '800', fontSize: 22, letterSpacing: 0.2 },
-  tagline: { color: colors.onNavyMuted, fontSize: 7, lineHeight: 12, letterSpacing: 0.3 },
-  proChip: { minWidth: 48, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  proChipBadge: { flexDirection: 'row', gap: 3, alignItems: 'center', backgroundColor: colors.gold, borderRadius: 16, paddingHorizontal: 9, paddingVertical: 6 },
-  proChipText: { fontSize: 12, color: colors.onGold, fontWeight: '800' },
-  language: { flexDirection: 'row', gap: 5, alignItems: 'center', backgroundColor: colors.navyOverlay, paddingHorizontal: 10, minHeight: 44, borderRadius: 24, maxWidth: 118 },
-  languageText: { color: colors.onBrandPrimary, fontSize: 12, fontWeight: '600', flexShrink: 1 },
-  profile: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.navyOverlay, borderRadius: 22 },
-  scroll: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 18, paddingBottom: 28, width: '100%', maxWidth: 640, alignSelf: 'center' },
-  greeting: { backgroundColor: colors.primaryMid, borderRadius: 14, paddingHorizontal: 18, paddingVertical: 14, marginBottom: 14 },
-  greetingText: { color: colors.onBrandPrimary, fontSize: 12, fontWeight: '700', letterSpacing: 0.6, textTransform: 'uppercase' },
-  sectionTitle: { fontSize: 11, lineHeight: 16, fontWeight: '600', letterSpacing: 1, color: colors.onSurfaceTertiary },
-  helpRow: { flexDirection: 'row', gap: 10, marginTop: 10, marginBottom: 10 },
-  helpCard: { flex: 1, alignItems: 'center', backgroundColor: colors.surface, paddingVertical: 10, paddingHorizontal: 4, gap: 5, minHeight: 84, borderRadius: 12, borderWidth: 1, borderColor: colors.divider },
-  helpIcon: { width: 40, height: 40, borderRadius: 11, backgroundColor: colors.navySoft, alignItems: 'center', justifyContent: 'center' },
-  goldIcon: { backgroundColor: colors.goldSoft },
-  greenIcon: { backgroundColor: colors.successSoft },
-  helpLabel: { color: colors.onSurface, fontSize: 11, lineHeight: 16, fontWeight: '600', textAlign: 'center' },
-  missingCard: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: colors.surface, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
-    marginBottom: 4, borderWidth: 1, borderColor: colors.divider,
-  },
-  visitorCard: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: colors.navySoft, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
-    marginBottom: 4, borderWidth: 1.5, borderColor: colors.primary + '33',
-  },
-  visitorFlag:  { fontSize: 22, marginRight: 2 },
-  visitorTitle: { fontSize: 14, fontWeight: '700', color: colors.primary },
-  missingLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  missingTitle: { fontSize: 14, fontWeight: '700', color: colors.error },
-  missingSub:   { fontSize: 11, color: colors.onSurfaceTertiary, marginTop: 2 },
-  sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2, marginBottom: 4 },
-  seeAll: { minHeight: 44, minWidth: 44, alignItems: 'flex-end', justifyContent: 'center' },
-  link: { color: colors.primary, fontSize: 12, fontWeight: '700' },
-  complaintActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  newComplaint: { minHeight: 44, flexDirection: 'row', gap: 7, justifyContent: 'center', alignItems: 'center', marginVertical: 8 },
-  pro: { backgroundColor: colors.primary, borderRadius: 18, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 24 },
-  proTextWrap: { flex: 1 },
-  proTitle: { fontSize: 16, fontWeight: '700', color: colors.onBrandPrimary },
-  proSub: { fontSize: 12, lineHeight: 18, color: colors.onNavyMuted, marginTop: 4 },
-  proBadge: { padding: 8, minWidth: 76, borderRadius: 12, backgroundColor: colors.gold, alignItems: 'center' },
-  proBadgeTitle: { color: colors.onGold, fontWeight: '800', fontSize: 13 },
-  proBadgeCaption: { color: colors.onGold, fontSize: 10, marginTop: 2 },
-  pressed: { opacity: 0.75 },
-  askHeading: { marginTop: 18, marginBottom: 10 },
-  askRow: { backgroundColor: colors.surface, borderRadius: 14, padding: 10, paddingLeft: 14, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.divider },
-  askInput: { flex: 1, minWidth: 0, minHeight: 44, fontSize: 15, color: colors.onSurface },
-  askButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.gold, alignItems: 'center', justifyContent: 'center' },
-  disclaimer: { marginTop: 16, borderRadius: 10, overflow: 'hidden' },
+  root: { flex: 1, backgroundColor: c.background },
+  header: { backgroundColor: c.navy, paddingHorizontal: 20, paddingBottom: 54, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  logo: { width: 44, height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: c.gold, alignItems: 'center', justifyContent: 'center' },
+  brand: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 24, letterSpacing: 1 },
+  tagline: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 11 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  langPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 12, height: 40, borderRadius: 999, maxWidth: 92 },
+  langTxt: { color: '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 13 },
+  greeting: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 26, marginTop: 18 },
+  metaRow: { flexDirection: 'row', gap: 10, marginTop: 12, flexWrap: 'wrap' },
+  metaChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
+  metaTxt: { color: '#fff', fontFamily: theme.fonts.bodyMedium, fontSize: 12 },
+
+  askCard: { backgroundColor: c.surface, marginHorizontal: 16, marginTop: -36, borderRadius: 24, padding: 22, alignItems: 'center', shadowColor: c.shadow, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 1, shadowRadius: 16, elevation: 4 },
+  askTitle: { fontFamily: theme.fonts.displayBold, fontSize: 24, color: c.ink, textAlign: 'center' },
+  askSub: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, textAlign: 'center', marginTop: 4 },
+  micBtn: { width: 110, height: 110, borderRadius: 55, backgroundColor: c.gold, alignItems: 'center', justifyContent: 'center', marginVertical: 20, shadowColor: c.darkGold, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 6 },
+  holdTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.ink },
+  askActions: { flexDirection: 'row', gap: 12, marginTop: 18, width: '100%' },
+  askAction: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: c.lines, borderRadius: 14, paddingVertical: 14 },
+  askActionTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 15, color: c.navy },
+  tryLabel: { alignSelf: 'flex-start', fontFamily: theme.fonts.bodyBold, fontSize: 11, color: c.onSurfaceTertiary, letterSpacing: 1, marginTop: 20, marginBottom: 8 },
+  tryChip: { alignSelf: 'flex-start', backgroundColor: c.surfaceSecondary, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, marginBottom: 8 },
+  tryChipTxt: { fontFamily: theme.fonts.body, fontSize: 14, color: c.ink },
+
+  section: { paddingHorizontal: 20, marginTop: 24 },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sectionTitle: { fontFamily: theme.fonts.displayBold, fontSize: 22, color: c.ink },
+  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 14 },
+  h2: { fontFamily: theme.fonts.displayBold, fontSize: 22, color: c.ink },
+  h2sub: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, marginTop: 2 },
+  link: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.navy },
+
+  shelf: { paddingHorizontal: 20, paddingTop: 14, gap: 14 },
+  forYouCard: { width: 280, borderRadius: 20, padding: 18, justifyContent: 'space-between', minHeight: 170 },
+  forYouCardLight: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines },
+  forYouTag: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  forYouTagTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 11, color: c.gold, letterSpacing: 1 },
+  forYouTitle: { fontFamily: theme.fonts.displayBold, fontSize: 19, color: '#fff' },
+  forYouBody: { fontFamily: theme.fonts.body, fontSize: 13, color: c.onNavyMuted, marginTop: 6, marginBottom: 12 },
+  goldBtn: { backgroundColor: c.gold, borderRadius: 12, paddingVertical: 11, alignItems: 'center', alignSelf: 'flex-start', paddingHorizontal: 24 },
+  goldBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.navy },
+  navyBtn: { backgroundColor: c.navy, borderRadius: 12, paddingVertical: 11, alignItems: 'center', alignSelf: 'flex-start', paddingHorizontal: 24 },
+  navyBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: '#fff' },
+
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
+  tile: { width: '47%', backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.lines, padding: 16, gap: 6, minHeight: 112 },
+  tileNavy: { backgroundColor: c.navy, borderColor: c.navy },
+  tileTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink, marginTop: 4 },
+  tileSub: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted },
+  newBadge: { position: 'absolute', top: 12, right: 12, backgroundColor: c.goldSoft, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
+  newTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 9, color: c.darkGold, letterSpacing: 0.5 },
+
+  verified: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.successSoft, marginHorizontal: 20, marginTop: 24, borderRadius: 14, padding: 14 },
+  verifiedTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18 },
+  verifiedWhy: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.verifiedGreen, textDecorationLine: 'underline' },
+
+  fileCard: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.lines, padding: 16 },
+  fileIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: c.goldMuted, alignItems: 'center', justifyContent: 'center' },
+  fileTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.ink },
+  fileSub: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 2 },
+  progressTrack: { height: 6, borderRadius: 3, backgroundColor: c.surfaceTertiary, marginTop: 8, overflow: 'hidden' },
+  progressFill: { height: 6, borderRadius: 3, backgroundColor: c.gold },
 });

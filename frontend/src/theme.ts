@@ -1,58 +1,94 @@
-/** Shared navy / white / gold palette. Dark gold is reserved for text on white. */
+/**
+ * DHARA design system — navy / gold / cream (Emmy UI Redesign tokens).
+ * Fraunces = display serif, Hind = body (Latin + Devanagari).
+ * Existing keys are preserved (remapped to the new palette) so older screens
+ * keep working; new screens use the semantic names (navy, cream, gold, ink…).
+ */
 export const theme = {
   colors: {
-    surface: '#FFFFFF',
-    onSurface: '#111827',
-    surfaceSecondary: '#F3F4F6',
-    background: '#F3F3F8',
-    onSurfaceSecondary: '#374151',
-    surfaceTertiary: '#E8EBF0',
-    onSurfaceTertiary: '#4B5563',
-    surfaceInverse: '#1A3F74',
+    // ── Core surfaces ──────────────────────────────────────────────
+    background: '#FBF7EE',       // cream app background
+    surface: '#FFFFFF',          // white cards
+    surfaceSecondary: '#F4EFE3', // soft cream chip
+    surfaceTertiary: '#EFE8D8',
+    onSurface: '#17212B',        // ink
+    onSurfaceSecondary: '#505B68', // muted text
+    onSurfaceTertiary: '#6B7682',
+    surfaceInverse: '#14365A',
     onSurfaceInverse: '#FFFFFF',
-    brand: '#1A3F74',
-    brandPrimary: '#1A3F74',
+
+    // ── Brand navy ─────────────────────────────────────────────────
+    navy: '#14365A',
+    deepNavy: '#0E2740',
+    brand: '#14365A',
+    brandPrimary: '#14365A',
     onBrandPrimary: '#FFFFFF',
-    brandSecondary: '#9A6E00',
+    brandSecondary: '#7A5B17',
     onBrandSecondary: '#FFFFFF',
-    brandTertiary: '#22518D',
+    brandTertiary: '#1D4A78',
     onBrandTertiary: '#FFFFFF',
-    gold: '#EDD060',
-    goldSoft: '#FBF0B2',
-    goldMuted: '#FDFAE8',
-    onGold: '#1A3F74',
-    onNavyMuted: '#DCE4F0',
-    navySoft: '#EAF0F7',
+    primary: '#14365A',
+    primaryMid: '#1D4A78',
+
+    // ── Gold ───────────────────────────────────────────────────────
+    gold: '#D3B675',
+    goldSoft: '#EADFC2',
+    goldMuted: '#F6EFDD',
+    darkGold: '#7A5B17',
+    onGold: '#14365A',
+    accent: '#D3B675',
+    accentDark: '#7A5B17',
+
+    // ── On-navy helpers ────────────────────────────────────────────
+    onNavyMuted: '#C7D2E0',
+    navySoft: '#E7EDF4',
     navyOverlay: 'rgba(255,255,255,0.12)',
-    shadow: 'rgba(26,63,116,0.10)',
-    accent: '#EDD060',
-    accentDark: '#D4A830',
-    primary: '#1A3F74',
-    primaryMid: '#22518D',
-    success: '#2D6A4F',
-    successSoft: '#EDF8F2',
-    warning: '#896A12',
-    error: '#B91C1C',
-    info: '#22518D',
-    border: '#D1D5DB',
-    borderStrong: '#9CA3AF',
-    divider: '#E5E7EB',
+    shadow: 'rgba(14,39,64,0.12)',
+
+    // ── Status ─────────────────────────────────────────────────────
+    cream: '#FBF7EE',
+    ink: '#17212B',
+    muted: '#505B68',
+    lines: '#E7DFCC',
+    success: '#1F6B4A',
+    successSoft: '#E7F1EB',
+    verifiedGreen: '#1F6B4A',
+    warning: '#7A5B17',
+    error: '#B42318',
+    emergencyRed: '#B42318',
+    emergencyDeep: '#7A160F',
+    info: '#1D4A78',
+
+    // ── Borders ────────────────────────────────────────────────────
+    border: '#E7DFCC',
+    borderStrong: '#D8CCB0',
+    divider: '#EFE8D8',
   },
-  // Compatibility aliases for existing auth, FIR, and legal document screens.
+  // Compatibility aliases for auth / FIR / legal document screens.
   dhara: {
-    navy: '#1A3F74',
-    navyLight: '#22518D',
-    gold: '#EDD060',
-    goldDark: '#896A12',
-    cream: '#F3F4F6',
-    textPrimary: '#1A3F74',
-    textSecondary: '#4A5A6E',
+    navy: '#14365A',
+    navyLight: '#1D4A78',
+    gold: '#D3B675',
+    goldDark: '#7A5B17',
+    cream: '#FBF7EE',
+    textPrimary: '#14365A',
+    textSecondary: '#505B68',
     textOnNavy: '#FFFFFF',
-    textOnNavyMuted: '#DCE4F0',
+    textOnNavyMuted: '#C7D2E0',
   },
   spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 },
-  radius: { sm: 6, md: 12, lg: 20, pill: 999 },
+  radius: { sm: 8, md: 14, lg: 20, xl: 28, pill: 999 },
   fonts: {
-    display: 'serif', displayRegular: 'serif', body: 'System', bodyMedium: 'System', bodyBold: 'System',
+    // display = Fraunces serif
+    display: 'FrauncesSemiBold',
+    displayRegular: 'Fraunces',
+    displayBold: 'FrauncesBold',
+    displayBlack: 'FrauncesBlack',
+    // body = Hind
+    body: 'Hind',
+    bodyMedium: 'HindMedium',
+    bodySemiBold: 'HindSemiBold',
+    bodyBold: 'HindBold',
+    bodyLight: 'HindLight',
   },
 } as const;

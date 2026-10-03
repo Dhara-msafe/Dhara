@@ -1,49 +1,88 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { theme } from '../theme';
+import { useAuth } from '../auth';
+import { tr } from '../ui18n';
 import { DisclaimerBanner } from './DisclaimerBanner';
 
-const colors = theme.colors;
-const TABS = [
-  { name: 'home',        label: 'Home',     icon: 'home-outline',         activeIcon: 'home',          testID: 'tab-home' },
-  { name: 'rights',      label: 'Rights',   icon: 'shield-outline',       activeIcon: 'shield',        testID: 'tab-rights' },
-  { name: 'index',       label: 'Ask AI',   icon: 'chatbubble-outline',   activeIcon: 'chatbubble-outline', testID: 'tab-chat' },
-  { name: 'complaints',  label: 'Complaints', icon: 'document-text-outline', activeIcon: 'document-text', testID: 'tab-complaints' },
-  { name: 'discover',    label: 'Lookup',   icon: 'search-outline',       activeIcon: 'search',        testID: 'tab-lookup' },
-] as const;
+const c = theme.colors;
+
+type Slot = { name: string; key: string; icon: any; activeIcon: any };
+const LEFT: Slot[] = [
+  { name: 'home',   key: 'nav.home',   icon: 'home-outline',   activeIcon: 'home' },
+  { name: 'rights', key: 'nav.rights', icon: 'book-outline',   activeIcon: 'book' },
+];
+const RIGHT: Slot[] = [
+  { name: 'myfiles', key: 'nav.myfiles', icon: 'folder-outline', activeIcon: 'folder' },
+  { name: 'me',      key: 'nav.me',      icon: 'person-outline', activeIcon: 'person' },
+];
 
 export function AppTabBar({ state, navigation }: BottomTabBarProps) {
-  return <View testID="app-bottom-navigation" style={styles.wrap}>
-    {state.routes[state.index].name !== 'home' && <DisclaimerBanner />}
-    <View style={styles.tabs}>
-      {TABS.map(tab => {
-        const route = state.routes.find(r => r.name === tab.name);
-        if (!route) return null;
-        const focused = state.routes[state.index].key === route.key;
-        const ask = tab.name === 'index';
-        return <Pressable key={tab.name} testID={tab.testID} accessibilityRole="tab" aria-selected={focused} accessibilityState={{ selected: focused }} accessibilityLabel={tab.label}
-          style={({ pressed }) => [styles.tab, pressed && styles.pressed]}
-          onPress={() => {
-            const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-            if (!focused && !event.defaultPrevented) navigation.navigate(route.name, route.params);
-          }} onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}>
-          <View testID={ask ? 'ask-ai-fab' : undefined} style={ask ? styles.askCircle : styles.icon}>
-            <Ionicons name={focused ? tab.activeIcon : tab.icon} size={ask ? 26 : 22} color={ask ? colors.onGold : focused ? colors.primary : colors.onSurfaceTertiary} />
+  const router = useRouter();
+  const { language } = useAuth();
+  const lang = language.code;
+  const activeName = state.routes[state.index].name;
+
+  const renderTab = (slot: Slot) => {
+    const route = state.routes.find(r => r.name === slot.name);
+    if (!route) return null;
+    const focused = state.routes[state.index].key === route.key;
+    return (
+      <Pressable
+        key={slot.name}
+        testID={`tab-${slot.name}`}
+        accessibilityRole="tab"
+        accessibilityState={{ selected: focused }}
+        accessibilityLabel={tr(slot.key, lang)}
+        style={({ pressed }) => [styles.tab, pressed && { opacity: 0.65 }]}
+        onPress={() => {
+          const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+          if (!focused && !event.defaultPrevented) navigation.navigate(route.name, route.params as any);
+        }}
+      >
+        <Ionicons name={focused ? slot.activeIcon : slot.icon} size={24} color={focused ? c.navy : c.onSurfaceTertiary} />
+        <Text style={[styles.label, focused && styles.labelActive]} numberOfLines={1}>{tr(slot.key, lang)}</Text>
+      </Pressable>
+    );
+  };
+
+  return (
+    <View testID="app-bottom-navigation" style={styles.wrap}>
+      {activeName !== 'home' && <DisclaimerBanner />}
+      <View style={styles.tabs}>
+        {LEFT.map(renderTab)}
+        {/* Raised gold Ask mic */}
+        <Pressable
+          testID="tab-ask"
+          accessibilityRole="button"
+          accessibilityLabel={tr('nav.ask', lang)}
+          style={styles.askSlot}
+          onPress={() => router.push('/ask')}
+        >
+          <View style={styles.askCircle}>
+            <Ionicons name="mic" size={26} color={c.navy} />
           </View>
-          <Text style={[styles.label, focused && styles.activeLabel]}>{tab.label}</Text>
-        </Pressable>;
-      })}
+          <Text style={styles.askLabel} numberOfLines={1}>{tr('nav.ask', lang)}</Text>
+        </Pressable>
+        {RIGHT.map(renderTab)}
+      </View>
     </View>
-  </View>;
+  );
 }
+
 const styles = StyleSheet.create({
-  wrap: { backgroundColor: colors.surface, flexShrink: 0 },
-  tabs: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 4, paddingTop: 6, paddingBottom: 10, borderTopWidth: 1, borderColor: colors.divider },
-  tab: { flex: 1, minHeight: 58, justifyContent: 'flex-end', alignItems: 'center', gap: 5, paddingHorizontal: 2 },
-  icon: { minHeight: 30, alignItems: 'center', justifyContent: 'center' },
-  askCircle: { width: 54, height: 54, borderRadius: 27, backgroundColor: colors.gold, borderWidth: 3, borderColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginTop: -16 },
-  label: { color: colors.onSurfaceTertiary, fontSize: 10, lineHeight: 15, fontWeight: '500', textAlign: 'center' },
-  activeLabel: { color: colors.primary, fontWeight: '800' },
-  pressed: { opacity: 0.65 },
+  wrap: { backgroundColor: c.surface, flexShrink: 0 },
+  tabs: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 4, paddingTop: 8, paddingBottom: 8, borderTopWidth: 1, borderColor: c.lines },
+  tab: { flex: 1, minHeight: 52, justifyContent: 'flex-end', alignItems: 'center', gap: 4, paddingHorizontal: 2 },
+  label: { color: c.onSurfaceTertiary, fontSize: 11, lineHeight: 15, fontFamily: theme.fonts.bodyMedium, textAlign: 'center' },
+  labelActive: { color: c.navy, fontFamily: theme.fonts.bodyBold },
+  askSlot: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
+  askCircle: {
+    width: 60, height: 60, borderRadius: 30, backgroundColor: c.gold,
+    borderWidth: 4, borderColor: c.surface, alignItems: 'center', justifyContent: 'center', marginTop: -26,
+    shadowColor: c.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 8, elevation: 8,
+  },
+  askLabel: { color: c.navy, fontSize: 11, lineHeight: 15, fontFamily: theme.fonts.bodyBold, textAlign: 'center' },
 });
