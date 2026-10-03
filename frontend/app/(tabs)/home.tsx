@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
+import { useComplaints, isDraftReady, complaintTitle, complaintProgress } from '@/src/home/complaints';
 
 const c = theme.colors;
 
@@ -17,6 +18,22 @@ export default function Home() {
   const place = user?.state_name || 'India';
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === 'web' && width >= 768;
+
+  // Real case data — same source as the old Complaints screen
+  // (GET /api/fir/sessions/:user_id) — replaces the hardcoded "File #2" sample.
+  const { items: cases, loading: casesLoading } = useComplaints();
+  const activeCase = cases.find((i) => !isDraftReady(i));
+  const readyCase = !activeCase ? cases.find((i) => isDraftReady(i)) : undefined;
+  const primaryCase = activeCase || readyCase || null;
+  const primaryProgress = primaryCase ? complaintProgress(primaryCase) : null;
+  const openCase = (item: typeof primaryCase) => {
+    if (!item) return;
+    router.push(
+      isDraftReady(item)
+        ? ({ pathname: '/fir-draft/result', params: { sessionId: item.session_id } } as any)
+        : ({ pathname: '/fir-draft', params: { resumeId: item.session_id } } as any),
+    );
+  };
 
   const journeys = [
     { key: 'j.shield',   sub: 'महिला सुरक्षा', icon: 'shield-half', route: '/women-shield', navy: true, isNew: true },
@@ -101,17 +118,33 @@ export default function Home() {
           </View>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelf}>
-          <View style={[styles.forYouCard, { backgroundColor: c.navy }]}>
-            <View style={styles.forYouTag}>
-              <Ionicons name="time-outline" size={13} color={c.gold} />
-              <Text style={styles.forYouTagTxt}>FILE #2</Text>
+          {primaryCase && primaryProgress ? (
+            <View style={[styles.forYouCard, { backgroundColor: c.navy }]}>
+              <View style={styles.forYouTag}>
+                <Ionicons name="time-outline" size={13} color={c.gold} />
+                <Text style={styles.forYouTagTxt}>
+                  {isDraftReady(primaryCase) ? 'DRAFT READY' : `STEP ${primaryProgress.step} OF ${primaryProgress.total}`}
+                </Text>
+              </View>
+              <Text style={styles.forYouTitle} numberOfLines={2}>{complaintTitle(primaryCase)}</Text>
+              <Text style={styles.forYouBody} numberOfLines={2}>{primaryProgress.label}</Text>
+              <Pressable style={styles.goldBtn} onPress={() => openCase(primaryCase)} testID="foryou-case-cta">
+                <Text style={styles.goldBtnTxt}>{isDraftReady(primaryCase) ? 'View draft' : 'Continue'}</Text>
+              </Pressable>
             </View>
-            <Text style={styles.forYouTitle}>Your next step is due in 3 days</Text>
-            <Text style={styles.forYouBody}>Collect your medical report. I can draft the request for you.</Text>
-            <Pressable style={styles.goldBtn} onPress={() => router.push('/(tabs)/myfiles')}>
-              <Text style={styles.goldBtnTxt}>Review</Text>
-            </Pressable>
-          </View>
+          ) : !casesLoading ? (
+            <View style={[styles.forYouCard, { backgroundColor: c.navy }]}>
+              <View style={styles.forYouTag}>
+                <Ionicons name="add-circle-outline" size={13} color={c.gold} />
+                <Text style={styles.forYouTagTxt}>GET STARTED</Text>
+              </View>
+              <Text style={styles.forYouTitle}>Start your first case</Text>
+              <Text style={styles.forYouBody}>Tell DHARA what happened — we’ll help you draft a complaint, step by step.</Text>
+              <Pressable style={styles.goldBtn} onPress={() => router.push('/fir-draft')} testID="foryou-start-case">
+                <Text style={styles.goldBtnTxt}>Start</Text>
+              </Pressable>
+            </View>
+          ) : null}
           <View style={[styles.forYouCard, styles.forYouCardLight]}>
             <View style={styles.forYouTag}>
               <Ionicons name="navigate-outline" size={13} color={c.darkGold} />
@@ -169,15 +202,32 @@ export default function Home() {
             <Text style={styles.h2}>{tr('home.myFiles', lang)}</Text>
             <Pressable onPress={() => router.push('/(tabs)/myfiles')}><Text style={styles.link}>{tr('home.seeAll', lang)}</Text></Pressable>
           </View>
-          <Pressable style={styles.fileCard} onPress={() => router.push('/(tabs)/myfiles')}>
-            <View style={styles.fileIcon}><Ionicons name="lock-closed-outline" size={20} color={c.darkGold} /></View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.fileTitle}>File #2</Text>
-              <Text style={styles.fileSub}>{tr('mf.step', lang)} 2 of 6 · updated 27 Sep</Text>
-              <View style={styles.progressTrack}><View style={[styles.progressFill, { width: '33%' }]} /></View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={c.onSurfaceTertiary} />
-          </Pressable>
+          {primaryCase && primaryProgress ? (
+            <Pressable style={styles.fileCard} onPress={() => router.push('/(tabs)/myfiles')} testID="home-myfiles-preview">
+              <View style={styles.fileIcon}><Ionicons name="lock-closed-outline" size={20} color={c.darkGold} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fileTitle} numberOfLines={1}>{complaintTitle(primaryCase)}</Text>
+                <Text style={styles.fileSub}>
+                  {isDraftReady(primaryCase) ? 'Draft ready' : `${primaryProgress.label} · Step ${primaryProgress.step} of ${primaryProgress.total}`}
+                </Text>
+                {!isDraftReady(primaryCase) && (
+                  <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${(primaryProgress.step / primaryProgress.total) * 100}%` }]} />
+                  </View>
+                )}
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={c.onSurfaceTertiary} />
+            </Pressable>
+          ) : (
+            <Pressable style={styles.fileCard} onPress={() => router.push('/fir-draft')} testID="home-myfiles-empty">
+              <View style={styles.fileIcon}><Ionicons name="add-outline" size={20} color={c.darkGold} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fileTitle}>{casesLoading ? 'Loading your cases…' : 'No cases yet'}</Text>
+                <Text style={styles.fileSub}>{casesLoading ? ' ' : 'Tap to start your first complaint'}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={c.onSurfaceTertiary} />
+            </Pressable>
+          )}
         </View>
       </ScrollView>
     </View>

@@ -1,10 +1,14 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { API_BASE, useAuth } from '../auth';
 
+export type EvidenceFile = {
+  file_id: string; filename: string; file_type?: string; content_type?: string;
+  caption?: string; size?: number;
+};
 export type Complaint = {
   session_id: string; stage: string; status: string; incident_types?: string[];
-  updated_at?: string; created_at?: string; draft?: string;
+  updated_at?: string; created_at?: string; draft?: string; evidence_files?: EvidenceFile[];
 };
 export const isDraftReady = (item: Complaint) => item.stage === 'completed' || item.status === 'completed';
 export const complaintTitle = (item: Complaint) => item.incident_types?.length
@@ -46,4 +50,29 @@ export function useComplaints() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, token, attempt]));
   return { items, loading, error, retry: () => setAttempt(v => v + 1) };
+}
+
+// Same data source as useComplaints(), but refetches on a plain mount/dependency
+// change instead of react-navigation focus events. useFocusEffect requires being
+// inside a navigator *screen* — components that sit above the Stack (e.g. the
+// desktop shell's persistent right rail) have no screen-focus context to attach
+// to, so they must use this variant instead.
+export function useComplaintsPassive() {
+  const { user, token } = useAuth();
+  const [items, setItems] = useState<Complaint[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    if (!user?.id || !token) { setItems([]); setLoading(false); return; }
+    let active = true;
+    const controller = new AbortController();
+    setLoading(true);
+    void fetch(`${API_BASE}/api/fir/sessions/${encodeURIComponent(user.id)}`, {
+      headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
+    }).then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(data => { if (active && Array.isArray(data)) setItems(data.filter(item => item.status !== 'cancelled')); })
+      .catch(() => {})
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; controller.abort(); };
+  }, [user?.id, token]);
+  return { items, loading };
 }

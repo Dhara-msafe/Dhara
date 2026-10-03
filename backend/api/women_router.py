@@ -123,6 +123,10 @@ def _card_public(doc: dict) -> dict:
         "emergency": doc.get("emergency"),
         "evidence_tips": _strip_prohibited(doc.get("evidence_tips", "")),
         "translation": doc.get("translation", {}),
+        # Set only when this card's text was actually machine-translated for the
+        # request — lets an English-reading officer read the original alongside
+        # the citizen's own-language verdict (C-task: Bilingual Officer Card).
+        "original": doc.get("original"),
         "release_state": doc.get("release_state", "DRAFT"),
         "verified_by": doc.get("verified_by"),
         "version": doc.get("version", 1),
@@ -180,6 +184,7 @@ async def _translate_card(doc: dict, lang: str) -> dict:
                 merged[k] = cached[k]
         if isinstance(cached.get("do_now"), list) and cached["do_now"]:
             merged["do_now"] = cached["do_now"]
+        merged["original"] = {"verdict": doc.get("verdict", ""), "why": doc.get("why", "")}
         return merged
     if not EMERGENT_LLM_KEY:
         return doc

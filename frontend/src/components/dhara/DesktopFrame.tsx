@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'expo-router';
 import { theme } from '../../theme';
 import { useAuth } from '../../auth';
 import { tr } from '../../ui18n';
+import { useComplaintsPassive, isDraftReady, complaintTitle, complaintProgress } from '../../home/complaints';
 
 const c = theme.colors;
 
@@ -19,6 +20,22 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user, language } = useAuth();
   const lang = language.code;
+
+  // Same real case data as the Home shelf / My Files — keeps the rail in
+  // sync instead of showing its own hardcoded sample.
+  const { items: cases } = useComplaintsPassive();
+  const activeCase = cases.find((i) => !isDraftReady(i));
+  const readyCase = !activeCase ? cases.find((i) => isDraftReady(i)) : undefined;
+  const railCase = activeCase || readyCase || null;
+  const railProgress = railCase ? complaintProgress(railCase) : null;
+  const openRailCase = () => {
+    if (!railCase) { router.push('/fir-draft'); return; }
+    router.push(
+      isDraftReady(railCase)
+        ? ({ pathname: '/fir-draft/result', params: { sessionId: railCase.session_id } } as any)
+        : ({ pathname: '/fir-draft', params: { resumeId: railCase.session_id } } as any),
+    );
+  };
 
   const nav: NavItem[] = [
     { label: tr('nav.home', lang), icon: 'home-outline', route: '/(tabs)/home', match: 'home' },
@@ -115,9 +132,19 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
       <ScrollView style={styles.rail} contentContainerStyle={{ padding: 20, gap: 16 }} showsVerticalScrollIndicator={false}>
         <View style={styles.railCard}>
           <View style={styles.railTag}><Ionicons name="sparkles" size={13} color={c.darkGold} /><Text style={styles.railTagTxt}>{tr('home.forYou', lang).toUpperCase()}</Text></View>
-          <Text style={styles.railTitle}>Your next step is due in 3 days</Text>
-          <Text style={styles.railBody}>Collect your medical report. DHARA can draft the request for you.</Text>
-          <Pressable style={styles.railBtn} onPress={() => router.push('/(tabs)/myfiles')}><Text style={styles.railBtnTxt}>Review</Text></Pressable>
+          {railCase && railProgress ? (
+            <>
+              <Text style={styles.railTitle} numberOfLines={2}>{complaintTitle(railCase)}</Text>
+              <Text style={styles.railBody}>{isDraftReady(railCase) ? 'Your complaint draft is ready to review.' : railProgress.label}</Text>
+              <Pressable style={styles.railBtn} onPress={openRailCase}><Text style={styles.railBtnTxt}>{isDraftReady(railCase) ? 'View draft' : 'Continue'}</Text></Pressable>
+            </>
+          ) : (
+            <>
+              <Text style={styles.railTitle}>Start your first case</Text>
+              <Text style={styles.railBody}>Tell DHARA what happened — we’ll help you draft a complaint, step by step.</Text>
+              <Pressable style={styles.railBtn} onPress={openRailCase}><Text style={styles.railBtnTxt}>Start</Text></Pressable>
+            </>
+          )}
         </View>
 
         <View style={[styles.railCard, { backgroundColor: c.navy }]}>
