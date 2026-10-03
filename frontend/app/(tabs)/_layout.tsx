@@ -1,9 +1,10 @@
 import { Tabs, useRouter } from 'expo-router';
 import { View, Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEffect } from 'react';
 import { theme } from '@/src/theme';
 import { AppTabBar } from '@/src/components/AppTabBar';
+import { SosPill } from '@/src/components/dhara/SosPill';
 import { useAuth } from '@/src/auth';
 import { addNotificationTapListener } from '@/src/push';
 
@@ -15,6 +16,7 @@ import { addNotificationTapListener } from '@/src/push';
 export default function TabsLayout() {
   const { token, loading } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (loading) return;
@@ -57,6 +59,12 @@ export default function TabsLayout() {
           <Tabs.Screen name="settings" options={hidden} />
           <Tabs.Screen name="history" options={hidden} />
         </Tabs>
+        {/* Global persistent SOS — always visible on every tab screen, never
+            scrolls away (fixes "SOS is hidden"). Emergency help on every screen
+            per the brief. */}
+        <View style={[styles.sosOverlay, { top: insets.top + 10 }]} pointerEvents="box-none">
+          <SosPill />
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -65,4 +73,5 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.background },
   content: { flex: 1, minHeight: 0 },
+  sosOverlay: { position: 'absolute', right: 16, zIndex: 50 },
 });

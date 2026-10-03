@@ -105,7 +105,7 @@ export default function MyFiles() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
-  headRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: 72 },
   title: { fontFamily: theme.fonts.displayBold, fontSize: 28, color: c.ink },
   pin: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.goldMuted, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
   pinTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.darkGold },

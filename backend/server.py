@@ -143,11 +143,15 @@ from api.chat_router     import router as chat_router
 from api.fir_router      import router as fir_router
 from api.visitor_router  import router as visitor_router
 from api.journeys_router import router as journeys_router
+from api.women_router    import router as women_router
+from api.scan_router     import router as scan_router
 api.include_router(auth_router)
 api.include_router(chat_router)
 api.include_router(fir_router)
 api.include_router(visitor_router)
 api.include_router(journeys_router)
+api.include_router(women_router)
+api.include_router(scan_router)
 
 # ---------------------------------------------------------------------------
 # Build-only fix (live prod bug, 2025-06 — stale-client JSON error):
@@ -1445,6 +1449,17 @@ async def _startup():
         await db.journeys.create_index("is_active")
     except Exception as e:
         logger.warning(f"[startup] journeys index creation warning: {e}")
+
+    # Women's Shield Sprint A — ensure indexes exist (idempotent)
+    try:
+        await db.rights_cards.create_index([("scenario_key", 1), ("language", 1)], unique=True)
+        await db.rights_cards.create_index("release_state")
+        await db.service_directory.create_index("service_id", unique=True)
+        await db.service_directory.create_index("categories")
+        await db.service_directory.create_index("active")
+        await db.women_audit.create_index("ts")
+    except Exception as e:
+        logger.warning(f"[startup] women shield index creation warning: {e}")
 
     # Fire-and-forget: initialise Emergent Object Storage for evidence uploads
     asyncio.create_task(_init_fir_storage())

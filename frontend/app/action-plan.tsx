@@ -17,7 +17,7 @@ export default function ActionPlan() {
   const [answered, setAnswered] = useState(false);
 
   const steps = [
-    { n: 1, title: 'Show this to the officer', body: 'A large-text card with the law, in Hindi and English.', btn: 'Open officer card', icon: 'shield-outline', route: '/emergency' },
+    { n: 1, title: 'Show this to the officer', body: 'A large-text card with the law, in Hindi and English.', btn: 'Open officer card', icon: 'shield-outline', route: '/women/officer-card' },
     { n: 2, title: 'If they still refuse', body: 'Send your complaint in writing to the Superintendent of Police (BNSS §175).', btn: 'Draft it for me', icon: 'document-text-outline', route: '/drafts' },
     { n: 3, title: 'Keep proof quietly', body: 'Note the time and officer’s name. Recording works even without network.', btn: 'Open evidence locker', icon: 'mic-outline', route: '/women-shield' },
     { n: 4, title: 'Talk to someone free', body: 'Legal aid 15100 · Women’s helpline 181', btn: 'Call now', icon: 'call-outline', route: 'tel:15100' },

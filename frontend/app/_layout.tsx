@@ -1,7 +1,7 @@
 import { Stack, useRouter, useSegments, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { Component, ErrorInfo, ReactNode, useEffect, useRef } from "react";
-import { LogBox, Pressable, Text, View } from "react-native";
+import { LogBox, Pressable, Text, View, useWindowDimensions, Platform } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -149,6 +149,10 @@ export default function RootLayout() {
   const [brandLoaded, brandError] = useAppFonts();
   const loaded = iconsLoaded && brandLoaded;
   const error = iconError || brandError;
+  const { width } = useWindowDimensions();
+  // C9 adaptive web: on a wide browser, center the app in a phone-width column
+  // instead of stretching the mobile layout edge-to-edge (which looked broken).
+  const isWideWeb = Platform.OS === 'web' && width >= 768;
   // Safety net: never block app boot forever on a font fetch. If icons
   // haven't resolved within 4s (e.g. a stalled network request), render the
   // app anyway — icons repaint themselves the instant the font does arrive,
@@ -181,8 +185,12 @@ export default function RootLayout() {
               <AnalyticsScreenTracker />
               <ConsentGuard />
               <StatusBar style="dark" />
-              <View style={{ flex: 1 }}>
-                <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.surface } }} />
+              <View style={{ flex: 1, backgroundColor: isWideWeb ? theme.colors.deepNavy : theme.colors.surface, alignItems: isWideWeb ? 'center' : 'stretch' }}>
+                <View style={isWideWeb
+                  ? { flex: 1, width: 460, maxWidth: '100%', backgroundColor: theme.colors.surface, overflow: 'hidden', ...(Platform.OS === 'web' ? { boxShadow: '0 10px 40px rgba(0,0,0,0.35)' } as any : null) }
+                  : { flex: 1 }}>
+                  <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.surface } }} />
+                </View>
               </View>
             </AuthProvider>
           </PostHogProvider>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Switch, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -7,20 +7,21 @@ import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
 import { SosPill, Divider } from '@/src/components/dhara/SosPill';
+import { fetchFlags, fetchHelplines, safetyRoute, setCheckin as persistCheckin, getCheckin, type Helpline, type Flags } from '@/src/women/api';
 
 const c = theme.colors;
 
-const RIGHTS: { key: string; icon: any }[] = [
-  { key: 'ws.r.police', icon: 'ribbon-outline' },
-  { key: 'ws.r.violence', icon: 'home-outline' },
-  { key: 'ws.r.thrown', icon: 'exit-outline' },
-  { key: 'ws.r.dowry', icon: 'card-outline' },
-  { key: 'ws.r.work', icon: 'briefcase-outline' },
-  { key: 'ws.r.stalking', icon: 'eye-off-outline' },
-  { key: 'ws.r.photos', icon: 'image-outline' },
-  { key: 'ws.r.assault', icon: 'heart-outline' },
-  { key: 'ws.r.arrested', icon: 'shield-outline' },
-  { key: 'ws.r.children', icon: 'people-outline' },
+const RIGHTS: { key: string; icon: any; scenario: string }[] = [
+  { key: 'ws.r.police', icon: 'ribbon-outline', scenario: 'police_wont_file' },
+  { key: 'ws.r.violence', icon: 'home-outline', scenario: 'violence_at_home' },
+  { key: 'ws.r.thrown', icon: 'exit-outline', scenario: 'thrown_out_of_home' },
+  { key: 'ws.r.dowry', icon: 'card-outline', scenario: 'dowry_demands' },
+  { key: 'ws.r.work', icon: 'briefcase-outline', scenario: 'harassment_at_work' },
+  { key: 'ws.r.stalking', icon: 'eye-off-outline', scenario: 'stalking_online_abuse' },
+  { key: 'ws.r.photos', icon: 'image-outline', scenario: 'private_photos_leaked' },
+  { key: 'ws.r.assault', icon: 'heart-outline', scenario: 'after_assault' },
+  { key: 'ws.r.arrested', icon: 'shield-outline', scenario: 'woman_arrested' },
+  { key: 'ws.r.children', icon: 'people-outline', scenario: 'children_safety' },
 ];
 
 const HELPLINES = [
@@ -39,6 +40,30 @@ export default function WomenShield() {
   const lang = language.code;
   const [discreet, setDiscreet] = useState(true);
   const [checkin, setCheckin] = useState(true);
+  const [flags, setFlags] = useState<Flags | null>(null);
+  const [helplines, setHelplines] = useState<Helpline[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const [f, h, ci] = await Promise.all([fetchFlags(), fetchHelplines(), getCheckin()]);
+      setFlags(f);
+      if (h.length) setHelplines(h);
+      setCheckin(ci);
+    })();
+  }, []);
+
+  const onCheckin = async (v: boolean) => { setCheckin(v); await persistCheckin(v); };
+
+  const openScenario = async (scenarioKey: string) => {
+    await safetyRoute({ scenario_key: scenarioKey, lang });
+    router.push({ pathname: '/action-plan', params: { scenario: scenarioKey } });
+  };
+
+  // Prefer the verified service directory; fall back to the static labels.
+  const SHORT: Record<string, string> = { '112': tr('hl.emergency', lang), '181': tr('hl.women', lang), '14490': tr('hl.ncw', lang), '1930': tr('hl.cyber', lang), '15100': tr('hl.legalaid', lang), '14416': tr('hl.talk', lang), '1098': 'Childline' };
+  const shownHelplines = helplines.length
+    ? helplines.map(h => ({ num: h.number, label: SHORT[h.number] || h.name, verified: h.verified }))
+    : HELPLINES.map(h => ({ num: h.num, label: tr(h.key, lang), verified: false }));
 
   return (
     <View style={styles.root}>
@@ -74,7 +99,7 @@ export default function WomenShield() {
           <Text style={styles.h2sub}>{tr('ws.rights.sub', lang)}</Text>
           <View style={styles.grid}>
             {RIGHTS.map(r => (
-              <Pressable key={r.key} style={styles.rightCard} onPress={() => router.push('/action-plan')} testID={`ws-${r.key}`}>
+              <Pressable key={r.key} style={styles.rightCard} onPress={() => openScenario(r.scenario)} testID={`ws-${r.key}`}>
                 <View style={styles.rightIcon}><Ionicons name={r.icon} size={18} color={c.darkGold} /></View>
                 <Text style={styles.rightTxt} numberOfLines={2}>{tr(r.key, lang)}</Text>
               </Pressable>
@@ -86,7 +111,7 @@ export default function WomenShield() {
         <View style={styles.section}>
           <Text style={styles.h2}>{tr('ws.tools', lang)}</Text>
           <View style={styles.toolCard}>
-            <ToolRow icon="people-outline" title={tr('ws.circle', lang)} sub={tr('ws.circle.sub', lang)} action={tr('ws.manage', lang)} onPress={() => {}} />
+            <ToolRow icon="people-outline" title={tr('ws.circle', lang)} sub={tr('ws.circle.sub', lang)} action={tr('ws.manage', lang)} onPress={() => router.push('/women/trusted-circle')} />
             <Divider />
             <View style={styles.toolRow}>
               <View style={styles.toolIcon}><Ionicons name="navigate-outline" size={20} color={c.navy} /></View>
@@ -94,13 +119,18 @@ export default function WomenShield() {
                 <Text style={styles.toolTitle}>{tr('ws.checkin', lang)}</Text>
                 <Text style={styles.toolSub}>{tr('ws.checkin.sub', lang)}</Text>
               </View>
-              <Switch value={checkin} onValueChange={setCheckin} trackColor={{ true: c.navy, false: c.surfaceTertiary }} thumbColor="#fff" />
+              <Switch value={checkin} onValueChange={onCheckin} trackColor={{ true: c.navy, false: c.surfaceTertiary }} thumbColor="#fff" />
             </View>
             <Divider />
-            <ToolRow icon="lock-closed-outline" title={tr('ws.locker', lang)} sub={tr('ws.locker.sub', lang)} action={tr('ws.open', lang)} onPress={() => {}} />
+            <ToolRow icon="lock-closed-outline" title={tr('ws.locker', lang)} sub={tr('ws.locker.sub', lang)} action={tr('ws.open', lang)} onPress={() => router.push('/women/evidence-locker')} />
             <Divider />
-            <ToolRow icon="mic-outline" title={tr('ws.code', lang)} sub={tr('ws.code.sub', lang)} action={tr('ws.setup', lang)} onPress={() => {}} />
+            <ToolRow icon="mic-outline" title={tr('ws.code', lang)} sub={tr('ws.code.sub', lang)} action={tr('ws.setup', lang)} onPress={() => router.push('/women/code-phrase')} />
           </View>
+          <Pressable style={styles.lessonRow} onPress={() => router.push('/women/panic-lesson')}>
+            <Ionicons name="school-outline" size={18} color={c.darkGold} />
+            <Text style={styles.lessonTxt}>Learn the 20-second panic trigger for 112</Text>
+            <Ionicons name="chevron-forward" size={18} color={c.onSurfaceTertiary} />
+          </Pressable>
         </View>
 
         {/* Talk to someone */}
@@ -108,10 +138,11 @@ export default function WomenShield() {
           <Text style={styles.h2}>{tr('ws.talk', lang)}</Text>
           <Text style={styles.h2sub}>{tr('ws.talk.sub', lang)}</Text>
           <View style={styles.hlGrid}>
-            {HELPLINES.map(h => (
+            {shownHelplines.map(h => (
               <Pressable key={h.num} style={styles.hlCard} onPress={() => Linking.openURL(`tel:${h.num}`)} testID={`hl-${h.num}`}>
+                {h.verified && <Ionicons name="checkmark-circle" size={13} color={c.verifiedGreen} style={styles.hlVerified} />}
                 <Text style={styles.hlNum}>{h.num}</Text>
-                <Text style={styles.hlLabel}>{tr(h.key, lang)}</Text>
+                <Text style={styles.hlLabel} numberOfLines={1}>{h.label}</Text>
               </Pressable>
             ))}
           </View>
@@ -124,7 +155,7 @@ export default function WomenShield() {
               <Text style={styles.planTitle}>{tr('ws.plan', lang)}</Text>
               <Text style={styles.planSub}>{tr('ws.plan.sub', lang)}</Text>
             </View>
-            <Pressable style={styles.planBtn} onPress={() => router.push('/action-plan')}>
+            <Pressable style={styles.planBtn} onPress={() => router.push('/women/safety-plan')}>
               <Text style={styles.planBtnTxt}>{tr('ws.start', lang)}</Text>
             </Pressable>
           </View>
@@ -176,7 +207,10 @@ const styles = StyleSheet.create({
   toolAction: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.navy },
 
   hlGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
-  hlCard: { width: '31%', backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.lines, paddingVertical: 16, alignItems: 'center' },
+  hlCard: { width: '31%', backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.lines, paddingVertical: 16, alignItems: 'center', position: 'relative' },
+  hlVerified: { position: 'absolute', top: 8, right: 8 },
+  lessonRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.goldMuted, borderRadius: 14, padding: 14, marginTop: 14 },
+  lessonTxt: { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.ink },
   hlNum: { fontFamily: theme.fonts.displayBold, fontSize: 22, color: c.navy },
   hlLabel: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 2 },
 

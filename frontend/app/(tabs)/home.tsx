@@ -5,7 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
-import { SosPill } from '@/src/components/dhara/SosPill';
 
 const c = theme.colors;
 
@@ -36,7 +35,7 @@ export default function Home() {
           <View style={styles.headerRow}>
             <View style={styles.brandRow}>
               <View style={styles.logo}>
-                <Ionicons name="shield-checkmark" size={22} color={c.gold} />
+                <Image source={require('../../assets/images/dhara_icon.png')} style={styles.logoImg} resizeMode="cover" />
               </View>
               <View>
                 <Text style={styles.brand}>DHARA</Text>
@@ -48,7 +47,6 @@ export default function Home() {
                 <Ionicons name="globe-outline" size={14} color="#fff" />
                 <Text style={styles.langTxt} numberOfLines={1}>{language.native}</Text>
               </Pressable>
-              <SosPill />
             </View>
           </View>
 
@@ -78,7 +76,7 @@ export default function Home() {
               <Ionicons name="create-outline" size={18} color={c.navy} />
               <Text style={styles.askActionTxt}>{tr('home.type', lang)}</Text>
             </Pressable>
-            <Pressable style={styles.askAction} onPress={() => router.push('/ask?mode=scan')}>
+            <Pressable style={styles.askAction} onPress={() => router.push('/scan')}>
               <Ionicons name="camera-outline" size={18} color={c.navy} />
               <Text style={styles.askActionTxt}>{tr('home.scan', lang)}</Text>
             </Pressable>
@@ -187,10 +185,11 @@ const styles = StyleSheet.create({
   header: { backgroundColor: c.navy, paddingHorizontal: 20, paddingBottom: 54, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logo: { width: 44, height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: c.gold, alignItems: 'center', justifyContent: 'center' },
+  logo: { width: 44, height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: c.gold, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: '#fff' },
+  logoImg: { width: '100%', height: '100%' },
   brand: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 24, letterSpacing: 1 },
   tagline: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 11 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginRight: 72 },
   langPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 12, height: 40, borderRadius: 999, maxWidth: 92 },
   langTxt: { color: '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 13 },
   greeting: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 26, marginTop: 18 },
