@@ -138,14 +138,16 @@ api = APIRouter(prefix="/api")
 # ── Modular routers (Phase 1 extraction) ─────────────────────────────────────
 # db/corpus_db/current_user and shared utilities live in dependencies.py (single connection)
 from dependencies import db, corpus_db, current_user, current_user_optional, hash_pw, check_pw, make_token, public_user, meter_llm_use, build_system_prompt, translate_for_retrieval, logger, check_admin_key as _check_admin_key  # noqa: E501
-from api.auth_router    import router as auth_router
-from api.chat_router    import router as chat_router
-from api.fir_router     import router as fir_router
-from api.visitor_router import router as visitor_router
+from api.auth_router     import router as auth_router
+from api.chat_router     import router as chat_router
+from api.fir_router      import router as fir_router
+from api.visitor_router  import router as visitor_router
+from api.journeys_router import router as journeys_router
 api.include_router(auth_router)
 api.include_router(chat_router)
 api.include_router(fir_router)
 api.include_router(visitor_router)
+api.include_router(journeys_router)
 
 # ---------------------------------------------------------------------------
 # Build-only fix (live prod bug, 2025-06 — stale-client JSON error):
@@ -1435,6 +1437,14 @@ async def _startup():
         await db.verification_log.create_index("advocate_id")
     except Exception as e:
         logger.warning(f"[startup] advocate index creation warning: {e}")
+
+    # C0 Journey Registry — ensure indexes exist (idempotent)
+    try:
+        await db.journeys.create_index("journey_id", unique=True)
+        await db.journeys.create_index("category")
+        await db.journeys.create_index("is_active")
+    except Exception as e:
+        logger.warning(f"[startup] journeys index creation warning: {e}")
 
     # Fire-and-forget: initialise Emergent Object Storage for evidence uploads
     asyncio.create_task(_init_fir_storage())
