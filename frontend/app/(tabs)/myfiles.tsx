@@ -134,7 +134,7 @@ export default function MyFiles() {
           </View>
         ) : tab === 'active' ? (
           activeCases.length ? activeCases.map(renderActiveCase) : (
-            <Empty icon="folder-open-outline" title="No cases in progress" sub="Start a complaint and DHARA will walk you through it, step by step." cta="Start a complaint" onPress={() => router.push('/fir-draft')} />
+            <Empty icon="folder-open-outline" title="No cases in progress" sub="Start a complaint and DHARA will walk you through it, step by step." cta="Start a complaint" onPress={() => router.push('/engine')} />
           )
         ) : tab === 'documents' ? (
           readyCases.length ? readyCases.map(renderReadyCase) : (

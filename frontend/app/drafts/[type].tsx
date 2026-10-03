@@ -22,14 +22,21 @@ import { draftByType } from '@/src/drafts';
 import { addToHistory } from '@/src/draftHistory';
 
 export default function DraftForm() {
-  const { type } = useLocalSearchParams<{ type: string }>();
+  const { type, prefill } = useLocalSearchParams<{ type: string; prefill?: string }>();
   const router = useRouter();
   const { token, refreshUser } = useAuth();
   const spec = useMemo(() => draftByType(String(type)), [type]);
-  const [values, setValues] = useState<Record<string, string>>({});
+  const [values, setValues] = useState<Record<string, string>>(() => {
+    if (!prefill) return {};
+    try {
+      const parsed = JSON.parse(String(prefill));
+      return typeof parsed === 'object' && parsed ? parsed : {};
+    } catch { return {}; }
+  });
   const [generated, setGenerated] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const hasPrefill = !!prefill;
 
   if (!spec) {
     return (
@@ -148,6 +155,14 @@ export default function DraftForm() {
                 DHARA does not create an advocate-client relationship.
               </Text>
             </View>
+            {hasPrefill && (
+              <View style={styles.prefillBanner} testID="draft-prefill-banner">
+                <Ionicons name="scan-outline" size={16} color={theme.colors.brand} />
+                <Text style={styles.prefillBannerText}>
+                  Some fields were filled in from your scanned document — please check each one before writing the notice.
+                </Text>
+              </View>
+            )}
             {spec.fields.map((f) => (
               <View key={f.key} style={styles.fieldWrap}>
                 <Text style={styles.label}>{f.label}</Text>
@@ -250,5 +265,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     fontStyle: 'italic',
+  },
+  prefillBanner: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    alignItems: 'flex-start',
+    backgroundColor: theme.colors.goldSoft,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.gold,
+  },
+  prefillBannerText: {
+    flex: 1,
+    color: theme.colors.brand,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '600',
   },
 });

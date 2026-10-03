@@ -10,7 +10,7 @@
  * and these strings come from the verified corpus, not from a model.
  */
 
-export type DraftType = 'cheque_bounce' | 'deposit_refund' | 'unpaid_salary';
+export type DraftType = 'cheque_bounce' | 'deposit_refund' | 'unpaid_salary' | 'sp_complaint';
 
 export type DraftField = {
   key: string;
@@ -24,7 +24,7 @@ export type DraftSpec = {
   type: DraftType;
   title: string;
   subtitle: string;
-  icon: 'card-outline' | 'home-outline' | 'briefcase-outline';
+  icon: 'card-outline' | 'home-outline' | 'briefcase-outline' | 'shield-outline';
   /** The deadline the user must respect — shown prominently before they draft */
   deadline: string;
   fields: DraftField[];
@@ -198,6 +198,54 @@ ${val(v, 'sender_name')}
 (Signature)
 
 SEND BY: registered post with acknowledgement due AND by email to the HR/company email. Keep your appointment letter, payslips, bank statement and attendance proof — file a claim online at samadhan.labour.gov.in if the employer does not pay.`,
+  },
+  {
+    type: 'sp_complaint',
+    title: 'Complaint to the Superintendent of Police',
+    subtitle: 'When a police station refuses to register your FIR / Zero FIR',
+    icon: 'shield-outline',
+    deadline:
+      'Send this as soon as a station refuses or delays registering your complaint — there is no fixed deadline, but earlier is stronger evidence of the refusal.',
+    fields: [
+      { key: 'sender_name', label: 'Your full name', placeholder: 'Priya Nair' },
+      { key: 'sender_address', label: 'Your address', placeholder: 'Address, city, PIN', multiline: true },
+      { key: 'station_name', label: 'Police station that refused', placeholder: 'XYZ Police Station' },
+      { key: 'incident_date', label: 'Date of the incident', placeholder: '01-05-2026' },
+      { key: 'incident_place', label: 'Place of the incident', placeholder: 'Near MG Road bus stop' },
+      { key: 'offence_desc', label: 'What happened (brief)', placeholder: 'Describe the offence in a few lines', multiline: true },
+      { key: 'refusal_date', label: 'Date you approached the station', placeholder: '03-05-2026' },
+      { key: 'officer_name', label: "Officer's name/rank (if known)", placeholder: 'Sub-Inspector Rao (if known)' },
+    ],
+    build: (v) => `COMPLAINT TO THE SUPERINTENDENT OF POLICE
+
+Date: ${today()}
+
+To:
+The Superintendent of Police
+
+Sub: Refusal to register FIR at ${val(v, 'station_name')} — request to register complaint under Section 173, BNSS, 2023
+
+Sir / Madam,
+
+1. I am a resident of ${val(v, 'sender_address')}.
+
+2. On ${val(v, 'incident_date', '__________')} at ${val(v, 'incident_place')}, the following offence occurred: ${val(v, 'offence_desc')}.
+
+3. On ${val(v, 'refusal_date', '__________')}, I approached ${val(v, 'station_name')} to lodge a complaint regarding the above${v.officer_name ? ` (before ${val(v, 'officer_name')})` : ''}, but the station refused / failed to register my First Information Report.
+
+4. Under Section 173 of the Bharatiya Nagarik Suraksha Sanhita, 2023, every police station is bound to register information disclosing a cognizable offence, irrespective of the area of occurrence — this is also known as a Zero FIR. Under Section 175 BNSS, I am entitled to approach your office directly where a station refuses to act.
+
+5. I therefore request you to direct the Station House Officer of ${val(v, 'station_name')} to register my FIR without further delay, and to confirm the FIR number to me in writing.
+
+6. I am willing to provide any further details or appear in person as required.
+
+Yours faithfully,
+
+${val(v, 'sender_name')}
+(Signature)
+Contact: ____________
+
+SEND BY: registered post with acknowledgement due, AND hand-deliver a copy to the SP's office requesting a receiving stamp. You may also submit this online via your state police citizen portal or the National Cyber Crime / e-FIR portal where available. Keep a copy for your records.`,
   },
 ];
 

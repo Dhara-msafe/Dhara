@@ -29,7 +29,7 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
   const railCase = activeCase || readyCase || null;
   const railProgress = railCase ? complaintProgress(railCase) : null;
   const openRailCase = () => {
-    if (!railCase) { router.push('/fir-draft'); return; }
+    if (!railCase) { router.push('/engine'); return; }
     router.push(
       isDraftReady(railCase)
         ? ({ pathname: '/fir-draft/result', params: { sessionId: railCase.session_id } } as any)
@@ -45,6 +45,7 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
     { label: tr('nav.me', lang), icon: 'person-outline', route: '/(tabs)/me', match: 'me' },
   ];
   const journeys: NavItem[] = [
+    { label: 'Dhara Engine', icon: 'construct-outline', route: '/engine', match: 'engine' },
     { label: tr('home.allHelp', lang), icon: 'apps-outline', route: '/all-help', match: 'all-help' },
     { label: tr('j.shield', lang), icon: 'shield-half', route: '/women-shield', match: 'women-shield' },
     { label: tr('j.police', lang), icon: 'ribbon-outline', route: '/fir-draft', match: 'fir-draft' },

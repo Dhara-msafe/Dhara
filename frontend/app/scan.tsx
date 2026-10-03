@@ -1,17 +1,51 @@
 import { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Linking, Share, Image } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Linking, Share, Image, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { API_BASE } from '@/src/apiBase';
+import { draftByType } from '@/src/drafts';
 
 const c = theme.colors;
 
-type Result = { extracted_text: string; summary: string; action: string; mode: string };
+type Result = {
+  extracted_text: string; summary: string; action: string; mode: string;
+  suggested_template?: string | null; prefill?: Record<string, string>;
+};
+
+// Builds a proper letter/notice-style PDF from the scanned document's own
+// content — not a generic blurb — so sharing on WhatsApp/email sends the
+// actual reading (or drafted reply) of THIS document, not just a one-line
+// chat message. Mirrors the same expo-print pattern already used by
+// fir-draft/result.tsx and missing/result.tsx.
+const esc = (s: string) => (s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const buildScanHtml = (r: Result) => {
+  const isDraft = r.mode === 'draft';
+  const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+<style>
+body{padding:28px;font-family:Arial,sans-serif;color:#1A1A1A;}
+h2{color:#1B2B5B;font-size:18px;margin-bottom:2px;}
+.date{color:#6B6B6B;font-size:12px;margin-bottom:18px;}
+.label{color:#8A6A2A;font-size:11px;letter-spacing:1px;font-weight:700;margin-top:18px;}
+.body{white-space:pre-wrap;font-size:14px;line-height:1.7;margin-top:6px;}
+.orig{background:#F7F7F7;border-left:3px solid #C9973A;padding:12px;font-size:12px;line-height:1.6;color:#444;white-space:pre-wrap;margin-top:8px;}
+.foot{color:#8A8A8A;font-size:11px;margin-top:26px;border-top:1px solid #E5E5E5;padding-top:10px;}
+</style></head><body>
+<h2>${isDraft ? 'Drafted reply' : 'Document, explained'} — DHARA</h2>
+<div class="date">${today}</div>
+${isDraft ? `<div class="label">YOUR DRAFTED REPLY</div><div class="body">${esc(r.summary)}</div>` : `<div class="label">WHAT THIS MEANS</div><div class="body">${esc(r.summary)}</div>`}
+${r.action ? `<div class="label">SUGGESTED NEXT STEP</div><div class="body">${esc(r.action)}</div>` : ''}
+${r.extracted_text ? `<div class="label">BASED ON THE SCANNED DOCUMENT</div><div class="orig">${esc(r.extracted_text)}</div>` : ''}
+<div class="foot">This is DHARA's reading of a photographed document, for your reference. Review all details before sending. DHARA does not create an advocate-client relationship.</div>
+</body></html>`;
+};
 
 export default function Scan() {
+  const router = useRouter();
   const { language } = useAuth();
   const lang = language.code;
   const [busy, setBusy] = useState(false);
@@ -20,6 +54,7 @@ export default function Scan() {
   const [lastB64, setLastB64] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [showText, setShowText] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   const analyze = async (base64: string, mode: 'summary' | 'draft') => {
     setBusy(true); setError('');
@@ -83,7 +118,37 @@ export default function Scan() {
 
   const share = async () => {
     if (!result) return;
-    try { await Share.share({ message: `${result.summary}\n\nNext step: ${result.action}` }); } catch {}
+    setSharing(true);
+    try {
+      const html = buildScanHtml(result);
+      if (Platform.OS === 'web') {
+        // Web preview: open a printable tab (Ctrl+P → Save as PDF), same
+        // fallback used elsewhere in the app since browsers can't silently
+        // write a PDF file to disk.
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        return;
+      }
+      const Print = await import('expo-print');
+      const Sharing = await import('expo-sharing');
+      const { uri } = await Print.printToFileAsync({ html, base64: false });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: result.mode === 'draft' ? 'Share drafted reply' : 'Share document summary',
+        });
+      } else {
+        // No native share sheet available — fall back to a plain-text share
+        // so the user still gets the content some way.
+        await Share.share({ message: `${result.summary}\n\nNext step: ${result.action}` });
+      }
+    } catch {
+      // PDF generation failed for some reason — don't dead-end the user.
+      try { await Share.share({ message: `${result.summary}\n\nNext step: ${result.action}` }); } catch {}
+    } finally {
+      setSharing(false);
+    }
   };
 
   return (
@@ -131,6 +196,30 @@ export default function Scan() {
               </View>
             ) : null}
 
+            {result.suggested_template && draftByType(result.suggested_template) ? (
+              <Pressable
+                style={styles.templateCard}
+                testID="scan-use-template"
+                onPress={() => router.push({
+                  pathname: '/drafts/[type]',
+                  params: { type: result.suggested_template!, prefill: JSON.stringify(result.prefill || {}) },
+                } as any)}
+              >
+                <View style={styles.templateIcon}>
+                  <Ionicons name={draftByType(result.suggested_template)!.icon} size={20} color={c.navy} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.templateTitle}>Use the {draftByType(result.suggested_template)!.title} template</Text>
+                  <Text style={styles.templateSub}>
+                    {Object.keys(result.prefill || {}).length
+                      ? 'DHARA can pre-fill what it read from this document — you just review and send.'
+                      : 'A ready, legally-worded notice for exactly this situation.'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={c.onSurfaceTertiary} />
+              </Pressable>
+            ) : null}
+
             <Pressable style={styles.toggle} onPress={() => setShowText(s => !s)}>
               <Ionicons name={showText ? 'chevron-up' : 'chevron-down'} size={18} color={c.navy} />
               <Text style={styles.toggleTxt}>{showText ? 'Hide' : 'Show'} the exact text read</Text>
@@ -138,8 +227,9 @@ export default function Scan() {
             {showText && <Text style={styles.extracted}>{result.extracted_text}</Text>}
 
             <View style={styles.resultBtns}>
-              <Pressable style={styles.secBtn} onPress={share}>
-                <Ionicons name="share-outline" size={18} color={c.navy} /><Text style={styles.secTxt}>Share</Text>
+              <Pressable style={styles.secBtn} onPress={share} disabled={sharing} testID="scan-share">
+                {sharing ? <ActivityIndicator size="small" color={c.navy} /> : <Ionicons name="share-outline" size={18} color={c.navy} />}
+                <Text style={styles.secTxt}>{sharing ? 'Preparing PDF…' : 'Share'}</Text>
               </Pressable>
               {result.mode !== 'draft' && lastB64 && (
                 <Pressable style={styles.secBtn} onPress={() => analyze(lastB64, 'draft')}>
@@ -190,6 +280,10 @@ const styles = StyleSheet.create({
   summary: { fontFamily: theme.fonts.body, fontSize: 17, color: '#fff', lineHeight: 26, marginTop: 10 },
   actionCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.goldMuted, borderRadius: 14, padding: 16, marginTop: 14 },
   actionTxt: { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 15, color: c.ink, lineHeight: 22 },
+  templateCard: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: c.surface, borderWidth: 1, borderColor: c.gold, borderRadius: 16, padding: 16, marginTop: 14 },
+  templateIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: c.goldMuted, alignItems: 'center', justifyContent: 'center' },
+  templateTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink },
+  templateSub: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 3, lineHeight: 17 },
   toggle: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18 },
   toggleTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.navy },
   extracted: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, lineHeight: 21, marginTop: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 12, padding: 14 },

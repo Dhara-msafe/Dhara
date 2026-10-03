@@ -36,7 +36,8 @@ export default function Home() {
   };
 
   const journeys = [
-    { key: 'j.shield',   sub: 'महिला सुरक्षा', icon: 'shield-half', route: '/women-shield', navy: true, isNew: true },
+    { key: 'engine.title', sub: 'FIR · नोटिस · मिसिंग', icon: 'construct-outline', route: '/engine', navy: true, isNew: true },
+    { key: 'j.shield',   sub: 'महिला सुरक्षा', icon: 'shield-half', route: '/women-shield' },
     { key: 'j.missing',  sub: 'गुमशुदा',      icon: 'people-outline', route: '/missing' },
     { key: 'j.police',   sub: 'पुलिस',        icon: 'ribbon-outline', route: '/fir-draft' },
     { key: 'j.visitor',  sub: 'पर्यटक',       icon: 'globe-outline', route: '/visitor' },
@@ -45,6 +46,9 @@ export default function Home() {
     { key: 'j.voter',    sub: 'मतदाता',       icon: 'checkbox-outline', route: '/(tabs)/voter-roll' },
     { key: 'home.allHelp', sub: 'सारी मदद',   icon: 'apps-outline', route: '/all-help', allHelp: true },
   ];
+  // 'engine.title' and 'j.*' are looked up in ui18n.ts; fall back to a plain
+  // English label if a language pack hasn't added the key yet.
+  const jLabel = (key: string) => (key === 'engine.title' ? 'Dhara Engine' : tr(key, lang));
 
   return (
     <View style={styles.root}>
@@ -140,7 +144,7 @@ export default function Home() {
               </View>
               <Text style={styles.forYouTitle}>Start your first case</Text>
               <Text style={styles.forYouBody}>Tell DHARA what happened — we’ll help you draft a complaint, step by step.</Text>
-              <Pressable style={styles.goldBtn} onPress={() => router.push('/fir-draft')} testID="foryou-start-case">
+              <Pressable style={styles.goldBtn} onPress={() => router.push('/engine')} testID="foryou-start-case">
                 <Text style={styles.goldBtnTxt}>Start</Text>
               </Pressable>
             </View>
@@ -179,7 +183,7 @@ export default function Home() {
               >
                 {j.isNew && <View style={styles.newBadge}><Text style={styles.newTxt}>{tr('common.new', lang)}</Text></View>}
                 <Ionicons name={j.icon as any} size={26} color={j.navy ? c.gold : c.navy} />
-                <Text style={[styles.tileTitle, j.navy && { color: '#fff' }]} numberOfLines={2}>{tr(j.key, lang)}</Text>
+                <Text style={[styles.tileTitle, j.navy && { color: '#fff' }]} numberOfLines={2}>{jLabel(j.key)}</Text>
                 <Text style={[styles.tileSub, j.navy && { color: c.onNavyMuted }]} numberOfLines={1}>{j.sub}</Text>
               </Pressable>
             ))}
@@ -219,7 +223,7 @@ export default function Home() {
               <Ionicons name="chevron-forward" size={20} color={c.onSurfaceTertiary} />
             </Pressable>
           ) : (
-            <Pressable style={styles.fileCard} onPress={() => router.push('/fir-draft')} testID="home-myfiles-empty">
+            <Pressable style={styles.fileCard} onPress={() => router.push('/engine')} testID="home-myfiles-empty">
               <View style={styles.fileIcon}><Ionicons name="add-outline" size={20} color={c.darkGold} /></View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.fileTitle}>{casesLoading ? 'Loading your cases…' : 'No cases yet'}</Text>
