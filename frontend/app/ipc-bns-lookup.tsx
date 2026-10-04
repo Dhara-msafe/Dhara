@@ -68,27 +68,47 @@ function hasBnsEquivalent(ns: string | null | undefined): boolean {
 }
 
 // ── Date helper ───────────────────────────────────────────────────────────────
+function isValidCalendarDate(y: number, mo: number, da: number): boolean {
+  if (mo < 1 || mo > 12 || da < 1) return false;
+  const daysInMonth = new Date(y, mo, 0).getDate(); // day 0 of next month = last day of this month
+  return da <= daysInMonth;
+}
+
 function CodeAppliesHelper() {
   const [date, setDate]     = useState('');
   const [result, setResult] = useState<{ label: string; color: string; detail: string } | null>(null);
 
   const check = () => {
     const d = date.trim();
-    if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+    const m = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) {
       setResult({ label: 'Invalid date', color: '#B91C1C', detail: 'Use YYYY-MM-DD format (e.g. 2024-06-28)' });
       return;
     }
+    // DHARA-B016: the old check only verified the string SHAPE (4-2-2
+    // digits), so an impossible date like 2024-02-31 passed straight
+    // through to a legal classification. Validate it's a real calendar
+    // date first.
+    const y = parseInt(m[1], 10), mo = parseInt(m[2], 10), da = parseInt(m[3], 10);
+    if (!isValidCalendarDate(y, mo, da)) {
+      setResult({ label: 'Invalid date', color: '#B91C1C', detail: `${d} is not a real calendar date — please check the day and month.` });
+      return;
+    }
+    // DHARA-B016: both branches now say "procedure uses BNSS" consistently
+    // instead of the heading implying old CrPC procedure while the detail
+    // said BNSS — and both carry the same transition-law caveat.
+    const caveat = 'General transition guidance only — the exact effect on an investigation or trial already underway depends on the applicable savings clause (BNSS Section 531). Confirm the FIR/charge-sheet date with a legal professional.';
     if (d < CUTOFF) {
       setResult({
-        label: 'IPC / CrPC / Indian Evidence Act apply',
+        label: 'IPC / Indian Evidence Act apply (substantive) — BNSS governs procedure',
         color: theme.colors.primary,
-        detail: `Offence date ${d} is BEFORE ${CUTOFF}.\nSubstantive charge: use IPC sections.\nProcedure: use BNSS (bail, remand, FIR).`,
+        detail: `Offence date ${d} is BEFORE ${CUTOFF}.\nSubstantive charge: use IPC sections.\nProcedure: use BNSS (bail, remand, FIR) for any step taken on or after ${CUTOFF}.\n\n${caveat}`,
       });
     } else {
       setResult({
-        label: 'BNS / BNSS / BSA apply',
+        label: 'BNS / BSA apply (substantive) — BNSS governs procedure',
         color: '#065F46',
-        detail: `Offence date ${d} is ON/AFTER ${CUTOFF}.\nSubstantive charge: use BNS sections.\nProcedure: use BNSS throughout.`,
+        detail: `Offence date ${d} is ON/AFTER ${CUTOFF}.\nSubstantive charge: use BNS sections.\nProcedure: use BNSS throughout.\n\n${caveat}`,
       });
     }
   };

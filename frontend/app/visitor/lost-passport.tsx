@@ -6,6 +6,7 @@ import {
   View, Text, ScrollView, Pressable, StyleSheet,
   ActivityIndicator, Alert, Linking,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
@@ -14,19 +15,33 @@ import { LOST_PASSPORT_STEPS, EMBASSY_CONTACTS, WorkflowStep } from '@/src/visit
 import { API_BASE, useAuth } from '@/src/auth';
 
 const C = theme.colors;
+const EMBASSY_KEY_STORAGE = 'dhara_visitor_embassy_key';
 
 export default function VisitorLostPassport() {
   const { token } = useAuth();
   const [session, setSession] = useState<VisitorSession | null>(null);
   const [speaking, setSpeaking] = useState<string | null>(null);
+  // DHARA-B020: never infer embassy from interface language alone — a
+  // visitor can speak English without being British. Require an explicit
+  // nationality confirmation (or "not sure") before showing any embassy.
+  const [confirmedEmbassyKey, setConfirmedEmbassyKey] = useState<string | null>(null);
 
   useEffect(() => {
     loadVisitorSession().then(s => setSession(s));
+    AsyncStorage.getItem(EMBASSY_KEY_STORAGE).then(v => { if (v) setConfirmedEmbassyKey(v); });
+  }, []);
+
+  const confirmEmbassy = useCallback((key: string) => {
+    setConfirmedEmbassyKey(key);
+    AsyncStorage.setItem(EMBASSY_KEY_STORAGE, key).catch(() => {});
   }, []);
 
   const lc   = session?.touristLang.code || 'en';
   const t    = (map: Record<string, string> | undefined) => map ? (map[lc] || map['en'] || '') : '';
-  const emb  = EMBASSY_CONTACTS[lc] || EMBASSY_CONTACTS['en'];
+  const suggestedEmb = EMBASSY_CONTACTS[lc] || EMBASSY_CONTACTS['en'];
+  const emb  = confirmedEmbassyKey && confirmedEmbassyKey !== 'unknown'
+    ? (EMBASSY_CONTACTS[confirmedEmbassyKey] || suggestedEmb)
+    : null;
 
   // V3: Speak For Me
   const speakForMe = useCallback(async (step: WorkflowStep) => {
@@ -75,21 +90,57 @@ export default function VisitorLostPassport() {
           </View>
         </View>
 
-        {/* Embassy card */}
-        <View style={s.embassyCard}>
-          <View style={s.embassyRow}>
-            <Ionicons name="flag" size={20} color={C.gold} />
-            <Text style={s.embassyTitle}>{emb.name}</Text>
+        {/* Embassy card — DHARA-B020: require explicit nationality confirmation */}
+        {!confirmedEmbassyKey ? (
+          <View style={s.nationalityCard}>
+            <Text style={s.nationalityTitle}>Which embassy should we show you?</Text>
+            <Text style={s.nationalitySub}>
+              Based on your app language we guessed <Text style={{ fontWeight: '700' }}>{suggestedEmb.name}</Text> — but speaking a language doesn&apos;t always match your citizenship. Please confirm:
+            </Text>
+            <Pressable style={s.nationalityConfirmBtn} onPress={() => confirmEmbassy(lc)}>
+              <Ionicons name="checkmark-circle" size={18} color="#fff" />
+              <Text style={s.actionBtnText}>Yes, I&apos;m a citizen of {suggestedEmb.name.replace(/^(The |Embassy of |Embassy |High Commission)/i, '')}</Text>
+            </Pressable>
+            <Text style={s.nationalitySub}>Or choose your actual country:</Text>
+            <View style={s.nationalityList}>
+              {Object.entries(EMBASSY_CONTACTS).filter(([key]) => key !== lc && key !== 'hi').map(([key, e]) => (
+                <Pressable key={key} style={s.nationalityChip} onPress={() => confirmEmbassy(key)}>
+                  <Text style={s.nationalityChipTxt}>{e.name}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Pressable style={s.nationalityUnsureBtn} onPress={() => confirmEmbassy('unknown')}>
+              <Text style={s.nationalityUnsureTxt}>Not sure / my country isn&apos;t listed</Text>
+            </Pressable>
           </View>
-          <Text style={s.embassyCity}>{emb.city}</Text>
-          <Pressable
-            style={s.embassyCall}
-            onPress={() => Linking.openURL(`tel:${emb.phone.replace(/[\s-]/g,'')}`).catch(() => {})}
-          >
-            <Ionicons name="call" size={16} color={C.gold} />
-            <Text style={s.embassyPhone}>{emb.phone}</Text>
-          </Pressable>
-        </View>
+        ) : emb ? (
+          <View style={s.embassyCard}>
+            <View style={s.embassyRow}>
+              <Ionicons name="flag" size={20} color={C.gold} />
+              <Text style={s.embassyTitle}>{emb.name}</Text>
+              <Pressable onPress={() => setConfirmedEmbassyKey(null)}><Text style={s.embassyChange}>Change</Text></Pressable>
+            </View>
+            <Text style={s.embassyCity}>{emb.city}</Text>
+            <Pressable
+              style={s.embassyCall}
+              onPress={() => Linking.openURL(`tel:${emb.phone.replace(/[\s-]/g,'')}`).catch(() => {})}
+            >
+              <Ionicons name="call" size={16} color={C.gold} />
+              <Text style={s.embassyPhone}>{emb.phone}</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={s.embassyCard}>
+            <View style={s.embassyRow}>
+              <Ionicons name="help-circle" size={20} color={C.gold} />
+              <Text style={s.embassyTitle}>Embassy not confirmed</Text>
+              <Pressable onPress={() => setConfirmedEmbassyKey(null)}><Text style={s.embassyChange}>Choose</Text></Pressable>
+            </View>
+            <Text style={s.embassyCity}>
+              Search &quot;[your country] embassy India&quot; online, or call India&apos;s Ministry of External Affairs: +91-11-23388040. For any emergency, call 112.
+            </Text>
+          </View>
+        )}
 
         {/* Steps */}
         {LOST_PASSPORT_STEPS.map((step, idx) => (
@@ -177,9 +228,26 @@ const s = StyleSheet.create({
   },
   embassyRow:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
   embassyTitle:{ fontSize: 14, fontWeight: '700', color: '#fff', flex: 1 },
+  embassyChange:{ fontSize: 12, fontWeight: '700', color: C.gold, textDecorationLine: 'underline' },
   embassyCity: { fontSize: 12, color: '#C5CEEA', marginLeft: 28 },
   embassyCall: { flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 28, marginTop: 4 },
   embassyPhone:{ fontSize: 15, fontWeight: '700', color: C.gold },
+
+  nationalityCard: {
+    backgroundColor: C.surface, borderRadius: 14, padding: 16, marginBottom: 14,
+    borderWidth: 1, borderColor: C.divider, gap: 10,
+  },
+  nationalityTitle: { fontSize: 15, fontWeight: '800', color: C.onSurface },
+  nationalitySub:   { fontSize: 12, color: C.onSurfaceTertiary, lineHeight: 18 },
+  nationalityConfirmBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: C.primary, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 10,
+  },
+  nationalityList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  nationalityChip: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: C.border, backgroundColor: C.navySoft },
+  nationalityChipTxt: { fontSize: 12, fontWeight: '600', color: C.primary },
+  nationalityUnsureBtn: { alignItems: 'center', paddingVertical: 8 },
+  nationalityUnsureTxt: { fontSize: 12, color: C.onSurfaceTertiary, textDecorationLine: 'underline' },
 
   stepCard:   {
     backgroundColor: C.surface, borderRadius: 14, padding: 16,

@@ -26,12 +26,38 @@ type Phase = 'idle' | 'recording' | 'transcribing' | 'translating' | 'speaking';
 const ISO_TO_BCP47: Record<string, string> = {
   en: 'en', fr: 'fr', de: 'de', es: 'es', pt: 'pt', it: 'it',
   ja: 'ja', ko: 'ko', zh: 'zh', ar: 'ar', ru: 'ru', hi: 'hi',
+  ta: 'ta', kn: 'kn', ml: 'ml', te: 'te', bn: 'bn', gu: 'gu', mr: 'mr', pa: 'pa', as: 'as', or: 'or',
 };
+
+// DHARA-B021: the interpreter used to hard-code Hindi as the "official"
+// language everywhere, even when the visitor had selected a state (e.g.
+// Tamil Nadu) with a different dominant local language. Default the local
+// language to the state's language, but always let the visitor override it
+// explicitly — never silently assume.
+type LocalLang = { code: string; label: string; native: string };
+const HINDI_LANG: LocalLang = { code: 'hi', label: 'Hindi', native: 'हिन्दी' };
+const STATE_LOCAL_LANG: Record<string, LocalLang> = {
+  TN: { code: 'ta', label: 'Tamil', native: 'தமிழ்' },
+  KA: { code: 'kn', label: 'Kannada', native: 'ಕನ್ನಡ' },
+  KL: { code: 'ml', label: 'Malayalam', native: 'മലയാളം' },
+  AP: { code: 'te', label: 'Telugu', native: 'తెలుగు' },
+  TS: { code: 'te', label: 'Telugu', native: 'తెలుగు' },
+  WB: { code: 'bn', label: 'Bengali', native: 'বাংলা' },
+  GJ: { code: 'gu', label: 'Gujarati', native: 'ગુજરાતી' },
+  MH: { code: 'mr', label: 'Marathi', native: 'मराठी' },
+  PB: { code: 'pa', label: 'Punjabi', native: 'ਪੰਜਾਬੀ' },
+  AS: { code: 'as', label: 'Assamese', native: 'অসমীয়া' },
+  OD: { code: 'or', label: 'Odia', native: 'ଓଡ଼ିଆ' },
+};
+const LOCAL_LANG_OPTIONS = [HINDI_LANG, ...Object.values(STATE_LOCAL_LANG).filter(l => l.code !== 'hi')]
+  .filter((l, i, arr) => arr.findIndex(x => x.code === l.code) === i);
 
 export default function InterpreterScreen() {
   const { token } = useAuth();
   const [session, setSession] = useState<VisitorSession | null>(null);
   const [mode, setMode] = useState<Mode>('tourist');
+  const [localLang, setLocalLang] = useState<LocalLang>(HINDI_LANG);
+  const [showLangPicker, setShowLangPicker] = useState(false);
   const [phase, setPhase] = useState<Phase>('idle');
   const [turns, setTurns] = useState<Turn[]>([]);
   const [currentTranscript, setCurrentTranscript] = useState('');
@@ -46,17 +72,20 @@ export default function InterpreterScreen() {
   const webChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
-    loadVisitorSession().then(s => setSession(s));
+    loadVisitorSession().then(s => {
+      setSession(s);
+      if (s) setLocalLang(STATE_LOCAL_LANG[s.indianState] || HINDI_LANG);
+    });
   }, []);
 
   const touristLang = session?.touristLang.code || 'en';
   const touristLangName = session?.touristLang.label || 'English';
 
   // Determine source / target lang for each mode
-  const srcLang = mode === 'tourist' ? touristLang : 'hi';
-  const tgtLang = mode === 'tourist' ? 'hi' : touristLang;
-  const srcLabel = mode === 'tourist' ? touristLangName : 'Hindi';
-  const tgtLabel = mode === 'tourist' ? 'Hindi' : touristLangName;
+  const srcLang = mode === 'tourist' ? touristLang : localLang.code;
+  const tgtLang = mode === 'tourist' ? localLang.code : touristLang;
+  const srcLabel = mode === 'tourist' ? touristLangName : localLang.label;
+  const tgtLabel = mode === 'tourist' ? localLang.label : touristLangName;
 
   // ── Translate via backend ─────────────────────────────────────────────────
   const translateText = useCallback(async (text: string, src: string, tgt: string): Promise<string> => {
@@ -81,6 +110,9 @@ export default function InterpreterScreen() {
         hi: 'hi-IN', en: 'en-IN', fr: 'fr-FR', de: 'de-DE',
         es: 'es-ES', pt: 'pt-PT', it: 'it-IT', ja: 'ja-JP',
         ko: 'ko-KR', zh: 'zh-CN', ar: 'ar-SA', ru: 'ru-RU',
+        ta: 'ta-IN', kn: 'kn-IN', ml: 'ml-IN', te: 'te-IN',
+        bn: 'bn-IN', gu: 'gu-IN', mr: 'mr-IN', pa: 'pa-IN',
+        as: 'as-IN', or: 'or-IN',
       };
       return new Promise<void>((resolve) => {
         Speech.stop(); // stop any previous utterance
@@ -227,9 +259,31 @@ export default function InterpreterScreen() {
         <View style={s.langBadge}>
           <Text style={s.langBadgeText}>{touristLangName}</Text>
           <Ionicons name="swap-horizontal" size={16} color={C.gold} />
-          <Text style={s.langBadgeText}>Hindi</Text>
+          <Text style={s.langBadgeText}>{localLang.label}</Text>
         </View>
         <Text style={s.headerSub}>Tap mic → speak → plays translation</Text>
+        <Pressable
+          style={s.langSwitch}
+          onPress={() => { if (phase === 'idle') setShowLangPicker(v => !v); }}
+          disabled={phase !== 'idle'}
+        >
+          <Ionicons name="language-outline" size={14} color={C.primary} />
+          <Text style={s.langSwitchTxt}>Official&apos;s language: {localLang.label}</Text>
+          <Ionicons name={showLangPicker ? 'chevron-up' : 'chevron-down'} size={14} color={C.primary} />
+        </Pressable>
+        {showLangPicker && (
+          <View style={s.langOptions}>
+            {LOCAL_LANG_OPTIONS.map(opt => (
+              <Pressable
+                key={opt.code}
+                style={[s.langOption, localLang.code === opt.code && s.langOptionActive]}
+                onPress={() => { setLocalLang(opt); setShowLangPicker(false); }}
+              >
+                <Text style={[s.langOptionTxt, localLang.code === opt.code && s.langOptionTxtActive]}>{opt.label} · {opt.native}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
       </View>
 
       {/* Mode toggle */}
@@ -247,7 +301,7 @@ export default function InterpreterScreen() {
               color={mode === m ? '#fff' : C.onSurfaceTertiary}
             />
             <Text style={[s.modeBtnText, mode === m && s.modeBtnTextActive]}>
-              {m === 'tourist' ? `I speak (${touristLangName})` : 'Official speaks (Hindi)'}
+              {m === 'tourist' ? `I speak (${touristLangName})` : `Official speaks (${localLang.label})`}
             </Text>
           </Pressable>
         ))}
@@ -324,6 +378,13 @@ const s = StyleSheet.create({
   langBadge: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
   langBadgeText: { fontSize: 16, fontWeight: '800', color: C.primary },
   headerSub:     { fontSize: 12, color: C.onSurfaceTertiary },
+  langSwitch:    { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: C.navySoft },
+  langSwitchTxt: { fontSize: 12, fontWeight: '700', color: C.primary },
+  langOptions:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10, justifyContent: 'center' },
+  langOption:    { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface },
+  langOptionActive: { backgroundColor: C.primary, borderColor: C.primary },
+  langOptionTxt: { fontSize: 12, fontWeight: '600', color: C.onSurface },
+  langOptionTxtActive: { color: '#fff' },
 
   modeRow:          { flexDirection: 'row', gap: 8, padding: 12, paddingBottom: 8 },
   modeBtn:          {

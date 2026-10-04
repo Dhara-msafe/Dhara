@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
@@ -18,7 +18,12 @@ export default function AllHelp() {
   const router = useRouter();
   const { language } = useAuth();
   const lang = language.code;
+  const params = useLocalSearchParams<{ q?: string }>();
   const [filter, setFilter] = useState('all');
+  // DHARA-B018: a query typed into the global top-bar search (DesktopFrame)
+  // used to be discarded on navigation — this screen never read it. Now it
+  // arrives as ?q=... and pre-fills + actually filters the local search too.
+  const [query, setQuery] = useState(params.q || '');
 
   const groups: Group[] = useMemo(() => [
     { id: 'safety', label: tr('all.sec.safety', lang), cards: [
@@ -44,7 +49,15 @@ export default function AllHelp() {
     ] },
   ], [lang]);
 
-  const filtered = filter === 'all' ? groups : groups.filter(g => g.id === filter);
+  const filtered = useMemo(() => {
+    const byCategory = filter === 'all' ? groups : groups.filter(g => g.id === filter);
+    const q = query.trim().toLowerCase();
+    if (!q) return byCategory;
+    return byCategory
+      .map(g => ({ ...g, cards: g.cards.filter(c2 => c2.title.toLowerCase().includes(q) || c2.sub.toLowerCase().includes(q)) }))
+      .filter(g => g.cards.length > 0);
+  }, [groups, filter, query]);
+  const noResults = query.trim().length > 0 && filtered.length === 0;
 
   return (
     <View style={styles.root}>
@@ -56,7 +69,14 @@ export default function AllHelp() {
 
         <View style={styles.searchWrap}>
           <Ionicons name="search" size={18} color={c.muted} />
-          <TextInput placeholder={tr('all.search', lang)} placeholderTextColor={c.muted} style={styles.search} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder={tr('all.search', lang)}
+            placeholderTextColor={c.muted}
+            style={styles.search}
+            returnKeyType="search"
+          />
           <Pressable testID="all-help-mic" style={styles.searchMic} onPress={() => router.push({ pathname: '/(tabs)', params: { autostartMic: Date.now().toString() } })}>
             <Ionicons name="mic" size={18} color={c.navy} />
           </Pressable>
@@ -69,6 +89,13 @@ export default function AllHelp() {
             </Pressable>
           ))}
         </ScrollView>
+
+        {noResults && (
+          <View style={styles.noResults}>
+            <Ionicons name="search-outline" size={28} color={c.muted} />
+            <Text style={styles.noResultsTxt}>No results for &quot;{query.trim()}&quot; — try a different word, or browse categories below.</Text>
+          </View>
+        )}
 
         {filtered.map((g, gi) => (
           <View key={g.label + gi} style={styles.section}>
@@ -86,7 +113,7 @@ export default function AllHelp() {
           </View>
         ))}
 
-        {filter === 'all' && (
+        {filter === 'all' && !query.trim() && (
           <View style={styles.section}>
             <Text style={styles.secLabel}>{tr('all.sec.soon', lang)}</Text>
             <View style={styles.grid}>
@@ -127,4 +154,6 @@ const styles = StyleSheet.create({
   cardSub: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted },
   newBadge: { position: 'absolute', top: 12, right: 12, backgroundColor: c.goldSoft, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   newTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 9, color: c.darkGold, letterSpacing: 0.5 },
+  noResults: { alignItems: 'center', gap: 10, paddingVertical: 24 },
+  noResultsTxt: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, textAlign: 'center', paddingHorizontal: 20 },
 });

@@ -21,7 +21,7 @@ const EVIDENCE_ICON: Record<string, any> = {
 export default function MyFiles() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { language } = useAuth();
+  const { language, user } = useAuth();
   const lang = language.code;
   const [tab, setTab] = useState('active');
 
@@ -117,6 +117,19 @@ export default function MyFiles() {
           <View style={styles.pin}><Ionicons name="lock-closed-outline" size={15} color={c.darkGold} /><Text style={styles.pinTxt}>{tr('mf.pin', lang)}</Text></View>
         </View>
 
+        {/* DHARA-B014: Guest drafts save/resume correctly, but were not
+            honestly labelled as device/session-local rather than a
+            permanent cloud account — this clarifies the real behavior
+            instead of silently implying registered-account storage. */}
+        {!!user?.is_guest && (
+          <View style={styles.guestNotice}>
+            <Ionicons name="information-circle-outline" size={16} color={c.darkGold} />
+            <Text style={styles.guestNoticeTxt}>
+              Guest drafts are tied to this device — if you clear app data or uninstall the app, you&apos;ll lose access to them. Create a free account to keep them permanently and reach them from any device.
+            </Text>
+          </View>
+        )}
+
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
           {tabs.map(([id, label, n]) => (
             <Pressable key={id} style={[styles.tab, tab === id && styles.tabActive]} onPress={() => setTab(id)} testID={`myfiles-tab-${id}`}>
@@ -156,6 +169,8 @@ const styles = StyleSheet.create({
   title: { fontFamily: theme.fonts.displayBold, fontSize: 28, color: c.ink },
   pin: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.goldMuted, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
   pinTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.darkGold },
+  guestNotice: { flexDirection: 'row', gap: 10, backgroundColor: c.goldMuted, borderRadius: 14, padding: 14, marginTop: 14, alignItems: 'flex-start' },
+  guestNoticeTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12.5, color: c.ink, lineHeight: 18 },
   tabs: { gap: 10, paddingVertical: 16 },
   tab: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9 },
   tabActive: { backgroundColor: c.navy, borderColor: c.navy },

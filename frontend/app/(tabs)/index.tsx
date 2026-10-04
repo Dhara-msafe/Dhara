@@ -285,9 +285,29 @@ export default function ChatScreen() {
   const [samplesRemaining, setSamplesRemaining] = useState<number | null>(null);
   // Guest Mode: 5-question quota banner/limit state, driven by SSE "session"
   // and "guest_limit_reached" frames from /api/chat/stream.
+  // DHARA-B015: the old initializer always hardcoded warning/limitReached to
+  // false regardless of the already-exhausted count/limit from `user` — so
+  // reopening a capped Guest chat showed a writable input again until a
+  // doomed-to-fail submit came back with a generic "No response received"
+  // error. Compute the real state up front, and re-sync if `user` changes.
+  const computeGuestQuota = (u: typeof user) => {
+    const count = u?.guest_question_count ?? 0;
+    const limit = u?.guest_question_limit ?? 5;
+    const limitReached = count >= limit;
+    return {
+      count, limit,
+      warning: !limitReached && count >= limit - 1,
+      limitReached,
+      limitMessage: limitReached ? "You've reached the guest limit. Create a free account to continue." : null,
+    };
+  };
   const [guestQuota, setGuestQuota] = useState<{
     count: number; limit: number; warning: boolean; limitReached: boolean; limitMessage: string | null;
-  }>({ count: user?.guest_question_count ?? 0, limit: user?.guest_question_limit ?? 5, warning: false, limitReached: false, limitMessage: null });
+  }>(() => computeGuestQuota(user));
+  useEffect(() => {
+    if (user?.is_guest) setGuestQuota(computeGuestQuota(user));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.is_guest, user?.guest_question_count, user?.guest_question_limit]);
   const [, setSttProviderLabel] = useState<string>('');
   // WhatsApp-style voice UX state
   const [transcriptPreview, setTranscriptPreview] = useState<string>('');

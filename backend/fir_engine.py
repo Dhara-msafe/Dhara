@@ -505,6 +505,7 @@ STAGE_PROBE           = "probe"
 STAGE_GPS_CONFIRM     = "gps_confirm"
 STAGE_SECTION_SUGGEST = "section_suggest"
 STAGE_READ_BACK       = "read_back"
+STAGE_CORRECTION      = "correction"
 STAGE_DRAFT           = "draft"
 STAGE_COMPLETED       = "completed"
 
@@ -678,6 +679,36 @@ _PLACEHOLDER_PHONE = [
 ]
 
 
+def _validate_date_input(text: str) -> bool:
+    """
+    DHARA-B009: Reject impossible calendar dates (e.g. 32/13/2026) before
+    they reach a draft. Only flags a structured D/M/Y-style numeric pattern
+    as invalid if the calendar date itself is impossible — free narrative
+    ("last Monday", "Diwali week") has no such pattern and is accepted as-is
+    for the LLM extractor to interpret.
+    """
+    m = re.search(r'\b(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})\b', text.strip())
+    if not m:
+        return True
+    d, mo, y = m.groups()
+    try:
+        d_i, mo_i, y_i = int(d), int(mo), int(y)
+        y_i = y_i + 2000 if y_i < 100 else y_i
+        date(y_i, mo_i, d_i)
+        return True
+    except ValueError:
+        return False
+
+
+def _validate_time_input(text: str) -> bool:
+    """DHARA-B009: Reject impossible clock times (e.g. 25:90)."""
+    m = re.search(r'\b(\d{1,2})[:.](\d{2})\b', text.strip())
+    if not m:
+        return True
+    h, mi = int(m.group(1)), int(m.group(2))
+    return h <= 23 and mi <= 59
+
+
 def _is_valid_phone(text: str) -> bool:
     """Return True if text looks like a real contact number."""
     if not text:
@@ -780,7 +811,7 @@ _INCIDENT_KW_MAP: dict[str, list[str]] = {
                   "grabbed my", "grabbed the", "snatched my", "took my phone",
                   "took my wallet", "took my bag", "took my laptop", "took my car",
                   "my phone was taken", "mobile stolen", "bike stolen", "car stolen"],
-    "robbery":   ["robbery", "looted", "loot", "robbed", "dakaiti",
+    "robbery":   ["robbery", "looted", "loot", "robbed",
                   "snatched at", "knife", "knifepoint", "gunpoint", "at gunpoint",
                   "at knifepoint", "threatened with", "threatened at"],
     "assault":   ["beat", "beaten", "hit me", "hit us", "punch", "kick", "slap",
@@ -1038,7 +1069,7 @@ PROBE_Q: dict[str, dict] = {
 # They are now in dedicated subtypes only.
 INCIDENT_SECTIONS: dict[str, list[str]] = {
     "theft":              ["303"],
-    "robbery":            ["309", "310"],
+    "robbery":            ["309"],  # B010: 310 (dacoity) needs a confirmed 5+ person group, never assumed
     "assault":            ["115", "117"],
     "harassment":         ["351", "352"],          # Criminal intimidation + Intentional insult
     "sexual_harassment":  ["74", "75", "77", "78", "351"],  # Sexual offences
@@ -1054,6 +1085,10 @@ INCIDENT_SECTIONS: dict[str, list[str]] = {
 _INJURY_REQUIRED: set[str] = {"115", "117", "124"}
 # Sections dropped when user confirmed NO property loss
 _PROPERTY_REQUIRED: set[str] = {"303", "309", "310"}
+# DHARA-B010: Robbery (309) and dacoity (310) require force/threat as a
+# material element — never assumed. Dropped when the citizen explicitly
+# said no force/threat/weapon was used.
+_FORCE_REQUIRED: set[str] = {"309"}
 
 
 def _build_probe_queue(
@@ -1213,6 +1248,56 @@ async def extract_slots_llm(narrative: str, llm_key: str) -> dict:
         }
 
 
+# ─── Correction extraction (DHARA-B012) ───────────────────────────────────────
+def _make_correction_sys() -> str:
+    today_str = date.today().strftime("%d %B %Y")
+    return f"""You are a correction-intake assistant for an Indian FIR complaint draft.
+The citizen is correcting one or more previously given facts. Read their correction
+instruction and return ONLY valid JSON (no markdown, no explanation) containing ONLY
+the fields that should change — omit every field that is not explicitly mentioned.
+Possible fields:
+{{
+  "informant_name": null,
+  "incident_date": null,
+  "incident_time": null,
+  "incident_place_text": null,
+  "accused": null,
+  "injury": null,
+  "force_used": null,
+  "property_loss": null
+}}
+For injury/force_used/property_loss use exactly the string "yes" or "no" — never any
+other value — and only include the field if the citizen's correction clearly states it.
+Today's date is {today_str}. Convert any date mentioned into YYYY-MM-DD format.
+Do not invent or guess a value for a field the citizen did not mention.
+"""  # noqa: E501
+
+
+async def extract_correction_llm(correction_text: str, llm_key: str) -> dict:
+    """Extract ONLY the explicitly-corrected canonical fields from a free-text
+    correction sentence. Never returns the raw sentence itself as a value."""
+    try:
+        chat = (
+            LlmChat(
+                api_key=llm_key,
+                session_id=f"fir-correct-{uuid.uuid4()}",
+                system_message=_make_correction_sys(),
+            )
+            .with_model("anthropic", "claude-haiku-4-5")
+            .with_params(max_tokens=400)
+        )
+        result = await chat.send_message(UserMessage(text=correction_text[:800]))
+        raw = (result or "").strip()
+        if raw.startswith("```"):
+            raw = re.sub(r"^```[^\n]*\n?", "", raw)
+            raw = re.sub(r"\n?```$", "", raw.strip())
+        data = json.loads(raw)
+        return {k: v for k, v in data.items() if v is not None and str(v).strip() != ""}
+    except Exception as e:
+        logger.warning(f"[extract_correction_llm] failed: {e}")
+        return {}
+
+
 # ─── Section suggestion with Citation Guard ───────────────────────────────────
 async def suggest_sections(
     corpus_db, incident_types: list[str], slots: dict, language: str = "en"
@@ -1241,6 +1326,10 @@ async def suggest_sections(
         for sec_id in _PROPERTY_REQUIRED & candidates:
             dropped_ids.append({"section_number": sec_id, "reason_dropped": "contradicts property_loss=none"})
         candidates -= _PROPERTY_REQUIRED
+    if str(slots.get("force_used", "")).lower().startswith("no"):
+        for sec_id in _FORCE_REQUIRED & candidates:
+            dropped_ids.append({"section_number": sec_id, "reason_dropped": "contradicts force_used=none"})
+        candidates -= _FORCE_REQUIRED
 
     confirmed: list[dict] = []
     for sec_id in sorted(candidates):
@@ -1337,6 +1426,7 @@ Date of report: {date_str}
 Write the letter in English, addressed to "The Station House Officer".
 Write in first person throughout.
 IMPORTANT: NEVER use [bracket placeholders] in the letter. If a detail is missing or not provided, write "Not provided" or omit the sentence entirely. Do not leave any square bracket text in the output.
+IMPORTANT: If Injury, Force used, or Property loss above are stated as "no", explicitly state that none occurred (e.g. "No injuries were sustained," "No force or weapon was used"). Never imply force, a weapon, or an injury happened unless the corresponding field above says "yes".
 {lang_line}
 
 End the letter (after both languages if bilingual) with EXACTLY this disclaimer block:
@@ -1423,8 +1513,17 @@ def _build_summary(slots: dict, sections: list[dict], incident_types: list[str])
         lines.append(f"\U0001f4cd Where: {str(loc)[:120]}")
     elif loc:
         lines.append("\U0001f4cd Where: To be confirmed at the time of statement")
-    if incident_types:
-        lines.append(f"\u2696\ufe0f Type: {', '.join(t.replace('_', ' ').title() for t in incident_types)}")
+    # DHARA-B010/B011: only show an incident type if a surviving (non-dropped)
+    # confirmed section actually supports it — e.g. once BNS 309 is dropped
+    # because the citizen said "no force", "Robbery" must not still appear
+    # here even though the LLM/keyword classifier first guessed it.
+    confirmed_ids = {s.get("section_number") for s in sections}
+    shown_types = [
+        t for t in incident_types
+        if not INCIDENT_SECTIONS.get(t) or (set(INCIDENT_SECTIONS.get(t, [])) & confirmed_ids)
+    ]
+    if shown_types:
+        lines.append(f"\u2696\ufe0f Type: {', '.join(t.replace('_', ' ').title() for t in shown_types)}")
     if slots.get("accused"):
         lines.append(f"\U0001f464 Accused: {str(slots.get('accused', ''))[:100]}")
     if slots.get("injury"):
@@ -1884,6 +1983,35 @@ async def _dispatch(
                             "completed": False,
                         }
 
+                # ── DHARA-B009: Date/time validation before it reaches a draft ──
+                elif cp == "probe_date":
+                    if not _validate_date_input(user_message):
+                        return {
+                            "session_id": sid, "stage": STAGE_PROBE, "probe_key": cp,
+                            "bot_message": "That date doesn't look valid — please check the day and month (e.g. 15/03/2026).",
+                            "input_type": pdef["input_type"],
+                            "quick_replies": pdef.get("quick_replies", []),
+                            "skip_label": pdef.get("skip_label"), "completed": False,
+                        }
+                    slots["incident_date"] = user_message
+                    await db.fir_sessions.update_one(
+                        {"session_id": sid}, {"$set": {"slots": slots, "updated_at": now}}
+                    )
+
+                elif cp == "probe_time":
+                    if not _validate_time_input(user_message):
+                        return {
+                            "session_id": sid, "stage": STAGE_PROBE, "probe_key": cp,
+                            "bot_message": "That time doesn't look valid — please use HH:MM (e.g. 14:30 or 2:30 PM).",
+                            "input_type": pdef["input_type"],
+                            "quick_replies": pdef.get("quick_replies", []),
+                            "skip_label": pdef.get("skip_label"), "completed": False,
+                        }
+                    slots["incident_time"] = user_message
+                    await db.fir_sessions.update_one(
+                        {"session_id": sid}, {"$set": {"slots": slots, "updated_at": now}}
+                    )
+
                 # ── FIX 4: Accused slot guard ────────────────────────────────
                 elif cp == "probe_accused":
                     if _is_witness_answer_in_accused_probe(user_message):
@@ -1968,10 +2096,19 @@ async def _dispatch(
                     )
 
                 elif cp == "probe_injury":
-                    ml = user_message.lower()
-                    slots["injury"] = "yes" if ("yes" in ml or "injur" in ml) else "no"
+                    # DHARA-B011: the old check `"injur" in ml` matched the
+                    # substring "injur" inside "No — no injuries" itself,
+                    # silently flipping an explicit negative answer to "yes".
+                    # Quick-reply options always start with "Yes"/"No" — use
+                    # that deterministically instead of substring matching.
+                    ml = user_message.lower().strip()
+                    slots["injury"] = "yes" if ml.startswith("yes") else "no"
+                    if slots["injury"] == "no":
+                        # DHARA-B010: don't ask for a Medico-Legal Certificate
+                        # once the citizen has already said no one was injured.
+                        pending_probes = [p for p in pending_probes if p != "probe_assault_mlc"]
                     await db.fir_sessions.update_one(
-                        {"session_id": sid}, {"$set": {"slots": slots, "updated_at": now}}
+                        {"session_id": sid}, {"$set": {"slots": slots, "pending_probes": pending_probes, "updated_at": now}}
                     )
                 elif cp == "probe_harassment_online":
                     slots["harassment_mode"] = user_message
@@ -1980,8 +2117,12 @@ async def _dispatch(
                     )
                 # ── v3.3: New probe handlers ─────────────────────────────────
                 elif cp == "probe_force_used":
-                    m_lower = user_message.lower()
-                    force = "yes" in m_lower or "force" in m_lower or "weapon" in m_lower
+                    # DHARA-B010/B011: the old check `"force" in m_lower`
+                    # matched the substring "force" inside "No, no force"
+                    # itself, flipping an explicit negative into force=yes —
+                    # which then wrongly kept BNS 309 Robbery suggested.
+                    m_lower = user_message.lower().strip()
+                    force = m_lower.startswith("yes")
                     slots["force_used"] = "yes" if force else "no"
                     await db.fir_sessions.update_one(
                         {"session_id": sid}, {"$set": {"slots": slots, "updated_at": now}}
@@ -2102,10 +2243,20 @@ async def _dispatch(
 
     # ── Read Back ─────────────────────────────────────────────────────────────
     elif stage == STAGE_READ_BACK:
-        msg_lower = (user_message or action or "").lower()
-        if "edit" in msg_lower or ("no" in msg_lower and "no, i" not in msg_lower):
+        msg_lower = (user_message or action or "").lower().strip()
+        if "edit" in msg_lower or msg_lower.startswith("no"):
+            # DHARA-B012: move to a dedicated correction stage instead of
+            # looping back into STAGE_READ_BACK. The old code re-used this
+            # same branch to interpret the *next* message too — a correction
+            # sentence that happened to contain "no" (e.g. "no force was
+            # used") re-triggered this same prompt forever, and anything
+            # else silently skipped straight to draft generation with the
+            # correction never applied.
+            await db.fir_sessions.update_one(
+                {"session_id": sid}, {"$set": {"stage": STAGE_CORRECTION, "updated_at": now}},
+            )
             return {
-                "session_id": sid, "stage": STAGE_READ_BACK,
+                "session_id": sid, "stage": STAGE_CORRECTION,
                 "bot_message": _tm("what_to_change", language),
                 "input_type": INPUT_TEXT, "quick_replies": [], "completed": False,
             }
@@ -2127,6 +2278,57 @@ async def _dispatch(
             "bot_message": _tm("draft_ready", language),
             "input_type": INPUT_DONE, "quick_replies": [],
             "draft": draft_text, "completed": True,
+        }
+
+    # ── Correction (DHARA-B012) ────────────────────────────────────────────────
+    # Parses a free-text correction into canonical slot fields via a small,
+    # targeted LLM extraction — never stores the raw correction sentence as
+    # a fact itself — then re-runs the Citation Guard (suggest_sections) so
+    # section suggestions stay consistent with the corrected facts, and
+    # returns to STAGE_READ_BACK so the citizen reviews the updated summary
+    # before a draft is ever generated.
+    elif stage == STAGE_CORRECTION:
+        correction_text = (user_message or "").strip()
+        if len(correction_text) < 2:
+            return {
+                "session_id": sid, "stage": STAGE_CORRECTION,
+                "bot_message": "Please type what you'd like to change (e.g. \"change my name to Beta\" or \"the date was 12/03/2026\").",
+                "input_type": INPUT_TEXT, "quick_replies": [], "completed": False,
+            }
+        updates = await extract_correction_llm(correction_text, llm_key)
+        # Validate any corrected date/time deterministically before accepting it
+        if updates.get("incident_date") and not _validate_date_input(updates["incident_date"]):
+            updates.pop("incident_date", None)
+        if updates.get("incident_time") and not _validate_time_input(updates["incident_time"]):
+            updates.pop("incident_time", None)
+        changed_fields = list(updates.keys())
+        for k, v in updates.items():
+            if k == "incident_place_text":
+                slots["incident_place_text"] = v
+                slots["incident_gps_address"] = None  # manual correction overrides any GPS-resolved address
+            else:
+                slots[k] = v
+        # If force_used was corrected to "no", drop robbery from the displayed
+        # type immediately (suggest_sections below also drops BNS 309).
+        confirmed, dropped = await suggest_sections(corpus_db, incident_types, slots, language)
+        await db.fir_sessions.update_one(
+            {"session_id": sid},
+            {"$set": {
+                "slots": slots, "suggested_sections": confirmed, "dropped_sections": dropped,
+                "stage": STAGE_READ_BACK, "updated_at": now,
+            }},
+        )
+        summary = _build_summary(slots, confirmed, incident_types)
+        if changed_fields:
+            changed_note = "Updated: " + ", ".join(f.replace("_", " ") for f in changed_fields)
+        else:
+            changed_note = "I couldn't find a specific change in that — please tell me exactly what to update (e.g. \"change name to Beta\")."
+        return {
+            "session_id": sid, "stage": STAGE_READ_BACK,
+            "bot_message": f"{changed_note}\n\n{_tm('summary_correct', language, summary=summary)}",
+            "input_type": INPUT_CONFIRM,
+            "quick_replies": [_tm("yes_generate", language), _tm("edit_something", language)],
+            "slots_preview": slots, "suggested_sections": confirmed, "completed": False,
         }
 
     elif stage == STAGE_COMPLETED:

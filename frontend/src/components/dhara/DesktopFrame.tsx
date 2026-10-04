@@ -77,7 +77,11 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
             placeholder="Search help, rights or forms…"
             placeholderTextColor={c.onNavyMuted}
             style={styles.searchInput}
-            onSubmitEditing={() => router.push('/all-help')}
+            onSubmitEditing={() => {
+              const query = q.trim();
+              setQ('');
+              router.push(query ? { pathname: '/all-help', params: { q: query } } : '/all-help');
+            }}
             returnKeyType="search"
           />
         </View>
