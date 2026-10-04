@@ -151,6 +151,23 @@ backend:
           comment: "⚠️ NOT TESTED: Endpoint requires actual audio file upload. Cannot test without audio sample. Endpoint is available and configured correctly based on code review."
 
 frontend:
+  - task: "Help actions and redesigned-screen voice entry/playback"
+    implemented: true
+    working: true
+    file: "frontend/app/emergency.tsx; frontend/app/women; frontend/app/(tabs)/index.tsx; frontend/app/action-plan.tsx; frontend/src/hooks/useScreenSpeech.ts"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "user"
+        comment: "112, silent alert, record now, officer card and nearest help not responding. Also fix earlier voice issue."
+      - working: "NA"
+        agent: "main"
+        comment: "Connected empty Help tile handlers; added dialler status, SMS preparation with opt-in location (no automatic delivery), local audio recording/storage/playback/deletion, Maps search without invented distances. Corrected device SOS advice. Mic entry params now start existing chat recorder once in hands-free mode, with blur cleanup. Added shared native-to-cloud TTS hook and translated card content, silent/stop/error/retry states. No backend/src/voice changes. Focused verification needed; no real emergency calls/SMS. Existing test credentials unchanged. Changed source typechecks; unrelated 12 legacy diagnostics remain."
+      - working: true
+        agent: "main"
+        comment: "Iteration24 duplicate silent-alert stack fixed with dismissTo; manual phone-preview verification passed return/contact cleanup, SMS composition, Maps URLs, offline audio save/play/reload/delete, denied mic/location, actual officer card/source/refusal/Silent and 503 Retry, Home/Ask autostart/cancel/blur and All-help denial. hi/mr/ta fallback payloads verified for both screens with simulated audio responses; blocked playback retry reuses audio. Actual device dialler/SMS and paid TTS/STT quality NOT certified. Details memory/help_voice_verification.md. Only test report changed by tester; no source edits."
   - task: "Android APK startup stability (V18 candidate)"
     implemented: true
     working: "NA"

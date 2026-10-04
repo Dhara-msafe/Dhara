@@ -1,4 +1,5 @@
-import { View, Text, Pressable, StyleSheet, Linking, ScrollView } from 'react-native';
+import { useState } from 'react';
+import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +7,7 @@ import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
 import { QuickExit } from '@/src/components/dhara/SosPill';
+import { openPhone } from '@/src/women/helpActions';
 
 const c = theme.colors;
 
@@ -14,12 +16,13 @@ export default function Emergency() {
   const router = useRouter();
   const { language } = useAuth();
   const lang = language.code;
+  const [callStatus, setCallStatus] = useState('');
 
   const tiles = [
-    { icon: 'people-outline', title: tr('em.silent', lang), sub: tr('em.silent.sub', lang) },
-    { icon: 'mic-outline', title: tr('em.record', lang), sub: tr('em.record.sub', lang) },
-    { icon: 'shield-outline', title: tr('em.officer', lang), sub: tr('em.officer.sub', lang) },
-    { icon: 'location-outline', title: tr('em.nearest', lang), sub: tr('em.nearest.sub', lang) },
+    { id: 'silent-alert', icon: 'people-outline', title: tr('em.silent', lang), sub: tr('em.silent.sub', lang), route: '/women/silent-alert' },
+    { id: 'record-now', icon: 'mic-outline', title: tr('em.record', lang), sub: tr('em.record.sub', lang), route: '/women/evidence-locker?record=1' },
+    { id: 'officer-card', icon: 'shield-outline', title: tr('em.officer', lang), sub: tr('em.officer.sub', lang), route: '/women/officer-card?scenario=police_wont_file' },
+    { id: 'nearest-help', icon: 'location-outline', title: tr('em.nearest', lang), sub: tr('em.nearest.sub', lang), route: '/women/nearest-help' },
   ];
 
   return (
@@ -33,26 +36,27 @@ export default function Emergency() {
           <QuickExit />
         </View>
 
-        <Pressable style={styles.callCircle} onPress={() => Linking.openURL('tel:112')} testID="call-112">
+        <Pressable style={styles.callCircle} onPress={async () => setCallStatus(await openPhone('112'))} testID="call-112" accessibilityRole="button" accessibilityLabel="Open dialler for 112">
           <Ionicons name="call" size={34} color={c.emergencyRed} />
           <Text style={styles.callNum}>112</Text>
           <Text style={styles.callTap}>{tr('em.tapcall', lang)}</Text>
         </Pressable>
+        {!!callStatus && <Text testID="emergency-call-status" accessibilityLiveRegion="polite" style={styles.oneNumber}>{callStatus}</Text>}
 
         <Text style={styles.oneNumber}>{tr('em.oneNumber', lang)}</Text>
 
         <View style={styles.grid}>
           {tiles.map(t => (
-            <Pressable key={t.title} style={styles.tile} onPress={() => {}}>
+            <Pressable key={t.id} testID={`help-${t.id}`} accessibilityRole="button" style={({ pressed }) => [styles.tile, pressed && { opacity: 0.7 }]} onPress={() => router.push(t.route as any)}>
               <Ionicons name={t.icon as any} size={24} color="#fff" />
-              <Text style={styles.tileTitle}>{t.title}</Text>
-              <Text style={styles.tileSub}>{t.sub}</Text>
+              <Text testID={`help-${t.id}-title`} style={styles.tileTitle}>{t.title}</Text>
+              <Text testID={`help-${t.id}-description`} style={styles.tileSub}>{t.sub}</Text>
             </Pressable>
           ))}
         </View>
 
         <View style={styles.tipBox}>
-          <Text style={styles.tipTxt}>{tr('em.powerTip', lang)}</Text>
+          <Text testID="emergency-device-tip" style={styles.tipTxt}>{tr('em.powerTip', lang)}</Text>
         </View>
       </ScrollView>
 

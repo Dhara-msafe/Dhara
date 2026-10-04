@@ -92,7 +92,7 @@ export default function Home() {
         <View style={styles.askCard}>
           <Text style={styles.askTitle}>{tr('home.askTitle', lang)}</Text>
           <Text style={styles.askSub}>{tr('home.askSub', lang)}</Text>
-          <Pressable style={styles.micBtn} onPress={() => router.push('/(tabs)')} testID="home-mic">
+          <Pressable style={styles.micBtn} onPress={() => router.push({ pathname: '/(tabs)', params: { autostartMic: Date.now().toString() } })} testID="home-mic">
             <Ionicons name="mic" size={40} color={c.navy} />
           </Pressable>
           <Text style={styles.holdTxt}>{tr('home.holdToSpeak', lang)}</Text>

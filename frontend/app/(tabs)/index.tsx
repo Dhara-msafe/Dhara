@@ -11,6 +11,7 @@ import {
   Modal,
   Animated,
   PanResponder,
+  AppState,
   type GestureResponderEvent,
   type PanResponderGestureState,
 } from 'react-native';
@@ -19,6 +20,7 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import {
   AudioModule,
   RecordingPresets,
@@ -199,7 +201,10 @@ const PRO_SUGGESTIONS: { text: string; icon: React.ComponentProps<typeof Ionicon
 export default function ChatScreen() {
   const { token, user, language, autoSpeak, ttsVolume, ttsVoiceMode, refreshUser, forceLogout } = useAuth();
   const router = useRouter();
-  const entryParams = useLocalSearchParams<{ draft?: string; entry?: string; voiceHint?: string }>();
+  const entryParams = useLocalSearchParams<{ draft?: string; entry?: string; voiceHint?: string; autostartMic?: string }>();
+  const focused = useIsFocused();
+  const lastMicEntry = useRef<string | undefined>(undefined);
+  const micStartingRef = useRef(false);
   const lastEntry = useRef<string | undefined>(undefined);
   const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -1124,10 +1129,13 @@ export default function ChatScreen() {
    *  On web: uses browser MediaRecorder API (getUserMedia).
    *  Both paths produce audio that gets sent to the Whisper transcription endpoint. */
   const startRecording = useCallback(async () => {
-    if (!token) return;
+    if (!token || micStartingRef.current) return;
+    micStartingRef.current = true;
+    let started = false;
     // Defensive: recording needs exclusive audio-session access. If TTS is
     // still speaking a previous answer, stop it first.
     stopCloudTTS();
+    stopNativeTTS();
     try {
       if (Platform.OS === 'web') {
         // --- Web: use browser MediaRecorder ---
@@ -1169,18 +1177,20 @@ export default function ChatScreen() {
           }
           return;
         }
-        if (!isMicHeldRef.current) {
+        if (!isMicHeldRef.current && !lockedRef.current) {
           stream.getTracks().forEach((t: any) => t.stop());
           return;
         }
         webStreamRef.current = stream;
         webChunksRef.current = [];
-        const mr = new (globalThis as any).MediaRecorder(stream, { mimeType: 'audio/webm' });
+        const mimeType = ['audio/webm', 'audio/mp4'].find(type => MediaRecorder.isTypeSupported(type));
+        const mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
         mr.ondataavailable = (e: any) => {
           if (e.data && e.data.size > 0) webChunksRef.current.push(e.data);
         };
         mr.start();
         webRecorderRef.current = mr;
+        started = true;
         setRecording(true);
       } else {
         // --- Native: expo-audio recorder ---
@@ -1191,21 +1201,32 @@ export default function ChatScreen() {
           notify('Microphone permission', 'Please enable microphone to speak your question.');
           return;
         }
-        if (!isMicHeldRef.current) return;
+        if (!isMicHeldRef.current && !lockedRef.current) return;
         await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
         try { await recorder.stop(); } catch {}
         await recorder.prepareToRecordAsync();
-        if (!isMicHeldRef.current) {
+        if (!isMicHeldRef.current && !lockedRef.current) {
           try { await recorder.stop(); } catch {}
           return;
         }
         recorder.record();
+        started = true;
         setRecording(true);
       }
     } catch (e: any) {
       notify('Recording failed', e?.message || 'Try again');
+    } finally {
+      micStartingRef.current = false;
+      if (!started) {
+        isMicHeldRef.current = false; lockedRef.current = false;
+        setLocked(false); setRecording(false);
+        if (holdTimerRef.current) { clearInterval(holdTimerRef.current); holdTimerRef.current = null; }
+        micPulse.stopAnimation(); micPulse.setValue(1); setHoldElapsed(0);
+        try { webStreamRef.current?.getTracks()?.forEach((track: MediaStreamTrack) => track.stop()); } catch {}
+        webStreamRef.current = null;
+      }
     }
-  }, [recorder, token, stopCloudTTS, notify]);
+  }, [recorder, token, stopCloudTTS, notify, micPulse]);
 
   const stopRecording = useCallback(async () => {
     // Stop the elapsed-time ticker
@@ -1237,7 +1258,7 @@ export default function ChatScreen() {
         if (!mr) { setTranscribing(false); return; }
         const audioBlob = await new Promise<Blob>((resolve) => {
           mr.onstop = () => {
-            const blob = new Blob(webChunksRef.current, { type: 'audio/webm' });
+            const blob = new Blob(webChunksRef.current, { type: mr.mimeType || 'audio/webm' });
             resolve(blob);
           };
           mr.stop();
@@ -1256,7 +1277,7 @@ export default function ChatScreen() {
         if (!token) { setTranscribing(false); return; }
         // Upload blob to Whisper endpoint
         const form = new FormData();
-        form.append('audio', audioBlob, 'audio.webm');
+        form.append('audio', audioBlob, audioBlob.type.includes('mp4') ? 'audio.m4a' : 'audio.webm');
         if (language?.code) form.append('language', language.code);
         const res = await fetch(`${API_BASE}/api/voice/transcribe`, {
           method: 'POST',
@@ -1316,6 +1337,7 @@ export default function ChatScreen() {
 
   // WhatsApp-style hold-to-talk handlers
   const onMicPressIn = useCallback(() => {
+    if (micStartingRef.current || isMicHeldRef.current) return;
     // Synchronously mark the mic as held BEFORE any async work — this is the
     // signal that startRecording checks after each await to know whether the
     // user is still holding the button.
@@ -1429,6 +1451,7 @@ export default function ChatScreen() {
   /** Trash button on the locked hands-free bar — discards the recording
    * without transcribing or sending anything. */
   const onLockedCancel = useCallback(() => {
+    isMicHeldRef.current = false;
     lockedRef.current = false;
     setLocked(false);
     micPulse.stopAnimation();
@@ -1446,8 +1469,8 @@ export default function ChatScreen() {
       webStreamRef.current = null;
       webChunksRef.current = [];
     } else {
-      try { recorder.stop(); } catch {}
-      try { setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }); } catch {}
+      void recorder.stop().catch(() => {});
+      void setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }).catch(() => {});
     }
   }, [recorder, micPulse]);
 
@@ -1455,12 +1478,39 @@ export default function ChatScreen() {
    * and goes to the normal transcribe → confirm flow, same as a slide-free
    * hold-and-release would. */
   const onLockedFinish = useCallback(() => {
+    isMicHeldRef.current = false;
     lockedRef.current = false;
     setLocked(false);
     micPulse.stopAnimation();
     micPulse.setValue(1);
     stopRecording();
   }, [stopRecording, micPulse]);
+
+  // Consume each explicit voice-entry request once. A navigation tap starts
+  // hands-free mode; it must not pretend a finger is still holding the old UI.
+  useEffect(() => {
+    const request = entryParams.autostartMic;
+    if (!focused || !request || lastMicEntry.current === request) return;
+    lastMicEntry.current = request;
+    router.setParams({ autostartMic: '' });
+    if (!token) { notify('Sign in to speak', 'Please sign in before using voice questions.'); return; }
+    if (recording || micStartingRef.current || transcribing || streaming || showTranscriptModal) {
+      notify('Finish the current question', 'Stop or review the current recording before starting another.'); return;
+    }
+    onMicPressIn();
+    lockedRef.current = true; setLocked(true);
+  }, [focused, entryParams.autostartMic, token, recording, transcribing, streaming, showTranscriptModal, onMicPressIn, router, notify]);
+
+  // Tabs stay mounted: unmount-only cleanup does not stop the microphone.
+  useEffect(() => {
+    if (!focused) { onLockedCancel(); stopCloudTTS(); stopNativeTTS(); }
+  }, [focused, onLockedCancel, stopCloudTTS]);
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', state => {
+      if (state !== 'active') { onLockedCancel(); stopCloudTTS(); stopNativeTTS(); }
+    });
+    return () => sub.remove();
+  }, [onLockedCancel, stopCloudTTS]);
 
   // PanResponder for the WhatsApp slide-to-cancel / slide-up-to-lock gestures
   // on the mic button.

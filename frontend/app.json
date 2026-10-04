@@ -12,11 +12,11 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.msafesolutions.legalaid",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Speak your legal questions in your language",
+        "NSMicrophoneUsageDescription": "Speak questions or save local voice evidence",
         "NSSpeechRecognitionUsageDescription": "Convert your spoken legal questions into text on-device",
         "NSCameraUsageDescription": "Attach photos to your missing-person complaint",
         "NSPhotoLibraryUsageDescription": "Choose photos for your missing-person complaint",
-        "NSLocationWhenInUseUsageDescription": "Add a confirmed last-seen location to complaints"
+        "NSLocationWhenInUseUsageDescription": "Add locations to complaints or messages you choose"
       }
     },
     "android": {

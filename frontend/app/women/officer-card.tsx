@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, Linking } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
-import { safetyRoute, type RouteResult } from '@/src/women/api';
-import { speakNative, stopNativeTTS } from '@/src/voice/native-tts';
+import { useRightsCard } from '@/src/hooks/useRightsCard';
+import { useScreenSpeech } from '@/src/hooks/useScreenSpeech';
+import { openPhone } from '@/src/women/helpActions';
 
 const c = theme.colors;
 
@@ -13,32 +15,32 @@ export default function OfficerCard() {
   const router = useRouter();
   const { language } = useAuth();
   const params = useLocalSearchParams<{ scenario?: string }>();
-  const [res, setRes] = useState<RouteResult | null>(null);
+  const { result: res, loading, error, retry } = useRightsCard(params.scenario || 'police_wont_file', language.code);
+  const speech = useScreenSpeech();
+  const stopSpeech = speech.stop;
+  const insets = useSafeAreaInsets();
+  const [callStatus, setCallStatus] = useState('');
   const [showSource, setShowSource] = useState(false);
   const [showRefused, setShowRefused] = useState(false);
   const [silent, setSilent] = useState(false);
-
-  useEffect(() => {
-    safetyRoute({ scenario_key: params.scenario || 'police_wont_file', lang: language.code }).then(setRes);
-  }, [params.scenario, language.code]);
 
   const card = res?.card;
 
   // A4 — Silent toggle: nothing is ever spoken aloud at a counter unless the
   // citizen explicitly leaves Silent off. Stop immediately if she flips it on.
   useEffect(() => {
-    if (silent) stopNativeTTS();
-  }, [silent]);
+    if (silent) stopSpeech();
+  }, [silent, stopSpeech]);
 
   const speakVerdict = () => {
     if (silent || !card) return;
-    speakNative(card.verdict, language.code);
+    void speech.listen(card.verdict);
   };
 
   return (
-    <View style={styles.root}>
-      <View style={styles.bar}>
-        <Pressable onPress={() => router.back()} style={styles.back}><Ionicons name="close" size={26} color="#fff" /></Pressable>
+    <View style={styles.root} testID="officer-card-screen">
+      <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>
+        <Pressable testID="officer-close" onPress={() => router.back()} style={styles.back}><Ionicons name="close" size={26} color="#fff" /></Pressable>
         <Text style={styles.barTitle}>Officer card</Text>
         <Pressable
           testID="officer-silent-toggle"
@@ -49,12 +51,13 @@ export default function OfficerCard() {
           <Text style={[styles.silentTxt, silent && { color: c.navy }]}>Silent</Text>
         </Pressable>
       </View>
-      <ScrollView contentContainerStyle={{ padding: 22, paddingBottom: 40 }}>
+      <ScrollView contentContainerStyle={{ padding: 22, paddingBottom: insets.bottom + 40 }}>
         <Text style={styles.kicker}>SHOW THIS TO THE OFFICER</Text>
-        {card ? (
+        {loading ? <ActivityIndicator testID="officer-loading" color={c.gold} /> : card ? (
           <>
             <Pressable onPress={speakVerdict} disabled={silent} testID="officer-speak-verdict">
-              <Text style={styles.big}>{card.verdict}</Text>
+              <Text testID="officer-verdict" style={styles.big}>{card.verdict}</Text>
+              <Text testID="officer-speech-status" style={styles.why}>{silent ? 'Silent mode is on' : speech.blocked ? 'Tap to play voice' : speech.speaking ? 'Tap to stop audio' : 'Tap to listen'}</Text>
             </Pressable>
             {card.original?.verdict ? (
               <View style={styles.originalBox}>
@@ -96,19 +99,22 @@ export default function OfficerCard() {
           </>
         ) : (
           <>
-            <Text style={styles.big}>I have the right to be heard, and my complaint must be recorded.</Text>
+            <Text testID="officer-unavailable" style={styles.big}>{error || 'A released rights card is not available for this situation yet.'}</Text>
             <View style={styles.pendingChip}><Ionicons name="time-outline" size={14} color={c.navy} /><Text style={styles.pendingTxt}>Detailed law is being advocate-verified</Text></View>
             <Text style={styles.why}>Open DHARA and ask your question to get the exact section and procedure, checked against current law before you see it.</Text>
-            <Pressable style={styles.askBtn} onPress={() => router.push('/(tabs)')}>
+            {!!error && <Pressable testID="officer-retry" style={styles.askBtn} onPress={retry}><Text style={styles.askTxt}>Try again</Text></Pressable>}
+            <Pressable testID="officer-ask-dhara" style={styles.askBtn} onPress={() => router.push({ pathname: '/(tabs)', params: { autostartMic: Date.now().toString() } })}>
               <Ionicons name="mic" size={18} color={c.navy} />
               <Text style={styles.askTxt}>Ask DHARA now</Text>
             </Pressable>
           </>
         )}
+        {!!speech.error && <Text testID="officer-speech-error" accessibilityLiveRegion="polite" style={styles.why}>{speech.error}</Text>}
+        {!!callStatus && <Text testID="officer-call-status" style={styles.why}>{callStatus}</Text>}
 
         <View style={styles.hlRow}>
           {(res?.services || []).slice(0, 3).map(s => (
-            <Pressable key={s.service_id} style={styles.hl} onPress={() => Linking.openURL(`tel:${s.number}`)}>
+            <Pressable key={s.service_id} testID={`officer-call-${s.number}`} style={styles.hl} onPress={async () => setCallStatus(await openPhone(s.number))}>
               <Text style={styles.hlNum}>{s.number}</Text>
               <Text style={styles.hlName} numberOfLines={1}>{s.name}</Text>
             </Pressable>
@@ -122,7 +128,7 @@ export default function OfficerCard() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.navy },
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 44, paddingHorizontal: 12, paddingBottom: 10 },
-  back: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  back: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   barTitle: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 17 },
   kicker: { color: c.gold, fontFamily: theme.fonts.bodyBold, fontSize: 13, letterSpacing: 1.5, marginBottom: 14 },
   big: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 32, lineHeight: 42 },
@@ -137,7 +143,7 @@ const styles = StyleSheet.create({
   hl: { flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
   hlNum: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 22 },
   hlName: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 11, marginTop: 2 },
-  silentBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
+  silentBtn: { flexDirection: 'row', alignItems: 'center', minHeight: 44, gap: 5, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
   silentBtnOn: { backgroundColor: c.gold },
   silentTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 12 },
   originalBox: { backgroundColor: 'rgba(255,255,255,0.08)', borderLeftWidth: 3, borderLeftColor: c.gold, borderRadius: 10, padding: 14, marginTop: 14 },
