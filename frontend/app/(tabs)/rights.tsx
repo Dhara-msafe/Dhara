@@ -125,7 +125,7 @@ export default function Rights() {
                   <Pressable
                     testID={`ask-more-${t.id}`}
                     style={styles.askBtn}
-                    onPress={() => router.push('/(tabs)')}
+                    onPress={() => router.push({ pathname: '/(tabs)', params: { topicId: t.id } })}
                   >
                     <Ionicons name="chatbubbles-outline" size={16} color={theme.colors.onBrandPrimary} />
                     <Text style={styles.askText}>Ask Dhara more</Text>
