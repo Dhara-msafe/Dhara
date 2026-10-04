@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
@@ -11,14 +11,32 @@ import { useRightsCard } from '@/src/hooks/useRightsCard';
 
 const c = theme.colors;
 
+// Maps each "Know your rights" scenario to the i18n key used for its chip
+// label — keeps the situation chip and the loaded rights card in sync with
+// whichever tile the woman actually tapped on women-shield.tsx.
+const SCENARIO_LABEL_KEY: Record<string, string> = {
+  police_wont_file: 'ws.r.police',
+  violence_at_home: 'ws.r.violence',
+  thrown_out_of_home: 'ws.r.thrown',
+  dowry_demands: 'ws.r.dowry',
+  harassment_at_work: 'ws.r.work',
+  stalking_online_abuse: 'ws.r.stalking',
+  private_photos_leaked: 'ws.r.photos',
+  after_assault: 'ws.r.assault',
+  woman_arrested: 'ws.r.arrested',
+  children_safety: 'ws.r.children',
+};
+
 export default function ActionPlan() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { language, user } = useAuth();
   const lang = language.code;
+  const params = useLocalSearchParams<{ scenario?: string }>();
+  const scenarioKey = params.scenario || 'police_wont_file';
   const [answered, setAnswered] = useState(false);
   const { speaking, blocked, error: speechError, listen } = useScreenSpeech();
-  const { result, loading, error: cardError, retry } = useRightsCard('police_wont_file', lang);
+  const { result, loading, error: cardError, retry } = useRightsCard(scenarioKey, lang);
   const card = result?.card;
   const onListen = useCallback(() => { if (card) void listen(`${card.verdict} ${card.why}`); }, [card, listen]);
 
@@ -41,7 +59,7 @@ export default function ActionPlan() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         {/* Situation chips */}
         <View style={styles.chipRow}>
-          <View style={styles.chip}><Ionicons name="sparkles" size={13} color={c.darkGold} /><Text style={styles.chipTxt}>Police refusing complaint</Text></View>
+          <View style={styles.chip}><Ionicons name="sparkles" size={13} color={c.darkGold} /><Text style={styles.chipTxt}>{tr(SCENARIO_LABEL_KEY[scenarioKey] || 'ws.r.police', lang)}</Text></View>
           <View style={styles.chip}><Ionicons name="location-outline" size={13} color={c.darkGold} /><Text style={styles.chipTxt}>{user?.state_name || 'India'}</Text></View>
         </View>
         <Pressable testID="action-plan-change-question" onPress={() => router.push('/(tabs)')}><Text style={styles.notRight}>{tr('ap.notright', lang)}</Text></Pressable>
@@ -81,7 +99,7 @@ export default function ActionPlan() {
             <View style={{ flex: 1 }}>
               <Text style={styles.stepTitle}>{s.title}</Text>
               <Text style={styles.stepBody}>{s.body}</Text>
-              <Pressable testID={`action-plan-step-${s.n}`} style={[styles.stepBtn, s.n === 1 && styles.stepBtnPrimary]} onPress={() => s.route.startsWith('tel:') ? Linking.openURL(s.route) : router.push(s.route as any)}>
+              <Pressable testID={`action-plan-step-${s.n}`} style={[styles.stepBtn, s.n === 1 && styles.stepBtnPrimary]} onPress={() => s.route.startsWith('tel:') ? Linking.openURL(s.route) : router.push(s.route === '/women/officer-card' ? { pathname: s.route, params: { scenario: scenarioKey } } as any : s.route as any)}>
                 <Ionicons name={s.icon as any} size={16} color={s.n === 1 ? '#fff' : c.navy} />
                 <Text style={[styles.stepBtnTxt, s.n === 1 && { color: '#fff' }]}>{s.btn}</Text>
               </Pressable>
