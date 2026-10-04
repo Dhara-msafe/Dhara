@@ -582,16 +582,7 @@ MODELS = [
     {"provider": "gemini", "name": "gemini-3.1-pro-preview", "label": "Gemini 3.1 Pro"},
 ]
 
-TOPICS = [
-    {"id": "police-stop", "icon": "shield", "title": "Rights During a Police Stop", "summary": "What police can and cannot do when they stop or question you.", "law": "Article 22; Section 35 BNSS; D.K. Basu vs State of WB (1997)", "points": ["Right to know officer name & badge number (D.K. Basu).", "Right to know reason for detention (Article 22(1)).", "Right to consult lawyer of choice (Article 22(1)).", "Right to inform family of arrest.", "Police cannot torture, slap or abuse — violates Article 21.", "Must be produced before magistrate in 24 hours (Article 22(2))."]},
-    {"id": "arrest", "icon": "handcuffs", "title": "Rights When Arrested", "summary": "Non-negotiable rights every citizen has on arrest.", "law": "Articles 20, 21, 22; Sec 35-46 BNSS; Arnesh Kumar (2014)", "points": ["Arrest memo must be witnessed & countersigned (D.K. Basu).", "Medical examination within 48 hours by govt doctor.", "Cannot be forced to be witness against self (Art 20(3)).", "For offences <7yrs, arrest not automatic (Arnesh Kumar).", "Women arrested only between 6AM-6PM by a woman officer (Sec 43 BNSS).", "Right to bail for bailable offences (Sec 478 BNSS)."]},
-    {"id": "fir", "icon": "file-text", "title": "How to File an FIR", "summary": "Step-by-step process for a First Information Report.", "law": "Sec 173 BNSS; Lalita Kumari vs State of UP (2013)", "points": ["Go to police station of jurisdiction.", "If police refuse FIR they commit an offence (Sec 199 BNS).", "FIR mandatory for cognizable offences (Lalita Kumari).", "Right to free copy of FIR (Sec 173(2) BNSS).", "If refused: SP in writing → Magistrate under Sec 175(3) BNSS.", "Zero FIR can be filed at ANY police station."]},
-    {"id": "women-safety", "icon": "heart", "title": "Women's Safety Rights", "summary": "Key legal protections for women in India.", "law": "BNS Sec 63-79, 85-86; DV Act 2005; POSH Act 2013", "points": ["Woman cannot be called to police station (Sec 179 BNSS).", "Rape statement must be recorded by woman officer (Sec 176).", "Free legal aid guaranteed (Article 39A).", "One-Stop Centres (Sakhi) — call 181.", "DV includes physical, emotional, sexual, economic abuse.", "POSH: IC mandatory at every workplace with 10+ employees."]},
-    {"id": "traffic", "icon": "car", "title": "Traffic Stop & Vehicle Rights", "summary": "Rules for traffic-police interactions.", "law": "Motor Vehicles Act 1988 (amended 2019); Sec 132", "points": ["Only ASI+ officers can issue challans.", "Right to see officer ID before handing over documents.", "Constable cannot seize licence — only magistrate can.", "Pay fines via mParivahan — no cash bribes are legal.", "DigiLocker documents are legally valid.", "Right to contest challan in Lok Adalat / traffic court."]},
-    {"id": "rti", "icon": "info", "title": "Right to Information (RTI)", "summary": "Demand information from any public authority.", "law": "RTI Act 2005; Art 19(1)(a)", "points": ["Any citizen can file RTI — no reason required.", "Fee ₹10 (free for BPL). Reply in 30 days.", "Life & liberty issues: reply in 48 hours.", "Denied → first appeal in 30 days; second appeal to CIC/SIC.", "PIO fined ₹250/day for delays.", "Special rules for corruption / human rights / security."]},
-    {"id": "consumer", "icon": "shopping-bag", "title": "Consumer Rights", "summary": "Protection against fraud, defective goods, and poor service.", "law": "Consumer Protection Act, 2019", "points": ["6 rights: safety, information, choice, be heard, redressal, education.", "File complaints at consumerhelpline.gov.in or call 1915.", "District Commission handles claims up to ₹1 crore.", "E-commerce platforms strictly liable for defective goods.", "Misleading ads: fine up to ₹10 lakh, jail up to 2 years.", "Product liability makes manufacturers liable for defects."]},
-    {"id": "domestic-violence", "icon": "home", "title": "Domestic Violence Protection", "summary": "Legal shield for women facing domestic abuse.", "law": "Protection of Women from Domestic Violence Act 2005", "points": ["Covers physical, sexual, verbal, emotional, economic abuse.", "Right to reside in shared household — cannot be thrown out.", "Protection / Residence / Monetary / Custody / Compensation Orders.", "Free legal aid, medical treatment, shelter home access.", "Protection Officer in every district.", "Helplines: 181 (Women); 1091 (Police Women)."]},
-]
+from rights_topics_data import TOPICS, localize_topic  # noqa: E402
 
 @api.get("/reference/languages")
 async def get_languages():
@@ -660,14 +651,14 @@ async def retrieve(body: RetrieveIn, user: dict = Depends(current_user)):
 
 
 @api.get("/reference/topics")
-async def get_topics():
-    return TOPICS
+async def get_topics(lang: str = Query("en")):
+    return [localize_topic(t, lang) for t in TOPICS]
 
 @api.get("/reference/topics/{topic_id}")
-async def get_topic(topic_id: str):
+async def get_topic(topic_id: str, lang: str = Query("en")):
     for t in TOPICS:
         if t["id"] == topic_id:
-            return t
+            return localize_topic(t, lang)
     raise HTTPException(404, "Topic not found")
 
 # ---------- Legal / meta ----------

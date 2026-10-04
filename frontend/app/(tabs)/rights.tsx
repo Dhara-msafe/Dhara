@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { API_BASE } from '@/src/auth';
+import { API_BASE, useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
 
-type Topic = { id: string; icon: string; title: string; summary: string; law: string; points: string[] };
+type Citation = { label: string; url: string };
+type Topic = {
+  id: string; icon: string; title: string; summary: string; law: string; points: string[];
+  citations?: Citation[]; verified_at?: string | null; review_note?: string;
+  localized?: boolean; fallback_notice?: string | null;
+};
 
 const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   shield: 'shield-half-outline',       // Rights during a police stop — authority + protection
@@ -24,14 +29,16 @@ export default function Rights() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const router = useRouter();
+  const { language } = useAuth();
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/reference/topics`)
+    setLoading(true);
+    fetch(`${API_BASE}/api/reference/topics?lang=${language.code}`)
       .then(r => r.json())
       .then(setTopics)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [language.code]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']} testID="rights-screen">
@@ -82,12 +89,39 @@ export default function Rights() {
                     <Ionicons name="book-outline" size={14} color={theme.colors.brandSecondary} />
                     <Text style={styles.lawText}>{t.law}</Text>
                   </View>
+                  {!t.localized && !!t.fallback_notice && (
+                    <View style={styles.noticeBox} testID={`notice-${t.id}`}>
+                      <Ionicons name="language-outline" size={14} color={theme.colors.onSurfaceSecondary} />
+                      <Text style={styles.noticeText}>{t.fallback_notice}</Text>
+                    </View>
+                  )}
                   {t.points.map((p, i) => (
                     <View key={i} style={styles.point}>
                       <Text style={styles.bullet}>•</Text>
                       <Text style={styles.pointText}>{p}</Text>
                     </View>
                   ))}
+                  {!!t.citations?.length && (
+                    <View style={styles.citeWrap}>
+                      <Text style={styles.citeHeading}>Official sources</Text>
+                      {t.citations.map((c, i) => (
+                        <Pressable
+                          key={i}
+                          testID={`citation-${t.id}-${i}`}
+                          onPress={() => Linking.openURL(c.url)}
+                          style={styles.citeRow}
+                        >
+                          <Ionicons name="open-outline" size={13} color={theme.colors.brand} />
+                          <Text style={styles.citeText}>{c.label}</Text>
+                        </Pressable>
+                      ))}
+                      {t.verified_at ? (
+                        <Text style={styles.verifiedText}>Checked against official text: {t.verified_at}</Text>
+                      ) : (
+                        <Text style={styles.verifiedText}>Source links added — full line-by-line check pending</Text>
+                      )}
+                    </View>
+                  )}
                   <Pressable
                     testID={`ask-more-${t.id}`}
                     style={styles.askBtn}
@@ -144,4 +178,11 @@ const styles = StyleSheet.create({
   pointText: { flex: 1, color: theme.colors.onSurface, lineHeight: 22, fontSize: 14 },
   askBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: theme.colors.brand, borderRadius: theme.radius.md, padding: theme.spacing.md, marginTop: theme.spacing.md },
   askText: { color: theme.colors.onBrandPrimary, fontWeight: '700' },
+  noticeBox: { flexDirection: 'row', gap: theme.spacing.sm, backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md, padding: theme.spacing.md, marginBottom: theme.spacing.md },
+  noticeText: { flex: 1, color: theme.colors.onSurfaceSecondary, fontSize: 12.5, lineHeight: 18 },
+  citeWrap: { marginTop: theme.spacing.sm, paddingTop: theme.spacing.sm, borderTopWidth: 1, borderTopColor: theme.colors.divider },
+  citeHeading: { fontSize: 11, fontWeight: '700', color: theme.colors.onSurfaceSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 },
+  citeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4, minHeight: 28 },
+  citeText: { color: theme.colors.brand, fontSize: 13, textDecorationLine: 'underline', flex: 1 },
+  verifiedText: { color: theme.colors.onSurfaceSecondary, fontSize: 11, marginTop: 4, fontStyle: 'italic' },
 });

@@ -178,7 +178,7 @@ export default function ConsentScreen() {
         </Pressable>
       </View>
       <ConsentTermsModal visible={showTerms} onClose={() => setShowTerms(false)} copy={copy} />
-      <ConsentPublicHelp mode={help} onClose={() => setHelp(null)} copy={copy} />
+      <ConsentPublicHelp mode={help} onClose={() => setHelp(null)} copy={copy} lang={language.code} />
     </SafeAreaView>
   );
 }
