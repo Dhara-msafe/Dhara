@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
+import { SOSButton } from '@/src/components/SOSButton';
 
 const c = theme.colors;
 
@@ -38,6 +39,22 @@ export default function Me() {
           {user?.is_pro && <View style={styles.proPill}><Ionicons name="star" size={13} color={c.navy} /><Text style={styles.proTxt}>PRO</Text></View>}
         </View>
 
+        {/* Emergency / SOS — moved here from Home so Home stays calm. */}
+        <Pressable
+          style={styles.emergencyCard}
+          onPress={() => router.push('/emergency')}
+          testID="me-emergency-card"
+        >
+          <View style={styles.emergencyIcon}>
+            <Ionicons name="alert-circle" size={22} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.emergencyTitle}>Emergency Help</Text>
+            <Text style={styles.emergencySub}>Helplines, SOS numbers, what to do next</Text>
+          </View>
+          <SOSButton variant="chip" />
+        </Pressable>
+
         <View style={styles.card}>
           {rows.map((r, i) => (
             <Pressable key={r.key} style={[styles.row, i < rows.length - 1 && styles.rowBorder]} onPress={() => r.route && router.push(r.route as any)} testID={`me-${r.key}`}>
@@ -68,6 +85,10 @@ const styles = StyleSheet.create({
   email: { fontFamily: theme.fonts.body, fontSize: 13, color: c.onNavyMuted, marginTop: 2 },
   proPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.gold, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   proTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.navy },
+  emergencyCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.errorSoft || '#FEE2E2', borderRadius: 16, borderWidth: 1, borderColor: c.error, padding: 14, marginTop: 14 },
+  emergencyIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.error, alignItems: 'center', justifyContent: 'center' },
+  emergencyTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink },
+  emergencySub: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 1 },
   card: { backgroundColor: c.surface, borderRadius: 18, borderWidth: 1, borderColor: c.lines, paddingHorizontal: 16, marginTop: 18 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 16 },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: c.divider },

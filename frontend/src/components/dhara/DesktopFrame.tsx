@@ -53,6 +53,9 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
     { label: tr('all.emergency', lang), icon: 'warning-outline', route: '/emergency', match: 'emergency' },
   ];
   const active = (m: string) => !!pathname && pathname.includes('/' + m);
+  // Home has its own calm layout — SOS lives in the Me tab there instead
+  // (see app/(tabs)/me.tsx); still shown on every other screen/tab.
+  const isHome = pathname === '/(tabs)/home' || pathname === '/home' || pathname === '/(tabs)' || pathname === '/';
   const [q, setQ] = useState('');
 
   const Item = ({ it }: { it: NavItem }) => (
@@ -96,10 +99,12 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
               <Text style={styles.signInTopTxt}>Sign in</Text>
             </Pressable>
           )}
+          {!isHome && (
           <Pressable style={styles.sosTop} onPress={() => router.push('/emergency')}>
             <Ionicons name="warning-outline" size={16} color="#fff" />
             <Text style={styles.sosTopTxt}>SOS</Text>
           </Pressable>
+          )}
         </View>
       </View>
 
@@ -118,10 +123,12 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
           <Text style={styles.group}>{tr('home.journeys', lang).toUpperCase()}</Text>
           {journeys.map(it => <Item key={it.match} it={it} />)}
         </ScrollView>
+        {!isHome && (
         <Pressable style={styles.sos} onPress={() => router.push('/emergency')}>
           <Ionicons name="warning-outline" size={18} color="#fff" />
           <Text style={styles.sosTxt}>SOS · {tr('all.emergency', lang)}</Text>
         </Pressable>
+        )}
       </View>
 
       {/* ── Centre app column ── */}

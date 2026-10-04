@@ -22,8 +22,10 @@ export function GlobalHelpButton() {
   const insets = useSafeAreaInsets();
 
   // Don't cover the Emergency screen's own controls with a button that just
-  // re-opens the same screen, and keep it off the splash/auth-callback route.
-  if (pathname === '/emergency' || pathname?.startsWith('/oauth')) return null;
+  // re-opens the same screen, keep it off the splash/auth-callback route, and
+  // keep Home calm/uncluttered — Help lives in the Me tab there instead.
+  const isHome = pathname === '/(tabs)/home' || pathname === '/home' || pathname === '/(tabs)' || pathname === '/';
+  if (pathname === '/emergency' || pathname?.startsWith('/oauth') || isHome) return null;
 
   return (
     <Pressable
