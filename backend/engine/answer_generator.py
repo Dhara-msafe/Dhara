@@ -285,10 +285,15 @@ def strip_leaked_citations(text: str) -> str:
     # Order matters: reverse/keyword-anchored patterns first (more specific),
     # then the forward act-first pattern, then the bare-number fallback —
     # each pass only touches text the earlier passes left untouched.
-    text = _LEAK_SECTION_REV.sub("the law", text)
-    text = _LEAK_SECTION_FWD.sub("the law", text)
-    text = _LEAK_BARE_NUM_ACT.sub("the law", text)
-    text = _LEAK_ARTICLE.sub("the constitutional right", text)
+    # DHARA-B022: a leaked, unverifiable citation is still fully removed
+    # (never shown as a bare "IPC 420" style assertion with no matching
+    # source) — but the replacement now visibly flags that a citation was
+    # caught here, instead of silently rewriting to generic "the law" with
+    # no trace anything was filtered.
+    text = _LEAK_SECTION_REV.sub("the law [UNVERIFIED]", text)
+    text = _LEAK_SECTION_FWD.sub("the law [UNVERIFIED]", text)
+    text = _LEAK_BARE_NUM_ACT.sub("the law [UNVERIFIED]", text)
+    text = _LEAK_ARTICLE.sub("the constitutional right [UNVERIFIED]", text)
     # Collapse doubled spaces / punctuation left by the substitution.
     text = re.sub(r"\s{2,}", " ", text)
     text = re.sub(r"\s+([,.;:])", r"\1", text)

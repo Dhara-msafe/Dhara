@@ -27,6 +27,14 @@ const SCENARIO_LABEL_KEY: Record<string, string> = {
   children_safety: 'ws.r.children',
 };
 
+// DHARA-B017: these scenarios can mean the woman is in active danger right
+// now. Showing "file a police complaint" as step 1 before anyone checks
+// whether she's actually safe is the bug — a safety assessment MUST
+// complete first, on every entry point (tap or voice), before any legal
+// pathway or resource is suggested.
+const SAFETY_GATE_SCENARIOS = new Set(['violence_at_home', 'after_assault', 'stalking_online_abuse', 'woman_arrested']);
+type SafetyStatus = 'unknown' | 'safe' | 'danger' | 'unsure';
+
 export default function ActionPlan() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -34,6 +42,8 @@ export default function ActionPlan() {
   const lang = language.code;
   const params = useLocalSearchParams<{ scenario?: string }>();
   const scenarioKey = params.scenario || 'police_wont_file';
+  const needsSafetyGate = SAFETY_GATE_SCENARIOS.has(scenarioKey);
+  const [safetyStatus, setSafetyStatus] = useState<SafetyStatus>(needsSafetyGate ? 'unknown' : 'safe');
   const [answered, setAnswered] = useState(false);
   const { speaking, blocked, error: speechError, listen } = useScreenSpeech();
   const { result, loading, error: cardError, retry } = useRightsCard(scenarioKey, lang);
@@ -57,6 +67,58 @@ export default function ActionPlan() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+        {/* DHARA-B017: Safety-first triage gate — blocks the legal pathway
+            below until a safety status is confirmed, for danger-prone
+            scenarios (abuse, assault, stalking, arrest). */}
+        {needsSafetyGate && safetyStatus === 'unknown' ? (
+          <View style={styles.safetyGateCard} testID="safety-gate">
+            <Ionicons name="shield-outline" size={28} color={c.navy} />
+            <Text style={styles.safetyGateTitle}>Before anything else — are you safe right now?</Text>
+            <Text style={styles.safetyGateSub}>This helps us show you the right help first.</Text>
+            <Pressable testID="safety-gate-danger" style={styles.safetyGateDangerBtn} onPress={() => setSafetyStatus('danger')}>
+              <Ionicons name="warning" size={18} color="#fff" />
+              <Text style={styles.safetyGateDangerTxt}>I&apos;m in immediate danger</Text>
+            </Pressable>
+            <Pressable testID="safety-gate-unsure" style={styles.safetyGateUnsureBtn} onPress={() => setSafetyStatus('unsure')}>
+              <Text style={styles.safetyGateUnsureTxt}>I&apos;m not sure</Text>
+            </Pressable>
+            <Pressable testID="safety-gate-safe" style={styles.safetyGateSafeBtn} onPress={() => setSafetyStatus('safe')}>
+              <Text style={styles.safetyGateSafeTxt}>I&apos;m safe to continue</Text>
+            </Pressable>
+          </View>
+        ) : needsSafetyGate && safetyStatus === 'danger' ? (
+          <View style={styles.safetyGateCard} testID="safety-emergency">
+            <Ionicons name="warning" size={28} color="#B91C1C" />
+            <Text style={styles.safetyGateTitle}>Get to safety first — help is one tap away</Text>
+            <Pressable style={styles.safetyEmergencyBtn} onPress={() => Linking.openURL('tel:112').catch(() => {})}>
+              <Ionicons name="call" size={20} color="#fff" />
+              <Text style={styles.safetyGateDangerTxt}>Call Police — 112</Text>
+            </Pressable>
+            <Pressable style={[styles.safetyEmergencyBtn, { backgroundColor: c.darkGold }]} onPress={() => Linking.openURL('tel:1091').catch(() => {})}>
+              <Ionicons name="call" size={20} color="#fff" />
+              <Text style={styles.safetyGateDangerTxt}>Women&apos;s Emergency — 1091</Text>
+            </Pressable>
+            <Pressable testID="safety-gate-recheck" onPress={() => setSafetyStatus('unknown')}>
+              <Text style={styles.safetyGateUnsureTxt}>Actually, I am safe now — show legal steps</Text>
+            </Pressable>
+          </View>
+        ) : needsSafetyGate && safetyStatus === 'unsure' ? (
+          <View style={styles.safetyGateCard} testID="safety-unsure">
+            <Ionicons name="help-circle-outline" size={28} color={c.darkGold} />
+            <Text style={styles.safetyGateTitle}>If you&apos;re not sure, talk to someone trained to help first</Text>
+            <Pressable style={styles.safetyEmergencyBtn} onPress={() => Linking.openURL('tel:181').catch(() => {})}>
+              <Ionicons name="call" size={20} color="#fff" />
+              <Text style={styles.safetyGateDangerTxt}>Women&apos;s Helpline — 181</Text>
+            </Pressable>
+            <Pressable testID="safety-gate-continue" onPress={() => setSafetyStatus('safe')}>
+              <Text style={styles.safetyGateUnsureTxt}>I&apos;ve decided I&apos;m safe — show legal steps</Text>
+            </Pressable>
+            <Pressable testID="safety-gate-danger-2" onPress={() => setSafetyStatus('danger')}>
+              <Text style={[styles.safetyGateUnsureTxt, { color: '#B91C1C' }]}>Actually, I&apos;m in danger</Text>
+            </Pressable>
+          </View>
+        ) : (
+        <>
         {/* Situation chips */}
         <View style={styles.chipRow}>
           <View style={styles.chip}><Ionicons name="sparkles" size={13} color={c.darkGold} /><Text style={styles.chipTxt}>{tr(SCENARIO_LABEL_KEY[scenarioKey] || 'ws.r.police', lang)}</Text></View>
@@ -115,6 +177,8 @@ export default function ActionPlan() {
         </Pressable>
 
         <Text testID="action-plan-disclaimer" style={styles.footer}>{tr('ap.notlawyer', lang)}</Text>
+        </>
+        )}
       </ScrollView>
     </View>
   );
@@ -129,6 +193,16 @@ const styles = StyleSheet.create({
   chipRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.surfaceSecondary, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
   chipTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.ink },
+  safetyGateCard: { backgroundColor: c.surface, borderRadius: 20, padding: 24, alignItems: 'center', gap: 14, borderWidth: 1, borderColor: c.lines },
+  safetyGateTitle: { fontFamily: theme.fonts.displayBold, fontSize: 19, color: c.ink, textAlign: 'center', lineHeight: 26 },
+  safetyGateSub: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, textAlign: 'center' },
+  safetyGateDangerBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#B91C1C', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 20, width: '100%' },
+  safetyGateDangerTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: '#fff' },
+  safetyGateUnsureBtn: { paddingVertical: 10 },
+  safetyGateUnsureTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.navy, textDecorationLine: 'underline' },
+  safetyGateSafeBtn: { backgroundColor: c.navy, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 20, width: '100%', alignItems: 'center' },
+  safetyGateSafeTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: '#fff' },
+  safetyEmergencyBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#B91C1C', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 20, width: '100%' },
   notRight: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.navy, textDecorationLine: 'underline', marginTop: 10 },
   rightCard: { backgroundColor: c.navy, borderRadius: 20, padding: 22, marginTop: 14 },
   rightLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.gold, letterSpacing: 1.5 },

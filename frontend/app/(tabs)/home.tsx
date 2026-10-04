@@ -190,15 +190,17 @@ export default function Home() {
           </View>
         </View>
 
-        {/* ── Verified strip ───────────────────────────── */}
-        <View style={styles.verified}>
-          <Ionicons name="checkmark-circle" size={20} color={c.verifiedGreen} />
+        {/* ── Rights-reminder banner ───────────────────────────── */}
+        {/* DHARA-B024: removed placeholder legal text; replaced with a
+            neutral, non-legal message per the acceptance criteria (no
+            specific legal claim is asserted here). */}
+        <Pressable style={styles.verified} onPress={() => router.push('/(tabs)/rights')} testID="rights-reminder-banner">
+          <Ionicons name="shield-checkmark" size={20} color={c.verifiedGreen} />
           <Text style={styles.verifiedTxt}>
-            <Text style={{ fontFamily: theme.fonts.bodyBold, color: c.ink }}>{tr('home.verified', lang)} </Text>
-            {tr('home.verifiedSub', lang)}
+            Your rights are protected under Indian law — tap to learn more.
           </Text>
-          <Pressable onPress={() => router.push('/(tabs)')}><Text style={styles.verifiedWhy}>{tr('home.why', lang)}</Text></Pressable>
-        </View>
+          <Ionicons name="chevron-forward" size={16} color={c.muted} />
+        </Pressable>
 
         {/* ── My files preview ─────────────────────────── */}
         <View style={styles.section}>

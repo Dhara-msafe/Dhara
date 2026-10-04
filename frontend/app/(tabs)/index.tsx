@@ -256,6 +256,12 @@ const TOPIC_SUGGESTIONS: Record<string, { text: string; icon: React.ComponentPro
   ],
 };
 
+// DHARA-B019: every citation card referencing an old IPC section must show
+// a visible migration notice on render (not only when expanded) — IPC was
+// renumbered/replaced by BNS 2023, effective 1 July 2024.
+const isIpcCitation = (c: { act?: string; citation?: string } | null | undefined) =>
+  !!c && (/\bIPC\b|Indian Penal Code/i.test(c.act || '') || /\bIPC\b/i.test(c.citation || ''));
+
 export default function ChatScreen() {
   const { token, user, language, autoSpeak, ttsVolume, ttsVoiceMode, refreshUser, forceLogout } = useAuth();
   const router = useRouter();
@@ -2009,10 +2015,22 @@ export default function ChatScreen() {
                                   </View>
                                   <Text style={styles.citationVerified}>Verified {c.verified_at}</Text>
                                 </View>
+                                {isIpcCitation(c) && (
+                                  <View style={styles.ipcNoticeRow} testID={`ipc-notice-${c.key}`}>
+                                    <Ionicons name="information-circle" size={13} color="#92400E" />
+                                    <Text style={styles.ipcNoticeText}>This section has been renumbered or replaced under BNS 2023, effective 1 July 2024.</Text>
+                                  </View>
+                                )}
                                 <Text style={styles.citationTitle}>{c.citation}</Text>
-                                <Text style={styles.citationText} numberOfLines={8}>
-                                  {c.official_text}
-                                </Text>
+                                {c.official_text ? (
+                                  <Text style={styles.citationText} numberOfLines={8}>
+                                    {c.official_text}
+                                  </Text>
+                                ) : (
+                                  <Text style={styles.citationText} numberOfLines={8}>
+                                    DRAFT — reviewed official text for this section is not yet available.
+                                  </Text>
+                                )}
                                 <Text
                                   style={styles.citationSource}
                                   numberOfLines={1}
@@ -2048,10 +2066,22 @@ export default function ChatScreen() {
                           </View>
                           <Text style={styles.citationVerified}>Verified {c.verified_at}</Text>
                         </View>
+                        {isIpcCitation(c) && (
+                          <View style={styles.ipcNoticeRow} testID={`ipc-notice-${c.key}`}>
+                            <Ionicons name="information-circle" size={13} color="#92400E" />
+                            <Text style={styles.ipcNoticeText}>This section has been renumbered or replaced under BNS 2023, effective 1 July 2024.</Text>
+                          </View>
+                        )}
                         <Text style={styles.citationTitle}>{c.citation}</Text>
-                        <Text style={styles.citationText} numberOfLines={8}>
-                          {c.official_text}
-                        </Text>
+                        {c.official_text ? (
+                          <Text style={styles.citationText} numberOfLines={8}>
+                            {c.official_text}
+                          </Text>
+                        ) : (
+                          <Text style={styles.citationText} numberOfLines={8}>
+                            DRAFT — reviewed official text for this section is not yet available.
+                          </Text>
+                        )}
                         <Text
                           style={styles.citationSource}
                           numberOfLines={1}
@@ -2949,6 +2979,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   citationVerified: { fontSize: 10, color: theme.colors.onSurfaceTertiary },
+  ipcNoticeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: '#FEF3C7', borderRadius: 8, padding: 8, marginTop: 6 },
+  ipcNoticeText: { flex: 1, fontSize: 11, color: '#92400E', lineHeight: 15, fontWeight: '600' },
   citationTitle: { fontSize: 12, fontWeight: '700', color: theme.colors.brand },
   citationText: { fontSize: 12, color: theme.colors.onSurface, lineHeight: 17, fontStyle: 'italic' },
   citationSource: {
