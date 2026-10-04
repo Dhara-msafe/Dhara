@@ -1571,7 +1571,7 @@ async def get_my_data_summary(user: dict = Depends(current_user)):
             "voice_recordings": "Not retained — deleted after transcription",
             "payment_records":  "7 years (tax law)",
             "consent_records":  "Indefinite (legal proof of lawful processing)",
-            "otp_logs":         "90 days",
+            "otp_logs":         "24 hours (security hygiene)",
         },
     }
 
@@ -1826,8 +1826,14 @@ async def request_data_export(user: dict = Depends(current_user)):
 async def run_retention_purge_loop():
     """Daily background job that hard-deletes records past their retention period.
 
-    Retention periods (T&C v2.0, clause 10.5):
-    - messages / fir_sessions  : 730 days (2 years) from created_at / updated_at
+    Retention periods (T&C v2.0, clause 10.5 — must match /api/user/my-data
+    "retention_policy" exactly; both were reconciled together on 4 Oct 2026):
+    - messages                 : 730 days (2 years) from created_at
+    - fir_sessions              : NOT age-purged while the account is active.
+                                  Only purged 30 days after the OWNER'S account
+                                  was deleted (account_deleted_at stamped by
+                                  account_deletion.hard_delete_user). Matches
+                                  "fir_drafts: until account deletion + 30 days".
     - usage_daily              : 90 days  (roll-up window)
     - password_resets / otps   : 24 hours (security hygiene)
     - consent_log              : EXEMPT — never purged (legal proof)
@@ -1846,10 +1852,15 @@ async def run_retention_purge_loop():
             if r.deleted_count:
                 logger.info(f"[retention] messages purged: {r.deleted_count}")
 
-            # ── fir_sessions: 730 days (keyed on updated_at) ───────────────
-            r = await db.fir_sessions.delete_many({"updated_at": {"$lt": cutoff_2yr}})
+            # ── fir_sessions: 30 days AFTER the owning account was deleted ──
+            # (NOT a blanket age purge — an active user's FIR draft must
+            # survive indefinitely; only tombstoned rows, stamped by
+            # account_deletion.hard_delete_user with account_deleted_at,
+            # are eligible, and only once 30 days have passed since then.)
+            cutoff_30d = (now - timedelta(days=30)).isoformat()
+            r = await db.fir_sessions.delete_many({"account_deleted_at": {"$lt": cutoff_30d}})
             if r.deleted_count:
-                logger.info(f"[retention] fir_sessions purged: {r.deleted_count}")
+                logger.info(f"[retention] fir_sessions purged (post account-deletion grace period): {r.deleted_count}")
 
             # ── usage_daily: 90 days (keyed on 'day' string YYYY-MM-DD) ────
             day_90 = (now - timedelta(days=90)).strftime("%Y-%m-%d")

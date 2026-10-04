@@ -11,11 +11,19 @@ feature — logs what got refused without recording who asked) and
 push_job_runs (job/day bookkeeping only) — are NOT touched here; there is
 nothing to delete from them per-user.
 
+fir_sessions is intentionally NOT in the simple hard-delete list below.
+Per the published retention policy (/api/user/my-data →
+"fir_drafts: until account deletion + 30 days"), FIR drafts get a 30-day
+grace period instead of being wiped the instant the account is deleted —
+see hard_delete_user()'s fir_sessions tombstone step and
+server.py::run_retention_purge_loop() for the matching 30-day sweep.
+
 usage_daily carries BOTH per-user rows (scope:"user") and app-wide aggregate
 rows (scope:"app"); only the former belong to an individual account and are
 deleted — the aggregate rows belong to no one and must survive.
 """
 import logging
+from datetime import datetime, timezone
 
 logger = logging.getLogger("account_deletion")
 
@@ -47,6 +55,18 @@ async def hard_delete_user(db, user_id: str) -> dict:
     # usage_daily — only the per-user rows, never the app-wide aggregate rows.
     usage_result = await db.usage_daily.delete_many({"user_id": user_id, "scope": "user"})
     counts["usage_daily"] = usage_result.deleted_count
+
+    # fir_sessions — NOT deleted here. Per the published retention policy
+    # (/api/user/my-data → "fir_drafts: until account deletion + 30 days"),
+    # FIR drafts get a 30-day grace period after account deletion, not an
+    # immediate wipe. Stamp them with account_deleted_at so the retention
+    # purge job (server.py: run_retention_purge_loop) can find and remove
+    # them exactly 30 days from now — see that job for the matching read side.
+    now_iso = datetime.now(timezone.utc).isoformat()
+    fir_result = await db.fir_sessions.update_many(
+        {"user_id": user_id}, {"$set": {"account_deleted_at": now_iso}}
+    )
+    counts["fir_sessions_tombstoned"] = fir_result.modified_count
 
     # users — the account record itself, matched by its own "id" field
     # (this codebase's primary key everywhere, not Mongo's _id).
