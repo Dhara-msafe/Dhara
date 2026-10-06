@@ -10,6 +10,7 @@ import {
   useComplaints, isDraftReady, complaintTitle, complaintProgress,
   type Complaint, type EvidenceFile,
 } from '@/src/home/complaints';
+import { useScanHistory, type ScanHistoryItem } from '@/src/home/scanHistory';
 
 const c = theme.colors;
 
@@ -28,6 +29,7 @@ export default function MyFiles() {
   // Real case data — same backend source (GET /api/fir/sessions/:user_id) the
   // old Complaints screen uses. Replaces the previous hardcoded "File #2" sample.
   const { items: cases, loading, error, retry } = useComplaints();
+  const { items: scans, loading: scansLoading } = useScanHistory();
   const activeCases = cases.filter((i) => !isDraftReady(i));
   const readyCases = cases.filter((i) => isDraftReady(i));
   const evidence: (EvidenceFile & { session: Complaint })[] = cases.flatMap((session) =>
@@ -48,7 +50,7 @@ export default function MyFiles() {
   const tabs: [string, string, number][] = [
     ['active', tr('mf.active', lang), activeCases.length],
     ['evidence', tr('mf.evidence', lang), evidence.length],
-    ['documents', tr('mf.documents', lang), readyCases.length],
+    ['documents', tr('mf.documents', lang), readyCases.length + scans.length],
   ];
 
   const renderActiveCase = (item: Complaint) => {
@@ -97,6 +99,26 @@ export default function MyFiles() {
       <Ionicons name="chevron-forward" size={18} color={c.onSurfaceTertiary} />
     </Pressable>
   );
+
+  const renderScan = (item: ScanHistoryItem) => {
+    const d = item.created_at ? new Date(item.created_at) : null;
+    const date = d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : null;
+    return (
+      <Pressable
+        key={item.id}
+        style={styles.resolvedCard}
+        onPress={() => router.push({ pathname: '/scan/[id]', params: { id: item.id } } as any)}
+        testID={`myfiles-scan-${item.id}`}
+      >
+        <View style={styles.resolvedIcon}><Ionicons name="camera-outline" size={20} color={c.navy} /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.resolvedTitle} numberOfLines={1}>{item.summary || item.extracted_text || 'Scanned document'}</Text>
+          <Text style={styles.resolvedSub}>Scanned{date ? ` · ${date}` : ''}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={c.onSurfaceTertiary} />
+      </Pressable>
+    );
+  };
 
   const Empty = ({ icon, title, sub, cta, onPress }: { icon: any; title: string; sub: string; cta?: string; onPress?: () => void }) => (
     <View style={styles.empty}>
@@ -150,8 +172,14 @@ export default function MyFiles() {
             <Empty icon="folder-open-outline" title="No cases in progress" sub="Start a complaint and DHARA will walk you through it, step by step." cta="Start a complaint" onPress={() => router.push('/engine')} />
           )
         ) : tab === 'documents' ? (
-          readyCases.length ? readyCases.map(renderReadyCase) : (
-            <Empty icon="document-text-outline" title="No drafts yet" sub="Finished complaint drafts will appear here, ready to download or share." />
+          (readyCases.length || scans.length) ? (
+            <>
+              {readyCases.map(renderReadyCase)}
+              {scans.map(renderScan)}
+              {scansLoading && !scans.length && <View style={styles.loadingWrap}><ActivityIndicator color={c.navy} /></View>}
+            </>
+          ) : (
+            <Empty icon="document-text-outline" title="No drafts yet" sub="Finished complaint drafts and scanned notices will appear here, ready to review or share." />
           )
         ) : (
           evidence.length ? evidence.map(renderEvidence) : (

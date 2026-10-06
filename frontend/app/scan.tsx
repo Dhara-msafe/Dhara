@@ -46,7 +46,7 @@ ${r.extracted_text ? `<div class="label">BASED ON THE SCANNED DOCUMENT</div><div
 
 export default function Scan() {
   const router = useRouter();
-  const { language } = useAuth();
+  const { language, token } = useAuth();
   const lang = language.code;
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
@@ -60,7 +60,11 @@ export default function Scan() {
     setBusy(true); setError('');
     try {
       const r = await fetch(`${API_BASE}/api/scan/notice`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ image_base64: base64, lang, mode }),
       });
       if (!r.ok) {

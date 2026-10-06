@@ -1476,6 +1476,13 @@ async def _startup():
     except Exception as e:
         logger.warning(f"[startup] women shield index creation warning: {e}")
 
+    # Scan history (Documents tab persistence) — ensure indexes exist (idempotent)
+    try:
+        await db.scan_history.create_index("id", unique=True)
+        await db.scan_history.create_index([("user_id", 1), ("created_at", -1)])
+    except Exception as e:
+        logger.warning(f"[startup] scan_history index creation warning: {e}")
+
     # Fire-and-forget: initialise Emergent Object Storage for evidence uploads
     asyncio.create_task(_init_fir_storage())
 
