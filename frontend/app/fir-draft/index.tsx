@@ -3,10 +3,12 @@
  * Stage-based chat interface that guides citizens through FIR preparation.
  */
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import {
   View, Text, TextInput, Pressable, ScrollView, StyleSheet,
   ActivityIndicator, Platform, Alert, KeyboardAvoidingView, Linking, Image,
+  Animated, PanResponder,
+  type GestureResponderEvent, type PanResponderGestureState,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -53,6 +55,10 @@ const FIR_LANGUAGES = [
 const FIR_LANG_KEY = 'fir_draft_lang_v3';
 const FIR_SESSION_KEY = 'fir_active_session_v3';
 const FIR_MODULE_KEY = 'fir_selected_module_v1';
+
+// ── Mic gesture thresholds (mirrors the Home screen's WhatsApp-style mic) ──
+const CANCEL_THRESHOLD = -80; // px the user must drag left to cancel
+const LOCK_THRESHOLD = -55; // px the user must drag up to lock hands-free recording
 
 // ── Incident modules ──────────────────────────────────────────────────────────
 const INCIDENT_MODULES = [
@@ -230,7 +236,45 @@ export default function FirDraftScreen() {
   const webChunksRef = useRef<Blob[]>([]);
   const webStreamRef = useRef<any>(null);
 
+  // ── WhatsApp-style mic gesture (slide-to-cancel / slide-up-to-lock) ────────
+  // Mirrors the Home screen's mic gesture exactly, so voice input feels the
+  // same everywhere in the app. The animated values drive the mic button's
+  // position/scale; the gesture only engages on native (press-and-hold with
+  // drag has no reliable mouse equivalent — web keeps a simple tap-toggle).
+  const slideX = useRef(new Animated.Value(0)).current;
+  const slideY = useRef(new Animated.Value(0)).current;
+  const micPulse = useRef(new Animated.Value(1)).current;
+  const waveBars = useRef([0, 1, 2, 3, 4].map(() => new Animated.Value(0.3))).current;
+  const [locked, setLocked] = useState(false);
+  const lockedRef = useRef(false);
+  const [slideCancelled, setSlideCancelled] = useState(false);
+  const slideCancelledRef = useRef(false);
+  const [holdElapsed, setHoldElapsed] = useState(0);
+  const holdTimerRef = useRef<any>(null);
+
   const scrollRef = useRef<ScrollView>(null);
+
+  // Live waveform while recording — purely visual Animated loops, same as
+  // the Home screen (no dependency on native audio-level metering, which is
+  // known to be unreliable on several Android OEMs and undefined on web).
+  useEffect(() => {
+    const loops: Animated.CompositeAnimation[] = [];
+    if (isRecording) {
+      waveBars.forEach((bar, i) => {
+        const loop = Animated.loop(
+          Animated.sequence([
+            Animated.timing(bar, { toValue: 0.35 + Math.random() * 0.65, duration: 260 + i * 35, useNativeDriver: false }),
+            Animated.timing(bar, { toValue: 0.15 + Math.random() * 0.25, duration: 260 + i * 35, useNativeDriver: false }),
+          ]),
+        );
+        loop.start();
+        loops.push(loop);
+      });
+    } else {
+      waveBars.forEach((bar) => { bar.stopAnimation(); bar.setValue(0.3); });
+    }
+    return () => { loops.forEach((l) => l.stop()); };
+  }, [isRecording, waveBars]);
 
   // ── Load saved language + check for saved session ────────────────────────
   useEffect(() => {
@@ -775,6 +819,145 @@ Allowed: JPG, PNG, HEIC, MP4, MOV, PDF, DOC, DOCX`);
     }
   };
 
+  /** Discards the in-progress recording without transcribing — used when the
+   * user slides left past CANCEL_THRESHOLD, or taps trash on the locked bar. */
+  const discardRecording = useCallback(async () => {
+    recordingRequestedRef.current = false;
+    if (!recordingActiveRef.current) return;
+    recordingActiveRef.current = false;
+    setIsRecording(false);
+    if (Platform.OS === 'web') {
+      try { webRecorderRef.current?.stop(); } catch {}
+      try { webStreamRef.current?.getTracks()?.forEach((t: any) => t.stop()); } catch {}
+      webRecorderRef.current = null;
+      webStreamRef.current = null;
+      webChunksRef.current = [];
+    } else {
+      try { await recorder.stop(); } catch {}
+      try { await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }); } catch {}
+    }
+  }, [recorder]);
+
+  /** Resets the pulse animation + hold timer. Called on press-out, lock
+   * cancel/finish, and cancel-via-slide — kept in one place to avoid the
+   * timer/animation leaking into the next recording. */
+  const resetMicGestureUi = useCallback(() => {
+    micPulse.stopAnimation();
+    micPulse.setValue(1);
+    if (holdTimerRef.current) { clearInterval(holdTimerRef.current); holdTimerRef.current = null; }
+    setHoldElapsed(0);
+  }, [micPulse]);
+
+  // WhatsApp-style hold-to-talk handlers — wraps startRecording/stopRecording
+  // with the slide-to-cancel / slide-up-to-lock gesture state, exactly like
+  // the Home screen's mic. Used by both the native PanResponder and the
+  // web tap-to-toggle button, so the live timer + waveform show everywhere.
+  const onMicPressIn = useCallback(() => {
+    slideCancelledRef.current = false;
+    setSlideCancelled(false);
+    lockedRef.current = false;
+    setLocked(false);
+    slideX.setValue(0);
+    slideY.setValue(0);
+    setHoldElapsed(0);
+    if (holdTimerRef.current) clearInterval(holdTimerRef.current);
+    holdTimerRef.current = setInterval(() => setHoldElapsed((prev) => prev + 1), 1000);
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(micPulse, { toValue: 1.25, duration: 600, useNativeDriver: true }),
+        Animated.timing(micPulse, { toValue: 1, duration: 600, useNativeDriver: true }),
+      ])
+    ).start();
+    void startRecording();
+  }, [startRecording, slideX, slideY, micPulse]);
+
+  const onMicPressOut = useCallback(() => {
+    // Locked (hands-free) recording — lifting the finger must NOT stop it.
+    if (lockedRef.current) {
+      slideX.setValue(0);
+      slideY.setValue(0);
+      return;
+    }
+    resetMicGestureUi();
+    slideX.setValue(0);
+    slideY.setValue(0);
+    if (slideCancelledRef.current) {
+      setSlideCancelled(false);
+      slideCancelledRef.current = false;
+      void discardRecording();
+      return;
+    }
+    void stopRecording();
+  }, [slideX, slideY, resetMicGestureUi, discardRecording, stopRecording]);
+
+  /** Trash button on the locked hands-free bar — discards without transcribing. */
+  const onLockedCancel = useCallback(() => {
+    lockedRef.current = false;
+    setLocked(false);
+    resetMicGestureUi();
+    void discardRecording();
+  }, [resetMicGestureUi, discardRecording]);
+
+  /** Checkmark button on the locked hands-free bar — finishes + transcribes. */
+  const onLockedFinish = useCallback(() => {
+    lockedRef.current = false;
+    setLocked(false);
+    resetMicGestureUi();
+    void stopRecording();
+  }, [resetMicGestureUi, stopRecording]);
+
+  // PanResponder for the WhatsApp slide-to-cancel / slide-up-to-lock gestures
+  // on the mic button (native only — web uses a plain tap-toggle, see below).
+  const micPanResponder = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (_: GestureResponderEvent, gs: PanResponderGestureState) =>
+      Math.abs(gs.dx) > 5 || Math.abs(gs.dy) > 5,
+    onPanResponderGrant: () => {
+      try { onMicPressIn(); } catch (err) { console.warn('fir mic press-in failed:', err); }
+    },
+    onPanResponderMove: (_: GestureResponderEvent, gs: PanResponderGestureState) => {
+      // Once locked, the gesture is done — ignore any further finger movement.
+      if (lockedRef.current) return;
+      const { dx, dy } = gs;
+      // A predominantly-upward drag locks the recording hands-free; a
+      // predominantly-leftward drag cancels it — whichever axis the user is
+      // actually moving on wins, exactly like WhatsApp's own mic gesture.
+      if (dy < -10 && Math.abs(dy) > Math.abs(dx)) {
+        const clampedY = Math.max(-70, dy);
+        slideY.setValue(clampedY);
+        slideX.setValue(0);
+        if (slideCancelledRef.current) {
+          slideCancelledRef.current = false;
+          setSlideCancelled(false);
+        }
+        if (clampedY <= LOCK_THRESHOLD) {
+          lockedRef.current = true;
+          setLocked(true);
+          slideY.setValue(0);
+          slideX.setValue(0);
+        }
+        return;
+      }
+      // Only allow sliding left (negative dx)
+      const clampedX = Math.min(0, Math.max(-160, dx));
+      slideX.setValue(clampedX);
+      slideY.setValue(0);
+      if (clampedX <= CANCEL_THRESHOLD && !slideCancelledRef.current) {
+        slideCancelledRef.current = true;
+        setSlideCancelled(true);
+      } else if (clampedX > CANCEL_THRESHOLD && slideCancelledRef.current) {
+        slideCancelledRef.current = false;
+        setSlideCancelled(false);
+      }
+    },
+    onPanResponderRelease: () => {
+      try { onMicPressOut(); } catch (err) { console.warn('fir mic release failed:', err); }
+    },
+    onPanResponderTerminate: () => {
+      try { onMicPressOut(); } catch (err) { console.warn('fir mic terminate failed:', err); }
+    },
+  }), [onMicPressIn, onMicPressOut, slideX, slideY]);
+
   // ── v3.3: Pause session — calls API ─────────────────────────────────────
   const handlePause = async () => {
     try {
@@ -842,6 +1025,10 @@ ${data.bot_message}`);
   useFocusEffect(useCallback(() => () => {
     stopTTS();
     recordingRequestedRef.current = false;
+    lockedRef.current = false; setLocked(false);
+    slideCancelledRef.current = false; setSlideCancelled(false);
+    if (holdTimerRef.current) { clearInterval(holdTimerRef.current); holdTimerRef.current = null; }
+    micPulse.stopAnimation(); micPulse.setValue(1); setHoldElapsed(0);
     if (recordingActiveRef.current) {
       recordingActiveRef.current = false;
       setIsRecording(false);
@@ -856,7 +1043,7 @@ ${data.bot_message}`);
         void recorder.stop().catch(() => {});
       }
     }
-  }, [recorder, stopTTS]));
+  }, [recorder, stopTTS, micPulse]));
 
   // Keep forward-declared refs current
   useEffect(() => { autoSpeakRef.current = autoSpeak; }, [autoSpeak]);
@@ -1252,12 +1439,22 @@ ${data.bot_message}`);
                 showVoice={inputType === 'voice_or_text'}
                 isRecording={isRecording}
                 transcribing={transcribing}
-                onStartRecord={startRecording}
-                onStopRecord={stopRecording}
+                onStartRecord={onMicPressIn}
+                onStopRecord={onMicPressOut}
                 onAttach={handlePickEvidence}
                 attachedFiles={evidenceFiles}
                 onRemoveAttach={handleRemoveEvidence}
                 onCaptionChange={handleCaptionChange}
+                locked={locked}
+                slideCancelled={slideCancelled}
+                slideX={slideX}
+                slideY={slideY}
+                micPulse={micPulse}
+                waveBars={waveBars}
+                holdElapsed={holdElapsed}
+                onLockedCancel={onLockedCancel}
+                onLockedFinish={onLockedFinish}
+                micPanHandlers={micPanResponder.panHandlers}
               />
             )}
 
@@ -1438,6 +1635,8 @@ function TextInputArea({
   value, onChange, onSend, onSkip, skipLabel, showVoice,
   isRecording, transcribing, onStartRecord, onStopRecord,
   onAttach, attachedFiles, onRemoveAttach, onCaptionChange,
+  locked, slideCancelled, slideX, slideY, micPulse, waveBars, holdElapsed,
+  onLockedCancel, onLockedFinish, micPanHandlers,
 }: {
   value: string; onChange: (v: string) => void; onSend: (v: string) => void;
   onSkip?: () => void; skipLabel?: string;
@@ -1447,11 +1646,54 @@ function TextInputArea({
   attachedFiles?: UploadedFile[];
   onRemoveAttach?: (fileId: string) => void;
   onCaptionChange?: (fileId: string, caption: string) => void;
+  locked?: boolean;
+  slideCancelled?: boolean;
+  slideX?: Animated.Value;
+  slideY?: Animated.Value;
+  micPulse?: Animated.Value;
+  waveBars?: Animated.Value[];
+  holdElapsed?: number;
+  onLockedCancel?: () => void;
+  onLockedFinish?: () => void;
+  micPanHandlers?: any;
 }) {
+  // Hands-free locked recording bar — replaces the composer entirely, same
+  // as the Home screen. The user dragged the mic up and released; recording
+  // keeps going until they tap trash (discard) or the checkmark (finish).
+  if (locked && isRecording) {
+    return (
+      <View style={styles.lockedBar} testID="fir-locked-rec-bar">
+        <View style={styles.recLeft}>
+          <Animated.View style={[styles.recDot, { transform: [{ scale: micPulse || 1 }] }]} />
+          <Text style={styles.recTimer}>
+            {String(Math.floor((holdElapsed || 0) / 60)).padStart(2, '0')}:
+            {String((holdElapsed || 0) % 60).padStart(2, '0')}
+          </Text>
+        </View>
+        {!!waveBars && (
+          <View style={styles.waveformRow} testID="fir-voice-waveform">
+            {waveBars.map((bar, i) => (
+              <Animated.View
+                key={i}
+                style={[styles.waveBar, { height: bar.interpolate({ inputRange: [0, 1], outputRange: [4, 22] }) }]}
+              />
+            ))}
+          </View>
+        )}
+        <Pressable testID="fir-locked-cancel-btn" style={styles.lockedIconBtn} onPress={onLockedCancel} hitSlop={10}>
+          <Ionicons name="trash-outline" size={20} color={RED} />
+        </Pressable>
+        <Pressable testID="fir-locked-finish-btn" style={styles.lockedSendBtn} onPress={onLockedFinish} hitSlop={10}>
+          <Ionicons name="checkmark" size={22} color={SURFACE} />
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <View>
       {/* ── Attachment thumbnail strip (visible when files attached during text probes) */}
-      {attachedFiles && attachedFiles.length > 0 && (
+      {attachedFiles && attachedFiles.length > 0 && !isRecording && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -1491,34 +1733,107 @@ function TextInputArea({
         </ScrollView>
       )}
 
-      <View style={styles.textRow}>
-        {/* Paperclip attach button */}
-        {onAttach && (
-          <Pressable
-            testID="fir-attach-evidence"
-            accessibilityLabel="Attach evidence"
-            style={styles.attachBtn}
-            onPress={onAttach}
-            hitSlop={8}
-          >
-            <Ionicons name="attach" size={22} color={MUTED} />
-            {attachedFiles && attachedFiles.length > 0 && (
-              <View style={styles.attachBadge}>
-                <Text style={styles.attachBadgeText}>{attachedFiles.length}</Text>
-              </View>
+      <View style={[styles.textRow, isRecording && styles.textRowRecording]}>
+        {isRecording ? (
+          <>
+            {/* Timer + red dot + live waveform on the left */}
+            <View style={styles.recLeft}>
+              <Animated.View style={[styles.recDot, { transform: [{ scale: micPulse || 1 }] }]} />
+              <Text style={styles.recTimer}>
+                {String(Math.floor((holdElapsed || 0) / 60)).padStart(2, '0')}:
+                {String((holdElapsed || 0) % 60).padStart(2, '0')}
+              </Text>
+              {!!waveBars && (
+                <View style={styles.waveformInline} testID="fir-voice-waveform">
+                  {waveBars.map((bar, i) => (
+                    <Animated.View
+                      key={i}
+                      style={[styles.waveBar, { height: bar.interpolate({ inputRange: [0, 1], outputRange: [4, 18] }) }]}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Slide to cancel indicator */}
+            <Animated.View style={[
+              styles.recCenter,
+              {
+                opacity: slideX ? slideX.interpolate({
+                  inputRange: [-160, -40, 0],
+                  outputRange: [0.2, 0.7, 1],
+                  extrapolate: 'clamp',
+                }) : 1,
+              },
+            ]}>
+              {slideCancelled ? (
+                <View style={styles.cancelActive}>
+                  <Ionicons name="trash" size={18} color={RED} />
+                  <Text style={styles.cancelActiveText}>Release to cancel</Text>
+                </View>
+              ) : (
+                <View style={styles.slideHint}>
+                  <Ionicons name="chevron-back" size={14} color={MUTED} />
+                  <Text style={styles.slideHintText}>
+                    {Platform.OS === 'web' ? 'Tap mic to stop & send' : 'Slide to cancel'}
+                  </Text>
+                </View>
+              )}
+            </Animated.View>
+
+            {/* Lock affordance — drag the mic straight up into this pill to
+                keep recording hands-free, exactly like WhatsApp. Native only. */}
+            {Platform.OS !== 'web' && !!slideY && (
+              <Animated.View
+                testID="fir-lock-hint"
+                pointerEvents="none"
+                style={[
+                  styles.lockHint,
+                  {
+                    opacity: slideY.interpolate({ inputRange: [-70, -10, 0], outputRange: [1, 0.6, 0], extrapolate: 'clamp' }),
+                    transform: [{
+                      translateY: slideY.interpolate({ inputRange: [-70, 0], outputRange: [-6, 0], extrapolate: 'clamp' }),
+                    }],
+                  },
+                ]}
+              >
+                <Ionicons name="lock-closed" size={13} color={NAVY} />
+                <Ionicons name="chevron-up" size={12} color={NAVY} />
+              </Animated.View>
             )}
-          </Pressable>
+          </>
+        ) : (
+          <>
+            {/* Paperclip attach button */}
+            {onAttach && (
+              <Pressable
+                testID="fir-attach-evidence"
+                accessibilityLabel="Attach evidence"
+                style={styles.attachBtn}
+                onPress={onAttach}
+                hitSlop={8}
+              >
+                <Ionicons name="attach" size={22} color={MUTED} />
+                {attachedFiles && attachedFiles.length > 0 && (
+                  <View style={styles.attachBadge}>
+                    <Text style={styles.attachBadgeText}>{attachedFiles.length}</Text>
+                  </View>
+                )}
+              </Pressable>
+            )}
+            <TextInput
+              testID="fir-text-input"
+              style={styles.textBox}
+              value={value}
+              onChangeText={onChange}
+              placeholder="Type your response here…"
+              placeholderTextColor={MUTED}
+              multiline
+              maxLength={2000}
+            />
+          </>
         )}
-        <TextInput
-          testID="fir-text-input"
-          style={styles.textBox}
-          value={value}
-          onChangeText={onChange}
-          placeholder="Type your response here…"
-          placeholderTextColor={MUTED}
-          multiline
-          maxLength={2000}
-        />
+
         {showVoice && (
           Platform.OS === 'web' ? (
             // Web: click to start / click again to stop (more natural for desktop)
@@ -1534,31 +1849,43 @@ function TextInputArea({
                 : <Ionicons name={isRecording ? 'stop-circle' : 'mic-outline'} size={22} color={SURFACE} />}
             </Pressable>
           ) : (
-            // Native: hold to record / release to stop
-            <Pressable
+            // Native: WhatsApp-style press-and-hold with slide-to-cancel /
+            // slide-up-to-lock, driven by the parent's PanResponder.
+            <Animated.View
               testID="fir-mic-button"
               accessibilityLabel="Hold to record your answer"
-              style={[styles.micBtn, isRecording && styles.micBtnActive]}
-              disabled={transcribing}
-              onPressIn={onStartRecord}
-              onPressOut={onStopRecord}
+              style={[
+                styles.micBtn,
+                isRecording && styles.micBtnActive,
+                isRecording && {
+                  transform: [
+                    { translateX: slideX || 0 },
+                    { translateY: slideY || 0 },
+                    { scale: micPulse || 1 },
+                  ],
+                },
+                isRecording && slideCancelled && { backgroundColor: RED },
+              ]}
+              {...(micPanHandlers || {})}
             >
               {transcribing
                 ? <ActivityIndicator size="small" color={SURFACE} />
-                : <Ionicons name={isRecording ? 'mic' : 'mic-outline'} size={22} color={SURFACE} />}
-            </Pressable>
+                : <Ionicons name={isRecording ? (slideCancelled ? 'trash' : 'mic') : 'mic-outline'} size={22} color={SURFACE} />}
+            </Animated.View>
           )
         )}
-        <Pressable
-          testID="fir-send-btn"
-          style={[styles.sendBtn, !value.trim() && styles.sendBtnDisabled]}
-          onPress={() => onSend(value)}
-          disabled={!value.trim()}
-        >
-          <Ionicons name="send" size={18} color="#fff" />
-        </Pressable>
+        {!isRecording && (
+          <Pressable
+            testID="fir-send-btn"
+            style={[styles.sendBtn, !value.trim() && styles.sendBtnDisabled]}
+            onPress={() => onSend(value)}
+            disabled={!value.trim()}
+          >
+            <Ionicons name="send" size={18} color="#fff" />
+          </Pressable>
+        )}
       </View>
-      {onSkip && !!skipLabel && (
+      {onSkip && !!skipLabel && !isRecording && (
         <Pressable style={styles.skipRow} onPress={onSkip}>
           <Text style={styles.skipText}>{skipLabel}</Text>
         </Pressable>
@@ -1874,6 +2201,7 @@ const styles = StyleSheet.create({
 
   // Text input
   textRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 4 },
+  textRowRecording: { alignItems: 'center', minHeight: 56 },
   textBox: {
     flex: 1, borderWidth: 1.5, borderColor: BORDER, borderRadius: 12,
     paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: NAVY,
@@ -1891,6 +2219,48 @@ const styles = StyleSheet.create({
   sendBtnDisabled: { backgroundColor: BORDER },
   skipRow: { alignItems: 'center', paddingVertical: 8 },
   skipText: { fontSize: 13, color: MUTED, textDecorationLine: 'underline' },
+
+  // WhatsApp-style mic gesture — hands-free locked recording bar (replaces
+  // the composer entirely once the user drags the mic up and releases).
+  lockedBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 10, minHeight: 56,
+  },
+  lockedIconBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER,
+  },
+  lockedSendBtn: {
+    width: 46, height: 46, borderRadius: 23,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: NAVY,
+  },
+  // Live "is listening" waveform — plain Animated bars, matches Home.
+  waveformRow: {
+    flex: 1, flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'center', gap: 4, height: 24,
+  },
+  waveBar: { width: 4, borderRadius: 2, backgroundColor: RED },
+  waveformInline: { flexDirection: 'row', alignItems: 'center', gap: 3, height: 20 },
+  // Floating "slide up to lock" pill above the mic button
+  lockHint: {
+    position: 'absolute', right: 2, bottom: 54,
+    flexDirection: 'column', alignItems: 'center', gap: 2,
+    backgroundColor: SURFACE, borderRadius: 20,
+    paddingHorizontal: 8, paddingVertical: 8,
+    borderWidth: 1, borderColor: BORDER,
+  },
+  recLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 90 },
+  recDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: RED },
+  recTimer: {
+    fontVariant: ['tabular-nums'], fontWeight: '700', fontSize: 14,
+    color: RED, minWidth: 40,
+  },
+  recCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  slideHint: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  slideHintText: { color: MUTED, fontSize: 12, fontWeight: '500' },
+  cancelActive: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cancelActiveText: { color: RED, fontSize: 13, fontWeight: '700' },
 
   // GPS widget
   widgetWrap: { paddingBottom: 4, gap: 8 },
