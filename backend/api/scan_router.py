@@ -15,16 +15,12 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
-
 from dependencies import logger
+from services.ai_gateway import send_vision_with_fallback, SCAN_SPEC
 
 load_dotenv()
 
 router = APIRouter()
-
-EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
-SCAN_MODEL = os.environ.get("SCAN_MODEL", "gpt-4o-mini")
 
 LANG_NAMES = {
     "en": "English", "hi": "Hindi", "mr": "Marathi", "ta": "Tamil", "bn": "Bengali",
@@ -97,8 +93,6 @@ def _system(lang_name: str, mode: str) -> str:
 
 @router.post("/scan/notice")
 async def scan_notice(body: ScanIn):
-    if not EMERGENT_LLM_KEY:
-        raise HTTPException(503, "Scanning is not configured on this server.")
     img = (body.image_base64 or "").strip()
     if "," in img and img.lower().startswith("data:"):
         img = img.split(",", 1)[1]  # strip a data URL prefix if present
@@ -106,22 +100,19 @@ async def scan_notice(body: ScanIn):
         raise HTTPException(400, "No readable image was provided.")
 
     lang_name = LANG_NAMES.get(body.lang, "English")
-    chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
+    reply_text, err, error_id = await send_vision_with_fallback(
         session_id=f"scan-{os.urandom(6).hex()}",
         system_message=_system(lang_name, body.mode),
-    ).with_model("openai", SCAN_MODEL)
-
-    try:
-        reply = await chat.send_message(UserMessage(
-            text="Read this document and respond as instructed (JSON only).",
-            file_contents=[ImageContent(image_base64=img)],
-        ))
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"[scan] vision call failed: {type(e).__name__}: {e}")
+        user_text="Read this document and respond as instructed (JSON only).",
+        image_base64=img,
+        spec=SCAN_SPEC,
+        caller="scan.notice",
+    )
+    if err or not reply_text:
+        logger.warning(f"[scan] vision call failed: ref {error_id}")
         raise HTTPException(502, "Could not read the document. Please try a clearer photo.")
 
-    text = reply if isinstance(reply, str) else str(reply)
+    text = reply_text
     # Pull the JSON object out of the reply (models sometimes wrap it in prose/fences).
     data = None
     m = re.search(r"\{.*\}", text, re.DOTALL)

@@ -29,13 +29,17 @@ import logging
 from dataclasses import dataclass
 from typing import Any, AsyncIterator, Callable, Optional
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
+from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent, TextDelta, StreamDone
 
 from config.settings import (
     EMERGENT_LLM_KEY,
     SERVER_CHAT_PROVIDER,
     SERVER_CHAT_MODEL,
     SERVER_CHAT_FALLBACK_MODEL,
+    TRANSLATE_PROVIDER,
+    TRANSLATE_MODEL,
+    SCAN_PROVIDER,
+    SCAN_MODEL,
 )
 
 logger = logging.getLogger("ai_gateway")
@@ -62,6 +66,22 @@ FALLBACK = ModelSpec(
     provider=SERVER_CHAT_PROVIDER,          # Same provider, cheaper model.
     model=SERVER_CHAT_FALLBACK_MODEL,
     timeout_s=float(os.getenv("CHAT_FALLBACK_TIMEOUT_S", "45")),
+    max_retries=0,
+)
+
+# Task-specific specs — still centralised, still env-driven, just a different
+# (cheaper, task-tuned) model than the main chat spec above.
+TRANSLATE_SPEC = ModelSpec(
+    provider=TRANSLATE_PROVIDER,
+    model=TRANSLATE_MODEL,
+    timeout_s=float(os.getenv("TRANSLATE_TIMEOUT_S", "30")),
+    max_retries=0,
+)
+
+SCAN_SPEC = ModelSpec(
+    provider=SCAN_PROVIDER,
+    model=SCAN_MODEL,
+    timeout_s=float(os.getenv("SCAN_TIMEOUT_S", "90")),
     max_retries=0,
 )
 
@@ -108,41 +128,89 @@ async def send_with_fallback(
     system_message: str,
     user_text: str,
     *,
+    spec: ModelSpec = PRIMARY,
+    fallback_spec: Optional[ModelSpec] = None,
     caller: str = "unknown",
 ) -> tuple[str, Optional[str], str]:
     """One-shot send with automatic fallback on primary failure.
 
+    `spec`/`fallback_spec` default to the main chat PRIMARY/FALLBACK pair, but
+    any caller (e.g. translation) can pass its own task-specific spec pair —
+    still centrally defined above, never hard-coded in the router itself.
+
     Returns: (reply_text, error_message_or_None, error_id)
     On total failure both models fail → returns ("", user-facing_message, error_id).
     """
+    fallback_spec = fallback_spec or FALLBACK
     error_id = str(uuid.uuid4())[:8]
     primary_err: Optional[str] = None
 
     # ── Try primary ──
     try:
         t0 = time.time()
-        chat = build_chat(session_id, system_message, spec=PRIMARY)
+        chat = build_chat(session_id, system_message, spec=spec)
         reply = await chat.send_message(UserMessage(text=user_text))
-        _log_call(caller, PRIMARY, "ok", time.time() - t0, error_id, None)
+        _log_call(caller, spec, "ok", time.time() - t0, error_id, None)
         return str(reply or ""), None, error_id
     except Exception as e:
         primary_err = _short(e)
-        _log_call(caller, PRIMARY, "error", None, error_id, primary_err)
+        _log_call(caller, spec, "error", None, error_id, primary_err)
 
     # ── Try fallback ──
     try:
         t0 = time.time()
-        chat = build_chat(session_id, system_message, spec=FALLBACK)
+        chat = build_chat(session_id, system_message, spec=fallback_spec)
         reply = await chat.send_message(UserMessage(text=user_text))
-        _log_call(caller, FALLBACK, "ok_after_fallback", time.time() - t0, error_id, None)
+        _log_call(caller, fallback_spec, "ok_after_fallback", time.time() - t0, error_id, None)
         return str(reply or ""), None, error_id
     except Exception as e2:
         fb_err = _short(e2)
-        _log_call(caller, FALLBACK, "error_fallback", None, error_id, fb_err)
+        _log_call(caller, fallback_spec, "error_fallback", None, error_id, fb_err)
         return "", (
             f"The AI explanation service is temporarily unavailable. "
             f"Please try again in a moment. (ref {error_id})"
         ), error_id
+
+
+async def send_vision_with_fallback(
+    session_id: str,
+    system_message: str,
+    user_text: str,
+    image_base64: str,
+    *,
+    spec: ModelSpec = SCAN_SPEC,
+    fallback_spec: Optional[ModelSpec] = None,
+    caller: str = "unknown",
+) -> tuple[str, Optional[str], str]:
+    """Vision variant of send_with_fallback — attaches a base64 image to the
+    user message. Falls back to a second attempt (same spec by default, since
+    no separate vision fallback model is configured today) on primary failure.
+
+    Returns: (reply_text, error_message_or_None, error_id)
+    """
+    fallback_spec = fallback_spec or spec
+    error_id = str(uuid.uuid4())[:8]
+
+    for attempt_spec, status_ok, status_err in (
+        (spec, "ok", "error"),
+        (fallback_spec, "ok_after_fallback", "error_fallback"),
+    ):
+        try:
+            t0 = time.time()
+            chat = build_chat(session_id, system_message, spec=attempt_spec)
+            reply = await chat.send_message(UserMessage(
+                text=user_text,
+                file_contents=[ImageContent(image_base64=image_base64)],
+            ))
+            _log_call(caller, attempt_spec, status_ok, time.time() - t0, error_id, None)
+            return str(reply or ""), None, error_id
+        except Exception as e:
+            _log_call(caller, attempt_spec, status_err, None, error_id, _short(e))
+
+    return "", (
+        f"The document scanner is temporarily unavailable. "
+        f"Please try again in a moment. (ref {error_id})"
+    ), error_id
 
 
 async def stream_with_fallback(

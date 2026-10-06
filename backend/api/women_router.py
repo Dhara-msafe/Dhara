@@ -25,17 +25,15 @@ from fastapi import APIRouter, HTTPException, Header, Query
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage
-
 from dependencies import db, logger, check_admin_key
 from engine.law_status_guard import check_provision
+from services.ai_gateway import send_with_fallback, TRANSLATE_SPEC
+from config.settings import EMERGENT_LLM_KEY
 
 load_dotenv()
 
 router = APIRouter()
 
-EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
-TRANSLATE_MODEL = os.environ.get("TRANSLATE_MODEL", "gpt-4o-mini")
 LANG_NAMES = {
     "hi": "Hindi", "mr": "Marathi", "ta": "Tamil", "bn": "Bengali", "te": "Telugu",
     "kn": "Kannada", "ml": "Malayalam", "gu": "Gujarati", "pa": "Punjabi", "or": "Odia",
@@ -191,25 +189,30 @@ async def _translate_card(doc: dict, lang: str) -> dict:
         return doc
     payload = {k: doc.get(k, "") for k in TRANSLATABLE}
     payload["do_now"] = doc.get("do_now", [])
-    try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"wtr-{os.urandom(4).hex()}",
-            system_message=(
-                f"Translate this Indian legal-help text into {LANG_NAMES[lang]}. Keep it "
-                "simple, faithful and natural. Do NOT change or translate law names, "
-                "section numbers (e.g. BNSS §173) or helpline numbers, and do not add "
-                "any new facts. Reply ONLY as compact JSON with exactly the same keys "
-                "(including a do_now array of the same length)."
-            ),
-        ).with_model("openai", TRANSLATE_MODEL)
-        reply = await chat.send_message(UserMessage(text=json.dumps(payload, ensure_ascii=False)))
-        text = reply if isinstance(reply, str) else str(reply)
-        m = re.search(r"\{.*\}", text, re.DOTALL)
-        tr = json.loads(m.group(0)) if m else None
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"[women] translate failed ({lang}): {type(e).__name__}")
+    system_message = (
+        f"Translate this Indian legal-help text into {LANG_NAMES[lang]}. Keep it "
+        "simple, faithful and natural. Do NOT change or translate law names, "
+        "section numbers (e.g. BNSS §173) or helpline numbers, and do not add "
+        "any new facts. Reply ONLY as compact JSON with exactly the same keys "
+        "(including a do_now array of the same length)."
+    )
+    reply_text, err, error_id = await send_with_fallback(
+        session_id=f"wtr-{os.urandom(4).hex()}",
+        system_message=system_message,
+        user_text=json.dumps(payload, ensure_ascii=False),
+        spec=TRANSLATE_SPEC,
+        caller="women.translate_card",
+    )
+    if err or not reply_text:
+        logger.warning(f"[women] translate failed ({lang}): ref {error_id}")
         return doc
+    tr = None
+    m = re.search(r"\{.*\}", reply_text, re.DOTALL)
+    if m:
+        try:
+            tr = json.loads(m.group(0))
+        except Exception:
+            tr = None
     if not isinstance(tr, dict):
         return doc
     try:

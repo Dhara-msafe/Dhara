@@ -25,6 +25,14 @@ SERVER_CHAT_PROVIDER      = os.getenv("CHAT_PROVIDER",         "anthropic")
 SERVER_CHAT_MODEL         = os.getenv("CHAT_MODEL",            "claude-sonnet-4-5-20250929")
 SERVER_CHAT_FALLBACK_MODEL = os.getenv("CHAT_FALLBACK_MODEL",  "claude-haiku-4-5")
 
+# Secondary task-specific models (translation, document-scan vision). Kept
+# separate from the main chat spec above since they run cheaper, task-tuned
+# models — but still centralised here so no router hard-codes a model string.
+TRANSLATE_PROVIDER = os.getenv("TRANSLATE_PROVIDER", "openai")
+TRANSLATE_MODEL    = os.getenv("TRANSLATE_MODEL",    "gpt-4o-mini")
+SCAN_PROVIDER       = os.getenv("SCAN_PROVIDER",      "openai")
+SCAN_MODEL          = os.getenv("SCAN_MODEL",         "gpt-4o-mini")
+
 # ── Auth / JWT ─────────────────────────────────────────────────────────────────
 JWT_SECRET   = os.environ["JWT_SECRET"]
 JWT_ALG      = "HS256"
