@@ -1,19 +1,22 @@
 /**
- * Native device TTS — free Indian accent voices.
+ * Native device TTS — free Indian accent voices (web only).
  *
  * Uses the device's built-in speech engine so there is NO cloud round-trip
  * and no API credits are consumed.
  *
- *  • Web  : window.speechSynthesis — checks that the browser has a voice for
- *           the requested locale (e.g. mr-IN) before speaking.  Returns false
- *           (cloud-TTS fallback) when no matching voice is installed.
- *  • Native: expo-speech — same lang tags and pitch offsets.
+ *  • Web    : window.speechSynthesis — checks that the browser has a voice
+ *             for the requested locale (e.g. mr-IN) before speaking. Returns
+ *             false (cloud-TTS fallback) when no matching voice is installed.
+ *  • Native : no on-device engine is wired here (previously expo-speech,
+ *             removed — low-quality fixed system voices with no model/style
+ *             control; the app's cloud TTS via /api/voice/tts is the
+ *             supported path). speakNative() on native always returns
+ *             `false` so every caller's existing cloud-TTS fallback engages.
  *
  * Gender is simulated by adjusting pitch only (device voices are mono-gender
  * per locale on most Android / iOS installs; we pick the best available and
  * nudge the pitch so the user can tell female from male).
  */
-import * as Speech from 'expo-speech';
 import { Platform } from 'react-native';
 
 export type VoiceGender = 'female' | 'male';
@@ -98,61 +101,19 @@ async function speakWeb(
   return true;
 }
 
-// ─── Native ───────────────────────────────────────────────────────────────────
-
-/**
- * Returns true if the device TTS engine has at least one voice for `bcp47`.
- * Falls back to `true` when the API is unavailable (older Android builds).
- */
-async function hasDeviceVoice(bcp47: string): Promise<boolean> {
-  try {
-    const voices = await Speech.getAvailableVoicesAsync();
-    if (!voices || voices.length === 0) return true; // can't check → assume ok
-    const base = bcp47.split('-')[0];
-    return voices.some(
-      (v) =>
-        v.language === bcp47 ||
-        v.language?.startsWith(base + '-IN') ||
-        v.language?.startsWith(base),
-    );
-  } catch {
-    return true; // API missing → proceed and let expo-speech handle it
-  }
-}
-
-async function speakMobile(
-  text: string,
-  bcp47: string,
-  gender: VoiceGender,
-  onDone?: () => void,
-): Promise<void> {
-  try {
-    await Speech.stop();
-    Speech.speak(text, {
-      language: bcp47,
-      pitch:    gender === 'female' ? 1.15 : 0.88,
-      rate:     0.88,
-      onDone:   onDone,
-      onError:  () => onDone?.(),
-    });
-  } catch {
-    onDone?.();
-  }
-}
-
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
  * Speak `text` using the device's native TTS engine.
  *
- * Returns `true` when native TTS was used, `false` when the device does NOT
- * have a voice for the requested locale (e.g. `mr-IN` not installed) — the
- * caller should fall back to cloud TTS in that case.
+ * Returns `true` when native (web) TTS was used, `false` when unavailable
+ * (no matching voice on web, or always on native) — the caller should fall
+ * back to cloud TTS in that case, which every call site already does.
  *
  * @param text    The text to speak.
  * @param lang    Short language code from the app's language store (e.g. 'en', 'mr').
  * @param gender  'female' (default) or 'male' — adjusts pitch.
- * @param onDone  Called once speech finishes or errors.
+ * @param onDone  Called once speech finishes, errors, or isn't used.
  */
 export async function speakNative(
   text: string,
@@ -160,9 +121,8 @@ export async function speakNative(
   gender: VoiceGender = 'female',
   onDone?: () => void,
 ): Promise<boolean> {
-  const bcp47 = toBCP47(lang);
-
   if (Platform.OS === 'web') {
+    const bcp47 = toBCP47(lang);
     const used = await speakWeb(text, bcp47, gender, onDone);
     // No matching voice → call onDone so callers that don't check the return
     // value aren't left hanging, then return false for cloud-TTS fallback.
@@ -170,23 +130,15 @@ export async function speakNative(
     return used;
   }
 
-  // Check device has a voice for this locale before committing
-  const available = await hasDeviceVoice(bcp47);
-  if (!available) {
-    // Don't leave the done-callback hanging — the caller will use cloud TTS
-    onDone?.();
-    return false;
-  }
-
-  await speakMobile(text, bcp47, gender, onDone);
-  return true;
+  // Native mobile has no on-device engine wired up — always defer to the
+  // caller's cloud TTS fallback (every call site already handles `false`).
+  onDone?.();
+  return false;
 }
 
 /** Stop any in-progress native TTS immediately. */
 export function stopNativeTTS(): void {
   if (Platform.OS === 'web') {
     try { window.speechSynthesis?.cancel(); } catch {}
-  } else {
-    Speech.stop().catch(() => {});
   }
 }

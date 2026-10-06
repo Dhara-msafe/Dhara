@@ -1127,19 +1127,18 @@ def _script_check(text: str, language: str | None) -> dict:
     return {**result, "script_mismatch": result["mismatch"]}
 
 
-@router.post("/voice/transcribe")
-async def transcribe(
-    audio: UploadFile = File(...),
-    language: str = Form(None),
-    user: dict = Depends(current_user),
-):
-    """
-    Whisper cloud transcription. `language` is an optional ISO 639-1 hint
-    (e.g. "hi", "ta", "en") that dramatically improves accuracy for Indian
-    languages compared to Whisper's auto-detect. Falls back to auto-detect
-    if not provided OR if the Emergent Whisper proxy rejects the specific
-    language code (silently retries without the hint so the user never
-    experiences a silent mic failure).
+async def whisper_transcribe(audio: UploadFile, language: Optional[str]) -> dict:
+    """Core Whisper cloud transcription — shared by the authenticated
+    /voice/transcribe route and the public, token-scoped intake transcribe
+    route. Callers are responsible for their own auth/metering before
+    calling this (see meter_llm_use call sites).
+
+    `language` is an optional ISO 639-1 hint (e.g. "hi", "ta", "en") that
+    dramatically improves accuracy for Indian languages compared to
+    Whisper's auto-detect. Falls back to auto-detect if not provided OR if
+    the Emergent Whisper proxy rejects the specific language code (silently
+    retries without the hint so the user never experiences a silent mic
+    failure).
     """
     # Whisper supports these ISO 639-1 language codes in principle. The
     # actual Emergent proxy currently rejects some of them (bn/te/gu/ml/pa/
@@ -1160,7 +1159,6 @@ async def transcribe(
     # to auto-detect, which can return text in an unrelated language.
     if language:
         language = re.split(r"[-_]", language.strip())[0].lower() or None
-    await meter_llm_use(user, "voice")
     try:
         data = await audio.read()
         oc = openai_client()
@@ -1208,6 +1206,16 @@ async def transcribe(
             raise HTTPException(400, "Recording was too short. Please hold the mic button and speak for at least a second.")
         logger.exception("transcribe failed")
         raise HTTPException(500, f"Transcription failed: {e}")
+
+
+@router.post("/voice/transcribe")
+async def transcribe(
+    audio: UploadFile = File(...),
+    language: str = Form(None),
+    user: dict = Depends(current_user),
+):
+    await meter_llm_use(user, "voice")
+    return await whisper_transcribe(audio, language)
 
 @router.post("/voice/tts")
 async def tts(body: TTSIn, user: dict = Depends(current_user)):

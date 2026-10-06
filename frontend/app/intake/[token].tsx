@@ -6,37 +6,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useAudioRecorder, RecordingPresets, setAudioModeAsync, AudioModule } from 'expo-audio';
 import { API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { INTAKE_TEMPLATES, getTemplate, IntakeTemplate } from '@/src/intakeTemplates';
 
 const NAVY = theme.colors.primary;
 const GOLD = theme.colors.gold;
-
-// Simple native STT helper — no auth needed (on-device)
-async function startNativeSTT(
-  onPartial: (t: string) => void,
-  onFinal: (t: string) => void,
-  onError: (e: string) => void,
-): Promise<() => void> {
-  if (Platform.OS === 'web') { onError('Voice input not available on web'); return () => {}; }
-  try {
-    const mod = await import('expo-speech-recognition');
-    const { ExpoSpeechRecognitionModule, addSpeechRecognitionListener } = mod;
-    const perm = await ExpoSpeechRecognitionModule.requestPermissionsAsync?.();
-    if (perm && !perm.granted) { onError('Microphone permission denied'); return () => {}; }
-    let last = '';
-    const subs: any[] = [];
-    subs.push(addSpeechRecognitionListener('result', (ev: any) => {
-      const t = ev?.results?.[0]?.transcript ?? '';
-      if (ev?.isFinal) { onFinal(t); } else { last = t; onPartial(t); }
-    }));
-    subs.push(addSpeechRecognitionListener('end', () => { if (last) onFinal(last); subs.forEach(s => s?.remove?.()); }));
-    subs.push(addSpeechRecognitionListener('error', (ev: any) => { onError(ev?.error || 'Voice error'); subs.forEach(s => s?.remove?.()); }));
-    ExpoSpeechRecognitionModule.start({ lang: 'en-IN', interimResults: true, continuous: false, requiresOnDeviceRecognition: false });
-    return () => { try { ExpoSpeechRecognitionModule.stop?.(); } catch {} subs.forEach(s => s?.remove?.()); };
-  } catch (e: any) { onError(e?.message || 'Voice unavailable'); return () => {}; }
-}
 
 export default function ClientIntake() {
   const { token } = useLocalSearchParams<{ token: string }>();
@@ -46,10 +22,13 @@ export default function ClientIntake() {
   const [clientName, setClientName] = useState('');
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [activeVoice, setActiveVoice] = useState<string | null>(null); // question id being recorded
-  const [partialText, setPartialText] = useState('');
+  const [transcribingId, setTranscribingId] = useState<string | null>(null); // question id being transcribed
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
-  const stopRef = useRef<(() => void) | null>(null);
+  // Cloud Whisper transcription (no login on this public form — scoped to
+  // this intake token server-side, see POST /advocate/intake/{token}/transcribe).
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recordingActiveRef = useRef(false);
 
   useEffect(() => {
     if (!token) return;
@@ -67,34 +46,55 @@ export default function ClientIntake() {
       .finally(() => setLoading(false));
   }, [token]);
 
+  // Stop a dangling recording if the user navigates away mid-recording.
+  useEffect(() => () => { if (recordingActiveRef.current) { try { recorder.stop(); } catch {} } }, [recorder]);
+
   const toggleVoice = async (qId: string) => {
     if (activeVoice === qId) {
-      // stop
-      stopRef.current?.();
-      stopRef.current = null;
+      // ── Stop recording, then upload for transcription ──
       setActiveVoice(null);
-      setPartialText('');
+      recordingActiveRef.current = false;
+      setTranscribingId(qId);
+      try {
+        await recorder.stop();
+        const uri = recorder.uri;
+        if (!uri) throw new Error('No recording captured');
+        const form = new FormData();
+        // @ts-expect-error RN FormData file
+        form.append('audio', { uri, name: 'audio.m4a', type: 'audio/m4a' });
+        form.append('language', 'en');
+        const res = await fetch(`${API_BASE}/api/advocate/intake/${token}/transcribe`, {
+          method: 'POST',
+          body: form,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data?.text) {
+          setAnswers(prev => ({ ...prev, [qId]: (prev[qId] ? prev[qId] + ' ' : '') + data.text }));
+        } else if (!res.ok) {
+          alert(data?.detail || 'Could not transcribe your recording. Please try again or type your answer.');
+        }
+      } catch {
+        alert('Could not transcribe your recording. Please try again or type your answer.');
+      } finally {
+        setTranscribingId(null);
+      }
       return;
     }
-    // stop any active
-    stopRef.current?.();
-    setActiveVoice(qId);
-    setPartialText('');
-    const stop = await startNativeSTT(
-      (t) => setPartialText(t),
-      (t) => {
-        setAnswers(prev => ({ ...prev, [qId]: (prev[qId] ? prev[qId] + ' ' : '') + t }));
-        setActiveVoice(null);
-        setPartialText('');
-        stopRef.current = null;
-      },
-      (err) => {
-        setActiveVoice(null);
-        setPartialText('');
-        stopRef.current = null;
-      },
-    );
-    stopRef.current = stop;
+    // ── Start recording ──
+    try {
+      const { status } = await AudioModule.requestRecordingPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Microphone permission denied. Please allow microphone access in Settings, or type your answer.');
+        return;
+      }
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+      recordingActiveRef.current = true;
+      setActiveVoice(qId);
+    } catch {
+      alert('Could not access the microphone. Please type your answer instead.');
+    }
   };
 
   const handleSubmit = async () => {
@@ -170,6 +170,7 @@ export default function ClientIntake() {
           {/* Template questions */}
           {template?.questions.map((q) => {
             const isRecording = activeVoice === q.id;
+            const isTranscribing = transcribingId === q.id;
             const showMic = Platform.OS !== 'web';
             return (
               <View key={q.id} style={s.fieldWrap}>
@@ -177,21 +178,29 @@ export default function ClientIntake() {
                 <View style={s.inputRow}>
                   <TextInput
                     style={[s.input, q.type === 'textarea' && s.textarea, { flex: 1 }]}
-                    value={isRecording && partialText ? answers[q.id] + (answers[q.id] ? ' ' : '') + partialText : answers[q.id] ?? ''}
+                    value={answers[q.id] ?? ''}
                     onChangeText={t => setAnswers(prev => ({ ...prev, [q.id]: t }))}
                     placeholder={q.placeholder ?? ''}
                     placeholderTextColor="#9CA3AF"
                     multiline={q.type === 'textarea'}
                     numberOfLines={q.type === 'textarea' ? 3 : 1}
                     textAlignVertical={q.type === 'textarea' ? 'top' : 'center'}
+                    editable={!isTranscribing}
                   />
                   {showMic && (
-                    <Pressable style={[s.micBtn, isRecording && s.micBtnActive]} onPress={() => toggleVoice(q.id)}>
-                      <Ionicons name={isRecording ? 'stop' : 'mic-outline'} size={20} color={isRecording ? '#fff' : NAVY} />
+                    <Pressable
+                      style={[s.micBtn, isRecording && s.micBtnActive]}
+                      onPress={() => toggleVoice(q.id)}
+                      disabled={isTranscribing}
+                    >
+                      {isTranscribing
+                        ? <ActivityIndicator size="small" color={NAVY} />
+                        : <Ionicons name={isRecording ? 'stop' : 'mic-outline'} size={20} color={isRecording ? '#fff' : NAVY} />}
                     </Pressable>
                   )}
                 </View>
-                {isRecording && <Text style={s.recording}>🎙 Listening…</Text>}
+                {isRecording && <Text style={s.recording}>🎙 Recording… tap again to stop</Text>}
+                {isTranscribing && <Text style={s.recording}>Transcribing…</Text>}
               </View>
             );
           })}

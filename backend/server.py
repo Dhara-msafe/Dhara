@@ -139,7 +139,7 @@ api = APIRouter(prefix="/api")
 # db/corpus_db/current_user and shared utilities live in dependencies.py (single connection)
 from dependencies import db, corpus_db, current_user, current_user_optional, hash_pw, check_pw, make_token, public_user, meter_llm_use, build_system_prompt, translate_for_retrieval, logger, check_admin_key as _check_admin_key  # noqa: E501
 from api.auth_router     import router as auth_router
-from api.chat_router     import router as chat_router
+from api.chat_router     import router as chat_router, whisper_transcribe
 from api.fir_router      import router as fir_router
 from api.visitor_router  import router as visitor_router
 from api.journeys_router import router as journeys_router
@@ -1178,6 +1178,30 @@ async def intake_submit(token: str, body: IntakeSubmitIn):
         {"$set": {"summary": summary, "dhara_analysis": analysis, "status": "complete"}},
     )
     return {"ok": True, "message": "Your information has been sent to your advocate securely."}
+
+
+@api.post("/advocate/intake/{token}/transcribe")
+async def intake_transcribe(
+    token: str,
+    audio: UploadFile = File(...),
+    language: str = Form(None),
+):
+    """Public endpoint — voice-to-text for the client-facing intake form.
+    No login exists on this page (it's a shareable link), so this is
+    scoped to a live (not yet complete/expired) intake token, and the
+    Whisper cost is metered against the advocate who created the link
+    (the one who benefits from the client filling the form) rather than
+    the anonymous client."""
+    intake = await db.client_intakes.find_one({"intake_token": token})
+    if not intake:
+        raise HTTPException(404, "Intake link not found")
+    if intake.get("status") in ("complete", "expired"):
+        raise HTTPException(400, "This intake link has already been used or has expired")
+    advocate = await db.users.find_one({"id": intake.get("advocate_id")})
+    if not advocate:
+        raise HTTPException(404, "Advocate account not found")
+    await meter_llm_use(advocate, "voice")
+    return await whisper_transcribe(audio, language)
 
 
 @api.get("/advocate/intakes/{advocate_id}")

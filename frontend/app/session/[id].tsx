@@ -1,9 +1,10 @@
-import { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import * as Speech from 'expo-speech';
+import { createAudioPlayer } from 'expo-audio';
+import { File, Paths } from 'expo-file-system';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 
@@ -18,6 +19,15 @@ export default function SessionView() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [loading, setLoading] = useState(true);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
+  // Holds whatever is currently playing (native expo-audio player + its
+  // temp file, or a web HTMLAudioElement) so a second tap can stop it.
+  const stopCurrentRef = useRef<(() => void) | null>(null);
+
+  const stopSpeaking = useCallback(() => {
+    try { stopCurrentRef.current?.(); } catch {}
+    stopCurrentRef.current = null;
+    setSpeakingId(null);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -30,20 +40,62 @@ export default function SessionView() {
       } catch {}
       finally { setLoading(false); }
     })();
-    return () => { Speech.stop(); };
-  }, [id, token]);
+    return () => { stopSpeaking(); };
+  }, [id, token, stopSpeaking]);
 
-  const speak = useCallback((mid: string, text: string) => {
-    if (speakingId === mid) { Speech.stop(); setSpeakingId(null); return; }
-    Speech.stop();
+  // Cloud TTS (/api/voice/tts, Emergent-managed OpenAI TTS) — plays via
+  // expo-audio on native (writes the returned mp3 to a cache file first)
+  // and HTMLAudioElement on web. Tapping the same message's speaker icon
+  // again stops playback.
+  const speak = useCallback(async (mid: string, text: string) => {
+    if (speakingId === mid) { stopSpeaking(); return; }
+    stopSpeaking();
     setSpeakingId(mid);
-    Speech.speak(text, {
-      language: language.tts,
-      onDone: () => setSpeakingId(null),
-      onStopped: () => setSpeakingId(null),
-      onError: () => setSpeakingId(null),
-    });
-  }, [speakingId, language]);
+    try {
+      const res = await fetch(`${API_BASE}/api/voice/tts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text, language: language?.code || 'en', voice: 'alloy' }),
+      });
+      if (!res.ok) throw new Error('TTS failed');
+
+      if (Platform.OS === 'web') {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new (window as any).Audio(url);
+        const finish = () => { URL.revokeObjectURL(url); setSpeakingId((cur) => (cur === mid ? null : cur)); };
+        audio.onended = finish;
+        audio.onerror = finish;
+        stopCurrentRef.current = () => { try { audio.pause(); } catch {} finish(); };
+        await audio.play();
+        return;
+      }
+
+      // Native: write the mp3 bytes to a cache file, then play with expo-audio.
+      const buf = await res.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let binary = '';
+      const CHUNK = 0x8000;
+      for (let i = 0; i < bytes.length; i += CHUNK) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+      }
+      const base64 = (globalThis as any).btoa ? (globalThis as any).btoa(binary) : Buffer.from(binary, 'binary').toString('base64');
+      const file = new File(Paths.cache, `dhara-session-tts-${Date.now()}.mp3`);
+      try { if (file.exists) file.delete(); } catch {}
+      file.create();
+      file.write(base64, { encoding: 'base64' } as any);
+
+      const player = createAudioPlayer({ uri: file.uri });
+      const finish = () => { try { player.remove(); } catch {} try { file.delete(); } catch {} setSpeakingId((cur) => (cur === mid ? null : cur)); };
+      const sub = player.addListener('playbackStatusUpdate', (status: any) => {
+        if (status?.didJustFinish) { try { sub.remove(); } catch {} finish(); }
+      });
+      stopCurrentRef.current = () => { try { sub.remove(); } catch {} try { player.pause(); } catch {} finish(); };
+      player.play();
+    } catch {
+      setSpeakingId((cur) => (cur === mid ? null : cur));
+    }
+  }, [speakingId, language, token, stopSpeaking]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']} testID="session-view">

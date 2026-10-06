@@ -13,7 +13,6 @@
       "bundleIdentifier": "com.msafesolutions.legalaid",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Speak questions or save local voice evidence",
-        "NSSpeechRecognitionUsageDescription": "Convert your spoken legal questions into text on-device",
         "NSCameraUsageDescription": "Attach photos to your missing-person complaint",
         "NSPhotoLibraryUsageDescription": "Choose photos for your missing-person complaint",
         "NSLocationWhenInUseUsageDescription": "Add locations to complaints or messages you choose"
@@ -60,7 +59,6 @@
         }
       ],
       "expo-web-browser",
-      "expo-speech-recognition",
       [
         "expo-notifications",
         {

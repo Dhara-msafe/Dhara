@@ -9,8 +9,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as Speech from 'expo-speech';
-import { useAudioRecorder, RecordingPresets, setAudioModeAsync, AudioModule } from 'expo-audio';
+import { useAudioRecorder, RecordingPresets, setAudioModeAsync, AudioModule, createAudioPlayer } from 'expo-audio';
+import { File, Paths } from 'expo-file-system';
 import { theme } from '@/src/theme';
 import { loadVisitorSession, VisitorSession } from '@/src/visitor/session';
 import { API_BASE, useAuth } from '@/src/auth';
@@ -100,43 +100,54 @@ export default function InterpreterScreen() {
   }, [token]);
 
   // ── TTS playback ──────────────────────────────────────────────────────────
-  // Native (iOS/Android): expo-speech speaks the translated text directly —
-  // avoids window.Audio which is browser-only and silent on APK builds.
-  // Web: fall back to the backend TTS endpoint + HTMLAudioElement.
+  // Cloud TTS (/api/voice/tts, Emergent-managed OpenAI TTS) for both
+  // platforms — native plays the returned audio via expo-audio (writes to a
+  // cache file first, since createAudioPlayer needs a URI, not raw bytes);
+  // web plays it directly through HTMLAudioElement.
   const playTTS = useCallback(async (text: string, lang: string) => {
-    if (Platform.OS !== 'web') {
-      // Map ISO 639-1 to a BCP-47 tag expo-speech understands (e.g. 'hi' → 'hi-IN')
-      const bcp47: Record<string, string> = {
-        hi: 'hi-IN', en: 'en-IN', fr: 'fr-FR', de: 'de-DE',
-        es: 'es-ES', pt: 'pt-PT', it: 'it-IT', ja: 'ja-JP',
-        ko: 'ko-KR', zh: 'zh-CN', ar: 'ar-SA', ru: 'ru-RU',
-        ta: 'ta-IN', kn: 'kn-IN', ml: 'ml-IN', te: 'te-IN',
-        bn: 'bn-IN', gu: 'gu-IN', mr: 'mr-IN', pa: 'pa-IN',
-        as: 'as-IN', or: 'or-IN',
-      };
-      return new Promise<void>((resolve) => {
-        Speech.stop(); // stop any previous utterance
-        Speech.speak(text, {
-          language: bcp47[lang] ?? lang,
-          onDone:  () => resolve(),
-          onError: () => resolve(), // never block the conversation on TTS error
-        });
-      });
-    }
-    // Web fallback: stream from backend TTS endpoint
     const res = await fetch(`${API_BASE}/api/voice/tts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ text, language: lang, voice: 'alloy' }),
     });
     if (!res.ok) throw new Error('TTS failed');
-    const blob = await res.blob();
-    return new Promise<void>((resolve, reject) => {
-      const url = URL.createObjectURL(blob);
-      const audio = new (window as any).Audio(url);
-      audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
-      audio.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Audio playback failed')); };
-      audio.play().catch(reject);
+
+    if (Platform.OS === 'web') {
+      const blob = await res.blob();
+      return new Promise<void>((resolve, reject) => {
+        const url = URL.createObjectURL(blob);
+        const audio = new (window as any).Audio(url);
+        audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
+        audio.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Audio playback failed')); };
+        audio.play().catch(reject);
+      });
+    }
+
+    // Native: write the mp3 bytes to a cache file, then play with expo-audio.
+    const buf = await res.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = '';
+    const CHUNK = 0x8000;
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+    }
+    const base64 = (globalThis as any).btoa ? (globalThis as any).btoa(binary) : Buffer.from(binary, 'binary').toString('base64');
+    const file = new File(Paths.cache, `dhara-interpreter-tts-${Date.now()}.mp3`);
+    try { if (file.exists) file.delete(); } catch {}
+    file.create();
+    file.write(base64, { encoding: 'base64' } as any);
+
+    return new Promise<void>((resolve) => {
+      let settled = false;
+      const player = createAudioPlayer({ uri: file.uri });
+      const cleanup = () => { try { player.remove(); } catch {} try { file.delete(); } catch {} };
+      const finish = () => { if (settled) return; settled = true; cleanup(); resolve(); };
+      const sub = player.addListener('playbackStatusUpdate', (status: any) => {
+        if (status?.didJustFinish) { try { sub.remove(); } catch {} finish(); }
+      });
+      // Safety net in case the finish event never fires on some devices.
+      setTimeout(finish, 30000);
+      try { player.play(); } catch { finish(); }
     });
   }, [token]);
 
