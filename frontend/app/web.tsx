@@ -29,6 +29,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Link, Redirect } from 'expo-router';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { verifiedLabel, isStale, STALE_WARNING_TEXT } from '@/src/citationStaleness';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -383,7 +384,7 @@ export default function WebPortal() {
                     <View style={styles.citWrap}>
                       <View style={styles.citHeader}>
                         <Ionicons name="library-outline" size={11} color={theme.colors.brand} />
-                        <Text style={styles.citHeaderText}>Verified sources</Text>
+                        <Text style={styles.citHeaderText}>Sources</Text>
                       </View>
                       {m.citations.map((c) => (
                         <View key={c.key} style={styles.citCard}>
@@ -391,8 +392,14 @@ export default function WebPortal() {
                             <View style={styles.citChip}>
                               <Text style={styles.citChipText}>{c.short_label}</Text>
                             </View>
-                            <Text style={styles.citDate}>Verified {c.verified_at}</Text>
+                            <Text style={styles.citDate}>{verifiedLabel(c.verified_at)}</Text>
                           </View>
+                          {isStale(c.verified_at) && (
+                            <View style={styles.citStaleRow}>
+                              <Ionicons name="time-outline" size={12} color={theme.colors.warning} />
+                              <Text style={styles.citStaleText}>{STALE_WARNING_TEXT}</Text>
+                            </View>
+                          )}
                           <Text style={styles.citTitle}>{c.citation}</Text>
                           <Text style={styles.citBody} numberOfLines={5}>
                             {c.official_text}
@@ -798,6 +805,8 @@ const styles = S.create({
     fontSize: 10,
     color: theme.colors.onSurfaceSecondary,
   },
+  citStaleRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  citStaleText: { fontSize: 10, color: theme.colors.warning, fontWeight: '600' },
   citTitle: {
     fontSize: 12,
     fontWeight: '700',

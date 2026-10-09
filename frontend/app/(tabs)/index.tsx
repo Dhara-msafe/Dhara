@@ -41,6 +41,7 @@ import { getConfiguredSTT, whisperTranscribeFile } from '@/src/voice/stt';
 import { addBookmark } from '@/src/bookmarks';
 import { t } from '@/src/i18n';
 import { MarqueeBanner } from '@/src/components/MarqueeBanner';
+import { verifiedLabel, isStale, STALE_WARNING_TEXT } from '@/src/citationStaleness';
 
 /** Strip raw markdown markers from streaming text so asterisks/hashes never
  *  flash in the UI while the LLM is still mid-sentence. Called only on the
@@ -2005,7 +2006,7 @@ export default function ChatScreen() {
                           <View style={styles.citationsWrap} testID={`citations-${m.id}`}>
                             <View style={styles.citationsHeaderRow}>
                       <Ionicons name="library-outline" size={11} color={theme.colors.brand} />
-                      <Text style={styles.citationsHeader}>Verified sources</Text>
+                      <Text style={styles.citationsHeader}>Sources</Text>
                     </View>
                             {m.citations!.map((c) => (
                               <View key={c.key} style={styles.citationCard}>
@@ -2013,8 +2014,14 @@ export default function ChatScreen() {
                                   <View style={styles.citationChip}>
                                     <Text style={styles.citationChipText}>{c.short_label}</Text>
                                   </View>
-                                  <Text style={styles.citationVerified}>Verified {c.verified_at}</Text>
+                                  <Text style={styles.citationVerified}>{verifiedLabel(c.verified_at)}</Text>
                                 </View>
+                                {isStale(c.verified_at) && (
+                                  <View style={styles.staleWarningRow} testID={`stale-${c.key}`}>
+                                    <Ionicons name="time-outline" size={12} color={theme.colors.warning} />
+                                    <Text style={styles.staleWarningText}>{STALE_WARNING_TEXT}</Text>
+                                  </View>
+                                )}
                                 {isIpcCitation(c) && (
                                   <View style={styles.ipcNoticeRow} testID={`ipc-notice-${c.key}`}>
                                     <Ionicons name="information-circle" size={13} color="#92400E" />
@@ -2056,7 +2063,7 @@ export default function ChatScreen() {
                   <View style={styles.citationsWrap} testID={`citations-${m.id}`}>
                     <View style={styles.citationsHeaderRow}>
                       <Ionicons name="library-outline" size={11} color={theme.colors.brand} />
-                      <Text style={styles.citationsHeader}>Verified sources</Text>
+                      <Text style={styles.citationsHeader}>Sources</Text>
                     </View>
                     {m.citations.map((c) => (
                       <View key={c.key} style={styles.citationCard}>
@@ -2064,8 +2071,14 @@ export default function ChatScreen() {
                           <View style={styles.citationChip}>
                             <Text style={styles.citationChipText}>{c.short_label}</Text>
                           </View>
-                          <Text style={styles.citationVerified}>Verified {c.verified_at}</Text>
+                          <Text style={styles.citationVerified}>{verifiedLabel(c.verified_at)}</Text>
                         </View>
+                        {isStale(c.verified_at) && (
+                          <View style={styles.staleWarningRow} testID={`stale-${c.key}`}>
+                            <Ionicons name="time-outline" size={12} color={theme.colors.warning} />
+                            <Text style={styles.staleWarningText}>{STALE_WARNING_TEXT}</Text>
+                          </View>
+                        )}
                         {isIpcCitation(c) && (
                           <View style={styles.ipcNoticeRow} testID={`ipc-notice-${c.key}`}>
                             <Ionicons name="information-circle" size={13} color="#92400E" />
@@ -2979,6 +2992,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   citationVerified: { fontSize: 10, color: theme.colors.onSurfaceTertiary },
+  staleWarningRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  staleWarningText: { fontSize: 10, color: theme.colors.warning, fontWeight: '600' },
   ipcNoticeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: '#FEF3C7', borderRadius: 8, padding: 8, marginTop: 6 },
   ipcNoticeText: { flex: 1, fontSize: 11, color: '#92400E', lineHeight: 15, fontWeight: '600' },
   citationTitle: { fontSize: 12, fontWeight: '700', color: theme.colors.brand },

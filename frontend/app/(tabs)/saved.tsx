@@ -114,7 +114,7 @@ export default function SavedScreen() {
 
                 {open && item.citations?.length > 0 && (
                   <View style={styles.cites}>
-                    <Text style={styles.citesHead}>📚 Verified sources</Text>
+                    <Text style={styles.citesHead}>📚 Sources</Text>
                     {item.citations.map((c) => (
                       <View key={c.key} style={styles.citeCard}>
                         <View style={styles.citeChip}>
