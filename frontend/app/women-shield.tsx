@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Switch, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
 import { SosPill, Divider } from '@/src/components/dhara/SosPill';
-import { fetchFlags, fetchHelplines, safetyRoute, setCheckin as persistCheckin, getCheckin, type Helpline, type Flags } from '@/src/women/api';
+import { fetchFlags, fetchHelplines, safetyRoute, setCheckin as persistCheckin, getCheckin, getCircle, type Helpline, type Flags } from '@/src/women/api';
+import { loadRecordings, releaseRecordings } from '@/src/women/evidenceStore';
 
 const c = theme.colors;
 
@@ -36,12 +37,14 @@ const HELPLINES = [
 export default function WomenShield() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { language } = useAuth();
+  const { language, user } = useAuth();
   const lang = language.code;
-  const [discreet, setDiscreet] = useState(true);
+  const [discreet, setDiscreet] = useState(false);
   const [checkin, setCheckin] = useState(true);
   const [flags, setFlags] = useState<Flags | null>(null);
   const [helplines, setHelplines] = useState<Helpline[]>([]);
+  const [circleCount, setCircleCount] = useState(0);
+  const [lockerCount, setLockerCount] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -51,6 +54,24 @@ export default function WomenShield() {
       setCheckin(ci);
     })();
   }, []);
+
+  // Truth-bind the summary counts to real saved state every time this screen
+  // gains focus (not just on first mount) — so adding a contact or evidence
+  // item and coming back here shows the updated number, not a stale one.
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      const scope = user?.id || 'device';
+      (async () => {
+        const [circle, items] = await Promise.all([getCircle(), loadRecordings(scope)]);
+        if (!alive) { releaseRecordings(items); return; }
+        setCircleCount(circle.length);
+        setLockerCount(items.length);
+        releaseRecordings(items);
+      })();
+      return () => { alive = false; };
+    }, [user?.id])
+  );
 
   const onCheckin = async (v: boolean) => { setCheckin(v); await persistCheckin(v); };
 
@@ -111,18 +132,17 @@ export default function WomenShield() {
         <View style={styles.section}>
           <Text style={styles.h2}>{tr('ws.tools', lang)}</Text>
           <View style={styles.toolCard}>
-            <ToolRow icon="people-outline" title={tr('ws.circle', lang)} sub={tr('ws.circle.sub', lang)} action={tr('ws.manage', lang)} onPress={() => router.push('/women/trusted-circle')} />
+            <ToolRow icon="people-outline" title={tr('ws.circle', lang)} sub={circleCount > 0 ? tr('ws.circle.sub.count', lang).replace('{n}', String(circleCount)) : tr('ws.circle.sub.empty', lang)} action={tr('ws.manage', lang)} onPress={() => router.push('/women/trusted-circle')} />
             <Divider />
             <View style={styles.toolRow}>
               <View style={styles.toolIcon}><Ionicons name="navigate-outline" size={20} color={c.navy} /></View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.toolTitle}>{tr('ws.checkin', lang)}</Text>
-                <Text style={styles.toolSub}>{tr('ws.checkin.sub', lang)}</Text>
               </View>
               <Switch value={checkin} onValueChange={onCheckin} trackColor={{ true: c.navy, false: c.surfaceTertiary }} thumbColor="#fff" />
             </View>
             <Divider />
-            <ToolRow icon="lock-closed-outline" title={tr('ws.locker', lang)} sub={tr('ws.locker.sub', lang)} action={tr('ws.open', lang)} onPress={() => router.push('/women/evidence-locker')} />
+            <ToolRow icon="lock-closed-outline" title={tr('ws.locker', lang)} sub={tr('ws.locker.sub.count', lang).replace('{n}', String(lockerCount))} action={tr('ws.open', lang)} onPress={() => router.push('/women/evidence-locker')} />
             <Divider />
             <ToolRow icon="mic-outline" title={tr('ws.code', lang)} sub={tr('ws.code.sub', lang)} action={tr('ws.setup', lang)} onPress={() => router.push('/women/code-phrase')} />
           </View>
