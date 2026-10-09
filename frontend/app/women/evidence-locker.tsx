@@ -3,17 +3,28 @@ import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Platf
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AudioModule, RecordingPresets, setAudioModeAsync, useAudioRecorder, useAudioRecorderState } from 'expo-audio';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
-import { saveRecording, savePhoto, saveVideo, loadRecordings, deleteRecording, releaseRecordings, discardTemporaryRecording, type RecordingItem } from '@/src/women/evidenceStore';
+import {
+  saveRecording, savePhoto, saveVideo, loadRecordings, deleteRecording, releaseRecordings,
+  discardTemporaryRecording, getDecryptedTempUri, releaseDecryptedTempUri, type RecordingItem,
+} from '@/src/women/evidenceStore';
 import { hasPin, setPin, verifyPin } from '@/src/women/evidenceLock';
 import { screenPlayer } from '@/src/media/screenPlayer';
 import type { TtsPlayer } from '@/src/voice/tts';
 
 const c = theme.colors;
+
+// ── Inline video preview (S-B5) — mounted only while a video is being
+// previewed, so useVideoPlayer's lifecycle stays tied to one item at a time. ──
+function InlineVideoPreview({ uri }: { uri: string }) {
+  const player = useVideoPlayer(uri, p => { p.play(); });
+  return <VideoView player={player} style={styles.videoPreview} nativeControls contentFit="contain" testID="evidence-video-preview" />;
+}
 
 // ── PIN lock gate ───────────────────────────────────────────────────────────
 function PinGate({ onUnlock }: { onUnlock: () => void }) {
@@ -87,12 +98,27 @@ export default function EvidenceLocker() {
   const [status, setStatus] = useState('');
   const [playing, setPlaying] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [photoUris, setPhotoUris] = useState<Record<string, string>>({});
+  const [previewLoading, setPreviewLoading] = useState<string | null>(null);
+  const [videoPreview, setVideoPreview] = useState<{ id: string; uri: string; wasDecrypted: boolean } | null>(null);
   const player = useRef<TtsPlayer | null>(null);
   const epoch = useRef(0);
   const working = useRef(false);
   const active = useRef(false);
   const owned = useRef<RecordingItem[]>([]);
-  const stopPlayer = useCallback(() => { player.current?.remove(); player.current = null; setPlaying(null); }, []);
+  const photoUrisRef = useRef<Record<string, string>>({});
+  const videoPreviewRef = useRef<typeof videoPreview>(null);
+  const playingTempUri = useRef<{ uri: string; wasDecrypted: boolean } | null>(null);
+  useEffect(() => { photoUrisRef.current = photoUris; }, [photoUris]);
+  useEffect(() => { videoPreviewRef.current = videoPreview; }, [videoPreview]);
+  const stopPlayer = useCallback(() => {
+    player.current?.remove(); player.current = null; setPlaying(null);
+    if (playingTempUri.current) { releaseDecryptedTempUri(playingTempUri.current.uri, playingTempUri.current.wasDecrypted); playingTempUri.current = null; }
+  }, []);
+  const closeVideoPreview = useCallback(() => {
+    if (videoPreviewRef.current) releaseDecryptedTempUri(videoPreviewRef.current.uri, videoPreviewRef.current.wasDecrypted);
+    setVideoPreview(null);
+  }, []);
   const cancel = useCallback(() => {
     epoch.current++;
     stopPlayer();
@@ -101,9 +127,31 @@ export default function EvidenceLocker() {
   }, [recorder, stopPlayer]);
   useFocusEffect(useCallback(() => {
     let alive = true;
-    loadRecordings(scope).then(rows => { if (alive) { owned.current = rows; setItems(rows); } else releaseRecordings(rows); }).catch(() => setStatus('Saved recordings could not load. Please reopen this screen.'));
-    return () => { alive = false; cancel(); releaseRecordings(owned.current); owned.current = []; };
-  }, [scope, cancel]));
+    loadRecordings(scope).then(async rows => {
+      if (!alive) { releaseRecordings(rows); return; }
+      owned.current = rows; setItems(rows);
+      // S-B5: decrypt photo thumbnails eagerly (small files, immediate visual
+      // feedback) — audio/video stay decrypt-on-demand (Play / Preview tap).
+      const photoRows = rows.filter(r => r.type === 'photo');
+      const decrypted = await Promise.all(photoRows.map(async r => {
+        try { return [r.id, await getDecryptedTempUri(scope, r)] as const; } catch { return null; }
+      }));
+      if (!alive) { decrypted.forEach(entry => { if (entry) releaseDecryptedTempUri(entry[1], true); }); return; }
+      const map: Record<string, string> = {};
+      decrypted.forEach(entry => { if (entry) map[entry[0]] = entry[1]; });
+      setPhotoUris(map);
+    }).catch(() => setStatus('Saved recordings could not load. Please reopen this screen.'));
+    return () => {
+      alive = false; cancel(); releaseRecordings(owned.current);
+      Object.entries(photoUrisRef.current).forEach(([id, uri]) => {
+        const row = owned.current.find(r => r.id === id);
+        releaseDecryptedTempUri(uri, !!row?.iv);
+      });
+      photoUrisRef.current = {}; setPhotoUris({});
+      closeVideoPreview();
+      owned.current = [];
+    };
+  }, [scope, cancel, closeVideoPreview]));
   useEffect(() => {
     const sub = AppState.addEventListener('change', value => { if (value !== 'active') { cancel(); setStatus('Recording stopped. Unfinished audio is not saved. Keep this screen open and use Stop & save.'); } });
     return () => sub.remove();
@@ -150,17 +198,33 @@ export default function EvidenceLocker() {
     const wasPlaying = playing === item.id;
     stopPlayer(); if (wasPlaying) return;
     try {
-      const sound = screenPlayer(item.uri); player.current = sound; setPlaying(item.id);
+      const tempUri = await getDecryptedTempUri(scope, item);
+      playingTempUri.current = { uri: tempUri, wasDecrypted: !!item.iv };
+      const sound = screenPlayer(tempUri); player.current = sound; setPlaying(item.id);
       sound.onFinish(stopPlayer);
       await sound.play();
     } catch { stopPlayer(); setStatus('Playback could not start. Tap Play again or check device audio.'); }
-  }, [playing, stopPlayer]);
+  }, [playing, stopPlayer, scope]);
+  const previewVideo = useCallback(async (item: RecordingItem) => {
+    if (videoPreview?.id === item.id) { closeVideoPreview(); return; }
+    if (videoPreview) closeVideoPreview();
+    setPreviewLoading(item.id);
+    try {
+      const uri = await getDecryptedTempUri(scope, item);
+      setVideoPreview({ id: item.id, uri, wasDecrypted: !!item.iv });
+    } catch {
+      setStatus('Could not open this video. Please try again.');
+    } finally { setPreviewLoading(null); }
+  }, [videoPreview, scope, closeVideoPreview]);
   const remove = useCallback(async (item: RecordingItem) => {
     try {
-      stopPlayer(); await deleteRecording(scope, item);
+      stopPlayer();
+      if (videoPreview?.id === item.id) closeVideoPreview();
+      if (photoUris[item.id]) { releaseDecryptedTempUri(photoUris[item.id], !!item.iv); setPhotoUris(prev => { const next = { ...prev }; delete next[item.id]; return next; }); }
+      await deleteRecording(scope, item);
       owned.current = owned.current.filter(row => row.id !== item.id); setItems(owned.current); setDeleting(null); setStatus('Recording deleted from this device.');
     } catch { setStatus('Could not delete this recording. Please try again.'); }
-  }, [scope, stopPlayer]);
+  }, [scope, stopPlayer, videoPreview, closeVideoPreview, photoUris]);
 
   // ── Camera capture (DHARA: photo + video, no network, 2-min video cap) ──
   const capture = useCallback(async (kind: 'photo' | 'video') => {
@@ -186,6 +250,10 @@ export default function EvidenceLocker() {
       if (result.canceled || !result.assets?.[0]?.uri) return;
       const item = kind === 'photo' ? await savePhoto(scope, result.assets[0].uri) : await saveVideo(scope, result.assets[0].uri);
       owned.current = [item, ...owned.current]; setItems(owned.current);
+      if (kind === 'photo') {
+        // Decrypt immediately so the new thumbnail shows up right away.
+        try { const uri = await getDecryptedTempUri(scope, item); setPhotoUris(prev => ({ ...prev, [item.id]: uri })); } catch { /* thumbnail just won't render; item is still saved */ }
+      }
       setStatus(`${kind === 'photo' ? 'Photo' : 'Video'} saved on this device. Nothing was uploaded or sent.`);
     } catch (error: any) {
       setStatus(error?.message || `Could not capture ${kind}. Please try again.`);
@@ -196,9 +264,11 @@ export default function EvidenceLocker() {
     try {
       const canShare = await Sharing.isAvailableAsync();
       if (!canShare) { setStatus('Sharing is not available on this device.'); return; }
-      await Sharing.shareAsync(item.uri);
+      const tempUri = await getDecryptedTempUri(scope, item);
+      try { await Sharing.shareAsync(tempUri); }
+      finally { releaseDecryptedTempUri(tempUri, !!item.iv); }
     } catch { setStatus('Could not open the share sheet. Please try again.'); }
-  }, []);
+  }, [scope]);
 
   if (!unlocked) return <PinGate onUnlock={() => setUnlocked(true)} />;
 
@@ -206,7 +276,7 @@ export default function EvidenceLocker() {
     <View style={styles.root} testID="evidence-locker-screen">
       <ScreenHeader title="Evidence locker" subtitle="Local recordings, photos & video · no network needed" />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
-        <Text testID="evidence-storage-notice" style={styles.note}>Capture only when safe. Everything saved here stays on this device; it is not encrypted by DHARA, tamper-proof, backed up or sent to anyone unless you tap Share. Clearing app data or uninstalling can erase it.</Text>
+        <Text testID="evidence-storage-notice" style={styles.note}>Capture only when safe. Everything saved here is encrypted on this device and protected by your PIN; it is not backed up or sent to anyone unless you tap Share. Clearing app data or uninstalling can erase it.</Text>
         <Text testID="evidence-recording-timer" style={styles.timer}>{state.isRecording ? `Recording · ${Math.floor(state.durationMillis / 1000)}s` : 'Ready to record'}</Text>
         <Pressable testID="evidence-record-toggle" disabled={busy} style={styles.button} onPress={state.isRecording ? save : start}>{busy ? <ActivityIndicator color={c.onBrandPrimary} /> : <Text style={styles.buttonText}>{state.isRecording ? 'Stop & save' : 'Start voice recording'}</Text>}</Pressable>
         {state.isRecording && <Pressable testID="evidence-discard" style={styles.secondary} onPress={() => { cancel(); setStatus('Unfinished recording discarded.'); }}><Text style={styles.label}>Discard recording</Text></Pressable>}
@@ -222,19 +292,37 @@ export default function EvidenceLocker() {
         <Text style={styles.heading} testID="evidence-count">Saved items ({items.length})</Text>
         {items.map(item => <View key={item.id} style={styles.secondary} testID={`recording-${item.id}`}>
           <Text style={styles.label}>{item.type === 'photo' ? '📷 Photo' : item.type === 'video' ? '🎥 Video' : '🎙️ Audio'} · {new Date(item.createdAt).toLocaleString()}</Text>
-          {item.type === 'photo' && <Image source={{ uri: item.uri }} style={styles.thumb} resizeMode="cover" />}
-          {item.type === 'video' && <View style={styles.videoPlaceholder}><Text style={styles.label}>🎥</Text></View>}
+          {item.type === 'photo' && (
+            photoUris[item.id]
+              ? <Image source={{ uri: photoUris[item.id] }} style={styles.thumb} resizeMode="cover" />
+              : <View style={styles.videoPlaceholder}><ActivityIndicator color={c.navy} /></View>
+          )}
+          {item.type === 'video' && videoPreview?.id === item.id && (
+            <InlineVideoPreview uri={videoPreview.uri} />
+          )}
+          {item.type === 'video' && videoPreview?.id !== item.id && (
+            <Pressable
+              testID={`recording-preview-video-${item.id}`}
+              disabled={previewLoading === item.id}
+              style={styles.videoPlaceholder}
+              onPress={() => previewVideo(item)}
+            >
+              {previewLoading === item.id
+                ? <ActivityIndicator color={c.navy} />
+                : <Text style={styles.label}>▶️ Tap to preview</Text>}
+            </Pressable>
+          )}
           {item.type === 'audio' && (
             <Pressable testID={`recording-play-${item.id}`} disabled={state.isRecording || busy} style={styles.control} onPress={() => play(item)}><Text style={styles.label}>{playing === item.id ? 'Stop playback' : 'Play recording'}</Text></Pressable>
           )}
-          {item.type === 'video' && (
-            <Text testID={`video-note-${item.id}`} style={[styles.note, { fontSize: 13 }]}>In-app video preview isn&apos;t available yet — use Share to open or send it.</Text>
+          {item.type === 'video' && videoPreview?.id === item.id && (
+            <Pressable testID={`recording-close-preview-${item.id}`} style={styles.control} onPress={closeVideoPreview}><Text style={styles.label}>Close preview</Text></Pressable>
           )}
           <Pressable testID={`recording-share-${item.id}`} style={styles.control} onPress={() => shareItem(item)}><Text style={styles.label}>Share / Open</Text></Pressable>
           <Pressable testID={`recording-delete-${item.id}`} style={styles.control} onPress={() => deleting === item.id ? remove(item) : setDeleting(item.id)}><Text style={styles.label}>{deleting === item.id ? 'Confirm delete permanently' : 'Delete'}</Text></Pressable>
           {deleting === item.id && <Pressable testID={`recording-keep-${item.id}`} style={styles.control} onPress={() => setDeleting(null)}><Text style={styles.label}>Keep</Text></Pressable>}
         </View>)}
-        <Text testID="evidence-other-media-notice" style={styles.note}>Items are not encrypted yet — this is on our roadmap. A PIN now protects this screen itself. Scan a notice remains a separate tool, not evidence storage.</Text>
+        <Text testID="evidence-other-media-notice" style={styles.note}>Items are encrypted on this device (AES-256) and only decrypted briefly to preview, play or share. A PIN protects this screen itself. Scan a notice remains a separate tool, not evidence storage.</Text>
       </ScrollView>
     </View>
   );
@@ -253,6 +341,7 @@ const styles = StyleSheet.create({
   captureBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 56 },
   thumb: { width: '100%', height: 160, borderRadius: 10, marginTop: 8, backgroundColor: c.lines },
   videoPlaceholder: { width: '100%', height: 100, borderRadius: 10, marginTop: 8, backgroundColor: c.lines, alignItems: 'center', justifyContent: 'center' },
+  videoPreview: { width: '100%', height: 200, borderRadius: 10, marginTop: 8, backgroundColor: '#000' },
   heading2: { fontFamily: theme.fonts.displayBold, fontSize: 22, color: c.ink },
   note2: { fontFamily: theme.fonts.body, fontSize: 14, lineHeight: 20, color: c.muted, textAlign: 'center', marginTop: 8, marginBottom: 20 },
   pinInput: { fontFamily: theme.fonts.bodyBold, fontSize: 28, letterSpacing: 8, textAlign: 'center', borderWidth: 1, borderColor: c.lines, borderRadius: 12, padding: 14, width: 180, marginBottom: 12, color: c.ink },

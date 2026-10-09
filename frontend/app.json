@@ -49,6 +49,7 @@
         }
       ],
       "expo-audio",
+      "expo-video",
       [
         "expo-splash-screen",
         {
