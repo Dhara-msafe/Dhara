@@ -1014,7 +1014,7 @@ async def session_messages(session_id: str, user: dict = Depends(current_user)):
     session = await db.sessions.find_one({"id": session_id, "user_id": user["id"]}, {"_id": 0})
     if not session:
         raise HTTPException(404, "Session not found")
-    msgs = await db.messages.find({"session_id": session_id, "user_id": user["id"]}, {"_id": 0}).sort("created_at", 1).to_list(1000)
+    msgs = await db.messages.find({"session_id": session_id, "user_id": user["id"], "purged": {"$ne": True}}, {"_id": 0}).sort("created_at", 1).to_list(1000)
     return {"session": session, "messages": msgs}
 
 @router.delete("/chat/sessions/{session_id}")

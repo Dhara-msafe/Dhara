@@ -1503,31 +1503,32 @@ async def _startup():
     asyncio.create_task(run_push_jobs_loop(db, corpus_db))
 
     # ============================================================
-    # DPDP Act Compliance: Automatic Session Purge (730 days)
+    # DPDP Act Compliance: Automatic Retention Purge
     # ============================================================
     # Rationale: Data minimisation and purpose limitation under
     # the Digital Personal Data Protection Act, 2023.
-    # Citizens have no reasonable expectation that DHARA retains
-    # their queries indefinitely. Old dormant sessions are purged
-    # on schedule per the privacy policy retention section.
     #
-    # Controlled by: RETENTION_PURGE_ENABLED env flag (default: true)
-    # Disable only if retention policy changes or legal guidance shifts.
-    # Update privacy.html retention section if this changes.
-    # ============================================================
+    # UPDATED (opt-in, soft-delete — explicit product-owner decision):
+    # this job used to auto-run hard-deletes on every boot. A deployment
+    # scan flagged that as risky for an Emergent-managed DB (irreversible,
+    # silent, on by default). The owner's call: keep the DPDP-promised
+    # retention periods, but (a) make the job opt-in — an operator must
+    # explicitly turn it on — and (b) for `messages` specifically, scrub
+    # content instead of physically deleting the row, so a mistake is
+    # recoverable and there's still an audit trail of "this existed and
+    # was purged on schedule". `usage_daily` (aggregate counts, not
+    # personal content) remains a real hard-delete — low sensitivity,
+    # nothing to recover.
     #
-    # Gated by RETENTION_PURGE_ENABLED (default "true") — an explicit ops
-    # off-switch for this specific job only, so an operator can pause it
-    # without a code change (e.g. mid-incident/migration) while every other
-    # startup task keeps running normally. Default is "true" to preserve the
-    # DPDP-compliant purge schedule out of the box. See run_retention_purge_loop()'s
-    # docstring (bottom of file) for the full retention-period table.
-    if os.getenv("RETENTION_PURGE_ENABLED", "true").strip().lower() not in ("false", "0", "no"):
+    # Gated by RETENTION_PURGE_ENABLED (default "false" — OPT-IN).
+    # Set RETENTION_PURGE_ENABLED=true in the environment to turn this on.
+    if os.getenv("RETENTION_PURGE_ENABLED", "false").strip().lower() in ("true", "1", "yes"):
         asyncio.create_task(run_retention_purge_loop())
     else:
         logger.warning(
-            "[retention] RETENTION_PURGE_ENABLED=false — DPDP data-minimisation "
-            "purge is DISABLED. Re-enable before extended production use.",
+            "[retention] RETENTION_PURGE_ENABLED is not set to true — the DPDP "
+            "data-minimisation purge is OFF (opt-in by default). Set "
+            "RETENTION_PURGE_ENABLED=true to enable it.",
         )
 
 
@@ -1611,7 +1612,7 @@ async def get_my_data_summary(user: dict = Depends(current_user)):
 async def export_my_data(user: dict = Depends(current_user)):
     """Full portable data export (JSON) — 'Export my data' button."""
     uid = user["id"]
-    messages      = await db.messages.find({"user_id": uid}, {"_id": 0}).sort("created_at", 1).to_list(5000)
+    messages      = await db.messages.find({"user_id": uid, "purged": {"$ne": True}}, {"_id": 0}).sort("created_at", 1).to_list(5000)
     fir_sessions  = await db.fir_sessions.find({"user_id": uid}, {"_id": 0}).sort("updated_at", -1).to_list(200)
     saved_answers = await db.saved_answers.find({"user_id": uid}, {"_id": 0}).to_list(500)
     consent_log   = await db.consent_log.find({"user_id": uid}, {"_id": 0}).sort("timestamp", 1).to_list(100)
@@ -1855,33 +1856,43 @@ async def request_data_export(user: dict = Depends(current_user)):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 async def run_retention_purge_loop():
-    """Daily background job that hard-deletes records past their retention period.
+    """Daily background job that purges records past their retention period.
+    OFF by default (RETENTION_PURGE_ENABLED, opt-in) — see the startup-event
+    comment block above for why this changed from "auto-on, hard-delete".
 
     Retention periods (T&C v2.0, clause 10.5 — must match /api/user/my-data
     "retention_policy" exactly; both were reconciled together on 4 Oct 2026):
-    - messages                 : 730 days (2 years) from created_at
+    - messages                 : 730 days (2 years) from created_at —
+                                  SOFT-DELETE: content scrubbed in place,
+                                  `purged: true` set, row kept as a tombstone.
+                                  Every read path that surfaces message
+                                  content to a user (chat history, data
+                                  export) excludes purged=true rows, so the
+                                  user-facing effect is identical to a real
+                                  delete.
     - fir_sessions              : NOT age-purged while the account is active.
                                   Only purged 30 days after the OWNER'S account
                                   was deleted (account_deleted_at stamped by
                                   account_deletion.hard_delete_user). Matches
                                   "fir_drafts: until account deletion + 30 days".
-    - usage_daily              : 90 days  (roll-up window)
-    - password_resets / otps   : 24 hours (security hygiene)
+    - usage_daily              : 90 days (roll-up window) — real hard-delete;
+                                  aggregate counters only, no personal content.
+    - password_resets / otps   : 24 hours (security hygiene) — real hard-delete.
     - consent_log              : EXEMPT — never purged (legal proof)
     - grievance_tickets        : EXEMPT — purge only by explicit deletion request
-
-    See the module-level comment block immediately above for why this job
-    must not be silently removed, softened, or disabled by a future change.
     """
     while True:
         try:
             now = datetime.now(timezone.utc)
 
-            # ── messages: 730 days ──────────────────────────────────────────
+            # ── messages: 730 days — SOFT-DELETE (scrub content, keep tombstone) ──
             cutoff_2yr = (now - timedelta(days=730)).isoformat()
-            r = await db.messages.delete_many({"created_at": {"$lt": cutoff_2yr}})
-            if r.deleted_count:
-                logger.info(f"[retention] messages purged: {r.deleted_count}")
+            r = await db.messages.update_many(
+                {"created_at": {"$lt": cutoff_2yr}, "purged": {"$ne": True}},
+                {"$set": {"content": "[purged — retention period expired]", "citations": [], "purged": True, "purged_at": now.isoformat()}},
+            )
+            if r.modified_count:
+                logger.info(f"[retention] messages soft-purged (content scrubbed): {r.modified_count}")
 
             # ── fir_sessions: 30 days AFTER the owning account was deleted ──
             # (NOT a blanket age purge — an active user's FIR draft must
