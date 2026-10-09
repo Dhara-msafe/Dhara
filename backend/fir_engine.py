@@ -679,25 +679,33 @@ _PLACEHOLDER_PHONE = [
 ]
 
 
-def _validate_date_input(text: str) -> bool:
+def _date_validation_error(text: str) -> Optional[str]:
     """
-    DHARA-B009: Reject impossible calendar dates (e.g. 32/13/2026) before
-    they reach a draft. Only flags a structured D/M/Y-style numeric pattern
-    as invalid if the calendar date itself is impossible — free narrative
-    ("last Monday", "Diwali week") has no such pattern and is accepted as-is
-    for the LLM extractor to interpret.
+    DHARA-B009 / S1-5: Reject impossible calendar dates (e.g. 32/13/2026) and
+    future dates (an incident can't be reported before it happens) before
+    they reach a draft. Only flags a structured D/M/Y-style numeric pattern —
+    free narrative ("last Monday", "Diwali week") has no such pattern and is
+    accepted as-is for the LLM extractor to interpret.
+    Returns None if the date is valid, else a user-facing error message.
     """
     m = re.search(r'\b(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})\b', text.strip())
     if not m:
-        return True
+        return None
     d, mo, y = m.groups()
     try:
         d_i, mo_i, y_i = int(d), int(mo), int(y)
         y_i = y_i + 2000 if y_i < 100 else y_i
-        date(y_i, mo_i, d_i)
-        return True
+        parsed = date(y_i, mo_i, d_i)
     except ValueError:
-        return False
+        return "That date doesn't look valid — please check the day and month (e.g. 15/03/2026)."
+    if parsed > date.today():
+        return "That date is in the future — the incident date can't be after today. Please re-check (e.g. 15/03/2026)."
+    return None
+
+
+def _validate_date_input(text: str) -> bool:
+    """Backward-compatible boolean wrapper around _date_validation_error."""
+    return _date_validation_error(text) is None
 
 
 def _validate_time_input(text: str) -> bool:
@@ -792,7 +800,16 @@ def _has_date_conflict(narrative: str, extracted_date: Optional[str]) -> Optiona
             f"or was it **{parsed_fmt}** as mentioned?"
         )
 
-    # Check 3: extracted year is more than 1 year before today (likely LLM default)
+    # Check 3: extracted date is in the future (S1-5 — an incident can't be
+    # reported before it happens)
+    if parsed > today:
+        parsed_fmt = parsed.strftime("%d %B %Y")
+        return (
+            f"I noted the date as {parsed_fmt}, which is in the future — "
+            f"could you confirm the correct date? (Today is {today_fmt})"
+        )
+
+    # Check 4: extracted year is more than 1 year before today (likely LLM default)
     if abs(parsed.year - today.year) > 1:
         parsed_fmt = parsed.strftime("%d %B %Y")
         return (
@@ -1985,10 +2002,11 @@ async def _dispatch(
 
                 # ── DHARA-B009: Date/time validation before it reaches a draft ──
                 elif cp == "probe_date":
-                    if not _validate_date_input(user_message):
+                    date_err = _date_validation_error(user_message)
+                    if date_err:
                         return {
                             "session_id": sid, "stage": STAGE_PROBE, "probe_key": cp,
-                            "bot_message": "That date doesn't look valid — please check the day and month (e.g. 15/03/2026).",
+                            "bot_message": date_err,
                             "input_type": pdef["input_type"],
                             "quick_replies": pdef.get("quick_replies", []),
                             "skip_label": pdef.get("skip_label"), "completed": False,
@@ -2297,8 +2315,11 @@ async def _dispatch(
             }
         updates = await extract_correction_llm(correction_text, llm_key)
         # Validate any corrected date/time deterministically before accepting it
-        if updates.get("incident_date") and not _validate_date_input(updates["incident_date"]):
-            updates.pop("incident_date", None)
+        date_correction_err = None
+        if updates.get("incident_date"):
+            date_correction_err = _date_validation_error(updates["incident_date"])
+            if date_correction_err:
+                updates.pop("incident_date", None)
         if updates.get("incident_time") and not _validate_time_input(updates["incident_time"]):
             updates.pop("incident_time", None)
         changed_fields = list(updates.keys())
@@ -2323,6 +2344,8 @@ async def _dispatch(
             changed_note = "Updated: " + ", ".join(f.replace("_", " ") for f in changed_fields)
         else:
             changed_note = "I couldn't find a specific change in that — please tell me exactly what to update (e.g. \"change name to Beta\")."
+        if date_correction_err:
+            changed_note += f"\n\n{date_correction_err}"
         return {
             "session_id": sid, "stage": STAGE_READ_BACK,
             "bot_message": f"{changed_note}\n\n{_tm('summary_correct', language, summary=summary)}",

@@ -26,6 +26,7 @@ import { ChunkedSpeaker } from '@/src/voice/tts';
 import { createBrowserTtsPlayer } from '@/src/voice/browserPlayer';
 import { VoiceNotice } from '@/src/components/VoiceNotice';
 import { trackEvent } from '@/src/analytics';
+import { dateValidationError } from '@/src/dateValidation';
 import { theme } from '@/src/theme';
 import FirSectionDrawer, { SectionItem, DroppedSection } from '@/src/components/FirSectionDrawer';
 import { MarqueeBanner } from '@/src/components/MarqueeBanner';
@@ -153,6 +154,9 @@ interface TurnResponse {
   // v3.4: Probe progress for "Q X/Y" UI counter
   probe_progress_done?: number;
   probe_progress_total?: number;
+  // S1-5: which probe is active, so the input area knows when to run
+  // client-side date validation before sending.
+  probe_key?: string;
 }
 interface UploadedFile {
   file_id: string;
@@ -180,6 +184,7 @@ export default function FirDraftScreen() {
   const [inputType, setInputType] = useState<string>('quick_reply');
   const [quickReplies, setQuickReplies] = useState<string[]>(["Yes, I'm safe", "No, I need help"]);
   const [skipLabel, setSkipLabel] = useState<string | undefined>(undefined);
+  const [probeKey, setProbeKey] = useState<string | undefined>(undefined); // S1-5: active probe, for client-side date validation
   const [draft, setDraft] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [textInput, setTextInput] = useState('');
@@ -341,6 +346,7 @@ export default function FirDraftScreen() {
     setInputType(res.input_type || 'text');
     setQuickReplies(res.quick_replies || []);
     setSkipLabel(res.skip_label);
+    setProbeKey((res as any).probe_key);
     if (res.draft) setDraft(res.draft);
     // v3.4: Update probe progress counter "Q X/Y"
     if (res.probe_progress_done !== undefined && res.probe_progress_total !== undefined) {
@@ -542,6 +548,24 @@ export default function FirDraftScreen() {
       setIsLoading(false);
     }
   }, [sessionId, isLoading, skipLabel, evidenceFiles.length, addMessage, applyTurn, token]);
+
+  // S1-5: Client-side date pre-check — instant feedback (no round trip) when
+  // the active probe is asking for the incident date and the citizen typed
+  // an impossible or future date. The backend still re-validates every
+  // value independently; this is a UX shortcut, not the source of truth.
+  const handleTextSend = useCallback((t: string) => {
+    if (!t.trim()) return;
+    if (probeKey === 'probe_date') {
+      const err = dateValidationError(t);
+      if (err) {
+        addMessage('user', t.trim());
+        addMessage('bot', err);
+        setTextInput('');
+        return;
+      }
+    }
+    sendTurn(t.trim());
+  }, [probeKey, addMessage, sendTurn]);
 
   // ── GPS capture ────────────────────────────────────────────────────────────
   const handleGetGPS = async () => {
@@ -1433,7 +1457,7 @@ ${data.bot_message}`);
               <TextInputArea
                 value={textInput}
                 onChange={setTextInput}
-                onSend={(t) => { if (t.trim()) sendTurn(t.trim()); }}
+                onSend={handleTextSend}
                 onSkip={skipLabel ? () => sendTurn(undefined, undefined, 'skip') : undefined}
                 skipLabel={skipLabel}
                 showVoice={inputType === 'voice_or_text'}
