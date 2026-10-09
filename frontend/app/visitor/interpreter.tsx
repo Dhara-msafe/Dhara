@@ -1,6 +1,6 @@
 /**
  * Visitor Mode — Two-Way Interpreter
- * Tourist ↔ Hindi live translation via Whisper STT + Claude Haiku TTS.
+ * Tourist ↔ state's local language (default Hindi) live translation via Whisper STT + Claude Haiku TTS.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAudioRecorder, RecordingPresets, setAudioModeAsync, AudioModule, createAudioPlayer } from 'expo-audio';
 import { File, Paths } from 'expo-file-system';
 import { theme } from '@/src/theme';
-import { loadVisitorSession, VisitorSession } from '@/src/visitor/session';
+import { loadVisitorSession, VisitorSession, getStateLocalLang, HINDI_LANG, STATE_LOCAL_LANG, type LocalLang } from '@/src/visitor/session';
 import { API_BASE, useAuth } from '@/src/auth';
 import { whisperTranscribeFile, sttErrorToMessage } from '@/src/voice/stt';
 
@@ -32,23 +32,9 @@ const ISO_TO_BCP47: Record<string, string> = {
 // DHARA-B021: the interpreter used to hard-code Hindi as the "official"
 // language everywhere, even when the visitor had selected a state (e.g.
 // Tamil Nadu) with a different dominant local language. Default the local
-// language to the state's language, but always let the visitor override it
-// explicitly — never silently assume.
-type LocalLang = { code: string; label: string; native: string };
-const HINDI_LANG: LocalLang = { code: 'hi', label: 'Hindi', native: 'हिन्दी' };
-const STATE_LOCAL_LANG: Record<string, LocalLang> = {
-  TN: { code: 'ta', label: 'Tamil', native: 'தமிழ்' },
-  KA: { code: 'kn', label: 'Kannada', native: 'ಕನ್ನಡ' },
-  KL: { code: 'ml', label: 'Malayalam', native: 'മലയാളം' },
-  AP: { code: 'te', label: 'Telugu', native: 'తెలుగు' },
-  TS: { code: 'te', label: 'Telugu', native: 'తెలుగు' },
-  WB: { code: 'bn', label: 'Bengali', native: 'বাংলা' },
-  GJ: { code: 'gu', label: 'Gujarati', native: 'ગુજરાતી' },
-  MH: { code: 'mr', label: 'Marathi', native: 'मराठी' },
-  PB: { code: 'pa', label: 'Punjabi', native: 'ਪੰਜਾਬੀ' },
-  AS: { code: 'as', label: 'Assamese', native: 'অসমীয়া' },
-  OD: { code: 'or', label: 'Odia', native: 'ଓଡ଼ିଆ' },
-};
+// language to the state's language (shared map in src/visitor/session.ts,
+// also used by the intent/menu screen so both stay in sync), but always let
+// the visitor override it explicitly — never silently assume.
 const LOCAL_LANG_OPTIONS = [HINDI_LANG, ...Object.values(STATE_LOCAL_LANG).filter(l => l.code !== 'hi')]
   .filter((l, i, arr) => arr.findIndex(x => x.code === l.code) === i);
 
@@ -74,7 +60,7 @@ export default function InterpreterScreen() {
   useEffect(() => {
     loadVisitorSession().then(s => {
       setSession(s);
-      if (s) setLocalLang(STATE_LOCAL_LANG[s.indianState] || HINDI_LANG);
+      if (s) setLocalLang(getStateLocalLang(s.indianState));
     });
   }, []);
 
@@ -329,7 +315,7 @@ export default function InterpreterScreen() {
         {turns.map((turn, i) => (
           <View key={i} style={[s.bubble, turn.speaker === 'tourist' ? s.bubbleTourist : s.bubbleOfficial]}>
             <Text style={s.bubbleLabel}>
-              {turn.speaker === 'tourist' ? `${touristLangName} → Hindi` : `Hindi → ${touristLangName}`}
+              {turn.speaker === 'tourist' ? `${touristLangName} → ${localLang.label}` : `${localLang.label} → ${touristLangName}`}
             </Text>
             <Text style={s.bubbleOriginal}>{turn.original}</Text>
             <View style={s.bubbleDivider} />

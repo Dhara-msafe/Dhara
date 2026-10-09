@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
-import { loadVisitorSession, VisitorSession } from '@/src/visitor/session';
+import { loadVisitorSession, VisitorSession, getStateLocalLang, HINDI_LANG } from '@/src/visitor/session';
 
 const C = theme.colors;
 
@@ -60,7 +60,11 @@ const WORKFLOWS = [
     bg: '#ECFDF5',
     border: '#A7F3D0',
     titles: { en: 'Two-Way Interpreter', fr: 'Interprète bidirectionnel', de: 'Zwei-Wege-Dolmetscher', es: 'Intérprete bidireccional', hi: 'दो-तरफ़ा दुभाषिया' } as Record<string, string>,
-    subs:   { en: 'Speak ↔ Hindi in real time', fr: 'Parler ↔ Hindi en temps réel', de: 'Sprechen ↔ Hindi in Echtzeit', es: 'Hablar ↔ Hindi en tiempo real', hi: 'आपकी भाषा ↔ हिंदी' } as Record<string, string>,
+    // DHARA-B021: "{LANG}" is substituted at render time with the tourist's
+    // actual state's local language — this used to hard-code "Hindi"/"हिंदी"
+    // even for states like Tamil Nadu. See getStateLocalLang() in
+    // src/visitor/session.ts (single source of truth, shared with interpreter.tsx).
+    subs:   { en: 'Speak ↔ {LANG} in real time', fr: 'Parler ↔ {LANG} en temps réel', de: 'Sprechen ↔ {LANG} in Echtzeit', es: 'Hablar ↔ {LANG} en tiempo real', hi: 'आपकी भाषा ↔ {LANG}' } as Record<string, string>,
     route: '/visitor/interpreter',
   },
 ];
@@ -75,6 +79,9 @@ export default function VisitorIntent() {
 
   const lc = session?.touristLang.code || 'en';
   const t = (map: Record<string, string>) => map[lc] || map['en'] || '';
+  const localLang = session ? getStateLocalLang(session.indianState) : HINDI_LANG;
+  const cardSub = (w: typeof WORKFLOWS[number]) =>
+    w.id === 'interpreter' ? t(w.subs).replace('{LANG}', lc === 'hi' ? localLang.native : localLang.label) : t(w.subs);
 
   if (!session) {
     return (
@@ -107,7 +114,7 @@ export default function VisitorIntent() {
               </View>
               <View style={s.cardText}>
                 <Text style={[s.cardTitle, { color: w.color }]}>{t(w.titles)}</Text>
-                <Text style={s.cardSub}>{t(w.subs)}</Text>
+                <Text style={s.cardSub}>{cardSub(w)}</Text>
               </View>
               <Ionicons name="chevron-forward" size={22} color={w.color} />
             </Pressable>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Switch, Linking } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +12,7 @@ import { fetchFlags, fetchHelplines, safetyRoute, setCheckin as persistCheckin, 
 import { loadRecordings, releaseRecordings } from '@/src/women/evidenceStore';
 
 const c = theme.colors;
+const PANIC_LESSON_SEEN_KEY = 'ws_panic_lesson_seen';
 
 const RIGHTS: { key: string; icon: any; scenario: string }[] = [
   { key: 'ws.r.police', icon: 'ribbon-outline', scenario: 'police_wont_file' },
@@ -54,6 +56,20 @@ export default function WomenShield() {
       setCheckin(ci);
     })();
   }, []);
+
+  // A6 — show the 20-second panic-trigger lesson proactively the FIRST time
+  // a citizen opens Women's Shield (not buried behind a button she might
+  // never tap), then never again automatically — she can always re-open it
+  // from "Learn the 20-second panic trigger" below.
+  useEffect(() => {
+    (async () => {
+      const seen = await AsyncStorage.getItem(PANIC_LESSON_SEEN_KEY).catch(() => null);
+      if (!seen) {
+        await AsyncStorage.setItem(PANIC_LESSON_SEEN_KEY, '1').catch(() => {});
+        router.push('/women/panic-lesson');
+      }
+    })();
+  }, [router]);
 
   // Truth-bind the summary counts to real saved state every time this screen
   // gains focus (not just on first mount) — so adding a contact or evidence
@@ -107,7 +123,7 @@ export default function WomenShield() {
           <View style={styles.discreet}>
             <Ionicons name="eye-off-outline" size={22} color="#fff" />
             <View style={{ flex: 1 }}>
-              <Text style={styles.discreetTitle}>{tr('ws.discreet', lang)}</Text>
+              <Text style={styles.discreetTitle}>{discreet ? tr('ws.discreet', lang) : tr('ws.discreet.off', lang)}</Text>
               <Text style={styles.discreetSub}>{tr('ws.discreet.sub', lang)}</Text>
             </View>
             <Switch value={discreet} onValueChange={setDiscreet} trackColor={{ true: c.gold, false: '#334' }} thumbColor="#fff" />

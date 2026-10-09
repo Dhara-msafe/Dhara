@@ -288,7 +288,10 @@ async def list_helplines(category: Optional[str] = None, state: Optional[str] = 
     flags = await get_flags()
     if not flags["women_shield_enabled"]:
         return {"enabled": False, "count": 0, "services": []}
-    q: dict = {"active": True}
+    # A2 non-negotiable: "An entry with verified_at = null must never be shown
+    # to users" — filter at the query itself, not just by convention at seed
+    # time, so an unverified import can never leak through.
+    q: dict = {"active": True, "verified_at": {"$ne": None}}
     if category:
         q["categories"] = category
     cursor = db.service_directory.find(q, {"_id": 0})
@@ -339,11 +342,16 @@ async def safety_route(body: RouteIn):
             card = _card_public(doc)
 
     # Services: emergency first; add women_support + the scenario's natural category.
+    # Services: emergency danger -> 112 first, always. Otherwise, per the A3
+    # routing spec's own worked example ("police won't write my complaint"
+    # must come back with NO 112), only pull the scenario's natural support
+    # category — never force the emergency category in for a non-emergency
+    # report.
     cats = ["emergency"]
     if urgency == "emergency":
         cats = ["emergency", "women_support"]
     else:
-        cats = ["women_support", "emergency"]
+        cats = ["women_support"]
     if scenario_key == "stalking_online_abuse" or scenario_key == "private_photos_leaked":
         cats.append("cyber")
     if scenario_key == "children_safety":
@@ -352,11 +360,20 @@ async def safety_route(body: RouteIn):
     seen = set()
     if flags["women_shield_enabled"]:
         for cat in cats:
-            cursor = db.service_directory.find({"active": True, "categories": cat}, {"_id": 0})
+            cursor = db.service_directory.find({"active": True, "verified_at": {"$ne": None}, "categories": cat}, {"_id": 0})
             for d in await cursor.to_list(length=50):
                 if d["service_id"] not in seen:
                     seen.add(d["service_id"])
                     services.append(_service_public(d))
+    if urgency != "emergency":
+        # "112" is the single general-emergency-dispatch number — distinct
+        # from specialised helplines (Childline, cyber, NCW) that stay
+        # relevant even without a danger signal. The A3 worked example
+        # ("police won't write my complaint" -> no 112) is specifically
+        # about not surfacing the dispatch number absent real urgency, not
+        # about hiding every women_support service that happens to also
+        # carry an "emergency" tag.
+        services = [s for s in services if s["number"] != "112"]
 
     return {
         "urgency": urgency,

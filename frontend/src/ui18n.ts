@@ -102,6 +102,7 @@ export const UI: Record<string, L> = {
   'ws.title':        { en: 'Women\u2019s Shield', hi: 'महिला सुरक्षा', mr: 'महिला सुरक्षा', ta: 'பெண்கள் கவசம்' },
   'ws.subtitle':     { en: 'महिला सुरक्षा · मेरे अधिकार', hi: 'महिला सुरक्षा · मेरे अधिकार' },
   'ws.discreet':     { en: 'Discreet mode is on', hi: 'गुप्त मोड चालू है', mr: 'गुप्त मोड सुरू आहे', ta: 'மறைவு பயன்முறை இயக்கம்' },
+  'ws.discreet.off': { en: 'Discreet mode', hi: 'गुप्त मोड', mr: 'गुप्त मोड', ta: 'மறைவு பயன்முறை' },
   'ws.discreet.sub': { en: 'Neutral icon, PIN, nothing on the home screen', hi: 'सामान्य आइकन, PIN, होम स्क्रीन पर कुछ नहीं', mr: 'सामान्य चिन्ह, PIN, होम स्क्रीनवर काहीही नाही', ta: 'நடுநிலை ஐகான், PIN, முகப்பில் எதுவும் இல்லை' },
   'ws.rights':       { en: 'Know your rights', hi: 'अपने अधिकार जानें', mr: 'तुमचे हक्क जाणा', ta: 'உங்கள் உரிமைகளை அறியுங்கள்' },
   'ws.rights.sub':   { en: 'Two-sentence answers, read aloud', hi: 'दो-पंक्ति उत्तर, बोलकर', mr: 'दोन ओळींची उत्तरे', ta: 'இரு வரி பதில்கள்' },

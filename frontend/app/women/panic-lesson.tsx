@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { API_BASE } from '@/src/apiBase';
+import { useScreenSpeech } from '@/src/hooks/useScreenSpeech';
 
 const c = theme.colors;
 type Step = { icon: string; title: string; body: string };
@@ -13,6 +14,7 @@ type LessonConfig = { intro: string; steps: Step[]; note: string };
 export default function PanicLesson() {
   const router = useRouter();
   const [lesson, setLesson] = useState<LessonConfig | null>(null);
+  const speech = useScreenSpeech();
 
   useEffect(() => {
     // A6 — wording comes from the backend (never hard-coded on-device) so it
@@ -24,6 +26,15 @@ export default function PanicLesson() {
       .catch(() => setLesson(null));
   }, []);
 
+  // This is a "voice lesson" — narrated on request. Never auto-plays: the
+  // existing voice pipeline deliberately never speaks until the user taps
+  // Listen (autoplay audio can be unsafe/unwanted in a safety context).
+  const listenToLesson = () => {
+    if (!lesson) return;
+    const full = [lesson.intro, ...lesson.steps.map((s, i) => `${i + 1}. ${s.title}. ${s.body}`), lesson.note].join(' ');
+    void speech.listen(full);
+  };
+
   return (
     <View style={styles.root}>
       <ScreenHeader title="20-second panic trigger" subtitle="Call 112 even with DHARA closed" />
@@ -33,6 +44,11 @@ export default function PanicLesson() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+          <Pressable testID="panic-lesson-listen" style={styles.listenBtn} onPress={speech.speaking ? speech.stop : listenToLesson}>
+            <Ionicons name={speech.speaking ? 'stop-circle-outline' : 'volume-high-outline'} size={18} color={c.navy} />
+            <Text style={styles.listenTxt}>{speech.speaking ? 'Stop' : 'Listen to this lesson'}</Text>
+          </Pressable>
+          {!!speech.error && <Text style={styles.speechError}>{speech.error}</Text>}
           <Text style={styles.intro}>{lesson.intro}</Text>
           {lesson.steps.map((s, i) => (
             <View key={i} style={styles.step}>
@@ -48,7 +64,7 @@ export default function PanicLesson() {
             <Ionicons name="information-circle-outline" size={18} color={c.darkGold} />
             <Text style={styles.noteTxt}>{lesson.note}</Text>
           </View>
-          <Pressable style={styles.btn} onPress={() => router.back()}>
+          <Pressable style={styles.btn} onPress={() => { speech.stop(); router.back(); }}>
             <Text style={styles.btnTxt}>I understand</Text>
           </Pressable>
         </ScrollView>
@@ -60,6 +76,9 @@ export default function PanicLesson() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
   intro: { fontFamily: theme.fonts.body, fontSize: 15, color: c.muted, lineHeight: 22, marginBottom: 18 },
+  listenBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.navySoft, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, alignSelf: 'flex-start', marginBottom: 14, minHeight: 44 },
+  listenTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.navy },
+  speechError: { fontFamily: theme.fonts.body, fontSize: 12, color: c.error, marginBottom: 10 },
   step: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.lines, padding: 16, marginBottom: 12 },
   num: { width: 26, height: 26, borderRadius: 13, backgroundColor: c.gold, alignItems: 'center', justifyContent: 'center' },
   numTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.navy },

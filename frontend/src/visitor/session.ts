@@ -72,3 +72,27 @@ export async function loadVisitorSession(): Promise<VisitorSession | null> {
 export async function clearVisitorSession(): Promise<void> {
   await AsyncStorage.removeItem(KEY);
 }
+
+// ── State → "official's language" for the Two-Way Interpreter ─────────────
+// DHARA-B021: the interpreter used to hard-code Hindi as the "official"
+// language everywhere regardless of which state the tourist is actually in.
+// Single source of truth so every screen (intent menu card, interpreter
+// screen itself) stays in sync — states not listed here default to Hindi.
+export type LocalLang = { code: string; label: string; native: string };
+export const HINDI_LANG: LocalLang = { code: 'hi', label: 'Hindi', native: 'हिन्दी' };
+export const STATE_LOCAL_LANG: Record<string, LocalLang> = {
+  TN: { code: 'ta', label: 'Tamil', native: 'தமிழ்' },
+  KA: { code: 'kn', label: 'Kannada', native: 'ಕನ್ನಡ' },
+  KL: { code: 'ml', label: 'Malayalam', native: 'മലയാളം' },
+  AP: { code: 'te', label: 'Telugu', native: 'తెలుగు' },
+  TS: { code: 'te', label: 'Telugu', native: 'తెలుగు' },
+  WB: { code: 'bn', label: 'Bengali', native: 'বাংলা' },
+  GJ: { code: 'gu', label: 'Gujarati', native: 'ગુજરાતી' },
+  MH: { code: 'mr', label: 'Marathi', native: 'मराठी' },
+  PB: { code: 'pa', label: 'Punjabi', native: 'ਪੰਜਾਬੀ' },
+  AS: { code: 'as', label: 'Assamese', native: 'অসমীয়া' },
+  OD: { code: 'or', label: 'Odia', native: 'ଓଡ଼ିଆ' },
+};
+export function getStateLocalLang(stateCode?: string): LocalLang {
+  return (stateCode && STATE_LOCAL_LANG[stateCode]) || HINDI_LANG;
+}
