@@ -47,6 +47,15 @@ export async function deleteRecording(scope: string, item: RecordingItem): Promi
   if (file.exists) file.delete();
   await AsyncStorage.setItem(storageKey(scope), JSON.stringify(remaining));
 }
+
+/** S-B5: Reads an item's raw bytes exactly as stored on disk (ciphertext for
+ * AES-encrypted items) — the same `File` read pattern already proven to
+ * work cross-platform by getDecryptedTempUri() below, reused here so the
+ * Evidence Vault (evidenceBackup.ts) never re-implements file access with a
+ * different, less-tested API. */
+export async function readEncryptedBytes(item: RecordingItem): Promise<Uint8Array> {
+  return await new File(item.uri).bytes();
+}
 export function releaseRecordings(_items: RecordingItem[]) { /* Native URIs are durable files. */ }
 export function discardTemporaryRecording(uri: string | null) {
   if (!uri) return;

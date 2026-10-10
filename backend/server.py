@@ -144,6 +144,7 @@ from api.fir_router      import router as fir_router
 from api.visitor_router  import router as visitor_router
 from api.journeys_router import router as journeys_router
 from api.women_router    import router as women_router
+from api.evidence_vault_router import router as evidence_vault_router, cleanup_stale_upload_sessions
 from api.scan_router     import router as scan_router
 api.include_router(auth_router)
 api.include_router(chat_router)
@@ -151,6 +152,7 @@ api.include_router(fir_router)
 api.include_router(visitor_router)
 api.include_router(journeys_router)
 api.include_router(women_router)
+api.include_router(evidence_vault_router)
 api.include_router(scan_router)
 
 # ---------------------------------------------------------------------------
@@ -1476,6 +1478,16 @@ async def _startup():
     except Exception as e:
         logger.warning(f"[startup] women shield index creation warning: {e}")
 
+    # Evidence Vault (Sprint B5 cloud anchor/backup) — ensure indexes exist (idempotent)
+    try:
+        await db.evidence_anchors.create_index("receipt_id", unique=True)
+        await db.evidence_anchors.create_index([("item_id", 1), ("scope", 1)])
+        await db.evidence_backups.create_index([("item_id", 1), ("scope", 1)], unique=True)
+        await db.evidence_upload_sessions.create_index("session_id", unique=True)
+        await db.evidence_upload_sessions.create_index("created_at")
+    except Exception as e:
+        logger.warning(f"[startup] evidence vault index creation warning: {e}")
+
     # Scan history (Documents tab persistence) — ensure indexes exist (idempotent)
     try:
         await db.scan_history.create_index("id", unique=True)
@@ -1485,6 +1497,9 @@ async def _startup():
 
     # Fire-and-forget: initialise Emergent Object Storage for evidence uploads
     asyncio.create_task(_init_fir_storage())
+
+    # Fire-and-forget: sweep any abandoned Evidence Vault upload temp dirs
+    asyncio.create_task(cleanup_stale_upload_sessions())
 
     # Fire-and-forget background task, NOT awaited: the corpus migration
     # (see corpus_migration.py) starts automatically the instant this

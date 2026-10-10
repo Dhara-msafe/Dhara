@@ -154,3 +154,24 @@ def _classify_type(content_type: str) -> str:
     if content_type == "application/pdf":
         return "pdf"
     return "document"
+
+
+# ── Generic path wrappers (S-B5: Evidence Vault) ─────────────────────────────
+# Unlike upload_evidence() above (which owns its own user/session path
+# layout), these let other modules control the storage path directly —
+# used by api/evidence_vault_router.py to store Evidence Locker ciphertext
+# under its own namespace. Same storage key + retry logic underneath.
+
+async def put_raw_bytes(path: str, data: bytes, content_type: str) -> dict:
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(_executor, _put_object_sync, path, data, content_type)
+
+
+async def get_raw_bytes(path: str) -> tuple[bytes, str]:
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(_executor, _get_object_sync, path)
+
+
+async def delete_raw_object(path: str) -> None:
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(_executor, _delete_object_sync, path)

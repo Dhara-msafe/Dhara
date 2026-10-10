@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Platform, AppState, Image, TextInput } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Platform, AppState, Image, TextInput, Linking } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AudioModule, RecordingPresets, setAudioModeAsync, useAudioRecorder, useAudioRecorderState } from 'expo-audio';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
+import * as Location from 'expo-location';
 import { theme } from '@/src/theme';
+import { crossAlert } from '@/src/utils/crossAlert';
 import { useAuth } from '@/src/auth';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import {
@@ -14,6 +16,9 @@ import {
   discardTemporaryRecording, getDecryptedTempUri, releaseDecryptedTempUri, type RecordingItem,
 } from '@/src/women/evidenceStore';
 import { hasPin, setPin, verifyPin } from '@/src/women/evidenceLock';
+import { getManifestEntry, type ManifestEntry, type GpsPoint } from '@/src/women/evidenceManifest';
+import { anchorItem, backupItem } from '@/src/women/evidenceBackup';
+import { exportCertificate } from '@/src/women/evidenceCertificate';
 import { screenPlayer } from '@/src/media/screenPlayer';
 import type { TtsPlayer } from '@/src/voice/tts';
 
@@ -101,6 +106,9 @@ export default function EvidenceLocker() {
   const [photoUris, setPhotoUris] = useState<Record<string, string>>({});
   const [previewLoading, setPreviewLoading] = useState<string | null>(null);
   const [videoPreview, setVideoPreview] = useState<{ id: string; uri: string; wasDecrypted: boolean } | null>(null);
+  const [manifestMap, setManifestMap] = useState<Record<string, ManifestEntry | null>>({});
+  const [anchoring, setAnchoring] = useState<string | null>(null);
+  const [backingUp, setBackingUp] = useState<Record<string, number>>({});
   const player = useRef<TtsPlayer | null>(null);
   const epoch = useRef(0);
   const working = useRef(false);
@@ -130,6 +138,13 @@ export default function EvidenceLocker() {
     loadRecordings(scope).then(async rows => {
       if (!alive) { releaseRecordings(rows); return; }
       owned.current = rows; setItems(rows);
+      // S-B5: load each item's local hash-chain/anchor/backup status (local
+      // read only, no network) so the vault buttons/badges render correctly.
+      const manifestEntries = await Promise.all(rows.map(r => getManifestEntry(scope, r.id).catch(() => null)));
+      if (!alive) return;
+      const mMap: Record<string, ManifestEntry | null> = {};
+      rows.forEach((r, i) => { mMap[r.id] = manifestEntries[i]; });
+      setManifestMap(mMap);
       // S-B5: decrypt photo thumbnails eagerly (small files, immediate visual
       // feedback) — audio/video stay decrypt-on-demand (Play / Preview tap).
       const photoRows = rows.filter(r => r.type === 'photo');
@@ -270,13 +285,88 @@ export default function EvidenceLocker() {
     } catch { setStatus('Could not open the share sheet. Please try again.'); }
   }, [scope]);
 
+  // ── S-B5: Evidence Vault — optional anchor (tamper-evident timestamp) +
+  // encrypted cloud backup + Section 63 BSA draft certificate. Local
+  // capture/encryption above never needs any of this; these require a
+  // network call only at the moment the citizen taps the button. ──────────
+  const doAnchor = useCallback(async (item: RecordingItem, gps: GpsPoint | null) => {
+    setAnchoring(item.id);
+    try {
+      const { entry } = await anchorItem(scope, item, gps);
+      setManifestMap(prev => ({ ...prev, [item.id]: entry }));
+      setStatus('Evidence anchored — a tamper-evident timestamp was saved.');
+    } catch (e: any) {
+      setStatus(e?.message || 'Could not anchor this item. Please try again.');
+    } finally {
+      setAnchoring(null);
+    }
+  }, [scope]);
+
+  const requestLocationThenAnchor = useCallback(async (item: RecordingItem) => {
+    try {
+      const existing = await Location.getForegroundPermissionsAsync();
+      let granted = existing.granted;
+      if (!granted) {
+        if (existing.canAskAgain === false) {
+          crossAlert(
+            'Location is blocked',
+            'Open Settings to allow location, or continue without it.',
+            [
+              { text: 'Open Settings', onPress: () => Linking.openSettings() },
+              { text: 'Continue without location', onPress: () => doAnchor(item, null) },
+            ],
+          );
+          return;
+        }
+        const req = await Location.requestForegroundPermissionsAsync();
+        granted = req.granted;
+      }
+      if (!granted) { await doAnchor(item, null); return; }
+      const point = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      await doAnchor(item, { lat: point.coords.latitude, lng: point.coords.longitude, accuracy: point.coords.accuracy ?? undefined });
+    } catch {
+      await doAnchor(item, null);
+    }
+  }, [doAnchor]);
+
+  const handleAnchor = useCallback((item: RecordingItem) => {
+    crossAlert(
+      'Attach your location?',
+      'This helps prove where this evidence was captured. Optional — you can skip it and still anchor the timestamp.',
+      [
+        { text: 'Skip', onPress: () => doAnchor(item, null) },
+        { text: 'Attach location', onPress: () => requestLocationThenAnchor(item) },
+      ],
+    );
+  }, [doAnchor, requestLocationThenAnchor]);
+
+  const handleBackup = useCallback(async (item: RecordingItem) => {
+    setBackingUp(prev => ({ ...prev, [item.id]: 0 }));
+    try {
+      const entry = await backupItem(scope, item, fraction => setBackingUp(prev => ({ ...prev, [item.id]: fraction })));
+      setManifestMap(prev => ({ ...prev, [item.id]: entry }));
+      setStatus('Backed up to secure cloud storage.');
+    } catch (e: any) {
+      setStatus(e?.message || 'Could not back up this item. Please try again.');
+    } finally {
+      setBackingUp(prev => { const next = { ...prev }; delete next[item.id]; return next; });
+    }
+  }, [scope]);
+
+  const handleCertificate = useCallback(async (item: RecordingItem) => {
+    const entry = manifestMap[item.id];
+    if (!entry?.anchor) { setStatus('Anchor this item first to generate a certificate.'); return; }
+    try { await exportCertificate(item, entry); }
+    catch { setStatus('Could not export the certificate. Please try again.'); }
+  }, [manifestMap]);
+
   if (!unlocked) return <PinGate onUnlock={() => setUnlocked(true)} />;
 
   return (
     <View style={styles.root} testID="evidence-locker-screen">
       <ScreenHeader title="Evidence locker" subtitle="Local recordings, photos & video · no network needed" />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
-        <Text testID="evidence-storage-notice" style={styles.note}>Capture only when safe. Everything saved here is encrypted on this device and protected by your PIN; it is not backed up or sent to anyone unless you tap Share. Clearing app data or uninstalling can erase it.</Text>
+        <Text testID="evidence-storage-notice" style={styles.note}>Capture only when safe. Everything saved here is encrypted on this device and protected by your PIN; it is not backed up or sent to anyone unless you tap Share, Anchor or Back up. Clearing app data or uninstalling can erase it.</Text>
         <Text testID="evidence-recording-timer" style={styles.timer}>{state.isRecording ? `Recording · ${Math.floor(state.durationMillis / 1000)}s` : 'Ready to record'}</Text>
         <Pressable testID="evidence-record-toggle" disabled={busy} style={styles.button} onPress={state.isRecording ? save : start}>{busy ? <ActivityIndicator color={c.onBrandPrimary} /> : <Text style={styles.buttonText}>{state.isRecording ? 'Stop & save' : 'Start voice recording'}</Text>}</Pressable>
         {state.isRecording && <Pressable testID="evidence-discard" style={styles.secondary} onPress={() => { cancel(); setStatus('Unfinished recording discarded.'); }}><Text style={styles.label}>Discard recording</Text></Pressable>}
@@ -319,6 +409,29 @@ export default function EvidenceLocker() {
             <Pressable testID={`recording-close-preview-${item.id}`} style={styles.control} onPress={closeVideoPreview}><Text style={styles.label}>Close preview</Text></Pressable>
           )}
           <Pressable testID={`recording-share-${item.id}`} style={styles.control} onPress={() => shareItem(item)}><Text style={styles.label}>Share / Open</Text></Pressable>
+          <View style={styles.vaultRow}>
+            <Text testID={`recording-vault-status-${item.id}`} style={styles.note}>
+              {manifestMap[item.id]?.anchor
+                ? `🔒 Anchored · ${new Date(manifestMap[item.id]!.anchor!.serverTime).toLocaleString()}`
+                : 'Not anchored yet · timestamp proof is optional'}
+              {manifestMap[item.id]?.backup ? ' · ☁️ Backed up' : ''}
+            </Text>
+            {!manifestMap[item.id]?.anchor && (
+              <Pressable testID={`recording-anchor-${item.id}`} disabled={anchoring === item.id} style={styles.control} onPress={() => handleAnchor(item)}>
+                {anchoring === item.id ? <ActivityIndicator color={c.navy} /> : <Text style={styles.label}>Anchor & verify (needs signal)</Text>}
+              </Pressable>
+            )}
+            {!!manifestMap[item.id]?.anchor && !manifestMap[item.id]?.backup && (
+              <Pressable testID={`recording-backup-${item.id}`} disabled={item.id in backingUp} style={styles.control} onPress={() => handleBackup(item)}>
+                <Text style={styles.label}>{item.id in backingUp ? `Backing up… ${Math.round((backingUp[item.id] || 0) * 100)}%` : 'Back up to secure cloud'}</Text>
+              </Pressable>
+            )}
+            {!!manifestMap[item.id]?.anchor && (
+              <Pressable testID={`recording-certificate-${item.id}`} style={styles.control} onPress={() => handleCertificate(item)}>
+                <Text style={styles.label}>Export certificate (draft)</Text>
+              </Pressable>
+            )}
+          </View>
           <Pressable testID={`recording-delete-${item.id}`} style={styles.control} onPress={() => deleting === item.id ? remove(item) : setDeleting(item.id)}><Text style={styles.label}>{deleting === item.id ? 'Confirm delete permanently' : 'Delete'}</Text></Pressable>
           {deleting === item.id && <Pressable testID={`recording-keep-${item.id}`} style={styles.control} onPress={() => setDeleting(null)}><Text style={styles.label}>Keep</Text></Pressable>}
         </View>)}
@@ -337,6 +450,7 @@ const styles = StyleSheet.create({
   secondary: { borderRadius: 14, borderWidth: 1, borderColor: c.lines, padding: 16, backgroundColor: c.surface },
   label: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.navy },
   control: { minHeight: 44, justifyContent: 'center', marginTop: 8 },
+  vaultRow: { marginTop: 4, gap: 6, borderTopWidth: 1, borderTopColor: c.lines, paddingTop: 8 },
   captureRow: { flexDirection: 'row', gap: 12 },
   captureBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 56 },
   thumb: { width: '100%', height: 160, borderRadius: 10, marginTop: 8, backgroundColor: c.lines },

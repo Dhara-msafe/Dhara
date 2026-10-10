@@ -1,0 +1,54 @@
+{
+  "summary": "Sprint B5 Evidence Vault (anchor + chunked encrypted cloud backup + certificate export) tested per request. Backend: all 13 new pytest cases pass (anchor happy-path/validation/flag-gating, GET anchor 404/200, full chunked upload->complete->list->delete, chunk/complete edge cases). Frontend: found and fixed a CRITICAL web-only bug (raw Alert.alert silently no-op'd, blocking the entire Anchor flow on web) using the codebase's existing crossAlert() shim. After that fix, discovered a SECOND, deeper CRITICAL bug that I did NOT fix (out of safe scope — touches the hash-chain/crypto read path): evidenceBackup.ts's anchorItem() uses the new expo-file-system `File` class (`new File(item.uri).bytes()`) which throws 'this.validatePath is not a function' on web because the web shim (ExpoFileSystem.web.ts) doesn't implement validatePath() — this means Anchor (and therefore Backup and Certificate, which both require an anchor to exist first) are completely broken on web, even after the Alert fix. Also confirmed the main agent's blank-screenshot observation was a tooling/environment quirk — home screen and Evidence Locker both render full visible content normally.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Evidence Locker — Anchor & verify (needs signal)",
+        "issue": "CRITICAL (unfixed, reported): anchorItem() in src/women/evidenceBackup.ts calls `new File(item.uri).bytes()` using the new expo-file-system `File` API (imported from 'expo-file-system', not '/legacy'). On web, ExpoFileSystem.web.ts's FileSystemFile class does not implement `validatePath()`, which the File constructor calls immediately (FileSystem.ts line 84). Result: tapping 'Anchor & verify' (after the Alert fix below) always fails on web with status text 'this.validatePath is not a function', and the anchor is never created. Because the UI only reveals 'Back up to secure cloud' and 'Export certificate (draft)' buttons once `manifestMap[item.id]?.anchor` exists, Backup and Certificate export are therefore also completely unreachable/untestable on web as a direct consequence. Suggested fix direction: branch on Platform.OS==='web' in anchorItem() and read bytes via the legacy FileSystem.readAsStringAsync(uri, {encoding: Base64}) + decode-to-Uint8Array path (same pattern backupItem() already uses for its isWeb branch a few lines below in the same file), instead of the native-only File.bytes().",
+        "affected_testIDs": ["recording-anchor-*", "recording-backup-*", "recording-certificate-*", "evidence-status"]
+      }
+    ],
+    "design_issues": [],
+    "react_native_issues": [
+      {
+        "component": "app/women/evidence-locker.tsx — handleAnchor() / requestLocationThenAnchor()'s blocked-location branch",
+        "issue": "FIXED by me during this session: both call sites used raw `Alert.alert(...)` imported directly from 'react-native' instead of the project's existing `crossAlert()` utility (src/utils/crossAlert.ts), which exists specifically because react-native-web's Alert.alert is a no-op on web (confirmed: before the fix, tapping 'Anchor & verify' produced zero console output, no dialog event, no DOM modal, and no status change — the Alert silently vanished). This made the entire Anchor flow 100% non-functional on web with no error shown to the user. Swapped both call sites to crossAlert (same pattern used by app/(tabs)/index.tsx and settings.tsx) and removed the now-unused `Alert` import. Verified fix: window.confirm now fires correctly with the expected 'Attach your location?' text. NOTE: crossAlert's generic 2-button mapping assumes one button has style:'cancel'; neither 'Skip' nor 'Attach location' sets that, so on web only the 'Skip' path is reachable via OK — clicking Cancel silently does nothing (no 'Attach location' path on web). This is an inherent limitation of how crossAlert degrades 2 non-cancel-style buttons to window.confirm, not something unique to this screen — worth flagging to main agent as a minor follow-up since the GPS opt-in 'Attach location' choice is effectively native-only."
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_evidence_vault_b5.py",
+    "/app/test_reports/pytest/iteration_27_evidence_vault.xml"
+  ],
+  "action_items": [
+    "CRITICAL — fix anchorItem() in src/women/evidenceBackup.ts to read file bytes via a web-safe path (Platform.OS==='web' branch using legacy FileSystem.readAsStringAsync Base64 + decode, mirroring backupItem()'s existing isWeb branch) instead of `new File(item.uri).bytes()`. This currently breaks Anchor (and therefore Backup + Certificate, which are gated on anchor existing) entirely on web.",
+    "Minor — consider using crossAlert consistently anywhere a 2-option (non-destructive) choice needs both options reachable on web; current crossAlert mapping only guarantees the non-cancel-style primary button is reachable via OK when neither button sets style:'cancel'.",
+    "Confirm on a real native/device build (not web) that `new File(item.uri).bytes()` works as expected there — I did not have a native test harness in this environment, so this report only confirms the web-specific failure.",
+    "Re-run this agent's backend test file (test_evidence_vault_b5.py) and redo the frontend anchor->backup->certificate UI flow once the File/validatePath fix lands."
+  ],
+  "critical_code_review_comments": [
+    "evidence_vault_router.py: clean, well-validated (HEX64 regex + pydantic field_validator for 3 hash fields), correctly gates all anchor/upload endpoints behind the evidence_locker_enabled flag via _flags_or_503(), never persists plaintext (only ciphertext bytes via put_raw_bytes), and has a sane startup cleanup task for abandoned /tmp chunk sessions.",
+    "upload/chunk and upload/complete correctly return 404 for unknown/expired sessions and 400 for out-of-range index / missing chunk — all edge cases from the spec verified passing.",
+    "fir_storage.py's generic put_raw_bytes/get_raw_bytes/delete_raw_object wrappers are a clean, minimal addition reusing the existing Emergent Object Storage key-init/retry logic — no duplication.",
+    "Frontend evidenceManifest.ts's local hash-chain design (chainHash = SHA256(prevHash|sha256|id|createdAt)) is sound and purely on-device before any network call — matches the stated non-negotiable of never sending plaintext.",
+    "evidenceBackup.ts mixes two different file-reading APIs in the same module: the new `File` class (native-only on web, used in anchorItem) vs. legacy `FileSystem.readAsStringAsync` (used correctly, platform-branched, in backupItem). This inconsistency is the direct root cause of the critical bug found — recommend standardizing on the legacy API (or a platform-branched wrapper) for all cross-platform byte reads in this module."
+  ],
+  "updated_files": [
+    "/app/frontend/app/women/evidence-locker.tsx (replaced 2x raw Alert.alert with crossAlert; removed unused Alert import)",
+    "/app/backend/tests/test_evidence_vault_b5.py (new pytest file, 13 tests)"
+  ],
+  "success_rate": {
+    "backend": "100% (13/13 new tests passing)",
+    "frontend": "Anchor flow UI-trigger bug fixed (Alert->crossAlert); anchor itself still fails on web due to a separate, unfixed File-API bug — Backup/Certificate consequently untested on web (blocked). PIN gate, audio record/play/stop, share, delete all regression-smoke-tested with no issues (4/4 passing)."
+  },
+  "seed_data_creation": "Backend test data prefixed TEST_ (item_ids as TEST_<uuid>), cleaned up via DELETE in the same test. One real evidence_backups doc was created and deleted in test_full_upload_list_delete. No permanent seed data left behind. Toggled evidence_locker_enabled flag OFF then back ON as part of testing; confirmed restored to ON (true) at the end of this session via a final admin/flags call.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login creds voicetest2026@example.com / TestPass123! work fine for reaching /women/evidence-locker. Each browser_automation call is a fresh profile — full consent+login+PIN-create(2 steps: create then confirm, same PIN both times)+record-audio sequence must be redone in ONE script call to test anything downstream. evidence_locker_enabled flag is ON as of end of this session (verify with curl before testing if in doubt — ADMIN_KEY is in backend/.env). The critical File/validatePath bug in evidenceBackup.ts::anchorItem() must be fixed before Backup or Certificate can be tested at all on web — don't waste time writing Backup/Certificate playwright scripts until that's fixed, they're structurally unreachable (buttons only render once an anchor exists in manifestMap).",
+  "rca_of_issue": "Bug 1 (FIXED): app/women/evidence-locker.tsx called raw react-native `Alert.alert()` directly for the location opt-in prompts instead of using the project's own `crossAlert()` cross-platform shim (src/utils/crossAlert.ts), which exists precisely because react-native-web's Alert.alert renders nothing on web. Reproduction: load /women/evidence-locker on web, save any item, tap 'Anchor & verify' — no dialog, no console output, no state change (confirmed via console listener + DOM modal query + dialog event listener, all empty). Fix: swapped both call sites (handleAnchor, and the blocked-location branch inside requestLocationThenAnchor) to crossAlert, matching the identical pattern already used in app/(tabs)/index.tsx and settings.tsx; removed the now-dead `Alert` import. Verified: window.confirm now fires with the correct title/message. Bug 2 (NOT FIXED — reported): evidenceBackup.ts::anchorItem() does `const bytes = await new File(item.uri).bytes();` using the new expo-file-system `File` class. `File`'s constructor (FileSystem.ts:82-85) calls `this.validatePath()` unconditionally. On web, `File extends ExpoFileSystem.FileSystemFile`, and the web implementation (src/ExpoFileSystem.web.ts's FileSystemFile class) does not define validatePath() at all — confirmed by grep: validatePath is only declared in ExpoFileSystem.types.ts (interface) and implemented/called in the shared FileSystem.ts, with no override in the .web.ts file. Reproduction: with the Alert fix in place, tap 'Anchor & verify' -> 'Skip' on web -> status line shows literally 'this.validatePath is not a function', item never gets an anchor, Backup/Certificate buttons never appear. This is a pure web-platform gap in the installed expo-file-system version (~19.0.23)'s new File/Directory API, not something specific to this app's logic — the file already has the correct platform-branched workaround pattern one function below (backupItem()'s isWeb ternary using legacy FileSystem.readAsStringAsync), it just wasn't applied to anchorItem()."
+}
