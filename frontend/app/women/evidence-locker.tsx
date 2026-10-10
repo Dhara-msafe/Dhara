@@ -168,7 +168,16 @@ export default function EvidenceLocker() {
     };
   }, [scope, cancel, closeVideoPreview]));
   useEffect(() => {
-    const sub = AppState.addEventListener('change', value => { if (value !== 'active') { cancel(); setStatus('Recording stopped. Unfinished audio is not saved. Keep this screen open and use Stop & save.'); } });
+    const sub = AppState.addEventListener('change', value => {
+      // Only interrupt an active recording when the app leaves the foreground.
+      // Do NOT call cancel() (which increments epoch) during setup phases such
+      // as when the mic-permission dialog briefly backgrounds the app — that
+      // would cause the epoch guard inside start() to abort the flow silently.
+      if (value !== 'active' && active.current) {
+        cancel();
+        setStatus('Recording stopped. Unfinished audio is not saved. Keep this screen open and use Stop & save.');
+      }
+    });
     return () => sub.remove();
   }, [cancel]);
   const start = useCallback(async () => {
@@ -176,7 +185,12 @@ export default function EvidenceLocker() {
     working.current = true; setBusy(true); setStatus(''); stopPlayer();
     const id = ++epoch.current;
     try {
-      const permission = await AudioModule.requestRecordingPermissionsAsync();
+      // Check current status first — if already granted, skip the request so
+      // the system dialog never appears and no AppState 'background' event fires.
+      let permission = await AudioModule.getRecordingPermissionsAsync();
+      if (!permission.granted) {
+        permission = await AudioModule.requestRecordingPermissionsAsync();
+      }
       if (!permission.granted) throw new Error('Microphone permission is needed. Allow it in your device or site settings, then try again.');
       if (id !== epoch.current) return;
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true, shouldPlayInBackground: false });

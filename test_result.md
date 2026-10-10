@@ -305,7 +305,8 @@ metadata:
   run_ui: true
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Evidence Locker voice recording bug fix"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
