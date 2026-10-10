@@ -79,3 +79,15 @@ export async function getDecryptedTempUri(scope: string, item: RecordingItem): P
 export function releaseDecryptedTempUri(uri: string, _wasDecrypted: boolean) {
   URL.revokeObjectURL(uri);
 }
+
+/** S-B5: Returns the item's raw stored bytes — ciphertext for AES-encrypted
+ * items, exactly as persisted — WITHOUT decrypting. This is the web
+ * counterpart of evidenceStore.ts's native readEncryptedBytes(): both give
+ * the Evidence Vault (evidenceBackup.ts) the same ciphertext-only bytes to
+ * hash/anchor/upload, never plaintext. */
+export async function readEncryptedBytes(item: RecordingItem): Promise<Uint8Array> {
+  const rows = await transaction<Stored[]>('readonly', store => store.getAll());
+  const row = rows.find(r => r.id === item.id);
+  if (!row) throw new Error('This item could not be found on this device anymore.');
+  return new Uint8Array(await row.blob.arrayBuffer());
+}

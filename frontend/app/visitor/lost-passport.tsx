@@ -12,7 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { loadVisitorSession, VisitorSession } from '@/src/visitor/session';
 import { LOST_PASSPORT_STEPS, EMBASSY_CONTACTS, WorkflowStep } from '@/src/visitor/content';
-import { API_BASE, useAuth } from '@/src/auth';
+import { useAuth } from '@/src/auth';
+import { speakLangFor, phraseIn, playPhrase } from '@/src/visitor/speakForMe';
 
 const C = theme.colors;
 const EMBASSY_KEY_STORAGE = 'dhara_visitor_embassy_key';
@@ -43,7 +44,25 @@ export default function VisitorLostPassport() {
     ? (EMBASSY_CONTACTS[confirmedEmbassyKey] || suggestedEmb)
     : null;
 
-  // V3: Speak For Me
+  // V3: Speak For Me — speak the phrase to an official in the STATE language
+  // (Marathi in Maharashtra, Tamil in Tamil Nadu …), not always Hindi.
+  const speakLang = speakLangFor(session?.indianState);
+  const [localPhrases, setLocalPhrases] = useState<Record<string, string>>({});
+  const phraseFor = (step: WorkflowStep) => localPhrases[step.id] || step.speak_hi || '';
+
+  // Pre-translate every phrase on load so the cards show the state language
+  // straight away (not Hindi until tapped).
+  useEffect(() => {
+    if (!token || speakLang.code === 'hi') return;
+    let alive = true;
+    LOST_PASSPORT_STEPS.filter(st => st.speak_hi).forEach(st => {
+      phraseIn(st.speak_hi!, speakLang, token)
+        .then(txt => { if (alive) setLocalPhrases(prev => ({ ...prev, [st.id]: txt })); })
+        .catch(() => {});
+    });
+    return () => { alive = false; };
+  }, [token, speakLang.code]);
+
   const speakForMe = useCallback(async (step: WorkflowStep) => {
     if (!step.speak_hi) return;
     if (!token) {
@@ -51,24 +70,17 @@ export default function VisitorLostPassport() {
       return;
     }
     setSpeaking(step.id);
+    let text = step.speak_hi;
     try {
-      const res = await fetch(`${API_BASE}/api/voice/tts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ text: step.speak_hi, language: 'hi', voice: 'alloy' }),
-      });
-      if (!res.ok) throw new Error('TTS failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const audio = new (window as any).Audio(url);
-      audio.onended = () => { setSpeaking(null); URL.revokeObjectURL(url); };
-      audio.onerror = () => setSpeaking(null);
-      await audio.play();
+      text = await phraseIn(step.speak_hi, speakLang, token);
+      setLocalPhrases(prev => ({ ...prev, [step.id]: text }));
+      await playPhrase(text, speakLang.code, token);
     } catch {
+      Alert.alert('Speak For Me', text, [{ text: 'OK' }]);
+    } finally {
       setSpeaking(null);
-      Alert.alert('Speak For Me', step.speak_hi, [{ text: 'OK' }]);
     }
-  }, [token]);
+  }, [token, speakLang]);
 
   if (!session) {
     return (
@@ -173,9 +185,9 @@ export default function VisitorLostPassport() {
             {/* Speak For Me */}
             {step.speak_hi && (
               <View>
-                <Text style={s.speakLabel}>🎙 SPEAK FOR ME (to official in Hindi):</Text>
+                <Text style={s.speakLabel}>{`🎙 SPEAK FOR ME (to official in ${speakLang.label}):`}</Text>
                 <View style={s.speakBox}>
-                  <Text style={s.speakText}>{step.speak_hi}</Text>
+                  <Text style={s.speakText}>{phraseFor(step)}</Text>
                 </View>
                 <Pressable
                   style={[s.actionBtn, { backgroundColor: C.primaryMid, marginTop: 8 }]}
@@ -186,7 +198,7 @@ export default function VisitorLostPassport() {
                     ? <ActivityIndicator size="small" color="#fff" />
                     : <Ionicons name="volume-high-outline" size={18} color="#fff" />}
                   <Text style={s.actionBtnText}>
-                    {speaking === step.id ? 'Playing…' : 'Play in Hindi'}
+                    {speaking === step.id ? 'Playing…' : `Play in ${speakLang.label}`}
                   </Text>
                 </Pressable>
               </View>

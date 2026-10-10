@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import {
   TOURIST_LANGUAGES, INDIAN_STATES,
-  saveVisitorSession, VisitorLang,
+  saveVisitorSession, VisitorLang, getStateLocalLang,
 } from '@/src/visitor/session';
 
 const C = theme.colors;
@@ -72,7 +72,7 @@ export default function VisitorSetup() {
           {[
             { icon: 'shield-checkmark-outline', text: 'Emergency assistance in seconds' },
             { icon: 'document-text-outline',    text: 'Lost passport step-by-step guide' },
-            { icon: 'mic-outline',              text: 'Speak For Me — plays Hindi phrase to officials' },
+            { icon: 'mic-outline',              text: `Speak For Me — plays ${getStateLocalLang(selectedState.code).label} phrase to officials` },
           ].map(({ icon, text }) => (
             <View key={text} style={s.infoCard}>
               <Ionicons name={icon as any} size={22} color={C.primary} />

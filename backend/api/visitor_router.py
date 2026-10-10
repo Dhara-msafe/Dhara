@@ -43,6 +43,10 @@ _LANG_NAMES: dict[str, str] = {
     "gu": "Gujarati",
     "ml": "Malayalam",
     "pa": "Punjabi",
+    "as": "Assamese",
+    "or": "Odia",
+    "ur": "Urdu",
+    "kok": "Konkani",
 }
 
 
@@ -73,6 +77,12 @@ async def translate(
         f"You are a professional interpreter. "
         f"Translate the following {src_name} text to {tgt_name}. "
         f"Output ONLY the translated text—no explanations, no notes, no quotes."
+        # Speak For Me fix: the model sometimes returned a half-translated line
+        # plus a second version, or kept source-language words.
+        f" Give exactly ONE translation, written entirely in natural {tgt_name}"
+        f" with no {src_name} words left in it. If both languages use the same"
+        f" script, still rewrite every word (pronouns, verbs, endings) in"
+        f" {tgt_name} grammar — do not copy {src_name} words across."
     )
 
     try:

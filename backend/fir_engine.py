@@ -919,14 +919,88 @@ def _translate_bns_heading(section_number: str, heading: str, language: str) -> 
     return trans.get(language, heading)
 
 
-def _keyword_classify(narrative: str) -> list[str]:
-    """Fast keyword-based incident type classification as a fallback."""
+# DHARA-P0-1: generic words that must not ADD an incident type on top of the
+# LLM's classification (e.g. "no injury, no hospital" was adding assault,
+# "paid by UPI" was adding cyber fraud, "my husband" was adding domestic
+# violence). They still count when the LLM returns nothing.
+_KW_WEAK: set[str] = {
+    "injury", "hospital", "physical", "attack", "wound",
+    "online", "bank", "account", "payment", "whatsapp", "upi", "otp",
+    "husband", "wife", "spouse", "boss", "follow me",
+}
+_KW_NEG_BEFORE = ("no", "not", "without", "never", "didn't", "did not",
+                  "wasn't", "was not", "nobody", "no one", "nahi", "nahin")
+_KW_NEG_AFTER = ("nahi", "nahin", "नहीं", "नही", "नाही", "இல்லை")
+
+
+def _kw_negated(t: str, i: int, kw: str) -> bool:
+    """True when the keyword at index i is negated within its own clause."""
+    before = t[max(0, i - 30):i]
+    for sep in (".", ",", ";", "!", "?", " but ", " and ", "\n"):
+        if sep in before:
+            before = before.rsplit(sep, 1)[-1]
+    words = re.findall(r"[\w']+", before)
+    joined = " ".join(words)
+    if any(re.search(r"(^| )" + re.escape(n) + r"( |$)", joined) for n in _KW_NEG_BEFORE):
+        return True
+    after = t[i + len(kw):i + len(kw) + 20]
+    after = re.split(r"[.,;!?]", after)[0]
+    return any(n in after for n in _KW_NEG_AFTER)
+
+
+def _keyword_classify(narrative: str, strong_only: bool = False) -> list[str]:
+    """Fast keyword-based incident type classification as a fallback.
+
+    DHARA-P0-1: negation-aware; strong_only skips generic words (used when
+    merging on top of an LLM classification).
+    """
     t = narrative.lower()
     found: list[str] = []
     for itype, kws in _INCIDENT_KW_MAP.items():
-        if any(kw in t for kw in kws):
-            found.append(itype)
+        for kw in kws:
+            if strong_only and kw in _KW_WEAK:
+                continue
+            start, hit = 0, False
+            while True:
+                i = t.find(kw, start)
+                if i < 0:
+                    break
+                if not _kw_negated(t, i, kw):
+                    hit = True
+                    break
+                start = i + 1
+            if hit:
+                found.append(itype)
+                break
     return found if found else ["other"]
+
+
+# DHARA-P0-2: yes/no answers in English, Hindi, Marathi and Tamil (typed,
+# spoken or tapped). The old startswith("yes") check saved every non-English
+# "yes" as "no".
+_YES_WORDS = {"yes", "yeah", "yep", "y", "haan", "han", "haa", "ha", "ji",
+              "हाँ", "हां", "हा", "जी", "होय", "हो", "ஆம்", "ஆமாம்", "aam", "aama", "hoy"}
+_NO_WORDS = {"no", "nope", "n", "nahi", "nahin", "na", "नहीं", "नही", "ना",
+             "नाही", "இல்லை", "illai", "illa"}
+
+
+def _is_affirmative(text: str) -> bool:
+    tokens = [w for w in re.split(r"[\s,.!?:;\-—–]+", (text or "").lower().strip()) if w]
+    if not tokens:
+        return False
+    if tokens[0] in _NO_WORDS:
+        return False
+    if tokens[0] in _YES_WORDS:
+        return True
+    ts = set(tokens)
+    if ts & _NO_WORDS:
+        return False
+    return bool(ts & _YES_WORDS)
+
+
+def _is_negative(text: str) -> bool:
+    tokens = [w for w in re.split(r"[\s,.!?:;\-—–]+", (text or "").lower().strip()) if w]
+    return bool(tokens) and tokens[0] in _NO_WORDS
 
 
 # ─── Probe question definitions ───────────────────────────────────────────────
@@ -1818,7 +1892,9 @@ async def _dispatch(
             raw_types = kw_types
         else:
             # LLM gave results — merge with keyword to catch what LLM missed
-            merged = list(set(raw_types) | (set(kw_types) - {"other"}))
+            # DHARA-P0-1: only strong (non-generic) keywords may add a type
+            kw_strong = _keyword_classify(narrative, strong_only=True)
+            merged = list(set(raw_types) | (set(kw_strong) - {"other"}))
             raw_types = merged if merged else raw_types
         new_types = raw_types if raw_types else ["other"]
 
@@ -2120,7 +2196,7 @@ async def _dispatch(
                     # Quick-reply options always start with "Yes"/"No" — use
                     # that deterministically instead of substring matching.
                     ml = user_message.lower().strip()
-                    slots["injury"] = "yes" if ml.startswith("yes") else "no"
+                    slots["injury"] = "yes" if _is_affirmative(user_message) else "no"  # DHARA-P0-2
                     if slots["injury"] == "no":
                         # DHARA-B010: don't ask for a Medico-Legal Certificate
                         # once the citizen has already said no one was injured.
@@ -2140,7 +2216,7 @@ async def _dispatch(
                     # itself, flipping an explicit negative into force=yes —
                     # which then wrongly kept BNS 309 Robbery suggested.
                     m_lower = user_message.lower().strip()
-                    force = m_lower.startswith("yes")
+                    force = _is_affirmative(user_message)  # DHARA-P0-2
                     slots["force_used"] = "yes" if force else "no"
                     await db.fir_sessions.update_one(
                         {"session_id": sid}, {"$set": {"slots": slots, "updated_at": now}}
@@ -2262,7 +2338,11 @@ async def _dispatch(
     # ── Read Back ─────────────────────────────────────────────────────────────
     elif stage == STAGE_READ_BACK:
         msg_lower = (user_message or action or "").lower().strip()
-        if "edit" in msg_lower or msg_lower.startswith("no"):
+        # DHARA-P0-2: also match the translated "Edit something" button and
+        # non-English "no" — tapping "कुछ बदलें" used to skip straight to the draft.
+        _edit_labels = {v.lower() for v in _STATIC_TRANS.get("edit_something", {}).values()}
+        if ("edit" in msg_lower or msg_lower.startswith("no") or _is_negative(msg_lower)
+                or any(lbl and lbl in msg_lower for lbl in _edit_labels)):
             # DHARA-B012: move to a dedicated correction stage instead of
             # looping back into STAGE_READ_BACK. The old code re-used this
             # same branch to interpret the *next* message too — a correction

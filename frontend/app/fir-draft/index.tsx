@@ -1342,9 +1342,26 @@ ${data.bot_message}`);
           <Ionicons name="arrow-back" size={22} color={SURFACE} />
         </Pressable>
         <View style={styles.headerCenter}>
-          <Text testID="fir-header-title" style={styles.headerTitle}>FIR Draft Assistant</Text>
+          <Text testID="fir-header-title" style={styles.headerTitle} numberOfLines={1}>FIR Draft Assistant</Text>
           <Text style={styles.headerLang}>{selectedLang.native}</Text>
         </View>
+        {/* UI fix: header actions inline in the title row (they used to wrap
+            onto a second row and leave an empty navy band). */}
+        {probeTotal > 0 && currentStage === 'probe' && (
+          <View style={styles.progressChip} testID="fir-probe-progress">
+            <Text style={styles.progressText}>Q {probeCurrentNum}/{probeTotal}</Text>
+          </View>
+        )}
+        {currentStage === 'probe' && (
+          <Pressable testID="fir-previous-question" accessibilityLabel="Previous question" onPress={handleBack} style={styles.pauseBtn}>
+            <Ionicons name="arrow-undo-outline" size={20} color={GOLD} />
+          </Pressable>
+        )}
+        {suggestedSections.length > 0 && (
+          <Pressable testID="fir-sections-button" accessibilityLabel="Suggested sections" onPress={() => setShowSectionDrawer(true)} style={styles.pauseBtn}>
+            <Ionicons name="list-outline" size={20} color={GOLD} />
+          </Pressable>
+        )}
         {/* TTS auto-speak toggle */}
         <Pressable
           testID="fir-auto-speak-toggle"
@@ -1363,25 +1380,6 @@ ${data.bot_message}`);
           <Ionicons name="bookmark-outline" size={20} color={GOLD} />
         </Pressable>
       </View>
-      {(currentStage === 'probe' || suggestedSections.length > 0) && (
-        <View style={styles.headerActions} testID="fir-header-actions">
-          {probeTotal > 0 && currentStage === 'probe' && (
-            <View style={styles.progressChip} testID="fir-probe-progress">
-              <Text style={styles.progressText}>Q {probeCurrentNum}/{probeTotal}</Text>
-            </View>
-          )}
-          {currentStage === 'probe' && (
-            <Pressable testID="fir-previous-question" accessibilityLabel="Previous question" onPress={handleBack} style={styles.pauseBtn}>
-              <Ionicons name="arrow-undo-outline" size={20} color={GOLD} />
-            </Pressable>
-          )}
-          {suggestedSections.length > 0 && (
-            <Pressable testID="fir-sections-button" accessibilityLabel="Suggested sections" onPress={() => setShowSectionDrawer(true)} style={styles.pauseBtn}>
-              <Ionicons name="list-outline" size={22} color={GOLD} />
-            </Pressable>
-          )}
-        </View>
-      )}
       </View>
       {/* Scrolling verified-sources ticker */}
       <MarqueeBanner variant="dark" />
@@ -1583,10 +1581,16 @@ function MessageBubble({
           <Text style={styles.botAvatarText}>⚖</Text>
         </View>
       )}
-      <View style={{ flex: 1, maxWidth: '85%' }}>
-        <View style={[styles.bubble, isBot ? styles.bubbleBot : styles.bubbleUser]}>
-          <Text style={[styles.bubbleText, isBot ? styles.bubbleTextBot : styles.bubbleTextUser]}>
-            {text}
+      {/* UI fix: user bubbles hug their text and sit flush right (they were
+          left-aligned inside the 85% column, leaving an empty strip).
+          textBreakStrategy="simple" stops Android clipping the last word of
+          Devanagari/Tamil text in a shrink-to-fit bubble. */}
+      <View style={[{ flex: 1, maxWidth: '85%' }, !isBot && { alignItems: 'flex-end' }]}>
+        <View style={[styles.bubble, isBot ? styles.bubbleBot : styles.bubbleUser, !isBot && { maxWidth: '100%' }]}>
+          <Text textBreakStrategy="simple" style={[styles.bubbleText, isBot ? styles.bubbleTextBot : styles.bubbleTextUser]}>
+            {/* trailing space gives Android's shrink-to-fit measure a few px of
+                slack so the last Devanagari word never wraps out of view */}
+            {isBot ? text : `${text} `}
           </Text>
         </View>
         {/* TTS speaker button on bot messages */}
@@ -2179,7 +2183,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 15, fontWeight: '700', color: '#fff' },
   headerLang: { fontSize: 12, color: GOLD },
   backBtn: { width: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  pauseBtn: { width: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  pauseBtn: { width: 38, minHeight: 44, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   // v3.4: Probe progress chip in header
   progressChip: {
     backgroundColor: 'rgba(255,255,255,0.12)',

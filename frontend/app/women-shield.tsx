@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Switch, Linking } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, Switch, Linking, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -102,6 +102,19 @@ export default function WomenShield() {
     ? helplines.map(h => ({ num: h.number, label: SHORT[h.number] || h.name, verified: h.verified }))
     : HELPLINES.map(h => ({ num: h.num, label: tr(h.key, lang), verified: false }));
 
+  // DHARA-P0-3 (B025): leave this screen instantly for a neutral page.
+  const NEUTRAL_URL = 'https://www.google.com/search?q=weather';
+  const quickExit = () => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.location.replace(NEUTRAL_URL);
+      return;
+    }
+    // Leave this screen first so reopening the app never lands back here,
+    // then open the neutral page once the navigation has committed.
+    router.replace('/(tabs)/home');
+    setTimeout(() => { Linking.openURL(NEUTRAL_URL).catch(() => {}); }, 300);
+  };
+
   return (
     <View style={styles.root}>
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
@@ -111,7 +124,14 @@ export default function WomenShield() {
             <Pressable onPress={() => router.back()} style={styles.backBtn} testID="ws-back">
               <Ionicons name="chevron-back" size={24} color="#fff" />
             </Pressable>
-            <SosPill />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {/* DHARA-P0-3 (B025): one-tap safe exit to a neutral page */}
+              <Pressable onPress={quickExit} style={styles.quickExit} testID="ws-quick-exit" accessibilityRole="button" accessibilityLabel={tr('ws.quickexit', lang)}>
+                <Ionicons name="exit-outline" size={16} color={c.navy} />
+                <Text style={styles.quickExitTxt}>{tr('ws.quickexit', lang)}</Text>
+              </Pressable>
+              <SosPill />
+            </View>
           </View>
           <View style={styles.titleRow}>
             <View style={styles.shieldBox}><Ionicons name="shield-half" size={28} color={c.navy} /></View>
@@ -218,6 +238,8 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
   header: { backgroundColor: c.navy, paddingHorizontal: 20, paddingBottom: 18 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  quickExit: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#fff', paddingHorizontal: 12, height: 32, borderRadius: 16 },
+  quickExitTxt: { color: c.navy, fontWeight: '700', fontSize: 13 },
   backBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 10 },
   shieldBox: { width: 52, height: 52, borderRadius: 14, backgroundColor: c.gold, alignItems: 'center', justifyContent: 'center' },

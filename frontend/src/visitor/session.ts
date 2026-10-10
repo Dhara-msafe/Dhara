@@ -92,6 +92,8 @@ export const STATE_LOCAL_LANG: Record<string, LocalLang> = {
   PB: { code: 'pa', label: 'Punjabi', native: 'ਪੰਜਾਬੀ' },
   AS: { code: 'as', label: 'Assamese', native: 'অসমীয়া' },
   OD: { code: 'or', label: 'Odia', native: 'ଓଡ଼ିଆ' },
+  GA: { code: 'kok', label: 'Konkani', native: 'कोंकणी' },
+  JK: { code: 'ur', label: 'Urdu', native: 'اردو' },
 };
 export function getStateLocalLang(stateCode?: string): LocalLang {
   return (stateCode && STATE_LOCAL_LANG[stateCode]) || HINDI_LANG;

@@ -78,6 +78,56 @@ router = APIRouter()
 
 # ── Pydantic models ───────────────────────────────────────────────────────────
 
+# ── DHARA-P0-4 (B024): immediate-danger guard ─────────────────────────────────────────
+# A user in danger right now was told to "go to the Magistrate's court right
+# now" with no mention of 112, and was promised police/shelter outcomes the
+# cited source does not support. When the message signals present danger we
+# (1) always lead with 112 via a fixed banner, (2) instruct the model to give
+# safety steps first and make no outcome promises, and (3) drop domestic-
+# violence citations unless the user actually described a domestic relation.
+_DANGER_RE = re.compile(
+    r"(right now|at this moment|happening now|not safe|unsafe|in danger|"
+    r"threaten(ing|s|ed)? (me|to kill)|going to (kill|hurt|attack) me|attacking me|beating me|hitting me|"
+    r"kill me|help me now|save me|अभी|इसी समय|खतरे में|सुरक्षित नहीं|मार रहा|मार रही|मार देगा|जान से मार|बचाओ|"
+    r"आता|धोक्यात|सुरक्षित नाही|मारत आहे|वाचवा|இப்போது|ஆபத்தில்|பாதுகாப்பாக இல்லை|காப்பாற்றுங்கள்)",
+    re.I,
+)
+_THREAT_RE = re.compile(
+    r"(\bthreat|\battack|\bbeat(ing|s|en)?\b|\bhit(ting|s)?\b|\bhurt|\bkill|\bweapon|\bknife|unsafe|not safe|\bdanger|\babus|\bviolen|\bchasing|following me|"
+    r"धमकी|मार|हमला|खतरा|खतरे|धोका|धोक्यात|அச்சுறுத்த|ஆபத்து|தாக்க)",
+    re.I,
+)
+_DOMESTIC_FACT_RE = re.compile(
+    r"(husband|wife|in-?laws?|partner|spouse|dowry|domestic|marri|पति|पत्नी|ससुराल|दहेज|नवरा|बायको|கணவன்|மனைவி|வரதட்சணை)",
+    re.I,
+)
+_DV_ACT_RE = re.compile(r"(PWDVA|Domestic Violence)", re.I)
+
+
+def _is_immediate_danger(text: str) -> bool:
+    t = text or ""
+    return bool(_DANGER_RE.search(t) and _THREAT_RE.search(t))
+
+
+_EMERGENCY_PROMPT = """
+
+IMMEDIATE-DANGER MODE (mandatory, overrides other style rules):
+The user says they are in danger right now. Your reply must:
+- Start with what keeps them safe now: get to a safe place or near other people if they can, and call 112 (all-India emergency). Do NOT tell them to go to a court, magistrate, or any office first.
+- Never promise outcomes. Do not say the police "must" or "will" do anything, that a shelter or officer "will" help, or that any order "will" be granted.
+- Do not assume who the person is, their gender, or their relationship to the threatening person. Do not assume domestic violence unless they said so.
+- Only after safety, briefly mention that legal options (such as a complaint or a protection order) may be possible later depending on the facts, and that the 181 Women Helpline or 15100 (free legal aid) can guide them.
+- Keep it short and calm.
+"""
+
+_EMERGENCY_BANNER = {
+    "en": "🚨 If you are in danger right now, call 112 (emergency) immediately. Women Helpline: 181.",
+    "hi": "🚨 अगर आप अभी खतरे में हैं, तो तुरंत 112 (आपातकालीन) पर कॉल करें। महिला हेल्पलाइन: 181।",
+    "mr": "🚨 तुम्ही आत्ता धोक्यात असाल, तर लगेच 112 (आपत्कालीन) वर कॉल करा. महिला हेल्पलाइन: 181.",
+    "ta": "🚨 நீங்கள் இப்போது ஆபத்தில் இருந்தால், உடனே 112 (அவசரம்) ஐ அழைக்கவும். பெண்கள் உதவி எண்: 181.",
+}
+
+
 class ChatIn(BaseModel):
     message: str
     session_id: Optional[str] = None
@@ -755,6 +805,13 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
     # else's regulated conduct, instruct the LLM not to transfer that
     # obligation onto the user (see README_DEPLOYMENT.md > Engine Architecture).
     system_prompt = augment_prompt_with_actor_conduct_lock(system_prompt, _v2_classify)
+    # DHARA-P0-4: immediate-danger guard (see _is_immediate_danger).
+    _emergency = _is_immediate_danger(body.message)
+    if _emergency:
+        system_prompt += _EMERGENCY_PROMPT
+        if not _DOMESTIC_FACT_RE.search(body.message or ""):
+            retrieved = [it for it in retrieved if not _DV_ACT_RE.search(str(it.get("act", "")) + " " + str(it.get("citation", "")))]
+            db_hits = [h for h in db_hits if not _DV_ACT_RE.search(str(h.get("act_name", "")))]
 
     chat = _ai_build_chat(session_id=session_id, system_message=system_prompt)
 
@@ -987,6 +1044,11 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
         # sees which religion/marriage-type's law was applied.
         if personal_law_note and not errored and (sanitized or full):
             sanitized = (sanitized or full) + f"\n\n{personal_law_note}"
+
+        # DHARA-P0-4: always lead an immediate-danger answer with 112.
+        if _emergency and not errored and (sanitized or full):
+            _banner = _EMERGENCY_BANNER.get(body.language, _EMERGENCY_BANNER["en"])
+            sanitized = f"{_banner}\n\n{sanitized or full}"
 
         if sanitized != full:
             # Overwrite the accumulated text on the client with the sanitized version.
