@@ -636,8 +636,13 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
             sec = (h.get("section_number") or "").upper()
             if sec:
                 _db_section_keys.add(f"{sec}")
-                # Also index with abbreviated act name for cross-matching
-                for prefix in ("bns", "bnss", "bsa", "pwdva", "rti", "cpa", "it", "ni", "mv", "mva", "ibc", "hma", "hsa", "sma"):
+                # Also index with abbreviated act name for cross-matching.
+                # Keep this list in sync with the (b1) whitelist above.
+                for prefix in (
+                    "bns", "bnss", "bsa", "pwdva", "rti", "cpa",
+                    "it", "ni", "mv", "mva", "ibc", "hma", "hsa", "sma",
+                    "pocso", "ndps", "pcma", "ipc", "crpc",  # P1 — aligned with (b1) whitelist
+                ):
                     if prefix in act:
                         _db_section_keys.add(f"{prefix}_{sec}")
         def _python_entry_duplicated_in_db(entry: dict) -> bool:
@@ -649,7 +654,12 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
             if len(parts) >= 2:
                 prefix = parts[0].lower()
                 sec = parts[-1].upper()
-                if f"{prefix}_{sec}" in _db_section_keys or sec in _db_section_keys:
+                # Bug fix (P1 dual-corpus): previously also checked `sec in _db_section_keys`
+                # (bare section number, no act context). That caused IT Act Section 43 to
+                # be dropped whenever MongoDB returned Section 43 from ANY unrelated act
+                # (e.g. Mines Act, Labour Act). Now we only match on act-aware keys
+                # (prefix_sec) so the dedup is scoped to the same act family.
+                if f"{prefix}_{sec}" in _db_section_keys:
                     return True
             return False
         before_count = len(retrieved)
