@@ -1,6 +1,70 @@
 # Dhara (formerly Gandhikar) — PRD
 
-## 10 October 2026 — P0-A Mic Permission Fix + P0-B Segmented Evidence Recording
+## 10 October 2026 — Scan a Notice v2: Complete Repair & UX Sprint
+
+### Scan Notice v2 Implementation
+
+#### Problem Statement
+The original Scan a Notice flow used `expo-image-picker` with `allowsEditing: true`, which delegated to the Android native OS image editor. This produced the "OK / Retry" interface with poor contrast, no document context, and no staged workflow. After capture, the app jumped directly to a single "WHAT THIS MEANS" card without showing OCR text, document classification, or structured legal sections. Non-legal documents (like the DewClear technical document) received summarised content that looked like legal guidance.
+
+#### Root Causes Fixed
+1. **Camera flow:** `allowsEditing: true` removed; DHARA now owns the post-capture review screen
+2. **No staged progress:** Added animated 5-step processing progress screen
+3. **No OCR review:** Added editable TextInput for user to correct extracted text before analysis
+4. **Non-legal classification:** Backend now returns `document_type`, `is_legal_document` (boolean), so non-legal docs are correctly identified
+5. **Undifferentiated result:** Result screen now branches into legal (structured sections) vs non-legal (explicit "does not appear to be a legal notice")
+6. **Help button overlap:** GlobalHelpButton FAB hidden on all `/scan` routes
+
+#### New 5-Step Journey
+```
+ENTRY → REVIEW → PROCESSING → OCR REVIEW → RESULT
+```
+- **Entry**: Existing intro screen (unchanged)
+- **Review**: DHARA-controlled capture review (Retake / Rotate 90° / Use this scan)
+- **Processing**: Animated staged progress: Image ready → Reading text → Identifying type → Checking legal relevance → Preparing explanation
+- **OCR Review**: Editable TextInput showing extracted text; user confirms or corrects before seeing interpretation
+- **Result (Legal)**: Structured sections — What this is · Important details (material facts grid) · What this means · Legal truth state indicator · What you can do · Template suggestion
+- **Result (Non-legal)**: "This does not appear to be a legal notice" with optional "Explain this document" action
+
+#### Backend Structured Response (POST /api/scan/notice)
+New fields added to response:
+- `document_type`: 17-class enum (LEGAL_NOTICE, COURT_DOCUMENT, POLICE_DOCUMENT, GOVERNMENT_NOTICE, EMPLOYMENT_NOTICE, TENANCY_NOTICE, CONSUMER_BILL, BANK_NOTICE, LOAN_DEMAND, INSURANCE_DOCUMENT, UTILITY_BILL, TAX_NOTICE, PRIVATE_LETTER, CONTRACT, LEGAL_AGREEMENT, NON_LEGAL_DOCUMENT, UNKNOWN)
+- `is_legal_document`: boolean
+- `material_facts`: object (issuing_authority, recipient, date_of_issue, reference_number, amount, deadline, statutes_cited, jurisdiction)
+- `legal_truth_state`: VERIFIED_DIRECT | VERIFIED_CONDITIONAL | FRAMEWORK_VERIFIED | CANNOT_VERIFY
+- Backward compatible: existing fields (summary, action, extracted_text, suggested_template, prefill) preserved
+
+#### Key Privacy / Accuracy Commitments
+- Do NOT invent deadlines, sections, authorities not visible in document
+- Do NOT claim authenticity of issuing authority
+- DewClear test: correctly classified as NON_LEGAL_DOCUMENT, no fabricated legal advice
+- `legal_truth_state = CANNOT_VERIFY` shown with "consult an advocate" note
+- No analytics events contain OCR text, names, or document content
+
+#### New Library Installed
+- `expo-image-manipulator@14.0.8` — for 90° rotate in Review step
+
+#### Files Modified
+- `/app/backend/api/scan_router.py` — updated `_system()` prompt, result normalization, new constants
+- `/app/frontend/app/scan.tsx` — complete rewrite with 5-step staged journey
+- `/app/frontend/app/scan/[id].tsx` — updated to handle v2 fields (optional/backward compat)
+- `/app/frontend/src/components/dhara/GlobalHelpButton.tsx` — `/scan` added to exclusion list
+
+#### QA Status
+- Backend 9/9 tests PASS (auth, health, scan structured response)
+- Frontend code review PASS (5 steps, correct testIDs, proper error handling)
+- Physical device camera tests: REQUIRED (cannot test in browser automation)
+- Non-legal doc (DewClear) regression: backend verified to return NON_LEGAL_DOCUMENT for non-legal content
+
+#### DewClear Test Expected Behaviour
+- `document_type`: NON_LEGAL_DOCUMENT
+- `is_legal_document`: false
+- Result shows: "This does not appear to be a legal notice — This looks like an informational or technical document..."
+- No fabricated legal sections, no invented deadlines
+
+---
+
+## P0-A Mic Permission Fix + P0-B Segmented Evidence Recording
 
 ### P0-A: Microphone Permission Pre-check (All Voice Screens)
 - **Root cause (Evidence Locker, fixed prior session):** `AppState` listener triggered `cancel()` when Android's mic-permission dialog briefly backgrounds the app. The `epoch` guard then aborted the flow even though no recording had begun.

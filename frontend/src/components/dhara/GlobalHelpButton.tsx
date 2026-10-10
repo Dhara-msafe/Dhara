@@ -25,7 +25,9 @@ export function GlobalHelpButton() {
   // re-opens the same screen, keep it off the splash/auth-callback route, and
   // keep Home calm/uncluttered — Help lives in the Me tab there instead.
   const isHome = pathname === '/(tabs)/home' || pathname === '/home' || pathname === '/(tabs)' || pathname === '/';
-  if (pathname === '/emergency' || pathname?.startsWith('/oauth') || isHome) return null;
+  // Hide on screens where the FAB would overlap primary controls or sensitive content
+  const hideScan = pathname === '/scan' || pathname?.startsWith('/scan/');
+  if (pathname === '/emergency' || pathname?.startsWith('/oauth') || isHome || hideScan) return null;
 
   return (
     <Pressable

@@ -67,12 +67,31 @@ class ScanIn(BaseModel):
     mode: str = "summary"  # "summary" | "draft"
 
 
+ALL_DOC_TYPES = {
+    "LEGAL_NOTICE", "COURT_DOCUMENT", "POLICE_DOCUMENT", "GOVERNMENT_NOTICE",
+    "EMPLOYMENT_NOTICE", "TENANCY_NOTICE", "CONSUMER_BILL", "BANK_NOTICE", "LOAN_DEMAND",
+    "INSURANCE_DOCUMENT", "UTILITY_BILL", "TAX_NOTICE", "PRIVATE_LETTER", "CONTRACT",
+    "LEGAL_AGREEMENT", "NON_LEGAL_DOCUMENT", "UNKNOWN",
+}
+LEGAL_DOC_TYPES = {
+    "LEGAL_NOTICE", "COURT_DOCUMENT", "POLICE_DOCUMENT", "GOVERNMENT_NOTICE",
+    "EMPLOYMENT_NOTICE", "TENANCY_NOTICE", "BANK_NOTICE", "LOAN_DEMAND",
+    "CONTRACT", "LEGAL_AGREEMENT",
+}
+VALID_LTS = {"VERIFIED_DIRECT", "VERIFIED_CONDITIONAL", "FRAMEWORK_VERIFIED", "CANNOT_VERIFY"}
+FACT_KEYS = ["issuing_authority", "recipient", "date_of_issue", "reference_number",
+             "amount", "deadline", "statutes_cited", "jurisdiction"]
+NULL_VALS = {"null", "none", "not found", "n/a", "na", "unknown", ""}
+
+
 def _system(lang_name: str, mode: str) -> str:
     task = (
         "draft a short, polite reply or response letter the person could send"
         if mode == "draft"
         else "explain in simple words what this document is and what the person should do next"
     )
+    all_types_str = ", ".join(sorted(ALL_DOC_TYPES))
+    legal_types_str = ", ".join(sorted(LEGAL_DOC_TYPES))
     template_catalog = (
         "cheque_bounce (a bounced/dishonoured cheque, Section 138 NI Act), "
         "deposit_refund (landlord not returning a rental security deposit), "
@@ -81,22 +100,39 @@ def _system(lang_name: str, mode: str) -> str:
     )
     fields_hint = "; ".join(f'{k}: [{", ".join(v)}]' for k, v in TEMPLATE_FIELDS.items())
     return (
-        "You read photographs of Indian legal / official documents (notices, FIRs, "
-        "summons, bills, letters). First transcribe the visible text exactly. Then "
-        f"{task}, written in {lang_name}. Do NOT invent legal facts, section numbers "
-        "or deadlines that are not visible in the document — if something is unclear "
-        "or unreadable, say so plainly. Never promise outcomes. "
-        "Separately, decide if this document matches one of DHARA's ready-made notice "
-        f"templates: {template_catalog}. If it clearly matches one, set "
-        '"suggested_template" to that exact key and fill "prefill" with ONLY the values '
-        "you can confidently read from the document for that template's fields (leave "
-        "any you are unsure of out entirely — never guess a name, amount or date). If no "
-        'template matches, set "suggested_template" to null and "prefill" to {}. Field keys '
-        f"per template: {fields_hint}. "
-        'Reply ONLY as compact JSON with keys: {"extracted_text": "...", '
-        '"summary": "...", "action": "...", "suggested_template": "..."|null, "prefill": {}}. '
-        "extracted_text is the transcription; summary is the plain-language explanation "
-        "(or the drafted reply if asked); action is one short suggested next step."
+        "You analyze photographs of Indian documents. Follow ALL steps and reply ONLY as "
+        "compact JSON — no prose, no markdown fences.\n\n"
+        f"STEP 1 — CLASSIFY: Set document_type from: {all_types_str}. "
+        "Use NON_LEGAL_DOCUMENT for technical papers, product brochures, business proposals, "
+        "articles, presentations, academic content, sports/science documents, personal notes, "
+        "or anything that is NOT a legal/official/regulatory communication directed at a person. "
+        "Use UNKNOWN only when you genuinely cannot determine type. "
+        f"Set is_legal_document=true ONLY if document_type is one of: {legal_types_str}. "
+        "Set is_legal_document=false for all others.\n\n"
+        "STEP 2 — TRANSCRIBE: extracted_text = the visible text exactly as it appears. "
+        "If text is unclear, write [UNCLEAR] at that point.\n\n"
+        "STEP 3 — MATERIAL FACTS (only values VISIBLE in the document; null for any missing): "
+        "issuing_authority (who issued/sent it), recipient (who it is addressed to), "
+        "date_of_issue (date printed on document), reference_number (case/notice/ref number), "
+        "amount (monetary value if present), deadline (stated response date if present), "
+        "statutes_cited (laws or sections cited), jurisdiction (court name or territory). "
+        "NEVER invent a value — use null if not clearly readable.\n\n"
+        f"STEP 4 — EXPLAIN: {task.capitalize()}, written in {lang_name}. "
+        "For NON_LEGAL_DOCUMENT: describe what the document is about without adding legal interpretation. "
+        "Do NOT invent legal facts, section numbers, deadlines or authority names not visible in the document. "
+        "Do NOT claim the document is legally binding unless you can verify it.\n\n"
+        "STEP 5 — LEGAL TRUTH STATE: "
+        "FRAMEWORK_VERIFIED if confident about the general legal framework; "
+        "VERIFIED_CONDITIONAL if answer depends on facts not in the document; "
+        "CANNOT_VERIFY otherwise.\n\n"
+        f"STEP 6 — TEMPLATE: Match one of {template_catalog} only if clearly matching. "
+        f"Field keys per template: {fields_hint}. If no clear match, set null.\n\n"
+        "Reply ONLY as this JSON (no extra keys, no prose):\n"
+        '{"extracted_text":"...","document_type":"...","is_legal_document":false,"summary":"...",'
+        '"action":"...","material_facts":{"issuing_authority":null,"recipient":null,'
+        '"date_of_issue":null,"reference_number":null,"amount":null,"deadline":null,'
+        '"statutes_cited":null,"jurisdiction":null},"legal_truth_state":"CANNOT_VERIFY",'
+        '"suggested_template":null,"prefill":{}}'
     )
 
 
@@ -131,13 +167,15 @@ async def scan_notice(body: ScanIn, user: Optional[dict] = Depends(current_user_
         except Exception:
             data = None
     if not isinstance(data, dict):
-        data = {"extracted_text": text.strip(), "summary": text.strip(), "action": "", "suggested_template": None, "prefill": {}}
+        data = {"extracted_text": text.strip(), "summary": text.strip(), "action": "",
+                "document_type": "UNKNOWN", "is_legal_document": False,
+                "material_facts": {}, "legal_truth_state": "CANNOT_VERIFY",
+                "suggested_template": None, "prefill": {}}
 
+    # ── Template matching (unchanged) ─────────────────────────────────────────
     suggested = data.get("suggested_template")
     suggested = suggested if suggested in TEMPLATE_FIELDS else None
     raw_prefill = data.get("prefill") if isinstance(data.get("prefill"), dict) else {}
-    # Only keep keys that actually belong to the matched template, and only
-    # non-empty strings — never pass through a guess we didn't ask for.
     prefill = {}
     if suggested:
         for k in TEMPLATE_FIELDS[suggested]:
@@ -145,10 +183,36 @@ async def scan_notice(body: ScanIn, user: Optional[dict] = Depends(current_user_
             if isinstance(v, (str, int, float)) and str(v).strip():
                 prefill[k] = str(v).strip()
 
+    # ── Document classification ───────────────────────────────────────────────
+    raw_doc_type = str(data.get("document_type", "")).strip().upper()
+    document_type = raw_doc_type if raw_doc_type in ALL_DOC_TYPES else "UNKNOWN"
+
+    raw_is_legal = data.get("is_legal_document")
+    if isinstance(raw_is_legal, bool):
+        is_legal_document = raw_is_legal
+    else:
+        is_legal_document = document_type in LEGAL_DOC_TYPES
+
+    # ── Material facts — only clean, confirmed values ─────────────────────────
+    raw_facts = data.get("material_facts") if isinstance(data.get("material_facts"), dict) else {}
+    material_facts: dict = {}
+    for k in FACT_KEYS:
+        v = raw_facts.get(k)
+        if isinstance(v, str) and v.strip() and v.strip().lower() not in NULL_VALS:
+            material_facts[k] = v.strip()
+
+    # ── Legal truth state ─────────────────────────────────────────────────────
+    raw_lts = str(data.get("legal_truth_state", "")).strip().upper()
+    legal_truth_state = raw_lts if raw_lts in VALID_LTS else "CANNOT_VERIFY"
+
     result = {
         "extracted_text": str(data.get("extracted_text", "")).strip(),
+        "document_type": document_type,
+        "is_legal_document": is_legal_document,
         "summary": str(data.get("summary", "")).strip(),
         "action": str(data.get("action", "")).strip(),
+        "material_facts": material_facts,
+        "legal_truth_state": legal_truth_state,
         "mode": body.mode,
         "suggested_template": suggested,
         "prefill": prefill,

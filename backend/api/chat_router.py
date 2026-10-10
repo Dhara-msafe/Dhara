@@ -511,8 +511,10 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
             query_ids.append(f"article {m.group(1).lower()}")
         # "BNS Section 999", "BNSS Section 43(5)", "Sec. 43 BNSS", "BNSS 43(5)",
         # "RTI Section 6", "CPA 34", "MV 185", "Motor Vehicles Section 185"
+        # P1 dual-corpus fix: expanded whitelist to cover more commonly-cited
+        # Act abbreviations (IT, NI, IBC, HMA, HSA, SMA, POCSO, NDPS, PCMA).
         for m in _re_id.finditer(
-            r"\b(BNS|BNSS|BSA|IPC|CrPC|PWDVA|RTI|CPA|MV|MVA)\b[^\w]*(?:Sec(?:tion|\.)?\s*)?(\d+[A-Za-z]?(?:\(\d+\))?)\b",
+            r"\b(BNS|BNSS|BSA|IPC|CrPC|PWDVA|RTI|CPA|MV|MVA|IT|NI|IBC|HMA|HSA|SMA|POCSO|NDPS|PCMA|CAL|SWPSC|IR|SS|DV)\b[^\w]*(?:Sec(?:tion|\.)?\s*)?(\d+[A-Za-z]?(?:\(\d+\))?)\b",
             retrieval_text, _re_id.IGNORECASE,
         ):
             query_ids.append(f"{m.group(1).lower()} {m.group(2).lower()}")
@@ -615,6 +617,45 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
     # happens to be unanchored.
     if db_hits and (retrieved or any(h.get("is_anchored") for h in db_hits)):
         db_hits = [h for h in db_hits if h.get("is_anchored")]
+
+    # (c0b) Cross-corpus deduplication — P1 dual-corpus fix.
+    # When a section appears in BOTH the Python corpus (citizen-language) and
+    # MongoDB (verbatim government text), the user sees duplicate context and
+    # the LLM may produce contradictory sentences. Deduplicate by matching
+    # on section number + act family:
+    #   - If MongoDB has an anchored hit for the same section, keep MongoDB
+    #     (it has verbatim text + live safety guards G1/G2/G3) and drop the
+    #     Python corpus duplicate — the LLM already receives the scope_note
+    #     from the system prompt's persona, not from the corpus context.
+    #   - If only the Python corpus has it (MongoDB missed it or was generic),
+    #     the Python entry stays untouched.
+    if retrieved and db_hits:
+        _db_section_keys: set[str] = set()
+        for h in db_hits:
+            act = (h.get("act_name") or "").lower()
+            sec = (h.get("section_number") or "").upper()
+            if sec:
+                _db_section_keys.add(f"{sec}")
+                # Also index with abbreviated act name for cross-matching
+                for prefix in ("bns", "bnss", "bsa", "pwdva", "rti", "cpa", "it", "ni", "mv", "mva", "ibc", "hma", "hsa", "sma"):
+                    if prefix in act:
+                        _db_section_keys.add(f"{prefix}_{sec}")
+        def _python_entry_duplicated_in_db(entry: dict) -> bool:
+            label = (entry.get("short_label") or "").strip()
+            if not label:
+                return False
+            # Parse "BNS 189" → prefix="bns", sec="189"
+            parts = label.split()
+            if len(parts) >= 2:
+                prefix = parts[0].lower()
+                sec = parts[-1].upper()
+                if f"{prefix}_{sec}" in _db_section_keys or sec in _db_section_keys:
+                    return True
+            return False
+        before_count = len(retrieved)
+        retrieved = [it for it in retrieved if not _python_entry_duplicated_in_db(it)]
+        if before_count > len(retrieved):
+            logger.info("[dual-corpus-dedup] dropped %d Python corpus entries duplicated in MongoDB", before_count - len(retrieved))
 
     # (c1) Merge the state rules into the citation list the user will see. State
     # rules go LAST so the central position is read first, and the combined list

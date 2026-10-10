@@ -306,9 +306,11 @@ metadata:
 
 test_plan:
   current_focus:
-    - "P0-A permission pre-check across all voice screens"
-    - "P0-B segmented evidence recording"
-    - "Evidence Locker v1 backward compatibility"
+    - "Scan a Notice v2 staged journey"
+    - "Document type classification (legal vs non-legal)"
+    - "Backend scan_router structured response"
+    - "OCR review step"
+    - "Scan result structured sections"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -320,5 +322,5 @@ agent_communication:
       message: "✅ BACKEND TESTING COMPLETE - All backend APIs tested and working: (1) POST /api/auth/login - ✅ PASSED, (2) GET /api/auth/me - ✅ PASSED, (3) POST /api/chat/stream (SSE) - ✅ PASSED with proper streaming, (4) POST /api/voice/tts - ✅ PASSED with audio output. STT endpoint not tested (requires audio file). Created /app/backend_test.py for automated testing. Frontend tasks (WhatsApp-style mic UI, text chat, TTS speaker button, web compatibility) are marked needs_retesting=true but NOT TESTED per instructions (frontend testing not in scope). Main agent should verify frontend functionality or request user testing."
     - agent: "testing"
       message: "✅ FRONTEND TESTING COMPLETE - All frontend features tested and working perfectly on web (mobile viewport 390x844). Test results: (1) Login flow: ✅ Language selector → Login → Chat screen navigation works. (2) Chat UI: ✅ All elements present (header, SOS, New Chat, mode toggle, upgrade banner, suggestions, input bar, tabs). (3) WhatsApp-style mic UI: ✅ Visual implementation correct (terracotta/orange circular button 52x52px), mic/send toggle works perfectly. (4) Text chat: ✅ Type, send, streaming response, speaker icons all working. (5) Tab navigation: ✅ All 4 tabs (Ask, Rights, History, Settings) accessible. (6) New Chat: ✅ Clears messages, shows suggestions. (7) Pro mode toggle: ✅ Works correctly. (8) Suggestions: ✅ Clickable and send messages. Audio recording NOT tested (requires native build, as expected). All text-based interactions fully functional. No critical issues found."
-    - agent: "testing"
-      message: "✅ BACKEND RE-VERIFICATION COMPLETE (Test Sequence 4) - All backend APIs re-tested and confirmed working with correct test credentials (voicetest2026@example.com / TestPass123!). Test results: (1) GET /api/health - ✅ PASSED (200 OK, status: ok, app: Dhara), (2) POST /api/auth/login - ✅ PASSED (200 OK, token received), (3) GET /api/auth/me - ✅ PASSED (200 OK, user profile returned), (4) POST /api/chat/stream (SSE) - ✅ PASSED (200 OK, 64 chunks received, proper streaming with legal content), (5) POST /api/voice/tts - ✅ PASSED (200 OK, audio/mpeg, 21504 bytes audio data). Evidence Locker backend endpoints also verified in logs: POST /api/evidence/anchor, POST /api/evidence/upload/init, POST /api/evidence/upload/chunk, POST /api/evidence/upload/complete, GET /api/evidence/backups - all returning 200 OK. Backend logs show no errors. All backend functionality working correctly. Updated /app/backend_test.py with correct credentials and health endpoint test. No backend issues found."
+    - agent: "main"
+      message: "SCAN NOTICE V2 IMPLEMENTATION COMPLETE. Changes: (1) Backend scan_router.py: Updated _system() prompt to return document_type (17-class enum), is_legal_document boolean, material_facts object (issuing_authority, recipient, date_of_issue, reference_number, amount, deadline, statutes_cited, jurisdiction), legal_truth_state (VERIFIED_DIRECT/VERIFIED_CONDITIONAL/FRAMEWORK_VERIFIED/CANNOT_VERIFY). Added ALL_DOC_TYPES, LEGAL_DOC_TYPES, VALID_LTS, FACT_KEYS, NULL_VALS constants. (2) Frontend scan.tsx: Complete rewrite with 5-step journey: entry → review (DHARA-controlled, Retake/Rotate/Use this scan, no native editor) → processing (animated 5-step progress) → ocr-review (editable TextInput) → result (legal vs non-legal branching). Key: allowsEditing=false removes native OK/Retry editor. expo-image-manipulator installed for 90deg rotation. (3) GlobalHelpButton.tsx: Added /scan to exclusion so FAB doesn't overlap scan screens. (4) scan/[id].tsx: Updated to handle v2 fields (document_type, material_facts, legal_truth_state) as optional with fallback to v1 display. Test credentials: voicetest2026@example.com / TestPass123!"
