@@ -112,6 +112,8 @@ export function EvidenceRecorderProvider({ children }: { children: React.ReactNo
     if (Platform.OS !== 'web') {
       try { await setAudioModeAsync({ allowsRecording: false }); } catch {}
     }
+    // Async audit log — import lazily to avoid circular deps
+    import('./privacyAuditLog').then(m => m.appendAuditEntry('EVIDENCE_STOPPED')).catch(() => {});
   }, [recorder, setOwner]);
 
   // ── EvidenceLocker path ────────────────────────────────────────────────────

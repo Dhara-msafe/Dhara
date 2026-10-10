@@ -61,6 +61,19 @@ export async function getCodePhrase(): Promise<string> {
 export async function saveCodePhrase(p: string): Promise<void> {
   await storePhrase(p);
 }
+
+// ── Silent Alert evidence preference ──────────────────────────────────────────
+const SILENT_EVIDENCE_KEY = 'ws_silent_alert_evidence_pref';
+/** Returns whether "Also start Evidence Recording" toggle is ON. */
+export async function getSilentAlertEvidencePref(): Promise<boolean> {
+  try { return (await AsyncStorage.getItem(SILENT_EVIDENCE_KEY)) === 'true'; }
+  catch { return false; }
+}
+/** Persist the "Also start Evidence Recording" toggle preference. */
+export async function setSilentAlertEvidencePref(enabled: boolean): Promise<void> {
+  try { await AsyncStorage.setItem(SILENT_EVIDENCE_KEY, enabled ? 'true' : 'false'); }
+  catch {}
+}
 export async function getPlan(): Promise<Record<string, string>> {
   const v = await AsyncStorage.getItem(PLAN_KEY); return v ? JSON.parse(v) : {};
 }

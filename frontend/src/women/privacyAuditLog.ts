@@ -15,12 +15,17 @@ const AUDIT_KEY   = 'ws_privacy_audit_v1';
 const MAX_ENTRIES = 200;
 
 export type AuditAction =
-  | 'PHRASE_SAVED'
-  | 'PHRASE_CLEARED'
-  | 'PHRASE_DETECTED'
-  | 'EVIDENCE_STARTED'
-  | 'EVIDENCE_START_FAILED'
-  | 'ALERT_NAVIGATED';
+  | 'CODE_PHRASE_CONFIGURED'    // phrase set for the first time
+  | 'CODE_PHRASE_CHANGED'       // existing phrase updated
+  | 'CODE_PHRASE_CLEARED'       // phrase removed / disarmed
+  | 'CODE_PHRASE_ARMED'         // phrase stored and ready to match
+  | 'CODE_PHRASE_DISARMED'      // phrase removed, matching disabled
+  | 'CODE_PHRASE_TRIGGERED'     // phrase matched in send()
+  | 'SILENT_ALERT_TRIGGERED'    // silent alert prepare-SMS tapped with evidence ON
+  | 'EVIDENCE_START_REQUESTED'  // before calling startEvidenceRecording
+  | 'EVIDENCE_STARTED'          // recording started successfully
+  | 'EVIDENCE_START_FAILED'     // recording failed to start
+  | 'EVIDENCE_STOPPED';         // recording stopped via coordinator
 
 export type AuditEntry = {
   ts: string;       // ISO-8601 timestamp
