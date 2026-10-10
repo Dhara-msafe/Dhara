@@ -37,6 +37,7 @@ export default function SilentAlert() {
     finally { if (request.current === id) setBusy(false); }
   };
   const body = `${message}${location ? `\n${location}` : ''}`;
+  const notifyContacts = contacts.filter(ct => ct.notify !== false);
   return (
     <View style={styles.root} testID="silent-alert-screen">
       <ScreenHeader title="Silent alert" subtitle="Prepare a message · you choose when to send" />
@@ -46,7 +47,8 @@ export default function SilentAlert() {
         <Pressable testID="alert-add-location" style={styles.button} disabled={busy} onPress={addLocation}>{busy ? <ActivityIndicator color={c.onBrandPrimary} /> : <Text style={styles.buttonText}>{location ? 'Update location (optional)' : 'Add my location (optional)'}</Text>}</Pressable>
         {(!!location || busy) && <Pressable testID="alert-remove-location" style={styles.secondary} onPress={() => { request.current++; setBusy(false); setLocation(''); }}><Text style={styles.label}>{busy ? 'Continue without location' : 'Remove location'}</Text></Pressable>}
         {contacts.length === 0 && <Text testID="alert-no-contacts" style={styles.note}>No trusted contacts saved. Add a person below, or copy this message to send yourself.</Text>}
-        {contacts.map(contact => <Pressable key={contact.id} testID={`alert-contact-${contact.id}`} style={styles.secondary} onPress={async () => setStatus(await composeAlert(contact.phone, body))}><Text style={styles.label}>Prepare SMS to {contact.name}</Text><Text style={styles.note}>{contact.phone}</Text></Pressable>)}
+        {contacts.length > 0 && notifyContacts.length === 0 && <Text testID="alert-no-notify-contacts" style={styles.note}>All your contacts are set to &quot;Call only&quot;. Open Manage circle and tap the bell to enable one for Silent alert.</Text>}
+        {notifyContacts.map(contact => <Pressable key={contact.id} testID={`alert-contact-${contact.id}`} style={styles.secondary} onPress={async () => setStatus(await composeAlert(contact.phone, body))}><Text style={styles.label}>Prepare SMS to {contact.name}</Text><Text style={styles.note}>{contact.phone}</Text></Pressable>)}
         <Pressable testID="alert-copy-message" style={styles.secondary} onPress={async () => { try { await Clipboard.setStringAsync(body); setStatus('Message copied. No alert has been sent.'); } catch { setStatus('Copy unavailable. Select the message text to copy it.'); } }}><Text style={styles.label}>Copy message</Text></Pressable>
         <Pressable testID="alert-manage-circle" style={styles.secondary} onPress={() => router.push('/women/trusted-circle')}><Text style={styles.label}>Manage trusted circle</Text></Pressable>
         {!!status && <Text testID="silent-alert-status" accessibilityLiveRegion="polite" style={styles.note}>{status}</Text>}

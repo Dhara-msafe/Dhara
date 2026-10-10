@@ -26,7 +26,7 @@ export default function TrustedCircle() {
     if (!name.trim() || !/^\+?\d{10,15}$/.test(number)) { setStatus('Enter a name and a valid phone number (10–15 digits).'); return; }
     if (busy || list.length >= 3) return;
     if (list.some(ct => ct.phone === number)) { setStatus('This number is already in your circle.'); return; }
-    const next = [...list, { id: Date.now().toString(), name: name.trim(), phone: number }];
+    const next = [...list, { id: Date.now().toString(), name: name.trim(), phone: number, notify: true }];
     setBusy(true);
     try { await saveCircle(next); setList(next); setName(''); setPhone(''); setStatus('Contact saved on this device. No message has been sent.'); }
     catch { setStatus('Could not save contact. Please try again.'); }
@@ -39,12 +39,20 @@ export default function TrustedCircle() {
     catch { setStatus('Could not remove contact. Please try again.'); }
     finally { setBusy(false); }
   };
+  const toggleNotify = async (id: string) => {
+    if (busy) return;
+    const next = list.map(x => x.id === id ? { ...x, notify: x.notify === false } : x);
+    setBusy(true);
+    try { await saveCircle(next); setList(next); setStatus('Updated. This only changes what Silent alert suggests — nothing was sent.'); }
+    catch { setStatus('Could not update this contact. Please try again.'); }
+    finally { setBusy(false); }
+  };
 
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} testID="trusted-circle-screen">
       <ScreenHeader title="Trusted circle" subtitle="Up to 3 people · stored only on this phone" />
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 40 }}>
-        <Text testID="circle-disclosure" style={styles.note}>Contacts are saved on this device. DHARA does not automatically alert them or monitor journeys. Use Silent alert to prepare an SMS, then press Send in your messaging app.</Text>
+        <Text testID="circle-disclosure" style={styles.note}>Contacts are saved on this device. DHARA does not automatically alert them or monitor journeys. Tap the bell to choose whether a contact is suggested in Silent alert, or kept for calling only. Use Silent alert to prepare an SMS, then press Send in your messaging app.</Text>
         {!!status && <Text testID="circle-status" accessibilityLiveRegion="polite" style={styles.note}>{status}</Text>}
 
         {list.map(ct => (
@@ -53,7 +61,11 @@ export default function TrustedCircle() {
             <View style={{ flex: 1 }}>
               <Text style={styles.rowName}>{ct.name}</Text>
               <Text style={styles.rowPhone}>{ct.phone}</Text>
+              <Text style={styles.rowNotify}>{ct.notify === false ? 'Call only' : 'Notified in Silent alert'}</Text>
             </View>
+            <Pressable testID={`circle-toggle-notify-${ct.id}`} disabled={busy} onPress={() => toggleNotify(ct.id)} style={styles.iconBtn}>
+              <Ionicons name={ct.notify === false ? 'notifications-off-outline' : 'notifications-outline'} size={20} color={ct.notify === false ? c.muted : c.navy} />
+            </Pressable>
             <Pressable testID={`circle-call-${ct.id}`} onPress={async () => setStatus(await openPhone(ct.phone))} style={styles.iconBtn}><Ionicons name="call-outline" size={20} color={c.navy} /></Pressable>
             <Pressable testID={`circle-remove-${ct.id}`} disabled={busy} onPress={() => remove(ct.id)} style={styles.iconBtn}><Ionicons name="trash-outline" size={20} color={c.error} /></Pressable>
           </View>
@@ -82,6 +94,7 @@ const styles = StyleSheet.create({
   avatarTxt: { fontFamily: theme.fonts.displayBold, fontSize: 18, color: c.navy },
   rowName: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.ink },
   rowPhone: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted },
+  rowNotify: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 2 },
   iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   addCard: { backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.lines, padding: 16, marginTop: 6 },
   addTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.ink, marginBottom: 12 },
