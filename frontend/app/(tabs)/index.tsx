@@ -381,6 +381,10 @@ export default function ChatScreen() {
   // This ref is set synchronously on press-in/out and consulted throughout
   // the async flow so we always know the user's current intent.
   const isMicHeldRef = useRef<boolean>(false);
+  // P0-A: Set true while the native permission dialog is showing, so the
+  // AppState 'background' event triggered by Android's dialog does not
+  // cancel the mic flow before it even begins.
+  const permissionPhaseRef = useRef<boolean>(false);
   // Cloud TTS player + cleanup — we lazily create an AudioPlayer per playback
   // and keep the ref so we can stop it (user taps stop / speaks another
   // message / navigates away).
@@ -1281,7 +1285,19 @@ export default function ChatScreen() {
         // --- Native: expo-audio recorder ---
         const { provider, fellBack } = await getConfiguredSTT(API_BASE, token);
         setSttProviderLabel(fellBack ? `${provider.displayName} (fallback)` : provider.displayName);
-        const perm = await AudioModule.requestRecordingPermissionsAsync();
+        // P0-A: Check current status first — if already granted, skip the
+        // request dialog entirely.  This prevents the Android permission
+        // dialog from briefly backgrounding the app, which triggers the
+        // AppState listener and kills the mic flow on first use.
+        let perm = await AudioModule.getRecordingPermissionsAsync();
+        if (!perm.granted) {
+          permissionPhaseRef.current = true;
+          try {
+            perm = await AudioModule.requestRecordingPermissionsAsync();
+          } finally {
+            permissionPhaseRef.current = false;
+          }
+        }
         if (!perm.granted) {
           notify('Microphone permission', 'Please enable microphone to speak your question.');
           return;
@@ -1592,6 +1608,10 @@ export default function ChatScreen() {
   }, [focused, onLockedCancel, stopCloudTTS]);
   useEffect(() => {
     const sub = AppState.addEventListener('change', state => {
+      // P0-A: Do NOT cancel during the native permission dialog window.
+      // Android briefly backgrounds the app while the dialog is showing;
+      // cancelling here would kill the mic flow before it starts.
+      if (permissionPhaseRef.current) return;
       if (state !== 'active') { onLockedCancel(); stopCloudTTS(); stopNativeTTS(); }
     });
     return () => sub.remove();

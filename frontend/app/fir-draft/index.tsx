@@ -752,7 +752,15 @@ Allowed: JPG, PNG, HEIC, MP4, MOV, PDF, DOC, DOCX`);
 
     // ── Native: use expo-audio ──────────────────────────────────────────────
     try {
-      const { status } = await AudioModule.requestRecordingPermissionsAsync();
+      // P0-A: Check current status first — if already granted, skip the
+      // request dialog so Android's permission dialog doesn't briefly
+      // background the app (no AppState listener here, but avoids the
+      // unnecessary dialog on subsequent uses).
+      let permResult = await AudioModule.getRecordingPermissionsAsync();
+      if (!permResult.granted) {
+        permResult = await AudioModule.requestRecordingPermissionsAsync();
+      }
+      const { status } = permResult;
       if (status !== 'granted') {
         setVoiceNotice('Microphone access is blocked. Allow microphone access in your device settings, or type your answer below.');
         return;

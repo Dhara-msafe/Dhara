@@ -10,8 +10,8 @@ import sys
 BACKEND_URL = "https://bharti-justice.preview.emergentagent.com/api"
 
 # Test credentials from test_credentials.md
-TEST_EMAIL = "protest@gandhikar.in"
-TEST_PASSWORD = "test1234"
+TEST_EMAIL = "voicetest2026@example.com"
+TEST_PASSWORD = "TestPass123!"
 
 class Colors:
     GREEN = '\033[92m'
@@ -33,6 +33,33 @@ def print_error(msg):
 
 def print_warning(msg):
     print(f"{Colors.YELLOW}⚠ {msg}{Colors.RESET}")
+
+def test_health():
+    """Test GET /api/health"""
+    print_test("GET /api/health")
+    
+    try:
+        response = requests.get(
+            f"{BACKEND_URL}/health",
+            timeout=10
+        )
+        
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print_success("Health endpoint responding")
+            print_success(f"Status: {data.get('status')}")
+            print_success(f"App: {data.get('app')}")
+            return True
+        else:
+            print_error(f"Health check failed with status {response.status_code}")
+            print(f"Response: {response.text}")
+            return False
+            
+    except Exception as e:
+        print_error(f"Health check request failed: {str(e)}")
+        return False
 
 def test_login():
     """Test POST /api/auth/login"""
@@ -252,6 +279,9 @@ def main():
     print(f"{Colors.BLUE}{'='*60}{Colors.RESET}")
     
     results = {}
+    
+    # Test 0: Health
+    results['health'] = test_health()
     
     # Test 1: Login
     token = test_login()

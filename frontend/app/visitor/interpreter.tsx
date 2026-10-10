@@ -158,7 +158,11 @@ export default function InterpreterScreen() {
         webStreamRef.current = stream;
         webRecorderRef.current = mr;
       } else {
-        const perm = await AudioModule.requestRecordingPermissionsAsync();
+        // P0-A: Check current status first — skip the dialog when already granted.
+        let perm = await AudioModule.getRecordingPermissionsAsync();
+        if (!perm.granted) {
+          perm = await AudioModule.requestRecordingPermissionsAsync();
+        }
         if (!perm.granted) { Alert.alert('Microphone permission denied'); return; }
         await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
         await recorder.prepareToRecordAsync();

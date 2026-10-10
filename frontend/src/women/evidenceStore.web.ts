@@ -4,8 +4,17 @@ export type EvidenceType = 'audio' | 'photo' | 'video';
 // `iv` present → `blob` in IndexedDB is AES-256-CTR ciphertext (S-B5).
 // `uri` is intentionally left blank here — ciphertext must never be handed
 // directly to <Image>/<Video>/<audio>; call `getDecryptedTempUri` first.
-export type RecordingItem = { id: string; uri: string; createdAt: string; type: EvidenceType; iv?: string; ext?: string };
-type Stored = { id: string; scope: string; blob: Blob; createdAt: string; type: EvidenceType; iv?: string; ext?: string };
+// `recording_format_version` 2 → segmented recording (P0-B).
+export type RecordingItem = {
+  id: string; uri: string; createdAt: string; type: EvidenceType;
+  iv?: string; ext?: string;
+  recording_format_version?: number;
+  session_id?: string;
+  is_segment?: boolean;
+  segment_count?: number;
+  total_duration_ms?: number;
+};
+type Stored = { id: string; scope: string; blob: Blob; createdAt: string; type: EvidenceType; iv?: string; ext?: string; is_segment?: boolean; session_id?: string; recording_format_version?: number; segment_count?: number; total_duration_ms?: number };
 
 async function database(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -30,7 +39,13 @@ export async function loadRecordings(scope: string): Promise<RecordingItem[]> {
   return rows
     .filter(row => row.scope === scope)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .map(row => ({ id: row.id, createdAt: row.createdAt, type: row.type || 'audio', iv: row.iv, ext: row.ext, uri: '' }));
+    .map(row => ({
+      id: row.id, createdAt: row.createdAt, type: row.type || 'audio',
+      iv: row.iv, ext: row.ext, uri: '',
+      is_segment: row.is_segment, session_id: row.session_id,
+      recording_format_version: row.recording_format_version,
+      segment_count: row.segment_count, total_duration_ms: row.total_duration_ms,
+    }));
 }
 
 async function saveItem(scope: string, uri: string, type: EvidenceType, ext: string): Promise<RecordingItem> {
@@ -54,10 +69,79 @@ export async function saveVideo(scope: string, uri: string): Promise<RecordingIt
   return saveItem(scope, uri, 'video', 'mp4');
 }
 export async function deleteRecording(_scope: string, item: RecordingItem): Promise<void> {
+  // P0-B: If v2 parent, also delete all segment rows
+  if (item.recording_format_version === 2 && item.session_id) {
+    const rows = await transaction<Stored[]>('readonly', store => store.getAll());
+    const segIds = rows.filter(r => r.is_segment && r.session_id === item.session_id).map(r => r.id);
+    // Delete parent + segments in one transaction
+    const db = await database();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('recordings', 'readwrite');
+      const store = tx.objectStore('recordings');
+      store.delete(item.id);
+      for (const id of segIds) store.delete(id);
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = tx.onabort = () => { db.close(); reject(new Error('Could not delete.')); };
+    });
+  }
   await transaction('readwrite', store => store.delete(item.id));
 }
 export function releaseRecordings(_items: RecordingItem[]) { /* no eagerly-created blob URLs to revoke anymore — see getDecryptedTempUri */ }
 export function discardTemporaryRecording(uri: string | null) { if (uri) URL.revokeObjectURL(uri); }
+
+// ── P0-B: Segmented recording helpers (web) ──────────────────────────────
+
+/** Saves a single audio segment blob to IndexedDB. */
+export async function saveSegment(scope: string, uri: string, sessionId: string): Promise<RecordingItem> {
+  const sourceBlob = await (await fetch(uri)).blob();
+  if (!sourceBlob.size) throw new Error('Segment is empty.');
+  const plainBytes = new Uint8Array(await sourceBlob.arrayBuffer());
+  const aesKey = await getOrCreateKey(scope);
+  const { cipherBytes, iv } = await encryptBytes(plainBytes, aesKey);
+  const cipherBlob = new Blob([cipherBytes as unknown as BlobPart]);
+  const row: Stored = {
+    id: `seg-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    scope, blob: cipherBlob, createdAt: new Date().toISOString(),
+    type: 'audio', iv, ext: 'webm', is_segment: true, session_id: sessionId,
+  };
+  await transaction('readwrite', store => store.put(row));
+  return { id: row.id, createdAt: row.createdAt, type: 'audio', iv, ext: 'webm', uri: '', is_segment: true, session_id: sessionId };
+}
+
+/** Creates a v2 parent that references its segments by session_id. */
+export async function createSegmentedParent(
+  scope: string,
+  sessionId: string,
+  segmentCount: number,
+  totalDurationMs: number,
+): Promise<RecordingItem> {
+  const row: Stored = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    scope, blob: new Blob([]), createdAt: new Date().toISOString(),
+    type: 'audio', recording_format_version: 2, session_id: sessionId,
+    segment_count: segmentCount, total_duration_ms: totalDurationMs,
+  };
+  await transaction('readwrite', store => store.put(row));
+  return {
+    id: row.id, createdAt: row.createdAt, type: 'audio', uri: '',
+    recording_format_version: 2, session_id: sessionId,
+    segment_count: segmentCount, total_duration_ms: totalDurationMs,
+  };
+}
+
+/** Returns all segment items for a session. */
+export async function loadSegments(scope: string, sessionId: string): Promise<RecordingItem[]> {
+  const all = await loadRecordings(scope);
+  return all
+    .filter(r => r.is_segment && r.session_id === sessionId)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
+/** Loads only non-segment items for display. */
+export async function loadVisibleRecordings(scope: string): Promise<RecordingItem[]> {
+  const all = await loadRecordings(scope);
+  return all.filter(r => !r.is_segment);
+}
 
 /**
  * S-B5: Decrypts the stored ciphertext blob into a fresh `blob:` URL for

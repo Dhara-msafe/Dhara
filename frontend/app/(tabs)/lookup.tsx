@@ -211,7 +211,13 @@ export default function LookupScreen() {
     }
 
     try {
-      const perm = await AudioModule.requestRecordingPermissionsAsync();
+      // P0-A: Check current status first — skip the request dialog when
+      // permission is already granted (avoids unnecessary Android dialog
+      // backgrounding and repeat prompts).
+      let perm = await AudioModule.getRecordingPermissionsAsync();
+      if (!perm.granted) {
+        perm = await AudioModule.requestRecordingPermissionsAsync();
+      }
       if (!perm.granted) {
         if (!perm.canAskAgain) {
           Alert.alert(

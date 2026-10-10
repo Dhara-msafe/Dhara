@@ -12,8 +12,9 @@ import { crossAlert } from '@/src/utils/crossAlert';
 import { useAuth } from '@/src/auth';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import {
-  saveRecording, savePhoto, saveVideo, loadRecordings, deleteRecording, releaseRecordings,
+  saveRecording, savePhoto, saveVideo, deleteRecording, releaseRecordings,
   discardTemporaryRecording, getDecryptedTempUri, releaseDecryptedTempUri, type RecordingItem,
+  saveSegment, createSegmentedParent, loadSegments, loadVisibleRecordings,
 } from '@/src/women/evidenceStore';
 import { hasPin, setPin, verifyPin } from '@/src/women/evidenceLock';
 import { getManifestEntry, type ManifestEntry, type GpsPoint } from '@/src/women/evidenceManifest';
@@ -21,6 +22,12 @@ import { anchorItem, backupItem } from '@/src/women/evidenceBackup';
 import { exportCertificate } from '@/src/women/evidenceCertificate';
 import { screenPlayer } from '@/src/media/screenPlayer';
 import type { TtsPlayer } from '@/src/voice/tts';
+import {
+  isSegmentedRecordingEnabled, SEGMENT_TARGET_MS,
+  createSession, commitSegment, finalizeSession, interruptSession,
+  getRecoverableSessions, recoverSession, deleteSession,
+  type EvidenceSession,
+} from '@/src/women/evidenceSession';
 
 const c = theme.colors;
 
@@ -113,6 +120,14 @@ export default function EvidenceLocker() {
   const epoch = useRef(0);
   const working = useRef(false);
   const active = useRef(false);
+  // P0-B: segmented recording refs
+  const segmentedEnabled = useRef(isSegmentedRecordingEnabled());
+  const sessionRef = useRef<EvidenceSession | null>(null);
+  const segTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const segCountRef = useRef(0);
+  const segStartTimeRef = useRef(0);
+  const [segmentCount, setSegmentCount] = useState(0);
+  const [recoverable, setRecoverable] = useState<EvidenceSession[]>([]);
   const owned = useRef<RecordingItem[]>([]);
   const photoUrisRef = useRef<Record<string, string>>({});
   const videoPreviewRef = useRef<typeof videoPreview>(null);
@@ -130,12 +145,20 @@ export default function EvidenceLocker() {
   const cancel = useCallback(() => {
     epoch.current++;
     stopPlayer();
+    // P0-B: If a segmented session is running, interrupt it (committed segments survive).
+    if (sessionRef.current && segmentedEnabled.current) {
+      const sid = sessionRef.current.sessionId;
+      sessionRef.current = null;
+      if (segTimerRef.current) { clearTimeout(segTimerRef.current); segTimerRef.current = null; }
+      void interruptSession(scope, sid).catch(() => {});
+    }
     if (active.current) { active.current = false; void recorder.stop().then(() => discardTemporaryRecording(recorder.uri)).catch(() => {}); }
     if (Platform.OS !== 'web') void setAudioModeAsync({ allowsRecording: false }).catch(() => {});
-  }, [recorder, stopPlayer]);
+  }, [recorder, stopPlayer, scope]);
   useFocusEffect(useCallback(() => {
     let alive = true;
-    loadRecordings(scope).then(async rows => {
+    // P0-B: Load only non-segment items for the top-level list.
+    loadVisibleRecordings(scope).then(async rows => {
       if (!alive) { releaseRecordings(rows); return; }
       owned.current = rows; setItems(rows);
       // S-B5: load each item's local hash-chain/anchor/backup status (local
@@ -156,6 +179,12 @@ export default function EvidenceLocker() {
       decrypted.forEach(entry => { if (entry) map[entry[0]] = entry[1]; });
       setPhotoUris(map);
     }).catch(() => setStatus('Saved recordings could not load. Please reopen this screen.'));
+    // P0-B: Check for recoverable interrupted sessions.
+    if (segmentedEnabled.current) {
+      getRecoverableSessions(scope).then(sessions => {
+        if (alive) setRecoverable(sessions);
+      }).catch(() => {});
+    }
     return () => {
       alive = false; cancel(); releaseRecordings(owned.current);
       Object.entries(photoUrisRef.current).forEach(([id, uri]) => {
@@ -169,17 +198,58 @@ export default function EvidenceLocker() {
   }, [scope, cancel, closeVideoPreview]));
   useEffect(() => {
     const sub = AppState.addEventListener('change', value => {
-      // Only interrupt an active recording when the app leaves the foreground.
-      // Do NOT call cancel() (which increments epoch) during setup phases such
-      // as when the mic-permission dialog briefly backgrounds the app — that
-      // would cause the epoch guard inside start() to abort the flow silently.
       if (value !== 'active' && active.current) {
+        // P0-B: When segmented recording is active, interrupt preserves committed segments.
+        if (sessionRef.current && segmentedEnabled.current) {
+          setStatus(`Recording interrupted. ${segCountRef.current} segment(s) were saved and can be recovered.`);
+        } else {
+          setStatus('Recording stopped. Unfinished audio is not saved. Keep this screen open and use Stop & save.');
+        }
         cancel();
-        setStatus('Recording stopped. Unfinished audio is not saved. Keep this screen open and use Stop & save.');
       }
     });
     return () => sub.remove();
   }, [cancel]);
+  // ── P0-B: Segment cycling ─────────────────────────────────────────────────
+  // commitCurrentSegment: stop recorder → encrypt+persist the segment →
+  // restart recording for the next segment. Runs on a ~SEGMENT_TARGET_MS timer.
+  const commitCurrentSegment = useCallback(async () => {
+    if (!active.current || !sessionRef.current) return;
+    const session = sessionRef.current;
+    const segIdx = segCountRef.current;
+    try {
+      await recorder.stop();
+      const uri = recorder.uri;
+      if (uri) {
+        const segItem = await saveSegment(scope, uri, session.sessionId);
+        discardTemporaryRecording(uri);
+        const durationMs = SEGMENT_TARGET_MS; // approximate
+        await commitSegment(scope, session.sessionId, {
+          segId: segItem.id, index: segIdx, itemId: segItem.id,
+          durationMs, committedAt: new Date().toISOString(),
+        });
+        segCountRef.current = segIdx + 1;
+        setSegmentCount(segIdx + 1);
+      }
+    } catch (e: any) {
+      console.warn('[P0-B] segment commit error:', e?.message);
+      // Don't fail the whole session — just skip this segment and continue
+    }
+    // Restart recording for the next segment (if still active)
+    if (!active.current || !sessionRef.current) return;
+    try {
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+      segStartTimeRef.current = Date.now();
+      segTimerRef.current = setTimeout(() => { void commitCurrentSegment(); }, SEGMENT_TARGET_MS);
+    } catch (e: any) {
+      console.warn('[P0-B] segment restart error:', e?.message);
+      // Recording can't continue — finalize what we have
+      active.current = false;
+      setStatus(`Recording stopped after ${segCountRef.current} segment(s). Saved segments can be recovered.`);
+    }
+  }, [recorder, scope]);
+
   const start = useCallback(async () => {
     if (working.current || active.current) return;
     working.current = true; setBusy(true); setStatus(''); stopPlayer();
@@ -196,16 +266,25 @@ export default function EvidenceLocker() {
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true, shouldPlayInBackground: false });
       await recorder.prepareToRecordAsync();
       if (id !== epoch.current) {
-        // Web MediaRecorder cannot stop while inactive. Briefly start solely
-        // to release the prepared input stream; never retain this audio.
         if (Platform.OS === 'web') recorder.record();
         await recorder.stop(); discardTemporaryRecording(recorder.uri); return;
       }
       recorder.record(); active.current = true;
-      setStatus('Recording on this device. Tap Stop & save before leaving this screen.');
+      // P0-B: If segmented recording is enabled, start the segment cycle.
+      if (segmentedEnabled.current) {
+        const session = await createSession(scope);
+        sessionRef.current = session;
+        segCountRef.current = 0;
+        setSegmentCount(0);
+        segStartTimeRef.current = Date.now();
+        segTimerRef.current = setTimeout(() => { void commitCurrentSegment(); }, SEGMENT_TARGET_MS);
+        setStatus('Recording in segments. Each ~5s chunk is automatically saved to protect your evidence.');
+      } else {
+        setStatus('Recording on this device. Tap Stop & save before leaving this screen.');
+      }
     } catch (error: any) { if (id === epoch.current) setStatus(error.message || 'Recording could not start. Please try again.'); }
     finally { working.current = false; setBusy(false); }
-  }, [recorder, stopPlayer]);
+  }, [recorder, stopPlayer, scope, commitCurrentSegment]);
   const started = useRef(false);
   useEffect(() => {
     if (params.record === '1' && !started.current) { started.current = true; router.setParams({ record: '' }); void start(); }
@@ -213,13 +292,45 @@ export default function EvidenceLocker() {
   const save = async () => {
     if (working.current || !active.current) return;
     working.current = true; setBusy(true); active.current = false;
+    // P0-B: Stop the segment timer
+    if (segTimerRef.current) { clearTimeout(segTimerRef.current); segTimerRef.current = null; }
     try {
       await recorder.stop();
-      if (!recorder.uri) throw new Error('No audio was captured. Please record again.');
-      const item = await saveRecording(scope, recorder.uri);
-      discardTemporaryRecording(recorder.uri);
-      owned.current = [item, ...owned.current]; setItems(owned.current);
-      setStatus('Saved on this device. Nothing was uploaded or sent.');
+      if (segmentedEnabled.current && sessionRef.current) {
+        // ── P0-B: Segmented save ─────────────────────────────────────────
+        const session = sessionRef.current;
+        sessionRef.current = null;
+        // Commit the final partial segment (whatever was recorded since the last commit)
+        const uri = recorder.uri;
+        if (uri) {
+          try {
+            const segItem = await saveSegment(scope, uri, session.sessionId);
+            discardTemporaryRecording(uri);
+            const elapsed = Date.now() - segStartTimeRef.current;
+            await commitSegment(scope, session.sessionId, {
+              segId: segItem.id, index: segCountRef.current, itemId: segItem.id,
+              durationMs: elapsed, committedAt: new Date().toISOString(),
+            });
+            segCountRef.current++;
+          } catch { /* final segment lost, committed segments remain */ }
+        }
+        // Create the v2 parent item
+        const totalDuration = segCountRef.current * SEGMENT_TARGET_MS;
+        const parent = await createSegmentedParent(scope, session.sessionId, segCountRef.current, totalDuration);
+        await finalizeSession(scope, session.sessionId, parent.id);
+        // Refresh the list
+        const visible = await loadVisibleRecordings(scope);
+        owned.current = visible; setItems(visible);
+        setSegmentCount(0);
+        setStatus(`Saved ${segCountRef.current} segment(s) on this device. Nothing was uploaded or sent.`);
+      } else {
+        // ── V1: Legacy single-file save ───────────────────────────────────
+        if (!recorder.uri) throw new Error('No audio was captured. Please record again.');
+        const item = await saveRecording(scope, recorder.uri);
+        discardTemporaryRecording(recorder.uri);
+        owned.current = [item, ...owned.current]; setItems(owned.current);
+        setStatus('Saved on this device. Nothing was uploaded or sent.');
+      }
     } catch (error: any) { setStatus(error.message || 'Recording could not be saved.'); }
     finally { working.current = false; setBusy(false); if (Platform.OS !== 'web') void setAudioModeAsync({ allowsRecording: false }).catch(() => {}); }
   };
@@ -227,6 +338,30 @@ export default function EvidenceLocker() {
     const wasPlaying = playing === item.id;
     stopPlayer(); if (wasPlaying) return;
     try {
+      // P0-B: v2 segmented items — play segments in sequence
+      if (item.recording_format_version === 2 && item.session_id) {
+        const segs = await loadSegments(scope, item.session_id);
+        if (segs.length === 0) { setStatus('No segments found for this recording.'); return; }
+        setPlaying(item.id);
+        const playNext = async (idx: number) => {
+          if (idx >= segs.length || playing !== item.id) { stopPlayer(); return; }
+          const seg = segs[idx];
+          const tempUri = await getDecryptedTempUri(scope, seg);
+          playingTempUri.current = { uri: tempUri, wasDecrypted: !!seg.iv };
+          const sound = screenPlayer(tempUri);
+          player.current = sound;
+          sound.onFinish(() => {
+            releaseDecryptedTempUri(tempUri, !!seg.iv);
+            playingTempUri.current = null;
+            player.current = null;
+            void playNext(idx + 1);
+          });
+          await sound.play();
+        };
+        void playNext(0);
+        return;
+      }
+      // V1: single-file playback
       const tempUri = await getDecryptedTempUri(scope, item);
       playingTempUri.current = { uri: tempUri, wasDecrypted: !!item.iv };
       const sound = screenPlayer(tempUri); player.current = sound; setPlaying(item.id);
@@ -251,9 +386,39 @@ export default function EvidenceLocker() {
       if (videoPreview?.id === item.id) closeVideoPreview();
       if (photoUris[item.id]) { releaseDecryptedTempUri(photoUris[item.id], !!item.iv); setPhotoUris(prev => { const next = { ...prev }; delete next[item.id]; return next; }); }
       await deleteRecording(scope, item);
+      // P0-B: Also clean up the session record if v2
+      if (item.recording_format_version === 2 && item.session_id) {
+        await deleteSession(scope, item.session_id).catch(() => {});
+      }
       owned.current = owned.current.filter(row => row.id !== item.id); setItems(owned.current); setDeleting(null); setStatus('Recording deleted from this device.');
     } catch { setStatus('Could not delete this recording. Please try again.'); }
   }, [scope, stopPlayer, videoPreview, closeVideoPreview, photoUris]);
+
+  // ── P0-B: Recover an interrupted session ──────────────────────────────────
+  const handleRecover = useCallback(async (session: EvidenceSession) => {
+    setBusy(true);
+    try {
+      const totalDuration = session.segments.length * SEGMENT_TARGET_MS;
+      const parent = await createSegmentedParent(scope, session.sessionId, session.segments.length, totalDuration);
+      await recoverSession(scope, session.sessionId, parent.id);
+      const visible = await loadVisibleRecordings(scope);
+      owned.current = visible; setItems(visible);
+      setRecoverable(prev => prev.filter(s => s.sessionId !== session.sessionId));
+      setStatus(`Recovered ${session.segments.length} segment(s) from an interrupted recording.`);
+    } catch { setStatus('Could not recover this session. Please try again.'); }
+    finally { setBusy(false); }
+  }, [scope]);
+
+  const dismissRecoverable = useCallback(async (session: EvidenceSession) => {
+    await deleteSession(scope, session.sessionId).catch(() => {});
+    // Also delete the segment files
+    try {
+      const segs = await loadSegments(scope, session.sessionId);
+      for (const seg of segs) await deleteRecording(scope, seg).catch(() => {});
+    } catch {}
+    setRecoverable(prev => prev.filter(s => s.sessionId !== session.sessionId));
+    setStatus('Interrupted session discarded.');
+  }, [scope]);
 
   // ── Camera capture (DHARA: photo + video, no network, 2-min video cap) ──
   const capture = useCallback(async (kind: 'photo' | 'video') => {
@@ -381,9 +546,30 @@ export default function EvidenceLocker() {
       <ScreenHeader title="Evidence locker" subtitle="Local recordings, photos & video · no network needed" />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
         <Text testID="evidence-storage-notice" style={styles.note}>Capture only when safe. Everything saved here is encrypted on this device and protected by your PIN; it is not backed up or sent to anyone unless you tap Share, Anchor or Back up. Clearing app data or uninstalling can erase it.</Text>
-        <Text testID="evidence-recording-timer" style={styles.timer}>{state.isRecording ? `Recording · ${Math.floor(state.durationMillis / 1000)}s` : 'Ready to record'}</Text>
+        <Text testID="evidence-recording-timer" style={styles.timer}>
+          {state.isRecording
+            ? segmentedEnabled.current
+              ? `Recording · ${Math.floor(state.durationMillis / 1000)}s · ${segmentCount} segment(s) saved`
+              : `Recording · ${Math.floor(state.durationMillis / 1000)}s`
+            : 'Ready to record'}
+        </Text>
         <Pressable testID="evidence-record-toggle" disabled={busy} style={styles.button} onPress={state.isRecording ? save : start}>{busy ? <ActivityIndicator color={c.onBrandPrimary} /> : <Text style={styles.buttonText}>{state.isRecording ? 'Stop & save' : 'Start voice recording'}</Text>}</Pressable>
-        {state.isRecording && <Pressable testID="evidence-discard" style={styles.secondary} onPress={() => { cancel(); setStatus('Unfinished recording discarded.'); }}><Text style={styles.label}>Discard recording</Text></Pressable>}
+        {state.isRecording && <Pressable testID="evidence-discard" style={styles.secondary} onPress={() => { cancel(); setStatus(segmentedEnabled.current ? `Discarded. ${segCountRef.current} committed segment(s) can still be recovered.` : 'Unfinished recording discarded.'); }}><Text style={styles.label}>Discard recording</Text></Pressable>}
+        {/* P0-B: Recovery banner for interrupted sessions */}
+        {recoverable.length > 0 && recoverable.map(ses => (
+          <View key={ses.sessionId} style={[styles.secondary, { borderColor: c.gold }]} testID={`recovery-${ses.sessionId}`}>
+            <Text style={styles.label}>Interrupted recording found — {ses.segments.length} segment(s) saved</Text>
+            <Text style={styles.note}>Started {new Date(ses.startedAt).toLocaleString()}</Text>
+            <View style={styles.captureRow}>
+              <Pressable style={[styles.control, { flex: 1 }]} onPress={() => handleRecover(ses)} disabled={busy}>
+                <Text style={[styles.label, { color: c.verifiedGreen }]}>Recover</Text>
+              </Pressable>
+              <Pressable style={[styles.control, { flex: 1 }]} onPress={() => dismissRecoverable(ses)} disabled={busy}>
+                <Text style={[styles.label, { color: c.emergencyRed }]}>Discard</Text>
+              </Pressable>
+            </View>
+          </View>
+        ))}
         <View style={styles.captureRow}>
           <Pressable testID="evidence-take-photo" disabled={busy || state.isRecording} style={[styles.secondary, styles.captureBtn]} onPress={() => capture('photo')}>
             <Text style={styles.label}>📷 Take photo</Text>
@@ -395,7 +581,11 @@ export default function EvidenceLocker() {
         {!!status && <Text testID="evidence-status" accessibilityLiveRegion="polite" style={styles.note}>{status}</Text>}
         <Text style={styles.heading} testID="evidence-count">Saved items ({items.length})</Text>
         {items.map(item => <View key={item.id} style={styles.secondary} testID={`recording-${item.id}`}>
-          <Text style={styles.label}>{item.type === 'photo' ? '📷 Photo' : item.type === 'video' ? '🎥 Video' : '🎙️ Audio'} · {new Date(item.createdAt).toLocaleString()}</Text>
+          <Text style={styles.label}>
+            {item.type === 'photo' ? '📷 Photo' : item.type === 'video' ? '🎥 Video' : '🎙️ Audio'}
+            {item.recording_format_version === 2 ? ` (${item.segment_count ?? 0} segments)` : ''}
+            {' · '}{new Date(item.createdAt).toLocaleString()}
+          </Text>
           {item.type === 'photo' && (
             photoUris[item.id]
               ? <Image source={{ uri: photoUris[item.id] }} style={styles.thumb} resizeMode="cover" />

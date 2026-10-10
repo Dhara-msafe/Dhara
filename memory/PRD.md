@@ -1,5 +1,47 @@
 # Dhara (formerly Gandhikar) — PRD
 
+## 10 October 2026 — P0-A Mic Permission Fix + P0-B Segmented Evidence Recording
+
+### P0-A: Microphone Permission Pre-check (All Voice Screens)
+- **Root cause (Evidence Locker, fixed prior session):** `AppState` listener triggered `cancel()` when Android's mic-permission dialog briefly backgrounds the app. The `epoch` guard then aborted the flow even though no recording had begun.
+- **Fix applied to 6 screens:**
+  1. `app/(tabs)/index.tsx` (Ask DHARA) — permission pre-check + AppState guard via `permissionPhaseRef`
+  2. `app/fir-draft/index.tsx` — permission pre-check only (no AppState listener)
+  3. `app/(tabs)/lookup.tsx` — permission pre-check only
+  4. `app/intake/[token].tsx` — permission pre-check only
+  5. `app/visitor/interpreter.tsx` — permission pre-check only
+  6. `app/women/evidence-locker.tsx` — already fixed (prior session)
+- Pattern: `getRecordingPermissionsAsync()` before `requestRecordingPermissionsAsync()`. When permission is already granted, the system dialog never shows and no AppState event fires. Ask DHARA additionally has the same lifecycle bug as Evidence Locker (AppState listener cancels mic flow during permission dialog).
+- **STATUS: CODE COMPLETE — PHYSICAL DEVICE VERIFICATION PENDING**
+
+### P0-B: Segmented Evidence Recording
+- **Problem:** The Evidence Locker recorded as a single take. If the app crashed, was closed, or the user navigated away before hitting Stop, the entire recording was lost.
+- **Solution:** ~5-second segment cycling. Each committed segment is individually AES-256-encrypted and persisted. Interrupted sessions are recoverable.
+- **New files:**
+  - `src/women/evidenceSession.ts` — session manager (create/commit/finalize/interrupt/recover)
+- **Modified files:**
+  - `src/women/evidenceStore.ts` — added v2 `RecordingItem` type, `saveSegment()`, `createSegmentedParent()`, `loadSegments()`, `loadVisibleRecordings()`, v2-aware `deleteRecording()`
+  - `src/women/evidenceStore.web.ts` — same v2 additions for web platform
+  - `app/women/evidence-locker.tsx` — segment cycling during recording, recovery banner for interrupted sessions, sequential segment playback, v2-aware display
+- **Feature flag:** `EXPO_PUBLIC_EVIDENCE_SEGMENTED_RECORDING=false` (disabled for safe rollout)
+- **Backward compatibility:** Existing v1 single-file recordings are untouched. No destructive migration. v1 and v2 items coexist.
+- **Schema:** Additive `recording_format_version`, `session_id`, `is_segment`, `segment_count`, `total_duration_ms` fields on `RecordingItem`.
+- **STATUS: CODE COMPLETE — FEATURE FLAG OFF — PHYSICAL DEVICE VERIFICATION PENDING**
+
+### Privacy Design Principles Applied
+- Location collected ONLY during explicit Anchor action (not during recording)
+- Evidence stored locally first, encrypted (AES-256-CTR), PIN-gated
+- Sharing/backup/anchoring are explicit user-initiated actions
+- Users can delete individual items and entire segmented recordings
+- Audit trail for evidence actions (anchor/backup) persisted in manifest
+
+### TECH DEBT — SHARED VOICE RUNTIME
+- Six screens implement microphone behavior independently without a shared component
+- Proposed later controlled consolidation after P0 regression is resolved
+- Not attempted during this P0 sprint to avoid architecture rewrite risk
+
+
+
 ## 4 October 2026 — Help and redesigned-screen voice repair
 - User: all five Help actions fail; also fix the earlier redesigned-screen voice issue. Found four empty Help tile handlers. Scope excludes FIR mic parity and backend/`src/voice` changes.
 - Help: 112 dialler with visible fallback/status; Silent alert prepares per-contact SMS with explicit optional location, copy and contact management, never claims automatic delivery/silence; Record now opens local recording; officer card retrieves released law with loading/error/retry; Nearest help launches Maps searches without fabricated distances or local-service verification claims. Corrected device-dependent SOS power-button advice.

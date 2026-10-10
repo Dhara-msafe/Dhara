@@ -82,7 +82,12 @@ export default function ClientIntake() {
     }
     // ── Start recording ──
     try {
-      const { status } = await AudioModule.requestRecordingPermissionsAsync();
+      // P0-A: Check current status first — skip the dialog when already granted.
+      let permResult = await AudioModule.getRecordingPermissionsAsync();
+      if (!permResult.granted) {
+        permResult = await AudioModule.requestRecordingPermissionsAsync();
+      }
+      const { status } = permResult;
       if (status !== 'granted') {
         alert('Microphone permission denied. Please allow microphone access in Settings, or type your answer.');
         return;

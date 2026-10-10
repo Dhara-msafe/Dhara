@@ -301,20 +301,24 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 3
+  test_sequence: 4
   run_ui: true
 
 test_plan:
   current_focus:
-    - "Evidence Locker voice recording bug fix"
+    - "P0-A permission pre-check across all voice screens"
+    - "P0-B segmented evidence recording"
+    - "Evidence Locker v1 backward compatibility"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
     - agent: "main"
-      message: "Implemented WhatsApp-style mic UI replacing the old tap-to-record/tap-to-stop pattern. Key changes: (1) PanResponder on mic button for hold+slide gesture, (2) Recording bar replaces text input showing red dot timer + 'Slide to cancel', (3) Pulsing mic animation, (4) Slide left past -80px threshold shows 'Release to cancel' with trash icon, (5) Release in cancel zone discards recording. The mic button stays always-mounted (Animated.View with PanResponder) for gesture continuity. Test credentials: protest@gandhikar.in / test1234. Backend is on port 8001, frontend on port 3000."
+      message: "P0-A: Applied microphone permission pre-check (getRecordingPermissionsAsync before requestRecordingPermissionsAsync) to all 6 voice screens: (1) Ask DHARA index.tsx, (2) FIR Draft, (3) Lookup, (4) Intake, (5) Interpreter, (6) Evidence Locker (already done). Additionally fixed the AppState lifecycle bug in Ask DHARA (identical to Evidence Locker's bug — Android permission dialog backgrounds the app, triggering onLockedCancel). Added permissionPhaseRef guard. P0-B: Implemented segmented evidence recording behind feature flag EXPO_PUBLIC_EVIDENCE_SEGMENTED_RECORDING=false. New files: evidenceSession.ts (session manager), updated evidenceStore.ts/web.ts with v2 types and segment helpers. Evidence Locker now supports: ~5s segment cycling, individual segment encryption+persistence, interrupted session recovery, v2 parent items with segment references, sequential segment playback. Feature flag is currently OFF (disabled). Existing v1 recordings untouched. Test credentials: voicetest2026@example.com / TestPass123! Backend port 8001, frontend port 3000."
     - agent: "testing"
       message: "✅ BACKEND TESTING COMPLETE - All backend APIs tested and working: (1) POST /api/auth/login - ✅ PASSED, (2) GET /api/auth/me - ✅ PASSED, (3) POST /api/chat/stream (SSE) - ✅ PASSED with proper streaming, (4) POST /api/voice/tts - ✅ PASSED with audio output. STT endpoint not tested (requires audio file). Created /app/backend_test.py for automated testing. Frontend tasks (WhatsApp-style mic UI, text chat, TTS speaker button, web compatibility) are marked needs_retesting=true but NOT TESTED per instructions (frontend testing not in scope). Main agent should verify frontend functionality or request user testing."
     - agent: "testing"
       message: "✅ FRONTEND TESTING COMPLETE - All frontend features tested and working perfectly on web (mobile viewport 390x844). Test results: (1) Login flow: ✅ Language selector → Login → Chat screen navigation works. (2) Chat UI: ✅ All elements present (header, SOS, New Chat, mode toggle, upgrade banner, suggestions, input bar, tabs). (3) WhatsApp-style mic UI: ✅ Visual implementation correct (terracotta/orange circular button 52x52px), mic/send toggle works perfectly. (4) Text chat: ✅ Type, send, streaming response, speaker icons all working. (5) Tab navigation: ✅ All 4 tabs (Ask, Rights, History, Settings) accessible. (6) New Chat: ✅ Clears messages, shows suggestions. (7) Pro mode toggle: ✅ Works correctly. (8) Suggestions: ✅ Clickable and send messages. Audio recording NOT tested (requires native build, as expected). All text-based interactions fully functional. No critical issues found."
+    - agent: "testing"
+      message: "✅ BACKEND RE-VERIFICATION COMPLETE (Test Sequence 4) - All backend APIs re-tested and confirmed working with correct test credentials (voicetest2026@example.com / TestPass123!). Test results: (1) GET /api/health - ✅ PASSED (200 OK, status: ok, app: Dhara), (2) POST /api/auth/login - ✅ PASSED (200 OK, token received), (3) GET /api/auth/me - ✅ PASSED (200 OK, user profile returned), (4) POST /api/chat/stream (SSE) - ✅ PASSED (200 OK, 64 chunks received, proper streaming with legal content), (5) POST /api/voice/tts - ✅ PASSED (200 OK, audio/mpeg, 21504 bytes audio data). Evidence Locker backend endpoints also verified in logs: POST /api/evidence/anchor, POST /api/evidence/upload/init, POST /api/evidence/upload/chunk, POST /api/evidence/upload/complete, GET /api/evidence/backups - all returning 200 OK. Backend logs show no errors. All backend functionality working correctly. Updated /app/backend_test.py with correct credentials and health endpoint test. No backend issues found."
