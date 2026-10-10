@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Platform, AppState, Image, TextInput, Linking } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AudioModule, RecordingPresets, setAudioModeAsync, useAudioRecorder, useAudioRecorderState } from 'expo-audio';
+import { AudioModule, setAudioModeAsync } from 'expo-audio';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
@@ -11,6 +11,7 @@ import { theme } from '@/src/theme';
 import { crossAlert } from '@/src/utils/crossAlert';
 import { useAuth } from '@/src/auth';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
+import { useEvidenceRecorder } from '@/src/women/EvidenceRecorderProvider';
 import {
   saveRecording, savePhoto, saveVideo, deleteRecording, releaseRecordings,
   discardTemporaryRecording, getDecryptedTempUri, releaseDecryptedTempUri, type RecordingItem,
@@ -103,8 +104,8 @@ export default function EvidenceLocker() {
   const { user } = useAuth();
   const scope = user?.id || 'device';
   const [unlocked, setUnlocked] = useState(false);
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
-  const state = useAudioRecorderState(recorder, 250);
+  // Item G: Get recorder from EvidenceRecorderProvider (survives navigation).
+  const { recorder, recorderState: state, claimForLocker, releaseLockerClaim } = useEvidenceRecorder();
   const [items, setItems] = useState<RecordingItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
@@ -152,9 +153,14 @@ export default function EvidenceLocker() {
       if (segTimerRef.current) { clearTimeout(segTimerRef.current); segTimerRef.current = null; }
       void interruptSession(scope, sid).catch(() => {});
     }
-    if (active.current) { active.current = false; void recorder.stop().then(() => discardTemporaryRecording(recorder.uri)).catch(() => {}); }
-    if (Platform.OS !== 'web') void setAudioModeAsync({ allowsRecording: false }).catch(() => {});
-  }, [recorder, stopPlayer, scope]);
+    if (active.current) {
+      active.current = false;
+      releaseLockerClaim(); // release provider ownership
+      void recorder.stop().then(() => discardTemporaryRecording(recorder.uri)).catch(() => {});
+      // Only reset audio mode if WE started recording (not a trigger recording).
+      if (Platform.OS !== 'web') void setAudioModeAsync({ allowsRecording: false }).catch(() => {});
+    }
+  }, [recorder, stopPlayer, scope, releaseLockerClaim]);
   useFocusEffect(useCallback(() => {
     let alive = true;
     // P0-B: Load only non-segment items for the top-level list.
@@ -269,6 +275,7 @@ export default function EvidenceLocker() {
         if (Platform.OS === 'web') recorder.record();
         await recorder.stop(); discardTemporaryRecording(recorder.uri); return;
       }
+      claimForLocker(); // claim provider ownership before recording starts
       recorder.record(); active.current = true;
       // P0-B: If segmented recording is enabled, start the segment cycle.
       if (segmentedEnabled.current) {
@@ -284,7 +291,7 @@ export default function EvidenceLocker() {
       }
     } catch (error: any) { if (id === epoch.current) setStatus(error.message || 'Recording could not start. Please try again.'); }
     finally { working.current = false; setBusy(false); }
-  }, [recorder, stopPlayer, scope, commitCurrentSegment]);
+  }, [recorder, stopPlayer, scope, commitCurrentSegment, claimForLocker]);
   const started = useRef(false);
   useEffect(() => {
     if (params.record === '1' && !started.current) { started.current = true; router.setParams({ record: '' }); void start(); }
@@ -332,7 +339,11 @@ export default function EvidenceLocker() {
         setStatus('Saved on this device. Nothing was uploaded or sent.');
       }
     } catch (error: any) { setStatus(error.message || 'Recording could not be saved.'); }
-    finally { working.current = false; setBusy(false); if (Platform.OS !== 'web') void setAudioModeAsync({ allowsRecording: false }).catch(() => {}); }
+    finally { 
+      working.current = false; setBusy(false); 
+      releaseLockerClaim(); // release provider ownership after save
+      if (Platform.OS !== 'web') void setAudioModeAsync({ allowsRecording: false }).catch(() => {}); 
+    }
   };
   const play = useCallback(async (item: RecordingItem) => {
     const wasPlaying = playing === item.id;

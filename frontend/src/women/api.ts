@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE } from '../apiBase';
+import { getStoredPhrase, storePhrase } from './codePhraseStore';
 
 export type Helpline = {
   service_id: string; name: string; number: string; channel: string;
@@ -40,9 +41,8 @@ export async function safetyRoute(body: { text?: string; lang: string; state?: s
 }
 
 // ── On-device safety data (DPDP: private, never leaves the device) ───────────
-const CIRCLE_KEY = 'ws_trusted_circle';
-const CODE_KEY = 'ws_code_phrase';
-const PLAN_KEY = 'ws_safety_plan';
+const CIRCLE_KEY  = 'ws_trusted_circle';
+const PLAN_KEY    = 'ws_safety_plan';
 const CHECKIN_KEY = 'ws_checkin_enabled';
 
 export type Contact = { id: string; name: string; phone: string; notify?: boolean };
@@ -53,11 +53,13 @@ export async function getCircle(): Promise<Contact[]> {
 export async function saveCircle(list: Contact[]): Promise<void> {
   await AsyncStorage.setItem(CIRCLE_KEY, JSON.stringify(list.slice(0, 3)));
 }
+/** @deprecated use getStoredPhrase() from codePhraseStore directly. */
 export async function getCodePhrase(): Promise<string> {
-  return (await AsyncStorage.getItem(CODE_KEY)) || '';
+  return getStoredPhrase();
 }
+/** @deprecated use storePhrase() from codePhraseStore directly. */
 export async function saveCodePhrase(p: string): Promise<void> {
-  await AsyncStorage.setItem(CODE_KEY, p);
+  await storePhrase(p);
 }
 export async function getPlan(): Promise<Record<string, string>> {
   const v = await AsyncStorage.getItem(PLAN_KEY); return v ? JSON.parse(v) : {};

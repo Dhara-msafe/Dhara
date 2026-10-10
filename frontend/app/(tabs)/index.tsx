@@ -42,6 +42,11 @@ import { addBookmark } from '@/src/bookmarks';
 import { t } from '@/src/i18n';
 import { MarqueeBanner } from '@/src/components/MarqueeBanner';
 import { verifiedLabel, isStale, STALE_WARNING_TEXT } from '@/src/citationStaleness';
+// ── Phase 1: Code-phrase safety intercept ────────────────────────────────────
+import { getStoredPhrase } from '@/src/women/codePhraseStore';
+import { isCodePhraseMatch } from '@/src/women/codePhraseMatcher';
+import { triggerSafetySequence } from '@/src/women/safetyTriggerCoordinator';
+import { useEvidenceRecorder } from '@/src/women/EvidenceRecorderProvider';
 
 /** Strip raw markdown markers from streaming text so asterisks/hashes never
  *  flash in the UI while the LLM is still mid-sentence. Called only on the
@@ -265,6 +270,8 @@ const isIpcCitation = (c: { act?: string; citation?: string } | null | undefined
 
 export default function ChatScreen() {
   const { token, user, language, autoSpeak, ttsVolume, ttsVoiceMode, refreshUser, forceLogout } = useAuth();
+  // Phase 1: shared evidence recorder from provider (needed for safety trigger)
+  const { startTriggerRecording } = useEvidenceRecorder();
   const router = useRouter();
   const entryParams = useLocalSearchParams<{ draft?: string; entry?: string; voiceHint?: string; autostartMic?: string; topicId?: string }>();
   const focused = useIsFocused();
@@ -585,6 +592,30 @@ export default function ChatScreen() {
       const q = text.trim();
       if (!q || streaming || !token) return;
       if (user?.is_guest && guestQuota.limitReached) return;
+
+      // ── Phase 1: Code-phrase safety intercept ────────────────────────────
+      // This MUST run before trackEvent / setMessages so the phrase is never
+      // sent to analytics, the backend, or rendered in the chat history.
+      if (process.env.EXPO_PUBLIC_SAFE_WORD_V1 === 'true') {
+        try {
+          const stored = await getStoredPhrase();
+          if (stored && isCodePhraseMatch(q, stored)) {
+            // Phrase matched — trigger safety sequence, swallow the message.
+            const scope = user?.id || 'device';
+            await triggerSafetySequence({
+              scope,
+              startEvidenceRecording: startTriggerRecording,
+              navigateToSilentAlert: () => router.push('/women/silent-alert'),
+            });
+            setInput('');
+            return; // DO NOT send to LLM, analytics, or chat history
+          }
+        } catch {
+          // Any error in the intercept must not block normal chat.
+        }
+      }
+      // ── End code-phrase intercept ─────────────────────────────────────────
+
       const userId = Math.random().toString(36).slice(2);
       const assistantId = Math.random().toString(36).slice(2);
       const modeToSend: 'basic' | 'pro' = proMode ? 'pro' : 'basic';
@@ -946,7 +977,7 @@ export default function ChatScreen() {
         setStreaming(false);
       }
     },
-    [streaming, token, sessionId, language, proMode, refreshUser, autoSpeak, forceLogout, user, guestQuota.limitReached]
+    [streaming, token, sessionId, language, proMode, refreshUser, autoSpeak, forceLogout, user, guestQuota.limitReached, startTriggerRecording, router]
   );
 
   /**

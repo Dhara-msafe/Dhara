@@ -15,6 +15,7 @@ import { GlobalHelpButton } from "@/src/components/dhara/GlobalHelpButton";
 import { AuthProvider, useAuth } from "@/src/auth";
 import { consentVersionKey, isCurrentConsent } from "@/src/consentStorage";
 import { theme } from "@/src/theme";
+import { EvidenceRecorderProvider } from "@/src/women/EvidenceRecorderProvider";
 import {
   POSTHOG_API_KEY,
   POSTHOG_OPTIONS,
@@ -182,6 +183,7 @@ export default function RootLayout() {
             options={POSTHOG_OPTIONS as any}
           >
             <AuthProvider>
+              <EvidenceRecorderProvider>
               <PostHogBridge />
               <AnalyticsIdentitySync />
               <AnalyticsScreenTracker />
@@ -198,6 +200,7 @@ export default function RootLayout() {
                 </View>
               )}
               {isWideWeb && <GlobalHelpButton />}
+              </EvidenceRecorderProvider>
             </AuthProvider>
           </PostHogProvider>
         </KeyboardProvider>
