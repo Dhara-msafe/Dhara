@@ -16,6 +16,7 @@ import { AuthProvider, useAuth } from "@/src/auth";
 import { consentVersionKey, isCurrentConsent } from "@/src/consentStorage";
 import { theme } from "@/src/theme";
 import { EvidenceRecorderProvider } from "@/src/women/EvidenceRecorderProvider";
+import { initSpeechGate } from "@/src/voice/speechGate";
 import {
   POSTHOG_API_KEY,
   POSTHOG_OPTIONS,
@@ -165,6 +166,10 @@ export default function RootLayout() {
     const t = setTimeout(() => setTimedOut(true), 4000);
     return () => clearTimeout(t);
   }, []);
+
+  // Talk to DHARA — load persisted Quiet + attach lifecycle listeners. Inert
+  // (canSpeakNow() returns true) while the voice-companion flag is OFF.
+  useEffect(() => { void initSpeechGate(); }, []);
 
   useEffect(() => {
     if (loaded || error || timedOut) SplashScreen.hideAsync();

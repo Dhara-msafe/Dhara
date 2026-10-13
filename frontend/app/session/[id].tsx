@@ -7,6 +7,7 @@ import { createAudioPlayer } from 'expo-audio';
 import { File, Paths } from 'expo-file-system';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { canSpeakNow, noteSpeakIntent } from '@/src/voice/speechGate';
 
 type Msg = { id: string; role: string; content: string };
 type Session = { id: string; title: string; language: string };
@@ -50,6 +51,9 @@ export default function SessionView() {
   const speak = useCallback(async (mid: string, text: string) => {
     if (speakingId === mid) { stopSpeaking(); return; }
     stopSpeaking();
+    // Talk to DHARA speech gate (inert when voice-companion flag is OFF).
+    noteSpeakIntent();
+    if (!canSpeakNow()) return;
     setSpeakingId(mid);
     try {
       const res = await fetch(`${API_BASE}/api/voice/tts`, {

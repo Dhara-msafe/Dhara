@@ -39,6 +39,10 @@ import { theme } from '@/src/theme';
 import { trackEvent } from '@/src/analytics';
 import { getConfiguredSTT, whisperTranscribeFile } from '@/src/voice/stt';
 import { claimMic, MIC_BUSY_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
+import { canSpeakNow, noteSpeakIntent, VOICE_COMPANION_ENABLED } from '@/src/voice/speechGate';
+import { VoiceStateMachine } from '@/src/voice/core/voiceStateMachine';
+import { needsConfirmation } from '@/src/voice/core/voicePolicy';
+import { classifyFact } from '@/src/voice/factClassifier';
 import { addBookmark } from '@/src/bookmarks';
 import { t } from '@/src/i18n';
 import { MarqueeBanner } from '@/src/components/MarqueeBanner';
@@ -385,6 +389,15 @@ export default function ChatScreen() {
   // Talk to DHARA — shared single-owner mic lease (noop when arbiter flag OFF).
   const micLeaseRef = useRef<MicLease | null>(null);
   const releaseMicLease = useCallback(() => { micLeaseRef.current?.release(); micLeaseRef.current = null; }, []);
+  // Talk to DHARA — Step 5 voice flow. Inert when VOICE_COMPANION_ENABLED is
+  // OFF: tryTo() is simply never called, so this never affects behaviour.
+  const voiceSMRef = useRef<VoiceStateMachine | null>(null);
+  if (VOICE_COMPANION_ENABLED && !voiceSMRef.current) voiceSMRef.current = new VoiceStateMachine();
+  // True when the heard transcript is an answer-changing fact (date, amount,
+  // section number, state) per needsConfirmation() — shows an extra "check
+  // this carefully" hint in the "We heard" modal. Free-text speech (the
+  // normal case on this screen) never sets this.
+  const [transcriptNeedsExtraCare, setTranscriptNeedsExtraCare] = useState(false);
   // Race-condition guard: onPressIn is synchronous, startRecording is async.
   // If the user releases the mic BEFORE the async permission/init finishes,
   // the onPressOut closure captures a stale `recording === false` and misses
@@ -434,7 +447,7 @@ export default function ChatScreen() {
   }, [speakingId]);
   // Forward-declared ref to `speak` so auto-speak logic inside `send` can call it
   // without a circular dependency (speak is defined AFTER send in this file).
-  const speakRef = useRef<((msgId: string, text: string) => void) | null>(null);
+  const speakRef = useRef<((msgId: string, text: string, userInitiated?: boolean) => void) | null>(null);
 
   // Home hands the question over without sending it before the user confirms.
   useEffect(() => {
@@ -929,7 +942,7 @@ export default function ChatScreen() {
         if (autoSpeak && displayText.trim().length && !hadError) {
           // slight delay so the message renders before speech starts
           setTimeout(() => {
-            speakRef.current?.(assistantId, displayText);
+            speakRef.current?.(assistantId, displayText, false);
           }, 250);
         }
 
@@ -1024,7 +1037,7 @@ export default function ChatScreen() {
   }, []);
 
   const speak = useCallback(
-    async (msgId: string, text: string) => {
+    async (msgId: string, text: string, userInitiated: boolean = true) => {
       if (blockedVoiceId === msgId && speakerRef.current?.playbackBlocked) {
         speakerRef.current.retryPlayback();
         return;
@@ -1040,6 +1053,13 @@ export default function ChatScreen() {
       stopNativeTTS();
 
       if (!text || !text.trim() || !token) return;
+
+      // Talk to DHARA speech gate (inert when voice-companion flag is OFF).
+      if (userInitiated) noteSpeakIntent();
+      if (!canSpeakNow()) {
+        if (userInitiated) notify('Voice is off', 'Showing the answer as text. Turn voice back on to hear it.');
+        return;
+      }
 
       // ── Native device TTS (free Indian accent voices) ────────────────────
       if (ttsVoiceMode === 'device-female' || ttsVoiceMode === 'device-male') {
@@ -1256,6 +1276,7 @@ export default function ChatScreen() {
     if (!token || micStartingRef.current) return;
     micStartingRef.current = true;
     let started = false;
+    voiceSMRef.current?.tryTo('LISTENING');
     // Defensive: recording needs exclusive audio-session access. If TTS is
     // still speaking a previous answer, stop it first.
     stopCloudTTS();
@@ -1384,7 +1405,17 @@ export default function ChatScreen() {
     }
   }, [recorder, token, stopCloudTTS, notify, micPulse]);
 
+  // Talk to DHARA — Step 5: CONFIRMING + needsConfirmation(). Inert (no-op
+  // beyond the existing modal) when VOICE_COMPANION_ENABLED is OFF.
+  const enterConfirming = useCallback((heardText: string) => {
+    voiceSMRef.current?.tryTo('CONFIRMING');
+    if (VOICE_COMPANION_ENABLED) {
+      setTranscriptNeedsExtraCare(needsConfirmation(classifyFact(heardText)));
+    }
+  }, []);
+
   const stopRecording = useCallback(async () => {
+    voiceSMRef.current?.tryTo('TRANSCRIBING');
     // Stop the elapsed-time ticker
     if (holdTimerRef.current) {
       clearInterval(holdTimerRef.current);
@@ -1453,6 +1484,7 @@ export default function ChatScreen() {
         if (heardText) {
           setTranscriptMismatch(data.script_mismatch ? { detected: data.detected_script ?? null } : null);
           setTranscriptPreview(heardText);
+          enterConfirming(heardText);
           setShowTranscriptModal(true);
         } else {
           notify('Could not transcribe', 'Please try again.');
@@ -1478,6 +1510,7 @@ export default function ChatScreen() {
         if (heardText) {
           setTranscriptMismatch(result.scriptMismatch ? { detected: result.detectedScript } : null);
           setTranscriptPreview(heardText);
+          enterConfirming(heardText);
           setShowTranscriptModal(true);
         } else {
           notify('Could not transcribe', 'Please try again.');
@@ -1735,6 +1768,8 @@ export default function ChatScreen() {
     setShowTranscriptModal(false);
     setTranscriptPreview('');
     setTranscriptMismatch(null);
+    setTranscriptNeedsExtraCare(false);
+    voiceSMRef.current?.tryTo('IDLE');
   }, []);
 
   const sendTranscript = useCallback(() => {
@@ -1742,6 +1777,9 @@ export default function ChatScreen() {
     setShowTranscriptModal(false);
     setTranscriptPreview('');
     setTranscriptMismatch(null);
+    setTranscriptNeedsExtraCare(false);
+    voiceSMRef.current?.tryTo('CHECKING');
+    voiceSMRef.current?.tryTo('IDLE');
     if (t) send(t);
   }, [transcriptPreview, send]);
 
@@ -1751,6 +1789,8 @@ export default function ChatScreen() {
     setShowTranscriptModal(false);
     setTranscriptPreview('');
     setTranscriptMismatch(null);
+    setTranscriptNeedsExtraCare(false);
+    voiceSMRef.current?.tryTo('IDLE');
   }, [transcriptPreview]);
 
   const cycleSpeechRate = useCallback(() => {
@@ -2494,6 +2534,15 @@ export default function ChatScreen() {
                   {transcriptMismatch.detected
                     ? `This looks like ${transcriptMismatch.detected.charAt(0).toUpperCase()}${transcriptMismatch.detected.slice(1)} script, not ${language?.native || language?.name || 'the selected language'}. Please check before sending — it may search for the wrong words.`
                     : `This doesn't look like ${language?.native || language?.name || 'the selected language'}. Please check before sending.`}
+                </Text>
+              </View>
+            )}
+
+            {!transcriptMismatch && VOICE_COMPANION_ENABLED && transcriptNeedsExtraCare && (
+              <View style={styles.tcMismatchBanner} testID="transcript-extra-care-warning">
+                <Ionicons name="warning" size={16} color={theme.colors.error} />
+                <Text style={styles.tcMismatchText}>
+                  This includes a date, amount, section or state — please check it carefully before sending.
                 </Text>
               </View>
             )}

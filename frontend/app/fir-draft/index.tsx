@@ -25,6 +25,11 @@ import { whisperTranscribeFile } from '@/src/voice/stt';
 import { ChunkedSpeaker } from '@/src/voice/tts';
 import { createBrowserTtsPlayer } from '@/src/voice/browserPlayer';
 import { claimMic, MIC_BUSY_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
+import { canSpeakNow, noteSpeakIntent, VOICE_COMPANION_ENABLED } from '@/src/voice/speechGate';
+import { VoiceStateMachine } from '@/src/voice/core/voiceStateMachine';
+import { needsConfirmation, draftSaveKey } from '@/src/voice/core/voicePolicy';
+import { classifyFact } from '@/src/voice/factClassifier';
+import { getVoiceRetentionDecision } from '@/src/voice/retention';
 import { VoiceNotice } from '@/src/components/VoiceNotice';
 import { trackEvent } from '@/src/analytics';
 import { dateValidationError } from '@/src/dateValidation';
@@ -222,7 +227,7 @@ export default function FirDraftScreen() {
   const speakingIdRef = useRef<string | null>(null);
   // Forward-declared refs to avoid stale closures in applyTurn callback
   const autoSpeakRef = useRef(true);
-  const speakRef = useRef<((msgId: string, text: string) => void) | null>(null);
+  const speakRef = useRef<((msgId: string, text: string, userInitiated?: boolean) => void) | null>(null);
 
   // ── Language ───────────────────────────────────────────────────────────────
   const [language, setLanguage] = useState('en');
@@ -234,6 +239,13 @@ export default function FirDraftScreen() {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const [isRecording, setIsRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  // Talk to DHARA — Step 5. Inert when VOICE_COMPANION_ENABLED is OFF.
+  const voiceSMRef = useRef<VoiceStateMachine | null>(null);
+  if (VOICE_COMPANION_ENABLED && !voiceSMRef.current) voiceSMRef.current = new VoiceStateMachine();
+  // A heard answer that classifies as an answer-changing fact (date, amount,
+  // section number, state) per needsConfirmation() waits here for an
+  // explicit confirm tap instead of being silently dropped into the composer.
+  const [pendingVoiceConfirm, setPendingVoiceConfirm] = useState<string | null>(null);
   const recordingRequestedRef = useRef(false);
   const recordingActiveRef = useRef(false);
   const recordingStartingRef = useRef(false);
@@ -378,7 +390,7 @@ export default function FirDraftScreen() {
       if (autoSpeakTimerRef.current) clearTimeout(autoSpeakTimerRef.current);
       autoSpeakTimerRef.current = setTimeout(() => {
         if (autoSpeakRef.current && botMsgId) {
-          speakRef.current?.(botMsgId, res.bot_message!);
+          speakRef.current?.(botMsgId, res.bot_message!, false);
         }
       }, 200);
     }
@@ -720,6 +732,7 @@ Allowed: JPG, PNG, HEIC, MP4, MOV, PDF, DOC, DOCX`);
     if (transcribing || recordingStartingRef.current || recordingActiveRef.current) return;
     recordingRequestedRef.current = true;
     recordingStartingRef.current = true;
+    voiceSMRef.current?.tryTo('LISTENING');
     stopTTS();
     setVoiceNotice(null);
 
@@ -795,12 +808,26 @@ Allowed: JPG, PNG, HEIC, MP4, MOV, PDF, DOC, DOCX`);
     }
   };
 
+  // Talk to DHARA — Step 5: route a heard answer through needsConfirmation().
+  // Free text (the common case) is appended straight into the composer,
+  // exactly as before. An answer-changing fact waits for an explicit tap.
+  const acceptHeardText = useCallback((text: string) => {
+    voiceSMRef.current?.tryTo('CONFIRMING');
+    if (VOICE_COMPANION_ENABLED && needsConfirmation(classifyFact(text))) {
+      setPendingVoiceConfirm(text);
+    } else {
+      setTextInput(prev => (prev ? prev + ' ' + text : text));
+      voiceSMRef.current?.tryTo('IDLE');
+    }
+  }, []);
+
   const stopRecording = async () => {
     recordingRequestedRef.current = false;
     if (!recordingActiveRef.current) return;
     recordingActiveRef.current = false;
     setIsRecording(false);
     setTranscribing(true);
+    voiceSMRef.current?.tryTo('TRANSCRIBING');
 
     // ── Web: stop browser MediaRecorder and upload ──────────────────────────
     if (Platform.OS === 'web') {
@@ -832,7 +859,7 @@ Allowed: JPG, PNG, HEIC, MP4, MOV, PDF, DOC, DOCX`);
           if (!API_BASE || !token) throw new Error('Voice input is unavailable');
           const result = await whisperTranscribeFile(API_BASE, token, blobUrl, langCode);
           const text = result?.text || '';
-          if (text) setTextInput(prev => (prev ? prev + ' ' + text : text));
+          if (text) acceptHeardText(text);
         } finally {
           URL.revokeObjectURL(blobUrl);
         }
@@ -854,7 +881,7 @@ Allowed: JPG, PNG, HEIC, MP4, MOV, PDF, DOC, DOCX`);
       if (!API_BASE || !token) throw new Error('Voice input is unavailable');
       const result = await whisperTranscribeFile(API_BASE, token, uri, langCode);
       const text = result?.text || '';
-      if (text) setTextInput(prev => (prev ? prev + ' ' + text : text));
+      if (text) acceptHeardText(text);
     } catch {
       setVoiceNotice('Could not transcribe this recording. Please try again or type your response instead.');
     } finally {
@@ -1094,7 +1121,7 @@ ${data.bot_message}`);
   // Keep forward-declared refs current
   useEffect(() => { autoSpeakRef.current = autoSpeak; }, [autoSpeak]);
 
-  const speak = useCallback(async (msgId: string, text: string) => {
+  const speak = useCallback(async (msgId: string, text: string, userInitiated: boolean = true) => {
     if (speakingIdRef.current === msgId && speakerRef.current?.playbackBlocked) {
       speakerRef.current.retryPlayback();
       return;
@@ -1103,6 +1130,13 @@ ${data.bot_message}`);
     if (speakingMsgId === msgId || ttsLoadingMsgId === msgId) { stopTTS(); return; }
     stopTTS();
     if (!text?.trim() || !token) return;
+
+    // Talk to DHARA speech gate (inert when voice-companion flag is OFF).
+    if (userInitiated) noteSpeakIntent();
+    if (!canSpeakNow()) {
+      if (userInitiated) setVoiceNotice('Voice is off. Showing the answer as text — turn voice back on to hear it.');
+      return;
+    }
 
     speakingIdRef.current = msgId;
     setTtsLoadingMsgId(msgId);
@@ -1471,6 +1505,38 @@ ${data.bot_message}`);
                 }}
                 onSkip={() => sendTurn(skipLabel || 'Skip')}
               />
+            )}
+
+            {!!pendingVoiceConfirm && (
+              <View style={styles.voiceConfirmBar} testID="fir-voice-confirm-bar">
+                <Ionicons name="warning-outline" size={16} color={GOLD} />
+                <Text style={styles.voiceConfirmText} numberOfLines={2}>
+                  {`We heard: "${pendingVoiceConfirm}" — this looks like a date, amount, section or state. Confirm before it's added.`}
+                </Text>
+                <View style={styles.voiceConfirmRow}>
+                  <Pressable
+                    testID="fir-voice-confirm-yes"
+                    style={styles.voiceConfirmYesBtn}
+                    onPress={() => {
+                      setTextInput(prev => (prev ? prev + ' ' + pendingVoiceConfirm : pendingVoiceConfirm || ''));
+                      setPendingVoiceConfirm(null);
+                      voiceSMRef.current?.tryTo('IDLE');
+                    }}
+                  >
+                    <Text style={styles.voiceConfirmYesText}>Yes, that's right</Text>
+                  </Pressable>
+                  <Pressable
+                    testID="fir-voice-confirm-discard"
+                    style={styles.voiceConfirmDiscardBtn}
+                    onPress={() => {
+                      setPendingVoiceConfirm(null);
+                      voiceSMRef.current?.tryTo('IDLE');
+                    }}
+                  >
+                    <Text style={styles.voiceConfirmDiscardText}>Discard, I'll type it</Text>
+                  </Pressable>
+                </View>
+              </View>
             )}
 
             {(inputType === 'text' || inputType === 'voice_or_text') && (
@@ -2140,6 +2206,23 @@ const eStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: SURFACE },
   flex1: { flex: 1 },
+
+  // Talk to DHARA — Step 5: voice answer that needs an explicit confirm tap.
+  voiceConfirmBar: {
+    backgroundColor: CREAM, borderRadius: 12, padding: 12, marginHorizontal: 16,
+    marginBottom: 8, borderWidth: 1, borderColor: GOLD,
+  },
+  voiceConfirmText: { fontSize: 13, color: NAVY, marginTop: 4, marginBottom: 10, lineHeight: 18 },
+  voiceConfirmRow: { flexDirection: 'row', gap: 10 },
+  voiceConfirmYesBtn: {
+    flex: 1, backgroundColor: NAVY, borderRadius: 8, paddingVertical: 10, alignItems: 'center',
+  },
+  voiceConfirmYesText: { color: SURFACE, fontSize: 13, fontWeight: '700' },
+  voiceConfirmDiscardBtn: {
+    flex: 1, backgroundColor: 'transparent', borderRadius: 8, paddingVertical: 10,
+    alignItems: 'center', borderWidth: 1, borderColor: BORDER,
+  },
+  voiceConfirmDiscardText: { color: MUTED, fontSize: 13, fontWeight: '600' },
 
   // Pre-session
   preHeader: {

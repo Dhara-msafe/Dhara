@@ -10,6 +10,7 @@ import { tr } from '@/src/ui18n';
 import { SosPill, Divider } from '@/src/components/dhara/SosPill';
 import { fetchFlags, fetchHelplines, safetyRoute, setCheckin as persistCheckin, getCheckin, getCircle, type Helpline, type Flags } from '@/src/women/api';
 import { loadRecordings, releaseRecordings } from '@/src/women/evidenceStore';
+import { enterWomensShield, leaveWomensShield } from '@/src/voice/speechGate';
 
 const c = theme.colors;
 const PANIC_LESSON_SEEN_KEY = 'ws_panic_lesson_seen';
@@ -78,6 +79,8 @@ export default function WomenShield() {
     useCallback(() => {
       let alive = true;
       const scope = user?.id || 'device';
+      // Talk to DHARA — entering the Shield forces Quiet on (no spoken replies here).
+      void enterWomensShield();
       (async () => {
         const [circle, items] = await Promise.all([getCircle(), loadRecordings(scope)]);
         if (!alive) { releaseRecordings(items); return; }
@@ -85,7 +88,7 @@ export default function WomenShield() {
         setLockerCount(items.length);
         releaseRecordings(items);
       })();
-      return () => { alive = false; };
+      return () => { alive = false; leaveWomensShield(); };
     }, [user?.id])
   );
 

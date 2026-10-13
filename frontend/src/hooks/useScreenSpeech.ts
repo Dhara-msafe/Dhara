@@ -8,6 +8,7 @@ import { API_BASE } from '../apiBase';
 import { speakNative, stopNativeTTS } from '../voice/native-tts';
 import { ChunkedSpeaker } from '../voice/tts';
 import { screenPlayer } from '../media/screenPlayer';
+import { canSpeakNow, noteSpeakIntent } from '../voice/speechGate';
 
 /** Uses the existing voice pipeline. Never speaks until the user taps Listen. */
 export function useScreenSpeech() {
@@ -31,6 +32,9 @@ export function useScreenSpeech() {
     if (active.current) { stop(); return; }
     stop(); setError('');
     if (!text.trim()) return;
+    // Talk to DHARA speech gate (inert when voice-companion flag is OFF).
+    noteSpeakIntent();
+    if (!canSpeakNow()) return;
     const id = generation.current;
     active.current = true; setSpeaking(true);
     try {
