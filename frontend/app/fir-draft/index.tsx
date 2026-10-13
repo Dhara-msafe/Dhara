@@ -27,9 +27,8 @@ import { createBrowserTtsPlayer } from '@/src/voice/browserPlayer';
 import { claimMic, MIC_BUSY_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
 import { canSpeakNow, noteSpeakIntent, VOICE_COMPANION_ENABLED } from '@/src/voice/speechGate';
 import { VoiceStateMachine } from '@/src/voice/core/voiceStateMachine';
-import { needsConfirmation, draftSaveKey } from '@/src/voice/core/voicePolicy';
+import { needsConfirmation } from '@/src/voice/core/voicePolicy';
 import { classifyFact } from '@/src/voice/factClassifier';
-import { getVoiceRetentionDecision } from '@/src/voice/retention';
 import { VoiceNotice } from '@/src/components/VoiceNotice';
 import { trackEvent } from '@/src/analytics';
 import { dateValidationError } from '@/src/dateValidation';
@@ -1523,7 +1522,7 @@ ${data.bot_message}`);
                       voiceSMRef.current?.tryTo('IDLE');
                     }}
                   >
-                    <Text style={styles.voiceConfirmYesText}>Yes, that's right</Text>
+                    <Text style={styles.voiceConfirmYesText}>Yes, that&apos;s right</Text>
                   </Pressable>
                   <Pressable
                     testID="fir-voice-confirm-discard"
@@ -1533,7 +1532,7 @@ ${data.bot_message}`);
                       voiceSMRef.current?.tryTo('IDLE');
                     }}
                   >
-                    <Text style={styles.voiceConfirmDiscardText}>Discard, I'll type it</Text>
+                    <Text style={styles.voiceConfirmDiscardText}>Discard, I&apos;ll type it</Text>
                   </Pressable>
                 </View>
               </View>
