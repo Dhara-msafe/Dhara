@@ -10,6 +10,7 @@ import { useAudioRecorder, RecordingPresets, setAudioModeAsync, AudioModule } fr
 import { API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { INTAKE_TEMPLATES, getTemplate, IntakeTemplate } from '@/src/intakeTemplates';
+import { claimMic, MIC_BUSY_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
 
 const NAVY = theme.colors.primary;
 const GOLD = theme.colors.gold;
@@ -29,6 +30,7 @@ export default function ClientIntake() {
   // this intake token server-side, see POST /advocate/intake/{token}/transcribe).
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recordingActiveRef = useRef(false);
+  const micLeaseRef = useRef<MicLease | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -47,7 +49,7 @@ export default function ClientIntake() {
   }, [token]);
 
   // Stop a dangling recording if the user navigates away mid-recording.
-  useEffect(() => () => { if (recordingActiveRef.current) { try { recorder.stop(); } catch {} } }, [recorder]);
+  useEffect(() => () => { if (recordingActiveRef.current) { try { recorder.stop(); } catch {} } micLeaseRef.current?.release(); }, [recorder]);
 
   const toggleVoice = async (qId: string) => {
     if (activeVoice === qId) {
@@ -77,6 +79,7 @@ export default function ClientIntake() {
         alert('Could not transcribe your recording. Please try again or type your answer.');
       } finally {
         setTranscribingId(null);
+        micLeaseRef.current?.release(); micLeaseRef.current = null;
       }
       return;
     }
@@ -94,10 +97,14 @@ export default function ClientIntake() {
       }
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await recorder.prepareToRecordAsync();
+      const lease = claimMic('intake_mic', () => { try { recorder.stop(); } catch {} recordingActiveRef.current = false; setActiveVoice(null); });
+      if (!lease.ok) { alert(MIC_BUSY_MESSAGE); return; }
+      micLeaseRef.current = lease;
       recorder.record();
       recordingActiveRef.current = true;
       setActiveVoice(qId);
     } catch {
+      micLeaseRef.current?.release(); micLeaseRef.current = null;
       alert('Could not access the microphone. Please type your answer instead.');
     }
   };

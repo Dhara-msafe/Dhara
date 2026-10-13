@@ -24,6 +24,7 @@ import {
 import { whisperTranscribeFile } from '@/src/voice/stt';
 import { ChunkedSpeaker } from '@/src/voice/tts';
 import { createBrowserTtsPlayer } from '@/src/voice/browserPlayer';
+import { claimMic, MIC_BUSY_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
 import { VoiceNotice } from '@/src/components/VoiceNotice';
 import { trackEvent } from '@/src/analytics';
 import { dateValidationError } from '@/src/dateValidation';
@@ -240,6 +241,7 @@ export default function FirDraftScreen() {
   const webRecorderRef = useRef<any>(null);
   const webChunksRef = useRef<Blob[]>([]);
   const webStreamRef = useRef<any>(null);
+  const micLeaseRef = useRef<MicLease | null>(null);
 
   // ── WhatsApp-style mic gesture (slide-to-cancel / slide-up-to-lock) ────────
   // Mirrors the Home screen's mic gesture exactly, so voice input feels the
@@ -737,6 +739,9 @@ Allowed: JPG, PNG, HEIC, MP4, MOV, PDF, DOC, DOCX`);
         const mr = new WMR(stream, { mimeType });
         webChunksRef.current = [];
         mr.ondataavailable = (e: any) => { if (e.data?.size > 0) webChunksRef.current.push(e.data); };
+        const lease = claimMic('fir_draft_mic', () => { try { mr.stop(); } catch {} recordingActiveRef.current = false; setIsRecording(false); });
+        if (!lease.ok) { try { stream.getTracks().forEach((t: any) => t.stop()); } catch {} setVoiceNotice(MIC_BUSY_MESSAGE); return; }
+        micLeaseRef.current = lease;
         mr.start();
         webRecorderRef.current = mr;
         recordingActiveRef.current = true;
@@ -768,16 +773,21 @@ Allowed: JPG, PNG, HEIC, MP4, MOV, PDF, DOC, DOCX`);
       if (!recordingRequestedRef.current) return;
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await recorder.prepareToRecordAsync();
+      const lease = claimMic('fir_draft_mic', () => { try { recorder.stop(); } catch {} recordingActiveRef.current = false; setIsRecording(false); });
+      if (!lease.ok) { setVoiceNotice(MIC_BUSY_MESSAGE); return; }
+      micLeaseRef.current = lease;
       recorder.record();
       // A permission prompt or preparation can outlast the user's press.
       // Stop and discard immediately rather than recording after they let go.
       if (!recordingRequestedRef.current) {
         await recorder.stop();
+        micLeaseRef.current?.release(); micLeaseRef.current = null;
         return;
       }
       recordingActiveRef.current = true;
       setIsRecording(true);
     } catch {
+      micLeaseRef.current?.release(); micLeaseRef.current = null;
       setIsRecording(false);
       setVoiceNotice('Could not access the microphone. Check its permission, end any active call, or type your answer below.');
     } finally {
@@ -830,6 +840,7 @@ Allowed: JPG, PNG, HEIC, MP4, MOV, PDF, DOC, DOCX`);
         setVoiceNotice('Could not transcribe this recording. Please try again or type your response instead.');
       } finally {
         setTranscribing(false);
+        micLeaseRef.current?.release(); micLeaseRef.current = null;
       }
       return;
     }
@@ -848,6 +859,7 @@ Allowed: JPG, PNG, HEIC, MP4, MOV, PDF, DOC, DOCX`);
       setVoiceNotice('Could not transcribe this recording. Please try again or type your response instead.');
     } finally {
       setTranscribing(false);
+      micLeaseRef.current?.release(); micLeaseRef.current = null;
     }
   };
 
@@ -868,6 +880,7 @@ Allowed: JPG, PNG, HEIC, MP4, MOV, PDF, DOC, DOCX`);
       try { await recorder.stop(); } catch {}
       try { await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }); } catch {}
     }
+    micLeaseRef.current?.release(); micLeaseRef.current = null;
   }, [recorder]);
 
   /** Resets the pulse animation + hold timer. Called on press-out, lock
@@ -1075,6 +1088,7 @@ ${data.bot_message}`);
         void recorder.stop().catch(() => {});
       }
     }
+    micLeaseRef.current?.release(); micLeaseRef.current = null;
   }, [recorder, stopTTS, micPulse]));
 
   // Keep forward-declared refs current

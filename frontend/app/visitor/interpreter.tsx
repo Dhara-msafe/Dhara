@@ -15,6 +15,7 @@ import { theme } from '@/src/theme';
 import { loadVisitorSession, VisitorSession, getStateLocalLang, HINDI_LANG, STATE_LOCAL_LANG, type LocalLang } from '@/src/visitor/session';
 import { API_BASE, useAuth } from '@/src/auth';
 import { whisperTranscribeFile, sttErrorToMessage } from '@/src/voice/stt';
+import { claimMic, MIC_BUSY_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
 
 const C = theme.colors;
 
@@ -56,6 +57,7 @@ export default function InterpreterScreen() {
   const webRecorderRef = useRef<any>(null);
   const webStreamRef = useRef<any>(null);
   const webChunksRef = useRef<Blob[]>([]);
+  const micLeaseRef = useRef<MicLease | null>(null);
 
   useEffect(() => {
     loadVisitorSession().then(s => {
@@ -154,6 +156,9 @@ export default function InterpreterScreen() {
         const mr = mimeType ? new WMR(stream, { mimeType }) : new WMR(stream);
         webChunksRef.current = [];
         mr.ondataavailable = (e: any) => { if (e.data?.size > 0) webChunksRef.current.push(e.data); };
+        const lease = claimMic('interpreter_mic', () => { try { mr.stop(); } catch {} setPhase('idle'); });
+        if (!lease.ok) { try { stream.getTracks().forEach((t: any) => t.stop()); } catch {} Alert.alert('Microphone busy', MIC_BUSY_MESSAGE); return; }
+        micLeaseRef.current = lease;
         mr.start();
         webStreamRef.current = stream;
         webRecorderRef.current = mr;
@@ -166,6 +171,9 @@ export default function InterpreterScreen() {
         if (!perm.granted) { Alert.alert('Microphone permission denied'); return; }
         await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
         await recorder.prepareToRecordAsync();
+        const lease = claimMic('interpreter_mic', () => { try { recorder.stop(); } catch {} setPhase('idle'); });
+        if (!lease.ok) { Alert.alert('Microphone busy', MIC_BUSY_MESSAGE); return; }
+        micLeaseRef.current = lease;
         recorder.record();
       }
       setPhase('recording');
@@ -173,6 +181,7 @@ export default function InterpreterScreen() {
       setCurrentTranscript('');
       setCurrentTranslation('');
     } catch (e: any) {
+      micLeaseRef.current?.release(); micLeaseRef.current = null;
       Alert.alert('Recording error', e?.message || String(e));
     }
   }, [token, srcLabel, recorder]);
@@ -190,10 +199,12 @@ export default function InterpreterScreen() {
       webRecorderRef.current = null;
       webStreamRef.current = null;
       webChunksRef.current = [];
+      micLeaseRef.current?.release(); micLeaseRef.current = null;
       return blob.size ? URL.createObjectURL(blob) : '';
     }
     try { await recorder.stop(); } catch {}
     try { await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }); } catch {}
+    micLeaseRef.current?.release(); micLeaseRef.current = null;
     return recorder.uri || '';
   }, [recorder]);
 

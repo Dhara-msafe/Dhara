@@ -1,5 +1,19 @@
 # Dhara (formerly Gandhikar) — PRD
 
+## 13 October 2026 — Talk to DHARA STEP 2 (reduced scope): voice core modules + mic arbiter (flag OFF)
+- Scope approved by founder: core TS modules + 33 unit tests + single-owner microphone arbiter ONLY. Speech gate, voice companion flow and iPhone TestFlight explicitly deferred. Hard ceiling 12 ECU.
+- **Core modules added verbatim** at `frontend/src/voice/core/`: `voiceStateMachine.ts`, `audioResourceArbiter.ts`, `voicePolicy.ts`, `voicePlatform.ts`. Pure TypeScript, no React/Expo imports. Not yet driving any UI (only the arbiter is wired).
+- **Tests**: `frontend/src/voice/core/__tests__/voiceCore.test.ts`, `voicePlatform.test.ts`, `ts-resolve.mjs`. Run: `cd frontend && node --experimental-strip-types --import ./src/voice/core/__tests__/ts-resolve.mjs --test src/voice/core/__tests__/*.test.ts` → **33/33 pass** (Node 24 strips TS natively; flag harmless). `tsconfig.json` excludes `src/voice/core/__tests__`.
+- **Mic arbiter wiring** behind flag `EXPO_PUBLIC_AUDIO_ARBITER_ENABLED` (default **false** = today's behaviour). Glue helper `frontend/src/voice/micArbiterGuard.ts` (`claimMic(owner, onPreempt)` → no-op grant when flag off). Wired into all 7 recorder sites:
+  - chat `app/(tabs)/index.tsx` (chat_mic, web+native, onPreempt discards, releases on stop/cancel/lock-cancel/background-via-onLockedCancel/not-started)
+  - `app/(tabs)/lookup.tsx` (lookup_mic), `app/fir-draft/index.tsx` (fir_draft_mic), `app/intake/[token].tsx` (intake_mic), `app/visitor/interpreter.tsx` (interpreter_mic) — claim before record/MediaRecorder start, release on stop/error/unmount, busy message on refusal.
+  - Evidence Locker via `src/women/EvidenceRecorderProvider.tsx` claims `'evidence_locker'` in `claimForLocker()`+`startTriggerRecording()`, releases in `releaseLockerClaim()`+`stopTriggerRecording()`. Evidence Locker always wins (preempts others); nobody can claim while it records.
+- **Verification**: 33 unit tests green (encode the exact acceptance rules: locker preempts voice, nobody claims while locker records, release frees mic, mic released when app not active). Lint clean on all 12 touched/new files. Web preview smoke: app boots cleanly with flag OFF and ON (imports resolve, no blank screen). Shipped with flag **OFF**.
+- **Drift note (vs MODULE_MAP_VOICE.md)**: line numbers moved after Phase 1; new `recorder.record()` sites — index.tsx:1344(+web MR 1307), lookup:238(+199), fir-draft:771(+740), intake:97, interpreter:169(+157), evidence-locker:248/275/279 + new `src/women/EvidenceRecorderProvider.tsx`:100. STT/TTS shape unchanged.
+- **PENDING USER VERIFICATION** (cannot be done here): physical Android phone + real-mic web (Chrome/Safari over HTTPS) with flag ON/OFF — Evidence Locker keeps recording while chat speech plays, chat mic refused while Locker records, mic released after stop/error/background, existing mics unchanged with flag OFF. Headless preview can't grant mic permission or drive a physical device.
+- **Preview branch answer given**: preview builds from `main` (only branch) off the live working tree, so S1-1/S1-5 are present now; they never reached the published APK because that build was cut earlier / with Phase-1 flags baked OFF — not a branch mismatch. Not redeployed.
+
+
 ## 10 October 2026 — Scan a Notice v2: Complete Repair & UX Sprint
 
 ### Scan Notice v2 Implementation

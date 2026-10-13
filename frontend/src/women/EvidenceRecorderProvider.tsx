@@ -36,6 +36,7 @@ import {
   useAudioRecorder,
   useAudioRecorderState,
 } from 'expo-audio';
+import { claimMic, type MicLease } from '@/src/voice/micArbiterGuard';
 
 type RecordingOwner = 'locker' | 'trigger' | null;
 
@@ -73,6 +74,17 @@ export function EvidenceRecorderProvider({ children }: { children: React.ReactNo
   const ownerRef = useRef<RecordingOwner>(null);
   const [recordingOwner, setRecordingOwner] = useState<RecordingOwner>(null);
 
+  // Global single-owner mic arbiter lease ('evidence_locker'). Noop when flag OFF.
+  const arbiterLeaseRef = useRef<MicLease | null>(null);
+  const claimArbiter = useCallback(() => {
+    if (arbiterLeaseRef.current?.ok) return; // already holding
+    arbiterLeaseRef.current = claimMic('evidence_locker'); // always wins; preempts others
+  }, []);
+  const releaseArbiter = useCallback(() => {
+    arbiterLeaseRef.current?.release();
+    arbiterLeaseRef.current = null;
+  }, []);
+
   const setOwner = useCallback((o: RecordingOwner) => {
     ownerRef.current = o;
     setRecordingOwner(o);
@@ -97,18 +109,21 @@ export function EvidenceRecorderProvider({ children }: { children: React.ReactNo
         });
       }
       await recorder.prepareToRecordAsync();
+      claimArbiter(); // Evidence Locker takes the shared mic (preempts any other owner)
       recorder.record();
       setOwner('trigger');
       return true;
     } catch {
+      releaseArbiter();
       return false;
     }
-  }, [recorder, setOwner]);
+  }, [recorder, setOwner, claimArbiter, releaseArbiter]);
 
   const stopTriggerRecording = useCallback(async () => {
     if (ownerRef.current !== 'trigger') return;
     setOwner(null);
     try { await recorder.stop(); } catch {}
+    releaseArbiter();
     if (Platform.OS !== 'web') {
       try { await setAudioModeAsync({ allowsRecording: false }); } catch {}
     }
@@ -119,13 +134,14 @@ export function EvidenceRecorderProvider({ children }: { children: React.ReactNo
   // ── EvidenceLocker path ────────────────────────────────────────────────────
   const claimForLocker = useCallback((): boolean => {
     if (ownerRef.current === 'trigger') return false; // trigger owns it
+    claimArbiter(); // Evidence Locker takes the shared mic (preempts any other owner)
     setOwner('locker');
     return true;
-  }, [setOwner]);
+  }, [setOwner, claimArbiter]);
 
   const releaseLockerClaim = useCallback(() => {
-    if (ownerRef.current === 'locker') setOwner(null);
-  }, [setOwner]);
+    if (ownerRef.current === 'locker') { setOwner(null); releaseArbiter(); }
+  }, [setOwner, releaseArbiter]);
 
   return (
     <EvidenceRecorderContext.Provider

@@ -38,6 +38,7 @@ import { useAuth, API_BASE, logClientError } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { trackEvent } from '@/src/analytics';
 import { getConfiguredSTT, whisperTranscribeFile } from '@/src/voice/stt';
+import { claimMic, MIC_BUSY_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
 import { addBookmark } from '@/src/bookmarks';
 import { t } from '@/src/i18n';
 import { MarqueeBanner } from '@/src/components/MarqueeBanner';
@@ -381,6 +382,9 @@ export default function ChatScreen() {
   const webRecorderRef = useRef<any>(null);
   const webChunksRef = useRef<Blob[]>([]);
   const webStreamRef = useRef<any>(null);
+  // Talk to DHARA — shared single-owner mic lease (noop when arbiter flag OFF).
+  const micLeaseRef = useRef<MicLease | null>(null);
+  const releaseMicLease = useCallback(() => { micLeaseRef.current?.release(); micLeaseRef.current = null; }, []);
   // Race-condition guard: onPressIn is synchronous, startRecording is async.
   // If the user releases the mic BEFORE the async permission/init finishes,
   // the onPressOut closure captures a stale `recording === false` and misses
@@ -1256,6 +1260,19 @@ export default function ChatScreen() {
     // still speaking a previous answer, stop it first.
     stopCloudTTS();
     stopNativeTTS();
+    // Talk to DHARA — if the Evidence Locker later claims the mic, stop here.
+    const onPreempt = () => {
+      try {
+        if (Platform.OS === 'web') {
+          webRecorderRef.current?.stop();
+          webStreamRef.current?.getTracks()?.forEach((t: any) => t.stop());
+          webRecorderRef.current = null; webStreamRef.current = null; webChunksRef.current = [];
+        } else { recorder.stop(); }
+      } catch {}
+      isMicHeldRef.current = false; lockedRef.current = false;
+      setLocked(false); setRecording(false);
+      micLeaseRef.current = null;
+    };
     try {
       if (Platform.OS === 'web') {
         // --- Web: use browser MediaRecorder ---
@@ -1308,6 +1325,9 @@ export default function ChatScreen() {
         mr.ondataavailable = (e: any) => {
           if (e.data && e.data.size > 0) webChunksRef.current.push(e.data);
         };
+        const lease = claimMic('chat_mic', onPreempt);
+        if (!lease.ok) { try { stream.getTracks().forEach((t: any) => t.stop()); } catch {} webStreamRef.current = null; notify('Microphone busy', MIC_BUSY_MESSAGE); return; }
+        micLeaseRef.current = lease;
         mr.start();
         webRecorderRef.current = mr;
         started = true;
@@ -1341,6 +1361,9 @@ export default function ChatScreen() {
           try { await recorder.stop(); } catch {}
           return;
         }
+        const lease = claimMic('chat_mic', onPreempt);
+        if (!lease.ok) { notify('Microphone busy', MIC_BUSY_MESSAGE); return; }
+        micLeaseRef.current = lease;
         recorder.record();
         started = true;
         setRecording(true);
@@ -1352,6 +1375,7 @@ export default function ChatScreen() {
       if (!started) {
         isMicHeldRef.current = false; lockedRef.current = false;
         setLocked(false); setRecording(false);
+        releaseMicLease();
         if (holdTimerRef.current) { clearInterval(holdTimerRef.current); holdTimerRef.current = null; }
         micPulse.stopAnimation(); micPulse.setValue(1); setHoldElapsed(0);
         try { webStreamRef.current?.getTracks()?.forEach((track: MediaStreamTrack) => track.stop()); } catch {}
@@ -1402,6 +1426,7 @@ export default function ChatScreen() {
         webRecorderRef.current = null;
         webStreamRef.current = null;
         webChunksRef.current = [];
+        releaseMicLease();
         if (!audioBlob || audioBlob.size === 0) {
           setTranscribing(false);
           return;
@@ -1444,6 +1469,7 @@ export default function ChatScreen() {
         try {
           await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false });
         } catch {}
+        releaseMicLease();
         if (!uri) { setTranscribing(false); return; }
         if (!token) { setTranscribing(false); return; }
         const result = await whisperTranscribeFile(API_BASE, token, uri, language?.code);
@@ -1549,6 +1575,7 @@ export default function ChatScreen() {
         try { recorder.stop(); } catch {}
         try { setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }); } catch {}
       }
+      releaseMicLease();
       return;
     }
 
@@ -1558,7 +1585,7 @@ export default function ChatScreen() {
     if (recording || nativeSTTHandleRef.current || webRecorderRef.current) {
       stopRecording();
     }
-  }, [recording, stopRecording, recorder, slideX, slideY, micPulse]);
+  }, [recording, stopRecording, recorder, slideX, slideY, micPulse, releaseMicLease]);
 
   /**
    * Web only. The mic button uses press-and-hold (PanResponder) on native,
@@ -1604,7 +1631,8 @@ export default function ChatScreen() {
       void recorder.stop().catch(() => {});
       void setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }).catch(() => {});
     }
-  }, [recorder, micPulse]);
+    releaseMicLease();
+  }, [recorder, micPulse, releaseMicLease]);
 
   /** Checkmark button on the locked hands-free bar — finishes the recording
    * and goes to the normal transcribe → confirm flow, same as a slide-free

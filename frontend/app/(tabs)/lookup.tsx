@@ -21,6 +21,7 @@ import {
 import { useAuth, API_BASE } from '@/src/auth';
 import { whisperTranscribeFile } from '@/src/voice/stt';
 import { parseSpokenCaseRef } from '@/src/voice/spokenCnrParser';
+import { claimMic, MIC_BUSY_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
 
 const NAVY  = theme.colors.primary;
 const GOLD  = theme.colors.gold;
@@ -141,6 +142,7 @@ export default function LookupScreen() {
   const micIntroShownRef = useRef(false);
   const webStreamRef = useRef<any>(null);
   const webRecorderRef = useRef<any>(null);
+  const micLeaseRef = useRef<MicLease | null>(null);
   const webChunksRef = useRef<any[]>([]);
 
   // Party
@@ -201,6 +203,9 @@ export default function LookupScreen() {
         const mr = new WMR(stream, { mimeType });
         webChunksRef.current = [];
         mr.ondataavailable = (e: any) => { if (e.data?.size > 0) webChunksRef.current.push(e.data); };
+        const lease = claimMic('lookup_mic', () => { try { mr.stop(); } catch {} setIsRecording(false); });
+        if (!lease.ok) { try { stream.getTracks().forEach((t: any) => t.stop()); } catch {} Alert.alert('Microphone busy', MIC_BUSY_MESSAGE); return; }
+        micLeaseRef.current = lease;
         mr.start();
         webRecorderRef.current = mr;
         setIsRecording(true);
@@ -235,9 +240,13 @@ export default function LookupScreen() {
       }
       await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
       await recorder.prepareToRecordAsync();
+      const lease = claimMic('lookup_mic', () => { try { recorder.stop(); } catch {} setIsRecording(false); });
+      if (!lease.ok) { Alert.alert('Microphone busy', MIC_BUSY_MESSAGE); return; }
+      micLeaseRef.current = lease;
       recorder.record();
       setIsRecording(true);
     } catch (e: any) {
+      micLeaseRef.current?.release(); micLeaseRef.current = null;
       Alert.alert('Recording failed', e?.message || 'Could not access the microphone. Please type the CNR.');
     }
   }, [recorder]);
@@ -277,6 +286,7 @@ export default function LookupScreen() {
         setHeardSummary('Could not transcribe. Please try again or type the CNR.');
       } finally {
         setTranscribing(false);
+        micLeaseRef.current?.release(); micLeaseRef.current = null;
       }
       return;
     }
@@ -292,6 +302,7 @@ export default function LookupScreen() {
       setHeardSummary('Could not transcribe. Please try again or type the CNR.');
     } finally {
       setTranscribing(false);
+      micLeaseRef.current?.release(); micLeaseRef.current = null;
     }
   }, [recorder, token, applyTranscript]);
 
