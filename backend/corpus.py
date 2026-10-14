@@ -9,7 +9,7 @@ CITATION INTEGRITY RULE (see server.py):
 - Section numbers, official text, and source URLs are ONLY served from THIS file.
 - The UI renders these fields from the retrieval result, never from model output.
 - If a question does not match any entry, the LLM is instructed to REFUSE with
-  "I don't have a verified source for this. Please consult an advocate."
+  "I cannot confirm this from the official text. Please consult an advocate."
 
 Every entry MUST have:
   key            — stable identifier
@@ -2228,7 +2228,7 @@ def state_sensitive_topic(question: str):
 
 
 REFUSAL_NO_CORPUS = (
-    "I don't have a verified source for this. Please consult an advocate."
+    "I cannot confirm this from the official text. Please consult an advocate."
 )
 
 REFUSAL_NON_INDIAN = (
@@ -2336,15 +2336,15 @@ _CITATION_LEAK_PATTERNS = [
     # "Article 21", "Article 22(1)", "Article 21 of the Constitution"
     (_re.compile(r"\b[Aa]rticle\s+\d+[A-Z]?(\(\d+\))?(\s+of\s+the\s+Constitution)?\b"), "this constitutional right"),
     # "Section 35 BNSS", "Section 43(5) of BNSS", "Sec. 43(5) BNSS", "BNSS Section 35"
-    (_re.compile(r"\b(?:[Ss]ec(?:tion|\.)?\s+\d+[A-Z]?(?:\(\d+\))?\s+(?:of\s+)?(?:BNS|BNSS|BSA|IPC|CrPC|RTI|RTIR|CPA|CPER|MV|MVA|CMVR))(?![A-Za-z0-9])"), "the law [UNVERIFIED]"),
-    (_re.compile(r"\b(?:BNS|BNSS|BSA|IPC|CrPC|RTI|RTIR|CPA|CPER|MV|MVA|CMVR)\s+[Ss]ec(?:tion|\.)?\s+\d+[A-Z]?(?:\(\d+\))?(?![A-Za-z0-9])"), "the law [UNVERIFIED]"),
+    (_re.compile(r"\b(?:[Ss]ec(?:tion|\.)?\s+\d+[A-Z]?(?:\(\d+\))?\s+(?:of\s+)?(?:BNS|BNSS|BSA|IPC|CrPC|RTI|RTIR|CPA|CPER|MV|MVA|CMVR))(?![A-Za-z0-9])"), "the law"),
+    (_re.compile(r"\b(?:BNS|BNSS|BSA|IPC|CrPC|RTI|RTIR|CPA|CPER|MV|MVA|CMVR)\s+[Ss]ec(?:tion|\.)?\s+\d+[A-Z]?(?:\(\d+\))?(?![A-Za-z0-9])"), "the law"),
     # "Rule 3 RTIR", "Rule 138(7) CMVR", "CMVR Rule 118", "E-Comm Rule 4"
     (_re.compile(r"\b[Rr]ule\s+\d+[A-Z]?(?:\(\d+\))?(?:\([a-z]\))?\s+(?:of\s+)?(?:RTIR|CPER|CMVR|E[- ]?Comm)(?![A-Za-z0-9])"), "the rule"),
     (_re.compile(r"\b(?:RTIR|CPER|CMVR|E[- ]?Comm)\s+[Rr]ule\s+\d+[A-Z]?(?:\(\d+\))?(?:\([a-z]\))?(?![A-Za-z0-9])"), "the rule"),
     # Bare "BNSS 43(5)" or "PWDVA 12" or "RTI 6" or "CPA 2(7)" or "MV 194B" style
-    (_re.compile(r"\b(?:BNS|BNSS|BSA|IPC|CrPC|PWDVA|DV Act|RTI|RTIR|CPA|CPER|MV|MVA|CMVR)\s+\d+[A-Z]?(?:\(\d+\))?(?:\([a-z]\))?(?![A-Za-z0-9])"), "the law [UNVERIFIED]"),
+    (_re.compile(r"\b(?:BNS|BNSS|BSA|IPC|CrPC|PWDVA|DV Act|RTI|RTIR|CPA|CPER|MV|MVA|CMVR)\s+\d+[A-Z]?(?:\(\d+\))?(?:\([a-z]\))?(?![A-Za-z0-9])"), "the law"),
     # Just "Section 35" alone
-    (_re.compile(r"\b[Ss]ec(?:tion|\.)?\s+\d+[A-Z]?(?:\(\d+\))?(?![A-Za-z0-9])"), "the law [UNVERIFIED]"),
+    (_re.compile(r"\b[Ss]ec(?:tion|\.)?\s+\d+[A-Z]?(?:\(\d+\))?(?![A-Za-z0-9])"), "the law"),
     # Just "Rule 138(3)" alone
     (_re.compile(r"\b[Rr]ule\s+\d+[A-Z]?(?:\(\d+\))?(?:\([a-z]\))?(?![A-Za-z0-9])"), "the rule"),
     # Long forms of the statutes
@@ -2355,25 +2355,25 @@ _CITATION_LEAK_PATTERNS = [
     # Bharatiya Nyaya Sanhita") must NOT be touched; previously it was,
     # producing "The the law [UNVERIFIED] was replaced by the the law
     # [UNVERIFIED]." — a reproduced, confirmed defect.
-    (_re.compile(r"\bBharatiya\s+(?:Nyaya|Nagarik|Sakshya)\s+(?:Sanhita|Suraksha|Adhiniyam)(?:,?\s*\d{4})?,?\s*(?:[Ss]ec(?:tion|\.)?\s*)?\d+[A-Z]?(?:\(\d+\))?\b"), "the law [UNVERIFIED]"),
-    (_re.compile(r"\bIndian\s+Penal\s+Code(?:,?\s*\d{4})?,?\s*(?:[Ss]ec(?:tion|\.)?\s*)?\d+[A-Z]?(?:\(\d+\))?\b"), "the law [UNVERIFIED]"),
-    (_re.compile(r"\bCode\s+of\s+Criminal\s+Procedure(?:,?\s*\d{4})?\b"), "the law [UNVERIFIED]"),
-    (_re.compile(r"\b(?:Protection\s+of\s+Women\s+from\s+Domestic\s+Violence\s+Act|PWDVA)(?:,?\s*\d{4})?\b"), "the law [UNVERIFIED]"),
-    (_re.compile(r"\b(?:Right\s+to\s+Information\s+Act|RTI\s+Act)(?:,?\s*\d{4})?\b"), "the law [UNVERIFIED]"),
+    (_re.compile(r"\bBharatiya\s+(?:Nyaya|Nagarik|Sakshya)\s+(?:Sanhita|Suraksha|Adhiniyam)(?:,?\s*\d{4})?,?\s*(?:[Ss]ec(?:tion|\.)?\s*)?\d+[A-Z]?(?:\(\d+\))?\b"), "the law"),
+    (_re.compile(r"\bIndian\s+Penal\s+Code(?:,?\s*\d{4})?,?\s*(?:[Ss]ec(?:tion|\.)?\s*)?\d+[A-Z]?(?:\(\d+\))?\b"), "the law"),
+    (_re.compile(r"\bCode\s+of\s+Criminal\s+Procedure(?:,?\s*\d{4})?\b"), "the law"),
+    (_re.compile(r"\b(?:Protection\s+of\s+Women\s+from\s+Domestic\s+Violence\s+Act|PWDVA)(?:,?\s*\d{4})?\b"), "the law"),
+    (_re.compile(r"\b(?:Right\s+to\s+Information\s+Act|RTI\s+Act)(?:,?\s*\d{4})?\b"), "the law"),
     (_re.compile(r"\bRight\s+to\s+Information\s+Rules(?:,?\s*\d{4})?\b"), "the rules"),
-    (_re.compile(r"\bConsumer\s+Protection\s+Act(?:,?\s*\d{4})?\b"), "the law [UNVERIFIED]"),
+    (_re.compile(r"\bConsumer\s+Protection\s+Act(?:,?\s*\d{4})?\b"), "the law"),
     (_re.compile(r"\bConsumer\s+Protection\s+\(E[- ]?Commerce\)\s+Rules(?:,?\s*\d{4})?\b"), "the rules"),
-    (_re.compile(r"\bMotor\s+Vehicles\s+Act(?:,?\s*\d{4})?\b"), "the law [UNVERIFIED]"),
+    (_re.compile(r"\bMotor\s+Vehicles\s+Act(?:,?\s*\d{4})?\b"), "the law"),
     (_re.compile(r"\bCentral\s+Motor\s+Vehicles\s+Rules(?:,?\s*\d{4})?\b"), "the rules"),
-    (_re.compile(r"\bNegotiable\s+Instruments\s+Act(?:,?\s*\d{4})?\b"), "the law [UNVERIFIED]"),
-    (_re.compile(r"\bInformation\s+Technology\s+Act(?:,?\s*\d{4})?\b"), "the law [UNVERIFIED]"),
-    (_re.compile(r"\b(?:NI|IT)\s+[Ss]ec(?:tion|\.)?\s+\d+[A-Z]?(?:\(\d+\))?(?![A-Za-z0-9])"), "the law [UNVERIFIED]"),
-    (_re.compile(r"\b[Ss]ec(?:tion|\.)?\s+\d+[A-Z]?(?:\(\d+\))?\s+(?:of\s+)?(?:NI|IT)(?![A-Za-z0-9])"), "the law [UNVERIFIED]"),
+    (_re.compile(r"\bNegotiable\s+Instruments\s+Act(?:,?\s*\d{4})?\b"), "the law"),
+    (_re.compile(r"\bInformation\s+Technology\s+Act(?:,?\s*\d{4})?\b"), "the law"),
+    (_re.compile(r"\b(?:NI|IT)\s+[Ss]ec(?:tion|\.)?\s+\d+[A-Z]?(?:\(\d+\))?(?![A-Za-z0-9])"), "the law"),
+    (_re.compile(r"\b[Ss]ec(?:tion|\.)?\s+\d+[A-Z]?(?:\(\d+\))?\s+(?:of\s+)?(?:NI|IT)(?![A-Za-z0-9])"), "the law"),
     (_re.compile(r"\bRent\s+Control\s+Act(?:,?\s*\d{4})?\b"), "the state rent law"),
     (_re.compile(r"\bCode\s+on\s+Wages(?:,?\s*\d{4})?\b"), "the wage law"),
     (_re.compile(r"\bIndustrial\s+Relations\s+Code(?:,?\s*\d{4})?\b"), "the labour law"),
     (_re.compile(r"\bCode\s+on\s+Social\s+Security(?:,?\s*\d{4})?\b"), "the social security law"),
-    (_re.compile(r"\bPayment\s+of\s+(?:Wages|Gratuity)\s+Act(?:,?\s*\d{4})?\b"), "the law [UNVERIFIED]"),
+    (_re.compile(r"\bPayment\s+of\s+(?:Wages|Gratuity)\s+Act(?:,?\s*\d{4})?\b"), "the law"),
     (_re.compile(r"\bIndustrial\s+Disputes\s+Act(?:,?\s*\d{4})?\b"), "the labour law"),
     (_re.compile(r"\bTenancy\s+Act(?:,?\s*\d{4})?\b"), "the state tenancy law"),
     (_re.compile(r"\bProhibition\s+(?:and\s+Excise\s+)?Act(?:,?\s*\d{4})?\b"), "the state liquor law"),

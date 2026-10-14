@@ -805,7 +805,7 @@ async def export_messages_csv(x_admin_key: Optional[str] = Header(None)):
             if m.get("error"):
                 status = "error"
             elif m.get("role") == "assistant" and m.get("content", "").startswith(
-                ("I don't have a verified source", "I only cover Indian law", "I can only help")
+                ("I don't have a verified source", "I cannot confirm this from the official text", "I only cover Indian law", "I can only help")
             ):
                 status = "refused"
             else:

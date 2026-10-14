@@ -74,6 +74,28 @@ class TestDharaClaimsAreBlockedInAnswerText:
         _, blocked, _ = validate_dhara_text("My verdict is that you are in the right.")
         assert blocked is True
 
+    def test_mixed_legal_term_and_claim_blocks_on_the_claim_only(self):
+        """Phase 1 follow-up: a legal term of art and a DHARA-claim in the
+        SAME answer. The claim must block the whole answer (fail-closed —
+        there is no partial-redaction in Phase 1); the legal term by
+        itself must never be the reason it blocks."""
+        mixed = "You can request a certified copy of your FIR from the station. This answer is verified and accurate."
+        _, blocked, _ = validate_dhara_text(mixed)
+        assert blocked is True  # blocked because of the claim sentence
+        # Proof the legal term alone was never the trigger: the same legal
+        # term, with no claim sentence, must pass on its own.
+        term_only = "You can request a certified copy of your FIR from the station."
+        _, blocked_term_only, _ = validate_dhara_text(term_only)
+        assert blocked_term_only is False
+
+    def test_mixed_rights_guaranteed_and_court_ready_claim(self):
+        mixed = "These are fundamental rights guaranteed by the Constitution. Here is your court-ready draft."
+        _, blocked, _ = validate_dhara_text(mixed)
+        assert blocked is True
+        term_only = "These are fundamental rights guaranteed by the Constitution."
+        _, blocked_term_only, _ = validate_dhara_text(term_only)
+        assert blocked_term_only is False
+
 
 class TestRepeatedWordsCollapsedNotBlocked:
     def test_the_the_collapsed(self):
