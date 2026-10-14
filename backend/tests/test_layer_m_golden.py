@@ -99,7 +99,7 @@ class TestCannotVerifyResponse:
         assert "ANSWER" in msg
         assert "WHY" in msg
         assert "WHAT YOU CAN DO" in msg
-        assert "VERIFIED SOURCES" in msg
+        assert "SOURCES" in msg
 
     def test_14_never_fabricates_an_active_law(self):
         # No section number invented — content must be about NOT finding an active law.
@@ -348,7 +348,7 @@ class TestRealWorldDeadSectionRendering:
             # to a fabricated claim. Since the builder has no code path that
             # emits successor_section, this simply asserts the message
             # composed successfully without raising and stayed well-formed.
-            assert "ANSWER" in msg and "VERIFIED SOURCES" in msg
+            assert "ANSWER" in msg and "SOURCES" in msg
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -2348,8 +2348,15 @@ _CITATION_LEAK_PATTERNS = [
     # Just "Rule 138(3)" alone
     (_re.compile(r"\b[Rr]ule\s+\d+[A-Z]?(?:\(\d+\))?(?:\([a-z]\))?(?![A-Za-z0-9])"), "the rule"),
     # Long forms of the statutes
-    (_re.compile(r"\bBharatiya\s+(?:Nyaya|Nagarik|Sakshya)\s+(?:Sanhita|Suraksha|Adhiniyam)(?:,?\s*\d{4})?\b"), "the law [UNVERIFIED]"),
-    (_re.compile(r"\bIndian\s+Penal\s+Code(?:,?\s*\d{4})?\b"), "the law [UNVERIFIED]"),
+    # NOTE (Phase 1 hotfix): these two are deliberately narrower than the
+    # other long-form patterns above — they only fire when the Act's full
+    # name is directly followed by a section number. A bare, informational
+    # mention of the Act's name ("The Indian Penal Code was replaced by the
+    # Bharatiya Nyaya Sanhita") must NOT be touched; previously it was,
+    # producing "The the law [UNVERIFIED] was replaced by the the law
+    # [UNVERIFIED]." — a reproduced, confirmed defect.
+    (_re.compile(r"\bBharatiya\s+(?:Nyaya|Nagarik|Sakshya)\s+(?:Sanhita|Suraksha|Adhiniyam)(?:,?\s*\d{4})?,?\s*(?:[Ss]ec(?:tion|\.)?\s*)?\d+[A-Z]?(?:\(\d+\))?\b"), "the law [UNVERIFIED]"),
+    (_re.compile(r"\bIndian\s+Penal\s+Code(?:,?\s*\d{4})?,?\s*(?:[Ss]ec(?:tion|\.)?\s*)?\d+[A-Z]?(?:\(\d+\))?\b"), "the law [UNVERIFIED]"),
     (_re.compile(r"\bCode\s+of\s+Criminal\s+Procedure(?:,?\s*\d{4})?\b"), "the law [UNVERIFIED]"),
     (_re.compile(r"\b(?:Protection\s+of\s+Women\s+from\s+Domestic\s+Violence\s+Act|PWDVA)(?:,?\s*\d{4})?\b"), "the law [UNVERIFIED]"),
     (_re.compile(r"\b(?:Right\s+to\s+Information\s+Act|RTI\s+Act)(?:,?\s*\d{4})?\b"), "the law [UNVERIFIED]"),

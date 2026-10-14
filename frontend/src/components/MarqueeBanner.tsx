@@ -12,7 +12,7 @@ import { View, Text, Animated, StyleSheet, ScrollView } from 'react-native';
 import { theme } from '../theme';
 
 const ITEMS = [
-  'Dhara answers drawn exclusively from verified sources',
+  'Dhara answers drawn exclusively from official sources',
   'Bharatiya Nyaya Sanhita (BNS)',
   'Constitution of India',
   'Supreme Court judgments',

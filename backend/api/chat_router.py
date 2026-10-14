@@ -5,6 +5,7 @@ Depends on: dependencies.py, config/settings.py
 """
 import io
 import logging
+import os
 import re
 import json
 import uuid
@@ -73,6 +74,14 @@ from engine.answer_generator import (
     augment_prompt_with_actor_conduct_lock,
     reframe_misdirected_obligations,
 )
+from engine.output_guard import validate_dhara_text, looks_like_refusal, CANNOT_CONFIRM_MESSAGE
+
+# DHARA P0 Legal-Answer-Engine audit — Phase 1 hotfix flag. Default OFF =
+# today's behaviour byte-for-byte (citations emitted immediately, streamed
+# token-by-token, no output guard). ON = citations only after the answer
+# is known to be substantive, answer streamed only after it passes the
+# output guard. See backend/.env CITATION_GUARD_ENABLED.
+CITATION_GUARD_ENABLED = os.getenv("CITATION_GUARD_ENABLED", "false").strip().lower() == "true"
 
 router = APIRouter()
 
@@ -816,7 +825,7 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
         if user_state:
             corpus_context += (
                 f"\n---\nJURISDICTION GAP: {state_topic['label']} are decided by STATE law and "
-                f"no verified rule for {state_name(user_state)} is available. Say plainly that the "
+                f"no confirmed rule for {state_name(user_state)} is available. Say plainly that the "
                 f"local rule decides this and that the user must confirm it with "
                 f"{state_topic['authority']}. Do NOT state any local amount, limit or deadline."
             )
@@ -934,11 +943,14 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
             "guest_question_limit": guest_question_limit,
             "guest_warning": guest_warning,
         })
-        # Emit verified citations FIRST — the UI shows these in a separate boxed panel.
-        # The model is instructed NEVER to include section numbers/statutory text in its
-        # own reply; the source of truth is here (from corpus.py).
+        # Citation candidates are collected here first. With the flag OFF,
+        # behaviour is byte-for-byte unchanged: they are flushed immediately
+        # below. With CITATION_GUARD_ENABLED=true, they are held until the
+        # answer itself is known to be substantive (not a refusal / not
+        # blocked by the output guard) — see the post-processing block below.
+        _citation_payloads: list[dict] = []
         for it in retrieved:
-            yield sse({"type": "citation", "citation": public_citation(it)})
+            _citation_payloads.append({"type": "citation", "citation": public_citation(it)})
 
         # Emit MongoDB-corpus citations.  G1/G2 safety warnings are prepended to
         # official_text so they appear at the top of the citation card in the UI.
@@ -961,7 +973,7 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                 f"{hit.get('act_name', '')}, Section {hit.get('section_number', '')}"
                 + (f" — {sec_heading}" if sec_heading else "")
             )
-            yield sse({
+            _citation_payloads.append({
                 "type": "citation",
                 "citation": {
                     "key": f"{hit.get('act_name', '')} § {hit.get('section_number', '')}",
@@ -983,7 +995,7 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
         # Orphan judicial-invalidation warning (section in judicial_invalidations
         # but NOT in legal_sections — e.g. IPC §377 replaced by BNS).
         if db_orphan:
-            yield sse({
+            _citation_payloads.append({
                 "type": "citation",
                 "citation": {
                     "key": f"{db_orphan.get('act_name', '')} § {db_orphan.get('section_number', '')}",
@@ -1003,6 +1015,12 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                     "status": db_orphan.get("status"),
                 },
             })
+
+        if not CITATION_GUARD_ENABLED:
+            # Unchanged legacy behaviour: emit every candidate immediately,
+            # before the answer is even generated.
+            for _p in _citation_payloads:
+                yield sse(_p)
 
         # State-jurisdiction signalling. Two distinct cases, both honest:
         #  - the user has no state set → ask for it once, in context
@@ -1024,7 +1042,7 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                     "topic": state_topic["topic"],
                     "state": user_state,
                     "message": (
-                        f"No verified {state_topic['label']} rule for {state_name(user_state)} is "
+                        f"No confirmed {state_topic['label']} rule for {state_name(user_state)} is "
                         f"in Dhara yet. Confirm the local position with {state_topic['authority']}."
                     ),
                 })
@@ -1037,6 +1055,8 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
             yield sse({"type": "delta", "content": refusal_text})
             await save_assistant(refusal_text, error=None)
             await save_case_state(db, session_id, _v2_state)
+            if CITATION_GUARD_ENABLED and _citation_payloads:
+                logger.info("citation_guard | suppressed | reason=early_refusal | count=%d", len(_citation_payloads))
             if is_guest and guest_question_count == guest_question_limit:
                 yield sse({"type": "guest_limit_reached", "message": "You've reached the guest limit. Create a free account to continue."})
             yield sse({"type": "done"})
@@ -1044,11 +1064,15 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
 
         full = ""
         errored: Optional[str] = None
+        _buffering = CITATION_GUARD_ENABLED  # hold tokens, release only after the output guard passes
+        if _buffering:
+            yield sse({"type": "status", "state": "thinking"})
         try:
             async for ev in chat.stream_message(UserMessage(text=body.message)):
                 if isinstance(ev, TextDelta):
                     full += ev.content
-                    yield sse({"type": "delta", "content": ev.content})
+                    if not _buffering:
+                        yield sse({"type": "delta", "content": ev.content})
                 elif isinstance(ev, StreamDone):
                     break
         except Exception as e:
@@ -1101,9 +1125,35 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
             _banner = _EMERGENCY_BANNER.get(body.language, _EMERGENCY_BANNER["en"])
             sanitized = f"{_banner}\n\n{sanitized or full}"
 
-        if sanitized != full:
+        # ── Phase 1 hotfix: final output guard + citation-after-answer gate ──
+        # Runs ONLY on this DHARA-authored prose variable — never on a
+        # citation's official_text (those are separate payloads, never
+        # passed through validate_dhara_text). Logs reason codes/counts
+        # only — never the question, answer or citation text itself.
+        _suppress_citations = False
+        if CITATION_GUARD_ENABLED and not errored:
+            _candidate = sanitized or full
+            _clean, _blocked, _repeats = validate_dhara_text(_candidate)
+            if _blocked:
+                logger.warning("citation_guard | output_blocked | reason=unverified_marker_or_banned_word")
+                sanitized = CANNOT_CONFIRM_MESSAGE
+                _suppress_citations = True
+            else:
+                sanitized = _clean
+                if _repeats:
+                    logger.info("citation_guard | repeats_collapsed | count=%d", _repeats)
+                if looks_like_refusal(sanitized):
+                    _suppress_citations = True
+                    logger.info("citation_guard | suppressed | reason=refusal_text_detected | count=%d", len(_citation_payloads))
+
+        if _buffering or sanitized != full:
             # Overwrite the accumulated text on the client with the sanitized version.
+            # (Buffering mode never sent any delta, so this is the client's first
+            # and only content for this turn — same "final" event type as today.)
             yield sse({"type": "final", "content": sanitized})
+        if CITATION_GUARD_ENABLED and not _suppress_citations:
+            for _p in _citation_payloads:
+                yield sse(_p)
         await save_assistant(sanitized or full, errored)
         # Gate 2: persist updated conversation state (turn count, legal_query, domain)
         await save_case_state(db, session_id, _v2_state)

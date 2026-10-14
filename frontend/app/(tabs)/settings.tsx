@@ -379,7 +379,7 @@ export default function Settings() {
         </Pressable>
         <Pressable testID="profile-legal-lookup" style={styles.row} onPress={() => router.push('/(tabs)/discover')}>
           <Ionicons name="search-outline" size={22} color={theme.colors.brand} />
-          <View style={{ flex: 1 }}><Text style={styles.rowTitle}>Legal lookup</Text><Text style={styles.rowSub}>Search sections and verified sources</Text></View>
+          <View style={{ flex: 1 }}><Text style={styles.rowTitle}>Legal lookup</Text><Text style={styles.rowSub}>Search sections and official sources</Text></View>
           <Ionicons name="chevron-forward" size={18} color={theme.colors.onSurfaceSecondary} />
         </Pressable>
         <Pressable testID="profile-chat-history" style={styles.row} onPress={() => router.push('/(tabs)/history')}>

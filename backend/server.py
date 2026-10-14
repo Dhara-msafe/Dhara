@@ -1391,7 +1391,7 @@ async def cross_reference(
         "bare_act_audit_count": len(data.get("metadata", {}).get("bare_act_audit", [])),
         # What to show in the UI when query_found_in_db is False
         "not_in_db_message": (
-            "Section mapping not yet verified in our database. "
+            "Section mapping not yet confirmed in our database. "
             "Please consult a manual or the bare Act directly."
             if is_section_search and len(results) == 0 else ""
         ),

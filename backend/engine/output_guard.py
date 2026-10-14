@@ -56,17 +56,22 @@ _REFUSAL_MARKERS = re.compile(
 )
 
 
-def collapse_repeated_small_words(text: str) -> str:
-    """Collapse immediate repeats of the/a/of/to/and. Never blocks output."""
+def collapse_repeated_small_words(text: str) -> tuple[str, int]:
+    """Collapse immediate repeats of the/a/of/to/and. Never blocks output.
+
+    Returns (clean_text, number_of_repeats_collapsed) — the count is for
+    reason-code-style logging only (never the text itself).
+    """
     if not text:
-        return text
+        return text, 0
+    count = 0
     prev = None
     out = text
-    # Repeated substitution handles runs of 3+ (rare) without extra logic.
     while prev != out:
         prev = out
-        out = _REPEAT_RE.sub(r"\1", out)
-    return out
+        out, n = _REPEAT_RE.subn(r"\1", out)
+        count += n
+    return out, count
 
 
 def looks_like_refusal(text: str) -> bool:
@@ -78,21 +83,23 @@ def looks_like_refusal(text: str) -> bool:
     return bool(text) and bool(_REFUSAL_MARKERS.search(text))
 
 
-def validate_dhara_text(text: str) -> tuple[str, bool]:
+def validate_dhara_text(text: str) -> tuple[str, bool, int]:
     """Clean + validate text DHARA itself wrote.
 
-    Returns (clean_text, blocked).
+    Returns (clean_text, blocked, repeats_collapsed).
       blocked=False -> clean_text is safe to show (small-word repeats
         collapsed; nothing else changed).
       blocked=True  -> the ORIGINAL text contained "[UNVERIFIED]" or a
         banned word; caller must substitute CANNOT_CONFIRM_MESSAGE instead
-        of showing clean_text.
+        of showing clean_text (repeats_collapsed is 0 in this case — no
+        point collapsing text that will be discarded).
 
     MUST be called only on DHARA-authored prose (model answer, refusal
     sentence, fixed templates) — never on a citation's official_text.
     """
     if not text:
-        return text, False
+        return text, False, 0
     if _UNVERIFIED_MARKER in text or _BANNED_WORD_RE.search(text):
-        return text, True
-    return collapse_repeated_small_words(text), False
+        return text, True, 0
+    clean, count = collapse_repeated_small_words(text)
+    return clean, False, count

@@ -100,7 +100,7 @@ def build_cannot_verify_response(
         f"ANSWER\n"
         f"I could not find an ACTIVE Indian law that clearly settles {subject} for the facts you gave.\n\n"
         f"WHY\n"
-        f"The provisions our verified corpus surfaced for this question have been REPEALED or "
+        f"The provisions our corpus surfaced for this question have been REPEALED or "
         f"SUPERSEDED by newer legislation (for example IPC → BNS from 1 July 2024). I will not "
         f"quote a dead law as if it were still in force.\n\n"
         f"WHAT YOU CAN DO\n"
@@ -109,7 +109,7 @@ def build_cannot_verify_response(
         f"- Consult a licensed advocate for the current position, especially if the incident is "
         f"post-July 2024 (BNS / BNSS / BSA era).\n"
         f"- If this is urgent, dial 112; women in distress can dial 1091.\n\n"
-        f"VERIFIED SOURCES (status shown transparently)\n"
+        f"SOURCES (status shown transparently)\n"
         f"{sources_block}\n\n"
         f"⚠️ Legal information, not legal advice. Consult an advocate. © Callistus Moses · MSafe Solutions."
     )
@@ -141,7 +141,7 @@ def augment_prompt_with_status_guard(prompt: str, hits: Iterable[dict]) -> str:
         "In your reply, do NOT describe these as if they were currently enforceable. "
         "If the question is answered by the successor law (e.g. BNS in place of IPC), "
         "answer using the CITIZEN-LEVEL description of the successor rule; if no "
-        "successor is available in the VERIFIED SOURCES, tell the user plainly that "
+        "successor is available in the SOURCES above, tell the user plainly that "
         "the older law no longer applies and ask them to consult an advocate."
     )
     return prompt + guard
