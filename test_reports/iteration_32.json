@@ -1,0 +1,60 @@
+{
+  "summary": "QA Brief (Jan 2026) regression pass for bharti-justice preview. Backend: 15/15 new pytest tests passed (guest mode, registration/consent validation, legal-truth queries, citation-guard regression). Frontend: guest flow traced end-to-end via Playwright (language->consent->login->guest->consent-update->/home->Ask DHARA->citation card), /home auth-redirect and refresh-persistence verified, Me-tab reviewed for guest upgrade CTA. 'Verified' literal-suffix banned-word check: NOT present in current deployed UI (passes, already fixed). TWO NEW content-accuracy/citation-integrity defects found and NOT fixed (business logic, reported for main agent): (1) incident-date applicability is broken — a pre-July-2024 incident is told BNS (post-1-Jul-2024 law) applies retroactively, violating Article 20(1)/ex-post-facto protection; MongoDB corpus retrieval and the G2 supersession guard are both date-blind at the citation-selection level despite layer A extracting event_date. (2) Stridhan query returned a completely irrelevant citation card ('The Indian Soldiers (Litigation) Act, 1925, Section 11') — cross-corpus noise-suppression guard did not catch this case. Re-confirmed (NOT new, already logged per main agent's note, not fixed) the reversed-meaning arrest-rights sentence is still live in production prose generation.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/chat/stream (retrieval / MongoDB corpus_db.retrieve_db + irrelevance_filter G2)",
+        "issue": "Incident-date applicability is NOT correctly handled. Asked 'An incident happened in May 2024 where someone assaulted me. Which law applies, IPC or BNS?' -> answer says 'The new criminal law (BNS) applies to your May 2024 assault... but covers offences from before that date.' This is legally incorrect: BNS took effect 1 July 2024 and does not apply retroactively to acts committed before that date (Article 20(1) of the Constitution, and BNSS Section 358 savings clause preserve IPC/CrPC for pre-July-2024 offences). Root cause: corpus_db.retrieve_db() marks IPC sections is_dead_law=True unconditionally (no event_date parameter at all), and irrelevance_filter.py's G2 guard only suppresses IPC/CrPC hits when the query IS post-July-2024 — there is no equivalent guard that prefers/keeps IPC and flags BNS as inapplicable when the incident predates 1 July 2024. The LLM then free-generates a plausible-sounding but wrong retroactivity claim.",
+        "priority": "CRITICAL"
+      },
+      {
+        "endpoint": "POST /api/chat/stream (cross-corpus noise suppression, corpus_db fuzzy $text match)",
+        "issue": "Query 'What is stridhan?' returned the answer text correctly (stridhan definition) but the ONLY citation card shown was 'The Indian Soldiers (Litigation) Act, 1925, Section 11 — Modification of law of limitation where Indian soldier...' — totally unrelated to stridhan/women's property rights. The documented cross-corpus noise-suppression guard (chat_router.py c0) did not filter this unanchored/irrelevant MongoDB hit out even though it is the sole citation shown to the user, which is factually misleading (citation-answer mismatch).",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Guest -> registered-account upgrade (Me/Settings tab)",
+        "issue": "The Me tab (settings) for an active guest session shows no 'Create account' / 'Upgrade' CTA at all (only Language, State, Chat history, Saved answers, Advocates, Settings, Sign out). The upgrade path only exists contextually on the Ask-DHARA chat screen once the 5-question limit is hit (guest-create-account-btn / guest-sign-in-btn, confirmed present in index.tsx). This is a minor discoverability gap, not a broken flow — a guest who never hits the limit (or navigates straight to Me) has no visible way to upgrade from there.",
+        "affected_testIDs": ["guest-create-account-btn", "guest-sign-in-btn"]
+      }
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_qa_brief_jan2026.py",
+    "/app/test_reports/pytest/iteration_qa_brief.xml"
+  ],
+  "action_items": [
+    "P4(d) CRITICAL: Fix incident-date applicability — when a user states an incident date before 1 July 2024, the engine must serve/keep IPC/CrPC citations (not BNS) and must never claim BNS applies retroactively. Needs a date-aware guard symmetrical to the existing G2 guard (currently only handles the post-July-2024 direction) plus making corpus_db.retrieve_db() event_date-aware instead of unconditionally dead-flagging IPC.",
+    "P4(e) HIGH: Fix cross-corpus noise suppression for 'stridhan' (and audit similarly generic-word queries) so an obviously unrelated Act (Indian Soldiers (Litigation) Act 1925) is never served as the sole citation for a women's-property-rights question.",
+    "Informational: consider surfacing a lightweight 'Create free account' CTA on the Me/Settings tab for guest users as well, not only after the 5-question limit banner on the chat screen (minor UX gap, not a blocker).",
+    "No action needed — already logged separately by main agent: the reversed-meaning arrest-rights sentence ('the law enforcement officer must be told why you are being arrested' instead of 'you must be told') is still reproducible; re-confirmed only, not re-fixed per scope.",
+    "No action needed: literal 'Verified' suffix banned-word pattern from the old test-case doc was NOT found anywhere in the current deployed UI (checked citation chip, verified_at label, and full page text across two live chat answers) — the additional check requested by the user is already clean."
+  ],
+  "critical_code_review_comments": [
+    "chat_router.py CITATION_GUARD_ENABLED=true path (Phase 1 hotfix) works correctly end-to-end on the live preview: 'session' event fires first, answer buffers and arrives as a single 'final' event, citations arrive only after the final event, no duplicates observed across 15 automated backend queries + 3 manual UI queries.",
+    "auth_router.py RegisterIn correctly enforces password min_length=6 via Pydantic Field — matches the frontend's displayed 6-character hint exactly (verified both the 5-char-rejected and 6-char-accepted boundary).",
+    "auth_router.py register() correctly 400s when terms_accepted=False before any DB write — consent is backend-enforced, not just a frontend checkbox.",
+    "corpus_db.py's is_dead_law flag for IPC/CrPC sections is static/global per-document and has no event_date parameter anywhere in its signature — this is the root cause of the incident-date-applicability defect above; irrelevance_filter.py's G2 guard partially compensates but only for the Python corpus, not MongoDB, and only in the post-July-2024 direction.",
+    "(tabs)/_layout.tsx client-side token guard (`if (!token) router.replace('/login')`) means /home is correctly auth-gated in the browser, but any non-JS HTTP client (e.g. a plain curl or a headless checker that doesn't execute the bundle) will see a 200 + the raw JS bundle for /home regardless of auth — this fully explains why an external test service 'could not retrieve /home': it is an SPA client-side redirect, not a server-side 401/302, and is NOT a defect given this is an Expo/React Native web export."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_qa_brief_jan2026.py"
+  ],
+  "success_rate": {
+    "backend": "100% (15/15 new automated tests passed)",
+    "frontend": "~90% — guest flow, /home auth-gate, refresh persistence, consent/legal-link presence, and citation-card rendering all verified working; 2 content-accuracy/citation-integrity defects found in answer content (not a UI rendering bug)"
+  },
+  "seed_data_creation": "Multiple TEST_-prefixed fictional accounts created via /api/auth/register for registration/consent/legal-truth tests (e.g. TEST_fictional_*, TEST_legaltruth_*, TEST_citguard_*, TEST_noverified_*); several guest_* sessions created via /api/auth/guest and the live UI guest flow. All test data is clearly TEST_/guest_ prefixed and safe to leave or purge.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Guest flow UI sequence that works reliably (fresh context each time): goto root -> click text 'Continue' (language) -> consent screen: click consent-age-adult, consent-terms-checkbox, consent-data-checkbox, consent-continue-button -> lands on /login -> click continue-as-guest-button -> redirects to /consent?mode=update -> repeat the same 4 consent clicks -> lands on /home. To ask a question: click 'Type' text button, fill the last textarea/input on the page, press Enter, then wait ~15-25s for the SSE stream to finish (CITATION_GUARD_ENABLED buffers the whole answer so nothing appears until 'final'). 'View Legal Details' toggle reveals the Sources/citation cards. The two new defects (incident-date applicability, stridhan citation mismatch) are answer-content/retrieval bugs, reproducible via both the backend pytest file's helper _ask() and the live chat UI — not Playwright flakiness.",
+  "rca_of_issue": "Incident-date bug RCA: engine/models.py's LegalQuery.event_date IS populated by the Layer A pre-retrieval LLM extraction (confirmed via irrelevance_filter.py's G2 guard reading lq.event_date), but (1) corpus_db.retrieve_db() — the MongoDB path that actually served the BNS citations in this reproduction — never receives or consults event_date at all (grep confirms no event_date reference anywhere in corpus_db.py), and (2) the G2 guard in irrelevance_filter.py only fires to SUPPRESS IPC/CrPC when the incident is post-July-2024; there is no symmetric guard to suppress/caveat BNS or to force-prefer IPC when the incident is confirmed pre-July-2024. The LLM is left to reason about retroactivity unaided and gets it wrong. Minimal fix: thread event_date into corpus_db.retrieve_db()'s MongoDB query/post-filter, and add a G2b guard (BNS/BNSS/BSA hits suppressed or caveated when lq.event_date is confirmed < 2024-07-01 and an IPC/CrPC equivalent exists)."
+}
