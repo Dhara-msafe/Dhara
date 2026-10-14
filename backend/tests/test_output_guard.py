@@ -12,9 +12,67 @@ from engine.output_guard import (
     validate_dhara_text,
     collapse_repeated_small_words,
     looks_like_refusal,
+    contains_banned_word_strict,
+    contains_dhara_claim_violation,
     CANNOT_CONFIRM_MESSAGE,
     BANNED_WORDS,
 )
+
+
+class TestLegalTermsOfArtAlwaysPassInAnswerText:
+    """Rule (c) — ordinary legal terms must never be blocked, even though
+    they contain a banned word."""
+
+    def test_certified_copy_passes(self):
+        text = "You can request a certified copy of your FIR from the station."
+        clean, blocked, _ = validate_dhara_text(text)
+        assert blocked is False
+        assert clean == text
+
+    def test_rights_guaranteed_by_constitution_passes(self):
+        text = "These are fundamental rights guaranteed by the Constitution."
+        clean, blocked, _ = validate_dhara_text(text)
+        assert blocked is False
+        assert clean == text
+
+    def test_verified_affidavit_passes(self):
+        text = "You must file a verified affidavit along with the petition."
+        clean, blocked, _ = validate_dhara_text(text)
+        assert blocked is False
+
+    def test_approved_by_the_court_passes(self):
+        text = "This settlement was approved by the court."
+        clean, blocked, _ = validate_dhara_text(text)
+        assert blocked is False
+
+    def test_the_courts_verdict_passes(self):
+        text = "The matter is pending the court's verdict."
+        clean, blocked, _ = validate_dhara_text(text)
+        assert blocked is False
+
+
+class TestDharaClaimsAreBlockedInAnswerText:
+    """Rule (b) — a claim about DHARA/its answer/sources/a draft."""
+
+    def test_dhara_has_verified_this_blocks(self):
+        _, blocked, _ = validate_dhara_text("DHARA has verified this.")
+        assert blocked is True
+
+    def test_court_ready_draft_blocks(self):
+        _, blocked, _ = validate_dhara_text("Here is your court-ready draft.")
+        assert blocked is True
+
+    def test_this_answer_is_verified_blocks(self):
+        _, blocked, _ = validate_dhara_text("This answer is verified and accurate.")
+        assert blocked is True
+
+    def test_guaranteed_outcome_blocks(self):
+        _, blocked, _ = validate_dhara_text("We guarantee a favourable outcome in court.")
+        assert blocked is True
+
+    def test_self_attributed_verdict_blocks(self):
+        _, blocked, _ = validate_dhara_text("My verdict is that you are in the right.")
+        assert blocked is True
 
 
 class TestRepeatedWordsCollapsedNotBlocked:
@@ -41,21 +99,30 @@ class TestRepeatedWordsCollapsedNotBlocked:
         assert blocked is False
 
 
-class TestBannedWordsAndMarkerBlockDharaText:
+class TestStrictRuleReservedForDharaOwnStrings:
+    """Rule (a) — contains_banned_word_strict() is the zero-tolerance
+    check for DHARA's OWN hardcoded strings, kept separate from the
+    answer-text rule. Not currently wired to any runtime call site
+    (those strings are reworded at the source instead — see
+    engine/answer_generator.py / dependencies.py / server.py), but
+    verified here so the function itself stays correct if ever needed."""
+
+    def test_strict_check_has_no_legal_term_exceptions(self):
+        assert contains_banned_word_strict("certified copy") is True
+        assert contains_banned_word_strict("rights guaranteed by the Constitution") is True
+
+    def test_each_banned_word_strict_blocks(self):
+        for w in BANNED_WORDS:
+            assert contains_banned_word_strict(f"This is a {w} answer.") is True
+
+    def test_clean_prose_passes_strict_too(self):
+        assert contains_banned_word_strict("You can file a complaint at the police station.") is False
+
+
+class TestUnverifiedMarkerAlwaysBlocksRegardlessOfContext:
     def test_unverified_marker_blocks(self):
         _, blocked, _ = validate_dhara_text("Some answer [UNVERIFIED] text.")
         assert blocked is True
-
-    def test_each_banned_word_blocks_as_whole_word(self):
-        for w in BANNED_WORDS:
-            _, blocked, _ = validate_dhara_text(f"This is a {w} answer.")
-            assert blocked is True, f"expected '{w}' to block"
-
-    def test_banned_word_substring_inside_another_word_does_not_block(self):
-        # "verified" must match as a whole word only — a word that merely
-        # contains the substring must not false-positive.
-        _, blocked, _ = validate_dhara_text("The unverifiedish term is not a real word.")
-        assert blocked is False
 
     def test_clean_prose_passes_untouched(self):
         text = "You can file a complaint at your nearest police station."
@@ -66,32 +133,30 @@ class TestBannedWordsAndMarkerBlockDharaText:
 
 
 class TestQuotedCorpusTextNeverPassedToGuard:
-    """Architectural guarantee, not a probabilistic one: a citation's
-    official_text is a separate SSE payload in chat_router.py and is never
-    routed through validate_dhara_text(). These two cases — a legitimate
-    "certified copy" statutory phrase and a "verified" statute quote —
-    prove that IF such text were (incorrectly) run through the guard it
-    would currently be blocked; chat_router.py's citation-building code
-    path must never call validate_dhara_text on citation fields, which is
-    verified by code inspection (grep) in this same test for durability.
+    """Architectural guarantee: a citation's official_text is a separate
+    SSE payload in chat_router.py and is never routed through
+    validate_dhara_text(). Confirmed two ways: (1) these specific
+    corpus-style phrases now correctly PASS even when run through the
+    answer-text rule directly — proving the Phase 1.1 refinement fixed
+    the over-blocking regression found in testing — and (2) a static
+    grep confirms the only real call site uses the model's own prose.
     """
 
-    def test_certified_copy_corpus_phrase_would_trip_guard_if_misrouted(self):
-        # Real Evidence Act / BSA style language.
+    def test_certified_copy_corpus_phrase_passes_even_if_misrouted(self):
         quote = "A certified copy of a public document may be produced as evidence without further proof."
         _, blocked, _ = validate_dhara_text(quote)
-        assert blocked is True  # confirms WHY this must never be routed here
+        assert blocked is False
 
-    def test_verified_statute_quote_would_trip_guard_if_misrouted(self):
+    def test_verified_against_specimen_corpus_phrase_passes_even_if_misrouted(self):
         quote = "The officer shall record that the signature has been verified against the specimen on file."
         _, blocked, _ = validate_dhara_text(quote)
-        assert blocked is True  # confirms WHY this must never be routed here
+        assert blocked is False
 
     def test_chat_router_never_calls_guard_on_citation_payload(self):
         import pathlib
         src = pathlib.Path(__file__).resolve().parents[1] / "api" / "chat_router.py"
         text = src.read_text(encoding="utf-8")
-        # The only two call sites of validate_dhara_text must operate on
+        # The only call site of validate_dhara_text must operate on
         # `_candidate` (derived from `sanitized`/`full`, the model's own
         # prose) — never on `official_text` or a citation dict.
         assert "validate_dhara_text(_candidate)" in text
