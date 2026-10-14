@@ -16,10 +16,12 @@ import { theme } from '@/src/theme';
 import { consentStyles as styles } from '@/src/consentStyles';
 
 const colors = theme.colors;
+import { grievanceOfficerName, grievanceContactEmail } from '@/src/operatorIdentity';
+
 const PLACEHOLDERS: Record<string, string> = {
   '{{DATA_LOCATION}}': 'India (cloud-hosted, encrypted at rest)',
-  '{{GRIEVANCE_OFFICER_NAME}}': 'Calvil Technologies',
-  '{{GRIEVANCE_EMAIL}}': 'grievance@calviltech.com',
+  '{{GRIEVANCE_OFFICER_NAME}}': grievanceOfficerName,
+  '{{GRIEVANCE_EMAIL}}': grievanceContactEmail,
 };
 const fillPlaceholders = (text: string) => Object.entries(PLACEHOLDERS)
   .reduce((s, [key, value]) => s.split(key).join(value), text);

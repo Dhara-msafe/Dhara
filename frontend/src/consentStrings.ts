@@ -1,5 +1,7 @@
 // Privacy notice content imported from dhara_consent_strings.json.
 // Keep the type aligned with the content keys: undefined labels block onboarding.
+import { indiaEntity } from './operatorIdentity';
+
 export const CONSENT_NOTICE_VERSION = "2026-10-01";
 
 export type ConsentLang = {
@@ -14,7 +16,7 @@ export type ConsentLang = {
   continue_button: string; read_full: string; disclaimer: string;
 };
 
-export const CONSENT_META = {"notice_version": "2026-10-01", "owner_india": "Calviltech Digital Solutions Pvt Ltd", "status": "DRAFT - English reviewed for content; Hindi and Marathi need native-speaker check; all versions need privacy counsel review before launch", "placeholders": ["{{GRIEVANCE_OFFICER_NAME}}", "{{GRIEVANCE_EMAIL}}", "{{DATA_LOCATION}}"]} as const;
+export const CONSENT_META = {"notice_version": "2026-10-01", "owner_india": indiaEntity, "status": "DRAFT - English reviewed for content; Hindi and Marathi need native-speaker check; all versions need privacy counsel review before launch", "placeholders": ["{{GRIEVANCE_OFFICER_NAME}}", "{{GRIEVANCE_EMAIL}}", "{{DATA_LOCATION}}"]} as const;
 
 export const consentStrings: Record<string, ConsentLang> = {
   "en": {

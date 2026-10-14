@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { answersKey, clearSupport, loadSupport, mapUrl, MissingPhoto, MissingSupport, photoForPdf, photoRequest } from '@/src/missing/support';
 import rightsData    from '@/src/content/missing_rights.json';
+import { indiaEntity } from '@/src/operatorIdentity';
 
 type Lang = 'en' | 'hi' | 'mr';
 
@@ -107,7 +108,7 @@ function buildDraftHtml(answers: Record<string, string>, lang: Lang, support: Mi
 
   <div class="footer">
     DHARA_MissingPerson_${missingName.replace(/[^\p{L}\p{N}_-]/gu, '_').slice(0, 20)}_${Date.now()}.pdf<br/>
-    © DHARA · Calvil Technologies · For citizen assistance only
+    © DHARA · ${indiaEntity} · For citizen assistance only
   </div>
 </body>
 </html>`;

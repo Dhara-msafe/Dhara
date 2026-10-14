@@ -493,7 +493,7 @@ export default function Settings() {
 
         <View testID="copyright-block" style={styles.copyBlock}>
           <Text style={styles.copyLine}>© {new Date().getFullYear()} MSafe Solutions Inc.</Text>
-          <Text style={styles.copySub}>Calvil Technologies · All rights reserved</Text>
+          <Text style={styles.copySub}>Calviltech Digital Solutions Pvt Ltd · All rights reserved</Text>
         </View>
 
         <Pressable testID="logout-button" style={styles.logoutBtn} onPress={confirmLogout}>
