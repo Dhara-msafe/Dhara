@@ -127,16 +127,20 @@ export default function EvidenceLocker() {
   const segTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const segCountRef = useRef(0);
   const segStartTimeRef = useRef(0);
+  const sessionStartTimeRef = useRef(0); // Fix (S1-4): session-level start time, for the on-screen timer
+  const segDurationsRef = useRef<number[]>([]); // Fix (S1-3): measured per-segment durations, summed for the total
   const [segmentCount, setSegmentCount] = useState(0);
   const [recoverable, setRecoverable] = useState<EvidenceSession[]>([]);
   const owned = useRef<RecordingItem[]>([]);
   const photoUrisRef = useRef<Record<string, string>>({});
   const videoPreviewRef = useRef<typeof videoPreview>(null);
   const playingTempUri = useRef<{ uri: string; wasDecrypted: boolean } | null>(null);
+  const playingIdRef = useRef<string | null>(null); // Fix (S1-1): synchronous id, read inside playNext instead of the stale `playing` state closure
   useEffect(() => { photoUrisRef.current = photoUris; }, [photoUris]);
   useEffect(() => { videoPreviewRef.current = videoPreview; }, [videoPreview]);
   const stopPlayer = useCallback(() => {
     player.current?.remove(); player.current = null; setPlaying(null);
+    playingIdRef.current = null; // Fix (S1-1): clear the synchronous id alongside the state setter
     if (playingTempUri.current) { releaseDecryptedTempUri(playingTempUri.current.uri, playingTempUri.current.wasDecrypted); playingTempUri.current = null; }
   }, []);
   const closeVideoPreview = useCallback(() => {
@@ -229,11 +233,12 @@ export default function EvidenceLocker() {
       if (uri) {
         const segItem = await saveSegment(scope, uri, session.sessionId);
         discardTemporaryRecording(uri);
-        const durationMs = SEGMENT_TARGET_MS; // approximate
+        const durationMs = Date.now() - segStartTimeRef.current; // Fix (S1-3): measured, not the fixed cycle target
         await commitSegment(scope, session.sessionId, {
           segId: segItem.id, index: segIdx, itemId: segItem.id,
           durationMs, committedAt: new Date().toISOString(),
         });
+        segDurationsRef.current.push(durationMs);
         segCountRef.current = segIdx + 1;
         setSegmentCount(segIdx + 1);
       }
@@ -277,11 +282,13 @@ export default function EvidenceLocker() {
       }
       claimForLocker(); // claim provider ownership before recording starts
       recorder.record(); active.current = true;
+      sessionStartTimeRef.current = Date.now(); // Fix (S1-4): session-level start, used by the timer display
       // P0-B: If segmented recording is enabled, start the segment cycle.
       if (segmentedEnabled.current) {
         const session = await createSession(scope);
         sessionRef.current = session;
         segCountRef.current = 0;
+        segDurationsRef.current = []; // Fix (S1-3): reset the measured-duration accumulator
         setSegmentCount(0);
         segStartTimeRef.current = Date.now();
         segTimerRef.current = setTimeout(() => { void commitCurrentSegment(); }, SEGMENT_TARGET_MS);
@@ -318,11 +325,12 @@ export default function EvidenceLocker() {
               segId: segItem.id, index: segCountRef.current, itemId: segItem.id,
               durationMs: elapsed, committedAt: new Date().toISOString(),
             });
+            segDurationsRef.current.push(elapsed);
             segCountRef.current++;
           } catch { /* final segment lost, committed segments remain */ }
         }
-        // Create the v2 parent item
-        const totalDuration = segCountRef.current * SEGMENT_TARGET_MS;
+        // Create the v2 parent item — total is the sum of measured segment durations (Fix S1-3)
+        const totalDuration = segDurationsRef.current.reduce((sum, d) => sum + d, 0);
         const parent = await createSegmentedParent(scope, session.sessionId, segCountRef.current, totalDuration);
         await finalizeSession(scope, session.sessionId, parent.id);
         // Refresh the list
@@ -353,9 +361,10 @@ export default function EvidenceLocker() {
       if (item.recording_format_version === 2 && item.session_id) {
         const segs = await loadSegments(scope, item.session_id);
         if (segs.length === 0) { setStatus('No segments found for this recording.'); return; }
+        playingIdRef.current = item.id; // Fix (S1-1): set synchronously — `playing` state isn't committed yet when playNext(0) runs
         setPlaying(item.id);
         const playNext = async (idx: number) => {
-          if (idx >= segs.length || playing !== item.id) { stopPlayer(); return; }
+          if (idx >= segs.length || playingIdRef.current !== item.id) { stopPlayer(); return; }
           const seg = segs[idx];
           const tempUri = await getDecryptedTempUri(scope, seg);
           playingTempUri.current = { uri: tempUri, wasDecrypted: !!seg.iv };
@@ -409,7 +418,8 @@ export default function EvidenceLocker() {
   const handleRecover = useCallback(async (session: EvidenceSession) => {
     setBusy(true);
     try {
-      const totalDuration = session.segments.length * SEGMENT_TARGET_MS;
+      // Fix (S1-3): total is the sum of each committed segment's measured duration
+      const totalDuration = session.segments.reduce((sum, seg) => sum + seg.durationMs, 0);
       const parent = await createSegmentedParent(scope, session.sessionId, session.segments.length, totalDuration);
       await recoverSession(scope, session.sessionId, parent.id);
       const visible = await loadVisibleRecordings(scope);
@@ -560,7 +570,7 @@ export default function EvidenceLocker() {
         <Text testID="evidence-recording-timer" style={styles.timer}>
           {state.isRecording
             ? segmentedEnabled.current
-              ? `Recording · ${Math.floor(state.durationMillis / 1000)}s · ${segmentCount} segment(s) saved`
+              ? `Recording · ${Math.floor((Date.now() - sessionStartTimeRef.current) / 1000)}s · ${segmentCount} segment(s) saved`
               : `Recording · ${Math.floor(state.durationMillis / 1000)}s`
             : 'Ready to record'}
         </Text>
