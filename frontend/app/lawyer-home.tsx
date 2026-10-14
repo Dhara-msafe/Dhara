@@ -56,8 +56,8 @@ export default function LawyerHome() {
           {loading
             ? null
             : profile?.verified
-              ? <View style={s.badge}><Text style={s.badgeText}>✓ Verified</Text></View>
-              : <Text style={s.pending}>Pending Verification</Text>}
+              ? <View style={s.badge}><Text style={s.badgeText}>✓ Reviewed</Text></View>
+              : <Text style={s.pending}>Pending Review</Text>}
         </View>
         <Pressable onPress={() => router.push('/(tabs)/settings' as any)} style={s.settingsBtn}>
           <Ionicons name="person-circle-outline" size={28} color={GOLD} />

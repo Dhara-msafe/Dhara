@@ -201,6 +201,32 @@ class TestRefusalDetectionOnlyGatesCitations:
         assert looks_like_refusal(CANNOT_CONFIRM_MESSAGE) is True
 
 
+class TestAdvocateBadgeRenamedToReviewed:
+    """F4 — Phase 1: the 'Advocate Verified' badge label is renamed to
+    'Advocate Reviewed' so the label itself can never collide with
+    BANNED_WORDS (which includes 'verified'). corpus_db._badge() is the
+    single source of this string; this is a golden test for that rename,
+    not a new feature test."""
+
+    def test_badge_function_returns_reviewed_not_verified(self):
+        from corpus_db import _badge
+        doc = {"verify_tier": 1, "verified_by": "adv_123"}
+        assert _badge(doc) == "Advocate Reviewed"
+        assert _badge(doc) != "Advocate Verified"
+
+    def test_standard_badge_unchanged(self):
+        from corpus_db import _badge
+        assert _badge({}) == "Sourced from Government of India"
+
+    def test_old_badge_string_would_have_tripped_strict_guard(self):
+        # Proves WHY the rename matters: the old label is a zero-tolerance
+        # banned-word hit on its own.
+        assert contains_banned_word_strict("Advocate Verified") is True
+
+    def test_new_badge_string_passes_strict_guard(self):
+        assert contains_banned_word_strict("Advocate Reviewed") is False
+
+
 if __name__ == "__main__":
     import sys
     import pytest as _pytest

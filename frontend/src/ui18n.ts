@@ -175,7 +175,7 @@ export const UI: Record<string, L> = {
   'ap.notright':     { en: 'Not right?', hi: 'सही नहीं?', mr: 'बरोबर नाही?', ta: 'சரியில்லையா?' },
   'ap.yourright':    { en: 'YOUR RIGHT', hi: 'आपका अधिकार', mr: 'तुमचा हक्क', ta: 'உங்கள் உரிமை' },
   'ap.inforce':      { en: 'In force', hi: 'लागू', mr: 'लागू', ta: 'அமலில்' },
-  'ap.verified':     { en: 'Advocate verified', hi: 'अधिवक्ता सत्यापित' },
+  'ap.verified':     { en: 'Advocate reviewed', hi: 'अधिवक्ता समीक्षित', mr: 'वकिलाने पुनरावलोकित' },
   'ap.listen':       { en: 'Listen', hi: 'सुनें', mr: 'ऐका', ta: 'கேள்' },
   'ap.question':     { en: 'ONE QUICK QUESTION', hi: 'एक छोटा सवाल', mr: 'एक छोटा प्रश्न', ta: 'ஒரு கேள்வி' },
   'ap.yes':          { en: 'Yes', hi: 'हाँ', mr: 'होय', ta: 'ஆம்' },

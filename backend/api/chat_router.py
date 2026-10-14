@@ -540,7 +540,7 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
     # Three safety guards enforced in code (not prompts):
     #   G1 — dead_warning  : serve_warning prepended for is_dead_law sections
     #   G2 — judicial_flag : user_warning from judicial_invalidations (status != UPHELD)
-    #   G3 — badge         : verify_tier==1 + verified_by → "Advocate Verified"
+    #   G3 — badge         : verify_tier==1 + verified_by → "Advocate Reviewed"
     db_hits: list[dict] = []
     if not early_refusal:
         try:

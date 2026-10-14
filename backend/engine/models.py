@@ -1,5 +1,6 @@
 """Shared Pydantic models for the 7-layer reasoning pipeline."""
 from __future__ import annotations
+import os
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
@@ -135,6 +136,63 @@ class VerifiedClaim(BaseModel):
     confidence: float = 0.0
 
 
+# ─── Answer Quality Framework — Phase 1 (F1: Matter Context, additive) ────
+# Added under the AQF plan approved this session. FEATURE_MATTER_CONTEXT_V2
+# gates ALL future wiring of these models into the pipeline — the flag is
+# OFF by default and NOTHING below is read or written by any existing call
+# site yet. CaseState gets exactly one new Optional field (`matter_context`,
+# default None) so every existing CaseState.model_dump()/from_mongo() call
+# is byte-identical to before this change for any document that doesn't
+# already have the field (Pydantic defaults it to None transparently).
+
+FEATURE_MATTER_CONTEXT_V2: bool = os.environ.get(
+    "FEATURE_MATTER_CONTEXT_V2", "false"
+).strip().lower() == "true"
+
+
+class MatterFact(BaseModel):
+    """One fact inside a MatterContext, with provenance (F1)."""
+    text: str
+    provenance: str = "typed"
+    # typed | heard | confirmed | document_extracted | speech_uncertain |
+    # contradicted | expired
+    confidence: Optional[float] = None
+
+
+class MatterContext(BaseModel):
+    """Answer Quality Framework F1 — structured matter context.
+
+    Additive only. Not populated or consumed by any pipeline layer in
+    Phase 1; future phases wire this in behind FEATURE_MATTER_CONTEXT_V2.
+    """
+    original_question: str = ""
+    desired_outcome: Optional[str] = None
+    actors: List[Dict[str, str]] = Field(default_factory=list)
+    conduct_events: List[Dict[str, str]] = Field(default_factory=list)
+    facts: List[MatterFact] = Field(default_factory=list)
+    jurisdiction_state: Optional[str] = None
+    jurisdiction_district: Optional[str] = None
+    jurisdiction_source: Optional[str] = None   # user_profile | typed | inferred
+    jurisdiction_confirmed: bool = False
+    incident_date: Optional[str] = None      # NEW — ISO date string (did not exist pre-Phase-1)
+    proceeding_date: Optional[str] = None    # NEW
+    document_date: Optional[str] = None      # NEW
+    personal_law_context: Dict[str, Any] = Field(default_factory=dict)
+    contradictions: List[Dict[str, str]] = Field(default_factory=list)
+    legal_references: List[str] = Field(default_factory=list)
+    missing_material_facts: List[str] = Field(default_factory=list)
+    answerability: str = "answerable"
+    # answerable | needs_clarification | escalate | refuse
+    safety_flag: Optional[str] = None
+
+    def to_mongo(self) -> dict:
+        return self.model_dump()
+
+    @classmethod
+    def from_mongo(cls, d: dict) -> "MatterContext":
+        return cls.model_validate(d)
+
+
 class CaseState(BaseModel):
     """Full conversation state persisted in MongoDB per session."""
     session_id: str = ""
@@ -148,6 +206,11 @@ class CaseState(BaseModel):
     asset_type: Optional[str] = None
     marriage_status: Optional[str] = None
     custom_facts: Dict[str, Any] = Field(default_factory=dict)
+    # ── Answer Quality Framework F1 (additive, Phase 1) ───────────────────
+    # Optional, defaults to None. No existing reader of CaseState changes
+    # behaviour; this field is simply absent/None until a future, separately
+    # approved phase populates it behind FEATURE_MATTER_CONTEXT_V2.
+    matter_context: Optional[MatterContext] = None
 
     def to_mongo(self) -> dict:
         return self.model_dump()
@@ -155,3 +218,41 @@ class CaseState(BaseModel):
     @classmethod
     def from_mongo(cls, d: dict) -> "CaseState":
         return cls.model_validate(d)
+
+
+# ─── Answer Quality Framework — Phase 1 (F2: jurisdiction-state unification) ──
+# Pure function only. NOT wired into any call site — api/chat_router.py
+# still reads user.get("state") directly and engine.models.Jurisdiction.state
+# is still populated/merged exactly as before. Adding this function changes
+# no behavior anywhere; it exists so a future, explicitly-approved phase can
+# switch call sites over to a single source of truth.
+
+def resolve_jurisdiction_state(
+    jurisdiction_state: Optional[str],
+    user_profile_state: Optional[str],
+) -> Dict[str, Any]:
+    """Answer Quality Framework F2 — single source of truth for 'state'.
+
+    Two independent sources exist today:
+      - engine.models.Jurisdiction.state (session-level, merge-tracked via
+        LegalQuery.merge_update)
+      - the user profile's own `state` field, read directly in
+        api/chat_router.py as `user.get("state")`
+
+    Precedence (Phase 1 design, NOT yet applied anywhere):
+      1. A non-empty jurisdiction_state (explicitly confirmed in-session)
+         wins.
+      2. Otherwise fall back to user_profile_state.
+      3. Otherwise None.
+
+    Returns a dict so callers get the resolved value AND whether the two
+    sources disagreed, without this function silently hiding that.
+    """
+    resolved = jurisdiction_state or user_profile_state or None
+    conflict = bool(
+        jurisdiction_state
+        and user_profile_state
+        and jurisdiction_state != user_profile_state
+    )
+    source = "jurisdiction" if jurisdiction_state else ("user_profile" if user_profile_state else "none")
+    return {"state": resolved, "source": source, "conflict": conflict}

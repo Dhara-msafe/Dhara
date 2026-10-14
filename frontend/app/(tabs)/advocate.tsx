@@ -121,7 +121,7 @@ export default function AdvocateTab() {
             ? (
               <View style={s.verifiedBadge}>
                 <Ionicons name="checkmark-circle" size={13} color={NAVY} />
-                <Text style={s.verifiedText}>Verified</Text>
+                <Text style={s.verifiedText}>Reviewed</Text>
               </View>
             )
             : <Text style={s.pendingText}>Pending Verification</Text>}
@@ -143,7 +143,7 @@ export default function AdvocateTab() {
               </Text>
               <Text style={s.verifyCardText}>
                 Your enrolment no. <Text style={{ fontWeight: '700' }}>{profile?.bar_council_number}</Text> is under review.
-                You'll receive a "Verified" badge within 24–48 hours.
+                You'll receive a "Reviewed" badge within 24–48 hours.
               </Text>
             </View>
           </View>

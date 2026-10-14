@@ -27,7 +27,7 @@ G2  Judicial-invalidation join — after retrieving any section, look it up in
 
 G3  Badge logic —
       verify_tier == 1  AND  verified_by is not None/empty
-          → badge = "Advocate Verified"  (gold)
+          → badge = "Advocate Reviewed"  (gold)
       everything else
           → badge = "Sourced from Government of India"  (standard)
 
@@ -219,7 +219,7 @@ def _act_name_prefix_regex(act_hint: str) -> re.Pattern:
 def _badge(doc: dict) -> str:
     """G3 — Badge logic (code, not prompts)."""
     if doc.get("verify_tier") == 1 and doc.get("verified_by"):
-        return "Advocate Verified"
+        return "Advocate Reviewed"
     return "Sourced from Government of India"
 
 
