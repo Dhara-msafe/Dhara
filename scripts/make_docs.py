@@ -120,7 +120,7 @@ credit_cost = [
 
 url_options = [
     ["Option", "URL you'd get", "Setup effort", "Verdict"],
-    ["Preview URL (works now)", "https://bharti-justice.preview.emergentagent.com", "Zero — already live", "Best for immediate sharing"],
+    ["Preview URL (works now)", "https://dhara-shield-2.preview.emergentagent.com", "Zero — already live", "Best for immediate sharing"],
     ["Emergent Deploy (default)", "https://msafe-legal-aid.emergent.host (approx)",  "1 click Publish → Deploy", "Permanent + free redeploy"],
     ["Subdomain (dhara.msafesolutions.com)", "NOT SUPPORTED on Expo/mobile flow", "N/A", "Requires separate Full Stack Web App project"],
     ["Path (msafesolutions.com/dhara)", "NOT POSSIBLE via DNS",                  "Your own web server + reverse proxy", "Out of Emergent's control"],

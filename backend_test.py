@@ -7,7 +7,7 @@ import time
 import sys
 
 # Backend URL from frontend/.env
-BACKEND_URL = "https://bharti-justice.preview.emergentagent.com/api"
+BACKEND_URL = "https://dhara-shield-2.preview.emergentagent.com/api"
 
 # Test credentials from test_credentials.md
 TEST_EMAIL = "voicetest2026@example.com"

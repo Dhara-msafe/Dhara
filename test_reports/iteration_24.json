@@ -1,5 +1,5 @@
 {
-  "summary": "Focused frontend mobile-web smoke run on https://bharti-justice.preview.emergentagent.com completed partially. Verified auth gates (language -> consent -> login), Emergency screen load, 112 dial action status messaging, all 4 Help tiles visibility, Trusted Circle validation + add contact flow, and Silent Alert contact presence after return. Run blocked before deeper flows by duplicate/stacked Silent Alert screen instances causing selector visibility timeout in Playwright after returning from Trusted Circle.",
+  "summary": "Focused frontend mobile-web smoke run on https://dhara-shield-2.preview.emergentagent.com completed partially. Verified auth gates (language -> consent -> login), Emergency screen load, 112 dial action status messaging, all 4 Help tiles visibility, Trusted Circle validation + add contact flow, and Silent Alert contact presence after return. Run blocked before deeper flows by duplicate/stacked Silent Alert screen instances causing selector visibility timeout in Playwright after returning from Trusted Circle.",
   "backend_issues": {
     "critical": [],
     "minor": []

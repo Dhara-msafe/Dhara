@@ -1,5 +1,5 @@
 {
-  "summary": "Frontend-only verification of 2 fixes on https://bharti-justice.preview.emergentagent.com (mobile viewport 375x667). BUG 1 (Help button overlapping Me tab) is CONFIRMED FIXED. BUG 2 (Evidence Locker PIN/camera/share feature) is COMPLETELY BROKEN on web — the screen crashes with a red-screen uncaught error on first mount and then gets permanently stuck on an infinite loading spinner, blocking all further testing of PIN create/confirm/unlock, photo/video capture, and share flows.",
+  "summary": "Frontend-only verification of 2 fixes on https://dhara-shield-2.preview.emergentagent.com (mobile viewport 375x667). BUG 1 (Help button overlapping Me tab) is CONFIRMED FIXED. BUG 2 (Evidence Locker PIN/camera/share feature) is COMPLETELY BROKEN on web — the screen crashes with a red-screen uncaught error on first mount and then gets permanently stuck on an infinite loading spinner, blocking all further testing of PIN create/confirm/unlock, photo/video capture, and share flows.",
   "backend_issues": {
     "critical": [],
     "minor": []

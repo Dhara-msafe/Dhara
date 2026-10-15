@@ -68,6 +68,28 @@ async def hard_delete_user(db, user_id: str) -> dict:
     )
     counts["fir_sessions_tombstoned"] = fir_result.modified_count
 
+    # Evidence Vault (E2/A2) — storage objects first, then rows. Ownership is
+    # user_id, or scope for legacy pre-migration rows (scope == user id since E1).
+    # A backup row whose storage delete fails is kept so a retry can find it.
+    import shutil
+    from fir_storage import delete_raw_object
+    from api.evidence_vault_router import TMP_ROOT
+    owner = {"$or": [{"user_id": user_id}, {"scope": user_id}]}
+    removed, failed = 0, 0
+    async for b in db.evidence_backups.find(owner, {"_id": 1, "storage_path": 1}):
+        try:
+            await delete_raw_object(b["storage_path"])
+            await db.evidence_backups.delete_one({"_id": b["_id"]})
+            removed += 1
+        except Exception:
+            failed += 1
+    counts["evidence_backups"] = removed
+    counts["evidence_backup_files_failed"] = failed
+    async for s in db.evidence_upload_sessions.find(owner, {"session_id": 1}):
+        shutil.rmtree(TMP_ROOT / s["session_id"], ignore_errors=True)
+    counts["evidence_upload_sessions"] = (await db.evidence_upload_sessions.delete_many(owner)).deleted_count
+    counts["evidence_anchors"] = (await db.evidence_anchors.delete_many(owner)).deleted_count
+
     # users — the account record itself, matched by its own "id" field
     # (this codebase's primary key everywhere, not Mongo's _id).
     user_result = await db.users.delete_one({"id": user_id})

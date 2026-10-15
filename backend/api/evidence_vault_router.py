@@ -50,6 +50,13 @@ async def _flags_or_503() -> None:
         raise HTTPException(503, "Evidence vault cloud features are not enabled on this server.")
 
 
+def _owner_filter(user_id: str) -> dict:
+    """E2/A2: rows are owned by user_id. Legacy rows (pre-migration) carry no
+    user_id yet, so they fall back to scope — which E1 already pinned to the
+    authenticated user's id at write time."""
+    return {"$or": [{"user_id": user_id}, {"user_id": {"$exists": False}, "scope": user_id}]}
+
+
 # ── Anchor: independent timestamp + tamper-evidence receipt ─────────────────
 
 class GpsIn(BaseModel):
@@ -90,6 +97,7 @@ async def anchor_evidence(body: AnchorIn, user: dict = Depends(current_user)):
     doc = {
         "receipt_id": receipt_id,
         "item_id": body.item_id,
+        "user_id": user["id"],
         "scope": scope,
         "type": body.type,
         "manifest_hash": body.manifest_hash,
@@ -118,10 +126,20 @@ async def get_anchor(item_id: str, scope: str = "", user: dict = Depends(current
     # E1 hardening: `scope` query param kept for frontend backward-compat but
     # ignored — only the authenticated user's own id is trusted server-side.
     await _flags_or_503()
-    doc = await db.evidence_anchors.find_one({"item_id": item_id, "scope": user["id"]}, {"_id": 0})
+    doc = await db.evidence_anchors.find_one({"item_id": item_id, **_owner_filter(user["id"])}, {"_id": 0})
     if not doc:
         raise HTTPException(404, "No anchor receipt found for this item.")
     return doc
+
+
+@router.delete("/evidence/anchor/{item_id}")
+async def delete_anchor(item_id: str, user: dict = Depends(current_user)):
+    """Owner-checked. A non-owner gets the same 404 as a missing item, so the
+    response never confirms that someone else's item_id exists."""
+    result = await db.evidence_anchors.delete_many({"item_id": item_id, **_owner_filter(user["id"])})
+    if result.deleted_count == 0:
+        raise HTTPException(404, "No anchor receipt found for this item.")
+    return {"ok": True, "deleted": result.deleted_count}
 
 
 # ── Chunked encrypted upload — server only ever handles ciphertext bytes ────
@@ -143,6 +161,7 @@ async def upload_init(body: UploadInitIn, user: dict = Depends(current_user)):
     await db.evidence_upload_sessions.insert_one({
         "session_id": session_id,
         "item_id": body.item_id,
+        "user_id": user["id"],
         "scope": user["id"],  # E1 hardening: authenticated scope; body.scope ignored
         "total_chunks": body.total_chunks,
         "ext": body.ext,
@@ -164,7 +183,7 @@ async def upload_chunk(body: UploadChunkIn, user: dict = Depends(current_user)):
     await _flags_or_503()
     if len(body.data_b64) > MAX_CHUNK_B64_BYTES:
         raise HTTPException(413, "Chunk too large.")
-    session = await db.evidence_upload_sessions.find_one({"session_id": body.session_id})
+    session = await db.evidence_upload_sessions.find_one({"session_id": body.session_id, **_owner_filter(user["id"])})
     if not session:
         raise HTTPException(404, "Upload session not found or expired. Please retry the backup.")
     if body.index >= session["total_chunks"]:
@@ -187,7 +206,7 @@ class UploadCompleteIn(BaseModel):
 @router.post("/evidence/upload/complete")
 async def upload_complete(body: UploadCompleteIn, user: dict = Depends(current_user)):
     await _flags_or_503()
-    session = await db.evidence_upload_sessions.find_one({"session_id": body.session_id})
+    session = await db.evidence_upload_sessions.find_one({"session_id": body.session_id, **_owner_filter(user["id"])})
     if not session:
         raise HTTPException(404, "Upload session not found or expired. Please retry the backup.")
     session_dir = TMP_ROOT / body.session_id
@@ -207,6 +226,7 @@ async def upload_complete(body: UploadCompleteIn, user: dict = Depends(current_u
     record = {
         "id": str(uuid.uuid4()),
         "item_id": session["item_id"],
+        "user_id": user["id"],
         "scope": session["scope"],
         "storage_path": result.get("path", storage_path),
         "ext": session.get("ext"),
@@ -226,18 +246,21 @@ async def upload_complete(body: UploadCompleteIn, user: dict = Depends(current_u
 
 
 @router.get("/evidence/backups")
-async def list_backups(scope: str):
-    cursor = db.evidence_backups.find({"scope": scope}, {"_id": 0})
+async def list_backups(scope: str = "", user: dict = Depends(current_user)):
+    # E2/A2: `scope` query param kept for backward-compat but ignored.
+    cursor = db.evidence_backups.find(_owner_filter(user["id"]), {"_id": 0})
     return {"items": await cursor.to_list(length=500)}
 
 
 @router.delete("/evidence/backups/{item_id}")
-async def delete_backup(item_id: str, scope: str):
-    doc = await db.evidence_backups.find_one({"item_id": item_id, "scope": scope})
+async def delete_backup(item_id: str, scope: str = "", user: dict = Depends(current_user)):
+    """Owner-checked. Non-owner and missing item get the same 404."""
+    query = {"item_id": item_id, **_owner_filter(user["id"])}
+    doc = await db.evidence_backups.find_one(query)
     if not doc:
-        return {"ok": True, "deleted": False}
+        raise HTTPException(404, "No backup found for this item.")
     await delete_raw_object(doc["storage_path"])
-    await db.evidence_backups.delete_one({"item_id": item_id, "scope": scope})
+    await db.evidence_backups.delete_one({"_id": doc["_id"]})
     return {"ok": True, "deleted": True}
 
 

@@ -1483,6 +1483,9 @@ async def _startup():
         await db.evidence_anchors.create_index("receipt_id", unique=True)
         await db.evidence_anchors.create_index([("item_id", 1), ("scope", 1)])
         await db.evidence_backups.create_index([("item_id", 1), ("scope", 1)], unique=True)
+        await db.evidence_anchors.create_index("user_id")
+        await db.evidence_backups.create_index("user_id")
+        await db.evidence_upload_sessions.create_index("user_id")
         await db.evidence_upload_sessions.create_index("session_id", unique=True)
         await db.evidence_upload_sessions.create_index("created_at")
     except Exception as e:

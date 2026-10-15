@@ -1,5 +1,5 @@
 {
-  "summary": "Frontend-only verification of Evidence Locker Sprint B5 (client-side AES-256 encryption at rest + new in-app video preview) on https://bharti-justice.preview.emergentagent.com (mobile viewport 375x667, logged in as voicetest2026@example.com). The previous CRITICAL SecureStore-on-web crash (iteration_25) is CONFIRMED FIXED — PinGate now renders/works correctly on web. All 10 requested scenarios were executed end-to-end in a single continuous browser session per flow and PASSED with zero console errors matching the forbidden patterns (aes-js, expo-video, Blob, evidenceCrypto, evidenceStore, VideoView, useVideoPlayer).",
+  "summary": "Frontend-only verification of Evidence Locker Sprint B5 (client-side AES-256 encryption at rest + new in-app video preview) on https://dhara-shield-2.preview.emergentagent.com (mobile viewport 375x667, logged in as voicetest2026@example.com). The previous CRITICAL SecureStore-on-web crash (iteration_25) is CONFIRMED FIXED — PinGate now renders/works correctly on web. All 10 requested scenarios were executed end-to-end in a single continuous browser session per flow and PASSED with zero console errors matching the forbidden patterns (aes-js, expo-video, Blob, evidenceCrypto, evidenceStore, VideoView, useVideoPlayer).",
   "backend_issues": {
     "critical": [],
     "minor": []
