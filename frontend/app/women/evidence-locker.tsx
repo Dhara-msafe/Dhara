@@ -107,7 +107,7 @@ export default function EvidenceLocker() {
   const scope = user?.id || 'device';
   const [unlocked, setUnlocked] = useState(false);
   // Item G: Get recorder from EvidenceRecorderProvider (survives navigation).
-  const { recorder, recorderState: state, claimForLocker, releaseLockerClaim, recordingOwner, stopTriggerRecording } = useEvidenceRecorder();
+  const { recorder, recorderState: state, claimForLocker, releaseLockerClaim, stopTriggerRecording, getOwner } = useEvidenceRecorder();
   const [items, setItems] = useState<RecordingItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
@@ -139,6 +139,8 @@ export default function EvidenceLocker() {
   const segStartTimeRef = useRef(0);
   const sessionStartTimeRef = useRef(0); // Fix (S1-4): session-level start time, for the on-screen timer
   const segDurationsRef = useRef<number[]>([]); // Fix (S1-3): measured per-segment durations, summed for the total
+  const commitPromiseRef = useRef<Promise<void>>(Promise.resolve()); // FIX (a): tracks the in-flight segment-commit so save() can await it before stopping
+  const lastCommittedUriRef = useRef<string | null>(null); // FIX (RC4): URI of segment most recently committed by commitCurrentSegment — save() skips it to avoid double-save
   const [segmentCount, setSegmentCount] = useState(0);
   const [recoverable, setRecoverable] = useState<EvidenceSession[]>([]);
   const owned = useRef<RecordingItem[]>([]);
@@ -160,11 +162,12 @@ export default function EvidenceLocker() {
   const cancel = useCallback(() => {
     epoch.current++;
     stopPlayer();
+    // Always clear the segment timer first so no new commit can start.
+    if (segTimerRef.current) { clearTimeout(segTimerRef.current); segTimerRef.current = null; }
     // P0-B: If a segmented session is running, interrupt it (committed segments survive).
     if (sessionRef.current && segmentedEnabled.current) {
       const sid = sessionRef.current.sessionId;
       sessionRef.current = null;
-      if (segTimerRef.current) { clearTimeout(segTimerRef.current); segTimerRef.current = null; }
       void interruptSession(scope, sid).catch(() => {});
     }
     if (active.current) {
@@ -173,13 +176,31 @@ export default function EvidenceLocker() {
       void recorder.stop().then(() => discardTemporaryRecording(recorder.uri)).catch(() => {});
       // Only reset audio mode if WE started recording (not a trigger recording).
       if (Platform.OS !== 'web') void setAudioModeAsync({ allowsRecording: false }).catch(() => {});
-    } else if (recordingOwner === 'trigger') {
-      // Fix C: Discard / screen-unmount / app-backgrounded must also release
-      // a stuck trigger-owned claim, so ownership returns to null and the
-      // Locker can start its own recording again afterwards.
-      void stopTriggerRecording();
+    } else {
+      // FIX (d): use stable getOwner() instead of recordingOwner React state so
+      // that ownership transitions never re-create this callback and never
+      // re-run useFocusEffect mid-start()/save().
+      const owner = getOwner();
+      if (owner === 'trigger') {
+        // Fix C: release a stuck trigger-owned claim.
+        void stopTriggerRecording();
+      } else if (owner === 'locker') {
+        // FIX (e): active.current is false but the locker still owns the
+        // recorder — commitCurrentSegment may have re-armed it after save()
+        // cleared active.current.  Force-stop the native recorder now.
+        void recorder.stop().then(() => {
+          if (recorder.uri) discardTemporaryRecording(recorder.uri);
+        }).catch(() => {});
+        releaseLockerClaim();
+        if (Platform.OS !== 'web') void setAudioModeAsync({ allowsRecording: false }).catch(() => {});
+      }
+      // owner === null: nothing to clean up (screen unmount after a completed save)
     }
-  }, [recorder, stopPlayer, scope, releaseLockerClaim, recordingOwner, stopTriggerRecording]);
+    // NOTE: recordingOwner React state is intentionally NOT in this dep array.
+    // getOwner() reads ownerRef synchronously without causing re-renders, which
+    // keeps the cancel reference stable across ownership changes so useFocusEffect
+    // never re-runs (and never fires a spurious cancel()) during recording.
+  }, [recorder, stopPlayer, scope, releaseLockerClaim, getOwner, stopTriggerRecording]);
   useFocusEffect(useCallback(() => {
     let alive = true;
     // P0-B: Load only non-segment items for the top-level list.
@@ -238,17 +259,22 @@ export default function EvidenceLocker() {
   // ── P0-B: Segment cycling ─────────────────────────────────────────────────
   // commitCurrentSegment: stop recorder → encrypt+persist the segment →
   // restart recording for the next segment. Runs on a ~SEGMENT_TARGET_MS timer.
-  const commitCurrentSegment = useCallback(async () => {
+  const commitCurrentSegment = useCallback(async (): Promise<void> => {
     if (!active.current || !sessionRef.current) return;
     const session = sessionRef.current;
     const segIdx = segCountRef.current;
     try {
       await recorder.stop();
+      // We save the segment regardless of whether active.current changed during
+      // the stop() await — the data is already captured and save() is waiting
+      // on this promise before it calls recorder.stop(), so there is no
+      // concurrent access to recorder.uri here (fix a).
       const uri = recorder.uri;
       if (uri) {
         const segItem = await saveSegment(scope, uri, session.sessionId);
         discardTemporaryRecording(uri);
-        const durationMs = Date.now() - segStartTimeRef.current; // Fix (S1-3): measured, not the fixed cycle target
+        lastCommittedUriRef.current = uri; // FIX (RC4): mark so save() skips it
+        const durationMs = Date.now() - segStartTimeRef.current; // Fix (S1-3)
         await commitSegment(scope, session.sessionId, {
           segId: segItem.id, index: segIdx, itemId: segItem.id,
           durationMs, committedAt: new Date().toISOString(),
@@ -259,18 +285,28 @@ export default function EvidenceLocker() {
       }
     } catch (e: any) {
       console.warn('[P0-B] segment commit error:', e?.message);
-      // Don't fail the whole session — just skip this segment and continue
     }
-    // Restart recording for the next segment (if still active)
+    // FIX (b): re-check active BEFORE restarting the recorder.
+    // save() sets active.current=false before the timer fires, so this guard
+    // is what prevents the "records forever" infinite-commit loop.
     if (!active.current || !sessionRef.current) return;
     try {
       await recorder.prepareToRecordAsync();
+      // FIX (b): re-check AFTER prepareToRecordAsync — the most critical guard.
+      // If save() fired while we were preparing, stop the prepared (but not
+      // yet recording) recorder and exit without calling recorder.record().
+      if (!active.current || !sessionRef.current) {
+        try { await recorder.stop(); } catch {}
+        return;
+      }
       recorder.record();
       segStartTimeRef.current = Date.now();
-      segTimerRef.current = setTimeout(() => { void commitCurrentSegment(); }, SEGMENT_TARGET_MS);
+      // FIX (a): store the promise so save() can await it before stopping.
+      segTimerRef.current = setTimeout(() => {
+        commitPromiseRef.current = commitCurrentSegment();
+      }, SEGMENT_TARGET_MS);
     } catch (e: any) {
       console.warn('[P0-B] segment restart error:', e?.message);
-      // Recording can't continue — finalize what we have
       active.current = false;
       setStatus(`Recording stopped after ${segCountRef.current} segment(s). Saved segments can be recovered.`);
     }
@@ -320,6 +356,8 @@ export default function EvidenceLocker() {
       }
       claimForLocker(); // claim provider ownership before recording starts
       recorder.record(); active.current = true;
+      lastCommittedUriRef.current = null;          // FIX (RC4): fresh session
+      commitPromiseRef.current = Promise.resolve(); // FIX (a): no in-flight commit yet
       sessionStartTimeRef.current = Date.now(); // Fix (S1-4): session-level start, used by the timer display
       // P0-B: If segmented recording is enabled, start the segment cycle.
       if (segmentedEnabled.current) {
@@ -329,7 +367,7 @@ export default function EvidenceLocker() {
         segDurationsRef.current = []; // Fix (S1-3): reset the measured-duration accumulator
         setSegmentCount(0);
         segStartTimeRef.current = Date.now();
-        segTimerRef.current = setTimeout(() => { void commitCurrentSegment(); }, SEGMENT_TARGET_MS);
+        segTimerRef.current = setTimeout(() => { commitPromiseRef.current = commitCurrentSegment(); }, SEGMENT_TARGET_MS);
         setStatus('Recording in segments. Each ~5s chunk is automatically saved to protect your evidence.');
       } else {
         setStatus('Recording on this device. Tap Stop & save before leaving this screen.');
@@ -345,32 +383,71 @@ export default function EvidenceLocker() {
     if (params.record === '1' && !started.current) { started.current = true; router.setParams({ record: '' }); void start(); }
   }, [params.record, router, start]);
   const save = async () => {
-    if (working.current) return;
+    // FIX (c): never silently no-op — show feedback when already saving
+    if (working.current) { setStatus('Saving… please wait.'); return; }
+
     if (!active.current) {
-      // Fix C: a trigger-owned recording has no locker-side session state in
-      // THIS screen instance (active.current is only set by this screen's
-      // own start()) — the old guard silently did nothing here. Stop it
-      // explicitly; never try to save segments for a trigger recording,
-      // that remains a separate trigger-recording step.
-      if (recordingOwner === 'trigger') {
+      // FIX (c): native recorder is still running but active.current is false —
+      // this is the RC2 race where commitCurrentSegment re-armed the recorder
+      // after save()/cancel() already cleared active.current.  Force-stop and
+      // salvage any committed segments so the user is never left hanging.
+      if (state.isRecording) {
+        working.current = true; setBusy(true);
+        try {
+          if (segTimerRef.current) { clearTimeout(segTimerRef.current); segTimerRef.current = null; }
+          await commitPromiseRef.current; // wait for any in-flight commit
+          try { await recorder.stop(); } catch {} // may already be stopped — safe
+          if (segmentedEnabled.current && sessionRef.current) {
+            const session = sessionRef.current;
+            sessionRef.current = null;
+            try {
+              const totalDuration = segDurationsRef.current.reduce((sum, d) => sum + d, 0);
+              const parent = await createSegmentedParent(scope, session.sessionId, segCountRef.current, totalDuration);
+              await finalizeSession(scope, session.sessionId, parent.id);
+              const visible = await loadVisibleRecordings(scope);
+              owned.current = visible; setItems(visible);
+              setStatus(`Saved ${segCountRef.current} segment(s) on this device. Nothing was uploaded or sent.`);
+            } catch { setStatus('Recording stopped. Committed segments may be recoverable.'); }
+          } else {
+            setStatus('Recording stopped.');
+          }
+        } finally {
+          working.current = false; setBusy(false);
+          releaseLockerClaim();
+          if (Platform.OS !== 'web') void setAudioModeAsync({ allowsRecording: false }).catch(() => {});
+        }
+        return;
+      }
+      // No native recording running — handle trigger ownership if present.
+      // FIX (d): use stable getOwner() instead of recordingOwner state.
+      if (getOwner() === 'trigger') {
         working.current = true; setBusy(true);
         try { await stopTriggerRecording(); setStatus('Stopped. You can start recording again.'); }
         finally { working.current = false; setBusy(false); }
       }
       return;
     }
-    working.current = true; setBusy(true); active.current = false;
-    // P0-B: Stop the segment timer
+
+    // ── Normal save path: active.current is true ──────────────────────────
+    // FIX (a): set active=false and clear the timer FIRST so that
+    // commitCurrentSegment cannot restart the recorder, then await any
+    // in-flight commit before calling recorder.stop() — this guarantees the
+    // two never run recorder.stop() concurrently and recorder.uri is never
+    // read/deleted twice (RC4).
+    active.current = false;
     if (segTimerRef.current) { clearTimeout(segTimerRef.current); segTimerRef.current = null; }
+    working.current = true; setBusy(true);
     try {
-      await recorder.stop();
+      await commitPromiseRef.current; // FIX (a): wait for any in-flight segment commit
+      try { await recorder.stop(); } catch {} // recorder may already be stopped by the last commit — safe
       if (segmentedEnabled.current && sessionRef.current) {
         // ── P0-B: Segmented save ─────────────────────────────────────────
         const session = sessionRef.current;
         sessionRef.current = null;
-        // Commit the final partial segment (whatever was recorded since the last commit)
+        // Commit the final partial segment only if commitCurrentSegment has
+        // not already committed it (FIX RC4: skip if URI matches lastCommittedUriRef).
         const uri = recorder.uri;
-        if (uri) {
+        if (uri && uri !== lastCommittedUriRef.current) {
           try {
             const segItem = await saveSegment(scope, uri, session.sessionId);
             discardTemporaryRecording(uri);
@@ -401,10 +478,10 @@ export default function EvidenceLocker() {
         setStatus('Saved on this device. Nothing was uploaded or sent.');
       }
     } catch (error: any) { setStatus(error.message || 'Recording could not be saved.'); }
-    finally { 
-      working.current = false; setBusy(false); 
+    finally {
+      working.current = false; setBusy(false);
       releaseLockerClaim(); // release provider ownership after save
-      if (Platform.OS !== 'web') void setAudioModeAsync({ allowsRecording: false }).catch(() => {}); 
+      if (Platform.OS !== 'web') void setAudioModeAsync({ allowsRecording: false }).catch(() => {});
     }
   };
   const play = useCallback(async (item: RecordingItem) => {
@@ -652,7 +729,13 @@ export default function EvidenceLocker() {
               : `Recording · ${Math.floor(state.durationMillis / 1000)}s`
             : 'Ready to record'}
         </Text>
-        <Pressable testID="evidence-record-toggle" disabled={busy} style={styles.button} onPress={state.isRecording ? save : start}>{busy ? <ActivityIndicator color={c.onBrandPrimary} /> : <Text style={styles.buttonText}>{state.isRecording ? 'Stop & save' : 'Start voice recording'}</Text>}</Pressable>
+        <Pressable testID="evidence-record-toggle" disabled={busy} style={styles.button} onPress={state.isRecording ? save : start}>
+          {busy
+            ? state.isRecording
+              ? <Text style={styles.buttonText}>Saving…</Text>
+              : <ActivityIndicator color={c.onBrandPrimary} />
+            : <Text style={styles.buttonText}>{state.isRecording ? 'Stop & save' : 'Start voice recording'}</Text>}
+        </Pressable>
         {state.isRecording && <Pressable testID="evidence-discard" style={styles.secondary} onPress={() => { cancel(); setStatus(segmentedEnabled.current ? `Discarded. ${segCountRef.current} committed segment(s) can still be recovered.` : 'Unfinished recording discarded.'); }}><Text style={styles.label}>Discard recording</Text></Pressable>}
         {/* P0-B: Recovery banner for interrupted sessions */}
         {recoverable.length > 0 && recoverable.map(ses => (

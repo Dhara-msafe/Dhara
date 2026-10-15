@@ -63,6 +63,13 @@ export interface EvidenceRecorderContextValue {
   claimForLocker: () => boolean;
   /** EvidenceLocker releases its claim (called in cancel / cleanup). */
   releaseLockerClaim: () => void;
+  /**
+   * Stable ref-based getter — reads ownerRef.current without causing a
+   * re-render.  Use inside cancel/save deps instead of recordingOwner state
+   * so that ownership transitions never re-create those callbacks and never
+   * re-run useFocusEffect (fix d).
+   */
+  getOwner: () => RecordingOwner;
 }
 
 const EvidenceRecorderContext = createContext<EvidenceRecorderContextValue | null>(null);
@@ -143,6 +150,9 @@ export function EvidenceRecorderProvider({ children }: { children: React.ReactNo
     if (ownerRef.current === 'locker') { setOwner(null); releaseArbiter(); }
   }, [setOwner, releaseArbiter]);
 
+  // FIX (d): stable getter so callers never need recordingOwner state in deps.
+  const getOwner = useCallback((): RecordingOwner => ownerRef.current, []);
+
   return (
     <EvidenceRecorderContext.Provider
       value={{
@@ -153,6 +163,7 @@ export function EvidenceRecorderProvider({ children }: { children: React.ReactNo
         stopTriggerRecording,
         claimForLocker,
         releaseLockerClaim,
+        getOwner,
       }}
     >
       {children}
