@@ -14,7 +14,7 @@ import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { useEvidenceRecorder } from '@/src/women/EvidenceRecorderProvider';
 import {
   saveRecording, savePhoto, saveVideo, deleteRecording, releaseRecordings,
-  discardTemporaryRecording, getDecryptedTempUri, releaseDecryptedTempUri, type RecordingItem,
+  discardTemporaryRecording, getDecryptedTempUri, getDecryptedTempUriForSegmented, releaseDecryptedTempUri, type RecordingItem,
   saveSegment, createSegmentedParent, loadSegments, loadVisibleRecordings,
 } from '@/src/women/evidenceStore';
 import { hasPin, setPin, verifyPin } from '@/src/women/evidenceLock';
@@ -28,6 +28,7 @@ import {
   isSegmentedRecordingEnabled, SEGMENT_TARGET_MS,
   createSession, commitSegment, finalizeSession, interruptSession,
   getRecoverableSessions, recoverSession, deleteSession,
+  computeSessionElapsedMs,
   type EvidenceSession,
 } from '@/src/women/evidenceSession';
 
@@ -106,7 +107,7 @@ export default function EvidenceLocker() {
   const scope = user?.id || 'device';
   const [unlocked, setUnlocked] = useState(false);
   // Item G: Get recorder from EvidenceRecorderProvider (survives navigation).
-  const { recorder, recorderState: state, claimForLocker, releaseLockerClaim } = useEvidenceRecorder();
+  const { recorder, recorderState: state, claimForLocker, releaseLockerClaim, recordingOwner, stopTriggerRecording } = useEvidenceRecorder();
   const [items, setItems] = useState<RecordingItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
@@ -172,8 +173,13 @@ export default function EvidenceLocker() {
       void recorder.stop().then(() => discardTemporaryRecording(recorder.uri)).catch(() => {});
       // Only reset audio mode if WE started recording (not a trigger recording).
       if (Platform.OS !== 'web') void setAudioModeAsync({ allowsRecording: false }).catch(() => {});
+    } else if (recordingOwner === 'trigger') {
+      // Fix C: Discard / screen-unmount / app-backgrounded must also release
+      // a stuck trigger-owned claim, so ownership returns to null and the
+      // Locker can start its own recording again afterwards.
+      void stopTriggerRecording();
     }
-  }, [recorder, stopPlayer, scope, releaseLockerClaim]);
+  }, [recorder, stopPlayer, scope, releaseLockerClaim, recordingOwner, stopTriggerRecording]);
   useFocusEffect(useCallback(() => {
     let alive = true;
     // P0-B: Load only non-segment items for the top-level list.
@@ -283,11 +289,34 @@ export default function EvidenceLocker() {
       }
       if (!permission.granted) throw new Error('Microphone permission is needed. Allow it in your device or site settings, then try again.');
       if (id !== epoch.current) return;
+      // Fix C: claim BEFORE touching the native recorder. claimForLocker()
+      // returns false only when a trigger-owned recording already holds it —
+      // calling prepareToRecordAsync() in that case is what previously threw
+      // the raw native "AudioRecorder has already been prepared" error.
+      if (!claimForLocker()) {
+        setStatus('A recording is already running. Stop it first.');
+        crossAlert(
+          'Recording already running',
+          'A recording is already running. Stop it first.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Stop and save',
+              onPress: () => {
+                void stopTriggerRecording().then(() => setStatus('Stopped. You can start recording again.'));
+              },
+            },
+          ],
+        );
+        return;
+      }
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true, shouldPlayInBackground: false });
       await recorder.prepareToRecordAsync();
       if (id !== epoch.current) {
         if (Platform.OS === 'web') recorder.record();
-        await recorder.stop(); discardTemporaryRecording(recorder.uri); return;
+        await recorder.stop(); discardTemporaryRecording(recorder.uri);
+        releaseLockerClaim(); // Fix C: don't leak the claim on an abandoned/stale start
+        return;
       }
       claimForLocker(); // claim provider ownership before recording starts
       recorder.record(); active.current = true;
@@ -305,15 +334,31 @@ export default function EvidenceLocker() {
       } else {
         setStatus('Recording on this device. Tap Stop & save before leaving this screen.');
       }
-    } catch (error: any) { if (id === epoch.current) setStatus(error.message || 'Recording could not start. Please try again.'); }
+    } catch (error: any) {
+      if (id === epoch.current) setStatus(error.message || 'Recording could not start. Please try again.');
+      releaseLockerClaim(); // Fix C: never leak our own claim on a start failure
+    }
     finally { working.current = false; setBusy(false); }
-  }, [recorder, stopPlayer, scope, commitCurrentSegment, claimForLocker]);
+  }, [recorder, stopPlayer, scope, commitCurrentSegment, claimForLocker, releaseLockerClaim, stopTriggerRecording]);
   const started = useRef(false);
   useEffect(() => {
     if (params.record === '1' && !started.current) { started.current = true; router.setParams({ record: '' }); void start(); }
   }, [params.record, router, start]);
   const save = async () => {
-    if (working.current || !active.current) return;
+    if (working.current) return;
+    if (!active.current) {
+      // Fix C: a trigger-owned recording has no locker-side session state in
+      // THIS screen instance (active.current is only set by this screen's
+      // own start()) — the old guard silently did nothing here. Stop it
+      // explicitly; never try to save segments for a trigger recording,
+      // that remains a separate trigger-recording step.
+      if (recordingOwner === 'trigger') {
+        working.current = true; setBusy(true);
+        try { await stopTriggerRecording(); setStatus('Stopped. You can start recording again.'); }
+        finally { working.current = false; setBusy(false); }
+      }
+      return;
+    }
     working.current = true; setBusy(true); active.current = false;
     // P0-B: Stop the segment timer
     if (segTimerRef.current) { clearTimeout(segTimerRef.current); segTimerRef.current = null; }
@@ -488,6 +533,28 @@ export default function EvidenceLocker() {
     try {
       const canShare = await Sharing.isAvailableAsync();
       if (!canShare) { setStatus('Sharing is not available on this device.'); return; }
+      if (item.recording_format_version === 2 && item.session_id) {
+        // Fix E: a v2 parent has no file of its own (uri: '') — build one
+        // temporary merged file from its decrypted segments, in order.
+        const tempUri = await getDecryptedTempUriForSegmented(scope, item);
+        try {
+          const confirmed = await new Promise<boolean>(resolve => {
+            crossAlert(
+              'Share this recording?',
+              `This will share ${item.segment_count || 'all'} segment(s) as one file.`,
+              [
+                { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+                { text: 'Share', onPress: () => resolve(true) },
+              ],
+            );
+          });
+          if (confirmed) await Sharing.shareAsync(tempUri);
+        } finally {
+          releaseDecryptedTempUri(tempUri, true);
+        }
+        return;
+      }
+      // Single-file path — unchanged.
       const tempUri = await getDecryptedTempUri(scope, item);
       try { await Sharing.shareAsync(tempUri); }
       finally { releaseDecryptedTempUri(tempUri, !!item.iv); }
@@ -579,7 +646,7 @@ export default function EvidenceLocker() {
         <Text testID="evidence-recording-timer" style={styles.timer}>
           {state.isRecording
             ? segmentedEnabled.current
-              ? `Recording · ${Math.floor((Date.now() - sessionStartTimeRef.current) / 1000)}s · ${segmentCount} segment(s) saved`
+              ? `Recording · ${Math.floor(computeSessionElapsedMs(Date.now(), sessionStartTimeRef.current) / 1000)}s · ${segmentCount} segment(s) saved`
               : `Recording · ${Math.floor(state.durationMillis / 1000)}s`
             : 'Ready to record'}
         </Text>

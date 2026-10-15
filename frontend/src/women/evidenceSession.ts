@@ -21,6 +21,23 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const SEGMENT_TARGET_MS = 5_000; // ~5 seconds per segment
 
+/**
+ * Fix B: the on-screen recording timer must never read `startMs` before
+ * start() has set it. `startMs === 0` happens when this screen remounts
+ * while a session that began in an earlier mount keeps running (the
+ * recorder lives in a provider above this screen, but the start-time ref is
+ * local to this component instance) — previously this showed
+ * `Date.now() - 0`, i.e. the full epoch in seconds. Returns 0 in that case,
+ * and also clamps any runaway value over 24h back to 0 rather than showing
+ * a nonsense number.
+ */
+export function computeSessionElapsedMs(nowMs: number, startMs: number): number {
+  if (!startMs || startMs <= 0) return 0;
+  const elapsed = nowMs - startMs;
+  if (elapsed < 0 || elapsed > 24 * 60 * 60 * 1000) return 0;
+  return elapsed;
+}
+
 export type SegmentStatus = 'recording' | 'committed';
 export type SessionStatus = 'recording' | 'completed' | 'interrupted';
 

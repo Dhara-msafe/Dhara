@@ -160,6 +160,35 @@ export async function getDecryptedTempUri(scope: string, item: RecordingItem): P
   return tempFile.uri;
 }
 
+/**
+ * Fix E: a v2 (segmented) parent item has no encrypted file of its own
+ * (`uri: ''`) — getDecryptedTempUri() just returned that empty string,
+ * which made `Sharing.shareAsync('')` fail with "Could not open the share
+ * sheet." This decrypts every segment for the session, in recording order,
+ * and concatenates the plaintext into ONE temporary file for sharing.
+ * Storage format / encryption of the underlying segments is unchanged —
+ * this only builds a throwaway merged copy for the share sheet.
+ * Caller MUST call releaseDecryptedTempUri(uri, true) when done.
+ */
+export async function getDecryptedTempUriForSegmented(scope: string, item: RecordingItem): Promise<string> {
+  if (!item.session_id) throw new Error('No segments found for this recording.');
+  const segments = await loadSegments(scope, item.session_id);
+  if (segments.length === 0) throw new Error('No segments found for this recording.');
+  const aesKey = await getOrCreateKey(scope);
+  const parts: Uint8Array[] = [];
+  for (const seg of segments) {
+    const cipherBytes = await new File(seg.uri).bytes();
+    parts.push(seg.iv ? decryptBytes(cipherBytes, aesKey, seg.iv) : cipherBytes);
+  }
+  const totalLen = parts.reduce((sum, p) => sum + p.length, 0);
+  const merged = new Uint8Array(totalLen);
+  let offset = 0;
+  for (const p of parts) { merged.set(p, offset); offset += p.length; }
+  const tempFile = new File(Paths.cache, `dhara-evidence-tmp-${item.id}-${Date.now()}.${item.ext || segments[0]?.ext || 'm4a'}`);
+  tempFile.write(merged);
+  return tempFile.uri;
+}
+
 /** Deletes a temp file produced by `getDecryptedTempUri`. Safe to call on a
  * legacy item's original uri too — it only removes files under the cache
  * directory's temp naming, callers should still gate on having decrypted. */

@@ -1414,6 +1414,70 @@ export default function ChatScreen() {
     }
   }, []);
 
+  // Fix A: remembers the last recording that failed to transcribe so Retry
+  // can resend it without asking the user to speak again.
+  const lastAudioForRetryRef = useRef<{ platform: 'web'; blob: Blob } | { platform: 'native'; uri: string } | null>(null);
+  // Fix A: one short, fixed message per status — never the raw response body
+  // (a 429 from the upstream Whisper rate limiter can come back as plain HTML).
+  const showTranscriptionError = useCallback((status: number | null, retry: () => void) => {
+    const message = status === 429
+      ? 'Too many requests. Please wait a moment and try again.'
+      : 'Could not transcribe. Please try again or type your question.';
+    crossAlert('Transcription failed', message, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Retry', onPress: retry },
+    ]);
+  }, []);
+  const retryTranscription = useCallback(async () => {
+    const source = lastAudioForRetryRef.current;
+    if (!source || !token) return;
+    setTranscribing(true);
+    try {
+      if (source.platform === 'web') {
+        const form = new FormData();
+        form.append('audio', source.blob, source.blob.type.includes('mp4') ? 'audio.m4a' : 'audio.webm');
+        if (language?.code) form.append('language', language.code);
+        const res = await fetch(`${API_BASE}/api/voice/transcribe`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: form,
+        });
+        if (res.status === 401) { setTranscribing(false); await forceLogout(); return; }
+        if (!res.ok) { setTranscribing(false); showTranscriptionError(res.status, retryTranscription); return; }
+        let data: any = {};
+        try { data = await res.json(); } catch { data = {}; }
+        const heardText = (data.text || '').trim();
+        setTranscribing(false);
+        if (heardText) {
+          lastAudioForRetryRef.current = null;
+          setTranscriptMismatch(data.script_mismatch ? { detected: data.detected_script ?? null } : null);
+          setTranscriptPreview(heardText);
+          enterConfirming(heardText);
+          setShowTranscriptModal(true);
+        } else {
+          notify('Could not transcribe', 'Please try again.');
+        }
+      } else {
+        const result = await whisperTranscribeFile(API_BASE, token, source.uri, language?.code);
+        setTranscribing(false);
+        const heardText = (result.text || '').trim();
+        if (heardText) {
+          lastAudioForRetryRef.current = null;
+          setTranscriptMismatch(result.scriptMismatch ? { detected: result.detectedScript } : null);
+          setTranscriptPreview(heardText);
+          enterConfirming(heardText);
+          setShowTranscriptModal(true);
+        } else {
+          notify('Could not transcribe', 'Please try again.');
+        }
+      }
+    } catch (e: any) {
+      setTranscribing(false);
+      if (e?.message === '__session_expired__') { forceLogout(); return; }
+      showTranscriptionError((e as any)?.status ?? null, retryTranscription);
+    }
+  }, [token, language, forceLogout, notify, enterConfirming, showTranscriptionError]);
+
   const stopRecording = useCallback(async () => {
     voiceSMRef.current?.tryTo('TRANSCRIBING');
     // Stop the elapsed-time ticker
@@ -1463,6 +1527,7 @@ export default function ChatScreen() {
           return;
         }
         if (!token) { setTranscribing(false); return; }
+        lastAudioForRetryRef.current = { platform: 'web', blob: audioBlob }; // Fix A: enable Retry with the same recording
         // Upload blob to Whisper endpoint
         const form = new FormData();
         form.append('audio', audioBlob, audioBlob.type.includes('mp4') ? 'audio.m4a' : 'audio.webm');
@@ -1477,8 +1542,15 @@ export default function ChatScreen() {
           await forceLogout();
           return;
         }
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.detail?.message || data.detail || 'Transcription failed');
+        if (!res.ok) {
+          // Fix A: never show the raw response body (e.g. a non-JSON 429 page)
+          // — one short message per status, with a Retry that resends this blob.
+          setTranscribing(false);
+          showTranscriptionError(res.status, retryTranscription);
+          return;
+        }
+        let data: any = {};
+        try { data = await res.json(); } catch { data = {}; }
         const heardText = (data.text || '').trim();
         setTranscribing(false);
         if (heardText) {
@@ -1504,6 +1576,7 @@ export default function ChatScreen() {
         releaseMicLease();
         if (!uri) { setTranscribing(false); return; }
         if (!token) { setTranscribing(false); return; }
+        lastAudioForRetryRef.current = { platform: 'native', uri }; // Fix A: enable Retry with the same recording
         const result = await whisperTranscribeFile(API_BASE, token, uri, language?.code);
         setTranscribing(false);
         const heardText = (result.text || '').trim();
@@ -1522,9 +1595,11 @@ export default function ChatScreen() {
         forceLogout();
         return;
       }
-      notify('Transcription failed', e?.message || 'Try again');
+      // Fix A: never show the raw error/response text — one short message
+      // per status, with a Retry that resends the same recording.
+      showTranscriptionError((e as any)?.status ?? null, retryTranscription);
     }
-  }, [recorder, token, language, notify, forceLogout]);
+  }, [recorder, token, language, notify, forceLogout, showTranscriptionError, retryTranscription]);
 
   // WhatsApp-style hold-to-talk handlers
   const onMicPressIn = useCallback(() => {

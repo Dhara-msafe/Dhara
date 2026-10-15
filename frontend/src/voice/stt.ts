@@ -151,16 +151,19 @@ export async function whisperTranscribeFile(
     throw new Error('__network_error__');
   }
 
-  const data = await res.json();
   if (res.status === 401) {
     throw new Error('__session_expired__');
   }
-  if (res.status === 429) {
-    throw new Error(
-      data?.detail?.message || 'You have reached your daily voice limit. Please try again tomorrow.',
-    );
+  if (!res.ok) {
+    // Fix A: never let a non-JSON error body (e.g. a raw HTML 429 page from
+    // an upstream rate limiter/proxy) leak into the thrown message — classify
+    // by status code ONLY, before ever attempting to parse the body.
+    const err: any = new Error('__transcribe_failed__');
+    err.status = res.status;
+    throw err;
   }
-  if (!res.ok) throw new Error(data.detail || 'Transcription failed');
+  let data: any = {};
+  try { data = await res.json(); } catch { data = {}; }
   return {
     text: data.text || '',
     scriptMismatch: !!data.script_mismatch,
@@ -179,14 +182,17 @@ export async function whisperTranscribeFile(
  *   }
  */
 export function sttErrorToMessage(err: unknown): string {
+  const status = (err as any)?.status;
   const msg = String((err as any)?.message ?? err ?? '');
   if (msg.includes('__session_expired__'))
     return 'Session expired — please sign in again.';
   if (msg.includes('__network_error__'))
     return 'No network connection. Please check your internet and try again.';
-  if (msg.toLowerCase().includes('daily') || msg.includes('429') || msg.includes('limit'))
-    return 'Daily voice limit reached. Please try again tomorrow.';
+  // Fix A: one short, fixed message per status — never the raw response body
+  // (some upstream rate-limit responses are plain HTML, not JSON).
+  if (status === 429) return 'Too many requests. Please wait a moment and try again.';
   if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('denied'))
     return 'Microphone permission denied. Please allow microphone access in Settings.';
+  if (msg === '__transcribe_failed__') return 'Could not transcribe. Please try again or type your question.';
   return msg || 'Voice recognition failed. Please try again.';
 }
