@@ -26,10 +26,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field, field_validator
 
-from dependencies import db, logger
+from dependencies import db, logger, current_user
 from config.settings import JWT_SECRET
 from fir_storage import put_raw_bytes, delete_raw_object
 from api.women_router import get_flags
@@ -46,8 +46,8 @@ MAX_TOTAL_CHUNKS = 4000  # generous ceiling for a 2-min video at low quality
 
 async def _flags_or_503() -> None:
     flags = await get_flags()
-    if not flags.get("evidence_locker_enabled"):
-        raise HTTPException(503, "Evidence locker cloud features are not enabled on this server.")
+    if not flags.get("evidence_vault_enabled"):
+        raise HTTPException(503, "Evidence vault cloud features are not enabled on this server.")
 
 
 # ── Anchor: independent timestamp + tamper-evidence receipt ─────────────────
@@ -77,9 +77,12 @@ class AnchorIn(BaseModel):
 
 
 @router.post("/evidence/anchor")
-async def anchor_evidence(body: AnchorIn):
-    """Stores ONLY hashes + capture metadata — never file content."""
+async def anchor_evidence(body: AnchorIn, user: dict = Depends(current_user)):
+    """Stores ONLY hashes + capture metadata — never file content.
+    E1 hardening: scope is always the authenticated user's id; any
+    client-supplied body.scope is accepted for parsing but ignored."""
     await _flags_or_503()
+    scope = user["id"]
     server_time = datetime.now(timezone.utc).isoformat()
     receipt_id = str(uuid.uuid4())
     msg = f"{body.item_id}|{body.manifest_hash}|{body.chain_hash}|{server_time}"
@@ -87,7 +90,7 @@ async def anchor_evidence(body: AnchorIn):
     doc = {
         "receipt_id": receipt_id,
         "item_id": body.item_id,
-        "scope": body.scope,
+        "scope": scope,
         "type": body.type,
         "manifest_hash": body.manifest_hash,
         "chain_hash": body.chain_hash,
@@ -99,7 +102,7 @@ async def anchor_evidence(body: AnchorIn):
         "created_at": server_time,
     }
     await db.evidence_anchors.insert_one(doc)
-    logger.info("[evidence_vault] anchored item scope=%s gps=%s", body.scope, bool(body.gps))
+    logger.info("[evidence_vault] anchored item scope=%s gps=%s", scope, bool(body.gps))
     return {
         "receipt_id": receipt_id,
         "server_time": server_time,
@@ -111,8 +114,11 @@ async def anchor_evidence(body: AnchorIn):
 
 
 @router.get("/evidence/anchor/{item_id}")
-async def get_anchor(item_id: str, scope: str):
-    doc = await db.evidence_anchors.find_one({"item_id": item_id, "scope": scope}, {"_id": 0})
+async def get_anchor(item_id: str, scope: str = "", user: dict = Depends(current_user)):
+    # E1 hardening: `scope` query param kept for frontend backward-compat but
+    # ignored — only the authenticated user's own id is trusted server-side.
+    await _flags_or_503()
+    doc = await db.evidence_anchors.find_one({"item_id": item_id, "scope": user["id"]}, {"_id": 0})
     if not doc:
         raise HTTPException(404, "No anchor receipt found for this item.")
     return doc
@@ -130,14 +136,14 @@ class UploadInitIn(BaseModel):
 
 
 @router.post("/evidence/upload/init")
-async def upload_init(body: UploadInitIn):
+async def upload_init(body: UploadInitIn, user: dict = Depends(current_user)):
     await _flags_or_503()
     session_id = str(uuid.uuid4())
     (TMP_ROOT / session_id).mkdir(parents=True, exist_ok=True)
     await db.evidence_upload_sessions.insert_one({
         "session_id": session_id,
         "item_id": body.item_id,
-        "scope": body.scope,
+        "scope": user["id"],  # E1 hardening: authenticated scope; body.scope ignored
         "total_chunks": body.total_chunks,
         "ext": body.ext,
         "iv": body.iv,
@@ -154,7 +160,8 @@ class UploadChunkIn(BaseModel):
 
 
 @router.post("/evidence/upload/chunk")
-async def upload_chunk(body: UploadChunkIn):
+async def upload_chunk(body: UploadChunkIn, user: dict = Depends(current_user)):
+    await _flags_or_503()
     if len(body.data_b64) > MAX_CHUNK_B64_BYTES:
         raise HTTPException(413, "Chunk too large.")
     session = await db.evidence_upload_sessions.find_one({"session_id": body.session_id})
@@ -178,7 +185,8 @@ class UploadCompleteIn(BaseModel):
 
 
 @router.post("/evidence/upload/complete")
-async def upload_complete(body: UploadCompleteIn):
+async def upload_complete(body: UploadCompleteIn, user: dict = Depends(current_user)):
+    await _flags_or_503()
     session = await db.evidence_upload_sessions.find_one({"session_id": body.session_id})
     if not session:
         raise HTTPException(404, "Upload session not found or expired. Please retry the backup.")

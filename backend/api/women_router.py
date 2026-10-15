@@ -51,6 +51,7 @@ DEFAULT_FLAGS = {
     "discreet_mode_enabled": False,
     "trusted_circle_enabled": False,
     "evidence_locker_enabled": False,
+    "evidence_vault_enabled": False,  # E1: gates the 5 cloud anchor/backup routes only
 }
 
 # Release-state ordering. QUARANTINED is special — always hidden from clients.

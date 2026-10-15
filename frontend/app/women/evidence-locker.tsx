@@ -20,6 +20,7 @@ import {
 import { hasPin, setPin, verifyPin } from '@/src/women/evidenceLock';
 import { getManifestEntry, type ManifestEntry, type GpsPoint } from '@/src/women/evidenceManifest';
 import { anchorItem, backupItem } from '@/src/women/evidenceBackup';
+import { fetchFlags } from '@/src/women/api';
 import { exportCertificate } from '@/src/women/evidenceCertificate';
 import { screenPlayer } from '@/src/media/screenPlayer';
 import type { TtsPlayer } from '@/src/voice/tts';
@@ -117,6 +118,14 @@ export default function EvidenceLocker() {
   const [manifestMap, setManifestMap] = useState<Record<string, ManifestEntry | null>>({});
   const [anchoring, setAnchoring] = useState<string | null>(null);
   const [backingUp, setBackingUp] = useState<Record<string, number>>({});
+  // E1: Anchor/Backup buttons only render when evidence_vault_enabled is on.
+  const [vaultEnabled, setVaultEnabled] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    fetchFlags().then(f => { if (alive) setVaultEnabled(!!(f as any)?.evidence_vault_enabled); })
+      .catch(() => { if (alive) setVaultEnabled(false); });
+    return () => { alive = false; };
+  }, []);
   const player = useRef<TtsPlayer | null>(null);
   const epoch = useRef(0);
   const working = useRef(false);
@@ -641,12 +650,12 @@ export default function EvidenceLocker() {
                 : 'Not anchored yet · timestamp proof is optional'}
               {manifestMap[item.id]?.backup ? ' · ☁️ Backed up' : ''}
             </Text>
-            {!manifestMap[item.id]?.anchor && (
+            {vaultEnabled && !manifestMap[item.id]?.anchor && (
               <Pressable testID={`recording-anchor-${item.id}`} disabled={anchoring === item.id} style={styles.control} onPress={() => handleAnchor(item)}>
                 {anchoring === item.id ? <ActivityIndicator color={c.navy} /> : <Text style={styles.label}>Anchor & verify (needs signal)</Text>}
               </Pressable>
             )}
-            {!!manifestMap[item.id]?.anchor && !manifestMap[item.id]?.backup && (
+            {vaultEnabled && !!manifestMap[item.id]?.anchor && !manifestMap[item.id]?.backup && (
               <Pressable testID={`recording-backup-${item.id}`} disabled={item.id in backingUp} style={styles.control} onPress={() => handleBackup(item)}>
                 <Text style={styles.label}>{item.id in backingUp ? `Backing up… ${Math.round((backingUp[item.id] || 0) * 100)}%` : 'Back up to secure cloud'}</Text>
               </Pressable>
