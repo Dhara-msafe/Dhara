@@ -15,3 +15,12 @@ export const operatorName = 'MSafe Solutions Inc.';
 export const indiaEntity = 'Calviltech Digital Solutions Pvt Ltd';
 export const grievanceOfficerName = 'Grievance Officer (name to be confirmed by owner)';
 export const grievanceContactEmail = 'grievance@calviltech.com';
+
+/**
+ * True when the grievance officer name and/or email is still an
+ * unconfirmed placeholder. Consumers MUST use this to decide whether to
+ * render the grievance officer line at all — never invent a name/email
+ * to fill the gap.
+ */
+export const isGrievanceContactPlaceholder = (): boolean =>
+  grievanceOfficerName.includes('to be confirmed') || grievanceContactEmail.includes('to be confirmed');

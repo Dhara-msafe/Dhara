@@ -16,13 +16,17 @@ import { theme } from '@/src/theme';
 import { consentStyles as styles } from '@/src/consentStyles';
 
 const colors = theme.colors;
-import { grievanceOfficerName, grievanceContactEmail } from '@/src/operatorIdentity';
+import { grievanceOfficerName, grievanceContactEmail, isGrievanceContactPlaceholder } from '@/src/operatorIdentity';
 
 const PLACEHOLDERS: Record<string, string> = {
   '{{DATA_LOCATION}}': 'India (cloud-hosted, encrypted at rest)',
   '{{GRIEVANCE_OFFICER_NAME}}': grievanceOfficerName,
   '{{GRIEVANCE_EMAIL}}': grievanceContactEmail,
 };
+// Fail-closed: if the officer name/email is still an unconfirmed
+// placeholder, do not render the grievance officer line at all rather
+// than show placeholder text to end users.
+const showGrievanceLine = !isGrievanceContactPlaceholder();
 const fillPlaceholders = (text: string) => Object.entries(PLACEHOLDERS)
   .reduce((s, [key, value]) => s.split(key).join(value), text);
 
@@ -113,7 +117,9 @@ export default function ConsentScreen() {
         <View style={styles.infoBox}><Text testID="consent-storage-notice" style={styles.infoText}>{fillPlaceholders(strings.storage)}</Text></View>
         <Text testID="consent-rights-heading" style={styles.sectionHeading}>{strings.rights_heading}</Text>
         <Text testID="consent-rights-notice" style={styles.bodyText}>{strings.rights_body}</Text>
-        <View style={styles.infoBox}><Text testID="consent-grievance-notice" style={styles.infoText}>{fillPlaceholders(strings.grievance)}</Text></View>
+        {showGrievanceLine && (
+          <View style={styles.infoBox}><Text testID="consent-grievance-notice" style={styles.infoText}>{fillPlaceholders(strings.grievance)}</Text></View>
+        )}
 
         <Text testID="consent-age-heading" style={styles.sectionHeading}>{copy.ageHeading}</Text>
         <View style={styles.radioGroup}>
