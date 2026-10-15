@@ -8,11 +8,12 @@ import assert from 'node:assert/strict';
 
 import { grievanceOfficerName, grievanceContactEmail, isGrievanceContactPlaceholder } from '../operatorIdentity';
 
-test('placeholder officer name (current real state) -> isGrievanceContactPlaceholder() is true', () => {
-  // Guards against a regression in operatorIdentity.ts itself: this must
-  // stay true until the owner supplies a confirmed name/email.
-  assert.equal(grievanceOfficerName.includes('to be confirmed'), true);
-  assert.equal(isGrievanceContactPlaceholder(), true);
+test('owner-confirmed officer name/email (current real state) -> isGrievanceContactPlaceholder() is false', () => {
+  // As of the owner confirming "Varuna Moses" / "varuna@calviltech.com",
+  // the grievance line must render. If this ever flips back to true
+  // (placeholder reintroduced), the UI will fail-closed and hide the line.
+  assert.equal(grievanceOfficerName.includes('to be confirmed'), false);
+  assert.equal(isGrievanceContactPlaceholder(), false);
 });
 
 test('both name and email confirmed (simulated real values) -> false', () => {
