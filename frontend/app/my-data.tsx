@@ -22,7 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
-import * as FileSystem from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 
 interface MyDataSummary {
@@ -79,19 +79,24 @@ export default function MyDataScreen() {
         a.click();
         URL.revokeObjectURL(url);
       } else {
-        // Native: write to temp file and share
-        const fileUri = (FileSystem.cacheDirectory ?? '') + `dhara-my-data-${Date.now()}.json`;
-        await FileSystem.writeAsStringAsync(fileUri, jsonStr, {
-          encoding: FileSystem.EncodingType.UTF8,
-        });
-        const canShare = await Sharing.isAvailableAsync();
-        if (canShare) {
-          await Sharing.shareAsync(fileUri, {
-            mimeType: 'application/json',
-            dialogTitle: 'Export your Dhara data',
-          });
-        } else {
-          Alert.alert('Export complete', `File saved to: ${fileUri}`);
+        // M: migrated to the expo-file-system ~19 File/Paths API (the old
+        // cacheDirectory/EncodingType/writeAsStringAsync calls no longer
+        // exist on this version and threw at runtime). Write to app cache,
+        // share, then always delete the temp file — export contents unchanged.
+        const tempFile = new File(Paths.cache, `dhara-my-data-${Date.now()}.json`);
+        try {
+          tempFile.write(jsonStr);
+          const canShare = await Sharing.isAvailableAsync();
+          if (canShare) {
+            await Sharing.shareAsync(tempFile.uri, {
+              mimeType: 'application/json',
+              dialogTitle: 'Export your Dhara data',
+            });
+          } else {
+            Alert.alert('Export complete', 'Your data export is ready, but sharing is not available on this device.');
+          }
+        } finally {
+          try { tempFile.delete(); } catch {}
         }
       }
     } catch (e) {

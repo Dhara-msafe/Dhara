@@ -1417,6 +1417,17 @@ export default function ChatScreen() {
   // Fix A: remembers the last recording that failed to transcribe so Retry
   // can resend it without asking the user to speak again.
   const lastAudioForRetryRef = useRef<{ platform: 'web'; blob: Blob } | { platform: 'native'; uri: string } | null>(null);
+  // A2: deletes the cached retry audio (native file + ref) on success,
+  // cancel, or unmount. Evidence Locker files are never touched here.
+  const deleteRetryAudio = useCallback(() => {
+    const source = lastAudioForRetryRef.current;
+    lastAudioForRetryRef.current = null;
+    if (source?.platform === 'native') {
+      try { new File(source.uri).delete(); } catch {}
+    }
+  }, []);
+  // A2: on unmount, clean up any still-cached retry audio.
+  useEffect(() => () => { deleteRetryAudio(); }, [deleteRetryAudio]);
   // Fix A: one short, fixed message per status — never the raw response body
   // (a 429 from the upstream Whisper rate limiter can come back as plain HTML).
   const showTranscriptionError = useCallback((status: number | null, retry: () => void) => {
@@ -1424,10 +1435,10 @@ export default function ChatScreen() {
       ? 'Too many requests. Please wait a moment and try again.'
       : 'Could not transcribe. Please try again or type your question.';
     crossAlert('Transcription failed', message, [
-      { text: 'Cancel', style: 'cancel' },
+      { text: 'Cancel', style: 'cancel', onPress: () => deleteRetryAudio() }, // A2: cancelling the retry alert deletes the cached audio
       { text: 'Retry', onPress: retry },
     ]);
-  }, []);
+  }, [deleteRetryAudio]);
   const retryTranscription = useCallback(async () => {
     const source = lastAudioForRetryRef.current;
     if (!source || !token) return;
@@ -1449,7 +1460,7 @@ export default function ChatScreen() {
         const heardText = (data.text || '').trim();
         setTranscribing(false);
         if (heardText) {
-          lastAudioForRetryRef.current = null;
+          deleteRetryAudio(); // A2: transcription succeeded — the audio is no longer needed
           setTranscriptMismatch(data.script_mismatch ? { detected: data.detected_script ?? null } : null);
           setTranscriptPreview(heardText);
           enterConfirming(heardText);
@@ -1462,7 +1473,7 @@ export default function ChatScreen() {
         setTranscribing(false);
         const heardText = (result.text || '').trim();
         if (heardText) {
-          lastAudioForRetryRef.current = null;
+          deleteRetryAudio(); // A2: transcription succeeded — the audio is no longer needed
           setTranscriptMismatch(result.scriptMismatch ? { detected: result.detectedScript } : null);
           setTranscriptPreview(heardText);
           enterConfirming(heardText);
@@ -1476,7 +1487,7 @@ export default function ChatScreen() {
       if (e?.message === '__session_expired__') { forceLogout(); return; }
       showTranscriptionError((e as any)?.status ?? null, retryTranscription);
     }
-  }, [token, language, forceLogout, notify, enterConfirming, showTranscriptionError]);
+  }, [token, language, forceLogout, notify, enterConfirming, showTranscriptionError, deleteRetryAudio]);
 
   const stopRecording = useCallback(async () => {
     voiceSMRef.current?.tryTo('TRANSCRIBING');
@@ -1554,6 +1565,7 @@ export default function ChatScreen() {
         const heardText = (data.text || '').trim();
         setTranscribing(false);
         if (heardText) {
+          deleteRetryAudio(); // A2: transcription succeeded — the audio is no longer needed
           setTranscriptMismatch(data.script_mismatch ? { detected: data.detected_script ?? null } : null);
           setTranscriptPreview(heardText);
           enterConfirming(heardText);
@@ -1581,6 +1593,7 @@ export default function ChatScreen() {
         setTranscribing(false);
         const heardText = (result.text || '').trim();
         if (heardText) {
+          deleteRetryAudio(); // A2: transcription succeeded — the audio is no longer needed
           setTranscriptMismatch(result.scriptMismatch ? { detected: result.detectedScript } : null);
           setTranscriptPreview(heardText);
           enterConfirming(heardText);
@@ -1599,7 +1612,7 @@ export default function ChatScreen() {
       // per status, with a Retry that resends the same recording.
       showTranscriptionError((e as any)?.status ?? null, retryTranscription);
     }
-  }, [recorder, token, language, notify, forceLogout, showTranscriptionError, retryTranscription]);
+  }, [recorder, token, language, notify, forceLogout, showTranscriptionError, retryTranscription, deleteRetryAudio]);
 
   // WhatsApp-style hold-to-talk handlers
   const onMicPressIn = useCallback(() => {

@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { File, Paths } from 'expo-file-system';
+import { Zip, ZipPassThrough } from 'fflate';
 import { getOrCreateKey, encryptBytes, decryptBytes } from './evidenceCrypto';
 
 export type EvidenceType = 'audio' | 'photo' | 'video';
@@ -161,32 +162,55 @@ export async function getDecryptedTempUri(scope: string, item: RecordingItem): P
 }
 
 /**
- * Fix E: a v2 (segmented) parent item has no encrypted file of its own
- * (`uri: ''`) — getDecryptedTempUri() just returned that empty string,
- * which made `Sharing.shareAsync('')` fail with "Could not open the share
- * sheet." This decrypts every segment for the session, in recording order,
- * and concatenates the plaintext into ONE temporary file for sharing.
+ * E2: a v2 (segmented) parent item has no encrypted file of its own
+ * (`uri: ''`). Earlier this concatenated the raw decrypted bytes of every
+ * segment into one file — abandoned because independent .m4a containers
+ * (each with their own moov/mdat atoms) don't reliably concatenate into a
+ * single playable file. This now exports a .zip with each segment as its
+ * own part-NN file, in order, so every segment plays correctly on its own.
+ *
+ * Memory: segments are decrypted ONE AT A TIME (never all held at once),
+ * and the zip output is streamed straight to disk via File.writableStream()
+ * as fflate produces it — the full zip is never held in memory either.
+ * Compression is "store only" (ZipPassThrough, not ZipDeflate) since the
+ * underlying .m4a audio is already compressed.
  * Storage format / encryption of the underlying segments is unchanged —
- * this only builds a throwaway merged copy for the share sheet.
+ * this only builds a throwaway .zip copy for the share sheet.
  * Caller MUST call releaseDecryptedTempUri(uri, true) when done.
  */
-export async function getDecryptedTempUriForSegmented(scope: string, item: RecordingItem): Promise<string> {
+export async function getSegmentedShareZipUri(scope: string, item: RecordingItem): Promise<string> {
   if (!item.session_id) throw new Error('No segments found for this recording.');
   const segments = await loadSegments(scope, item.session_id);
   if (segments.length === 0) throw new Error('No segments found for this recording.');
   const aesKey = await getOrCreateKey(scope);
-  const parts: Uint8Array[] = [];
-  for (const seg of segments) {
-    const cipherBytes = await new File(seg.uri).bytes();
-    parts.push(seg.iv ? decryptBytes(cipherBytes, aesKey, seg.iv) : cipherBytes);
-  }
-  const totalLen = parts.reduce((sum, p) => sum + p.length, 0);
-  const merged = new Uint8Array(totalLen);
-  let offset = 0;
-  for (const p of parts) { merged.set(p, offset); offset += p.length; }
-  const tempFile = new File(Paths.cache, `dhara-evidence-tmp-${item.id}-${Date.now()}.${item.ext || segments[0]?.ext || 'm4a'}`);
-  tempFile.write(merged);
-  return tempFile.uri;
+  const defaultExt = item.ext || segments[0]?.ext || 'm4a';
+  const zipFile = new File(Paths.cache, `dhara-evidence-tmp-${item.id}-${Date.now()}.zip`);
+  const writer = zipFile.writableStream().getWriter();
+
+  await new Promise<void>((resolve, reject) => {
+    const zip = new Zip((err, data, final) => {
+      if (err) { reject(err); return; }
+      if (data) { void writer.write(data).catch(reject); }
+      if (final) { void writer.close().then(resolve).catch(reject); }
+    });
+    (async () => {
+      try {
+        for (let i = 0; i < segments.length; i++) {
+          const seg = segments[i];
+          const cipherBytes = await new File(seg.uri).bytes();
+          const plainBytes = seg.iv ? decryptBytes(cipherBytes, aesKey, seg.iv) : cipherBytes;
+          const partName = `part-${String(i + 1).padStart(2, '0')}.${seg.ext || defaultExt}`;
+          const entry = new ZipPassThrough(partName);
+          zip.add(entry);
+          entry.push(plainBytes, true); // one segment at a time — plainBytes drops out of scope right after
+        }
+        zip.end();
+      } catch (e) {
+        reject(e);
+      }
+    })();
+  });
+  return zipFile.uri;
 }
 
 /** Deletes a temp file produced by `getDecryptedTempUri`. Safe to call on a

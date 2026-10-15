@@ -274,7 +274,7 @@ export default function Settings() {
               </View>
               {pushTestBusy
                 ? <ActivityIndicator color={theme.colors.brand} />
-                : <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />}
+                : <Ionicons name="chevron-forward" size={20} color={theme.colors.onSurfaceSecondary} />}
             </Pressable>
           )}
           </>
@@ -715,6 +715,7 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   cancelDeleteBtn: { alignItems: 'center', paddingVertical: theme.spacing.md, minHeight: 44 },
+  link: { color: theme.colors.onSurfaceSecondary, fontSize: 15, fontWeight: '600' },
   copyBlock: { alignItems: 'center', marginTop: theme.spacing.xl, paddingVertical: theme.spacing.lg },
   copyLine: { color: theme.colors.onSurfaceSecondary, fontSize: 12, fontWeight: '700' },
   copySub: { color: theme.colors.onSurfaceTertiary, fontSize: 11, marginTop: 2, letterSpacing: 0.5 },
@@ -751,6 +752,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
+  langToastText: { color: theme.colors.onBrandPrimary, fontSize: 13, fontWeight: '600' },
   error: { color: theme.colors.error, marginTop: theme.spacing.md, fontSize: 13, fontWeight: '600' },
   btnText: { color: theme.colors.onBrandPrimary, fontWeight: '700', fontSize: 15 },
 });

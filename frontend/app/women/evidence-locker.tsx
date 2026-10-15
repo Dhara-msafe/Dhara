@@ -14,7 +14,7 @@ import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { useEvidenceRecorder } from '@/src/women/EvidenceRecorderProvider';
 import {
   saveRecording, savePhoto, saveVideo, deleteRecording, releaseRecordings,
-  discardTemporaryRecording, getDecryptedTempUri, getDecryptedTempUriForSegmented, releaseDecryptedTempUri, type RecordingItem,
+  discardTemporaryRecording, getDecryptedTempUri, getSegmentedShareZipUri, releaseDecryptedTempUri, type RecordingItem,
   saveSegment, createSegmentedParent, loadSegments, loadVisibleRecordings,
 } from '@/src/women/evidenceStore';
 import { hasPin, setPin, verifyPin } from '@/src/women/evidenceLock';
@@ -534,23 +534,25 @@ export default function EvidenceLocker() {
       const canShare = await Sharing.isAvailableAsync();
       if (!canShare) { setStatus('Sharing is not available on this device.'); return; }
       if (item.recording_format_version === 2 && item.session_id) {
-        // Fix E: a v2 parent has no file of its own (uri: '') — build one
-        // temporary merged file from its decrypted segments, in order.
-        const tempUri = await getDecryptedTempUriForSegmented(scope, item);
+        // E2: a v2 parent has no file of its own (uri: '') — build one
+        // temporary .zip (part-01, part-02, ... in order) from its
+        // decrypted segments, since independent .m4a containers don't
+        // reliably concatenate into one playable file.
+        const zipUri = await getSegmentedShareZipUri(scope, item);
         try {
           const confirmed = await new Promise<boolean>(resolve => {
             crossAlert(
               'Share this recording?',
-              `This will share ${item.segment_count || 'all'} segment(s) as one file.`,
+              `Recording is shared in parts. Play them in order.\n\nThis will share ${item.segment_count || 'all'} segment(s) as a .zip file.`,
               [
                 { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
                 { text: 'Share', onPress: () => resolve(true) },
               ],
             );
           });
-          if (confirmed) await Sharing.shareAsync(tempUri);
+          if (confirmed) await Sharing.shareAsync(zipUri, { mimeType: 'application/zip' });
         } finally {
-          releaseDecryptedTempUri(tempUri, true);
+          releaseDecryptedTempUri(zipUri, true);
         }
         return;
       }
