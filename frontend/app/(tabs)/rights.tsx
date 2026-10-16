@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { API_BASE, useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { useUserProfile } from '@/src/userProfile';
 
 type Citation = { label: string; url: string };
 type Topic = {
@@ -30,6 +31,7 @@ export default function Rights() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const router = useRouter();
   const { language } = useAuth();
+  const { primaryInterest } = useUserProfile();
 
   useEffect(() => {
     setLoading(true);
@@ -40,31 +42,65 @@ export default function Rights() {
       .finally(() => setLoading(false));
   }, [language.code]);
 
+  // Sort topics so the user's primary-interest topic comes first, followed by
+  // related topics, then everything else in their original backend order.
+  const sortedTopics = useMemo(() => {
+    if (!primaryInterest || topics.length === 0) return topics;
+    const primary = primaryInterest.rightsTopicId;
+    const related = primaryInterest.relatedTopicIds;
+    return [...topics].sort((a, b) => {
+      const scoreA = a.id === primary ? 2 : related.includes(a.id) ? 1 : 0;
+      const scoreB = b.id === primary ? 2 : related.includes(b.id) ? 1 : 0;
+      return scoreB - scoreA;
+    });
+  }, [topics, primaryInterest]);
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']} testID="rights-screen">
       <View style={styles.header}>
-        <Text style={styles.h1}>Know Your Rights</Text>
-        <Text style={styles.h2}>Rights that no one can take from you.</Text>
+        <Text style={styles.h1}>
+          {primaryInterest ? `Your ${primaryInterest.label} Rights` : 'Know Your Rights'}
+        </Text>
+        <Text style={styles.h2}>
+          {primaryInterest ? primaryInterest.chatSubline : 'Rights that no one can take from you.'}
+        </Text>
       </View>
       <ScrollView contentContainerStyle={styles.scroll}>
         {/* Flagship feature — always shown first, above the topic cards */}
-        <Pressable
-          testID="fir-entry-card"
-          style={styles.firCard}
-          onPress={() => router.push('/fir-draft' as any)}
-        >
-          <View style={styles.firIconWrap}>
-            <Ionicons name="document-text" size={26} color="#fff" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.firCardTitle}>File a Police Complaint</Text>
-            <Text style={styles.firCardSub}>Get a ready FIR draft in your language — by voice or text</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#fff" />
-        </Pressable>
+        {primaryInterest?.key === 'women' || primaryInterest?.key === 'domestic' ? (
+          <Pressable
+            testID="women-entry-card"
+            style={[styles.firCard, { backgroundColor: primaryInterest.color }]}
+            onPress={() => router.push('/women-shield' as any)}
+          >
+            <View style={[styles.firIconWrap, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
+              <Ionicons name="shield-checkmark" size={26} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.firCardTitle}>Women&apos;s Shield</Text>
+              <Text style={styles.firCardSub}>Evidence locker · Safe journey · Trusted circle</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#fff" />
+          </Pressable>
+        ) : (
+          <Pressable
+            testID="fir-entry-card"
+            style={styles.firCard}
+            onPress={() => router.push('/fir-draft' as any)}
+          >
+            <View style={styles.firIconWrap}>
+              <Ionicons name="document-text" size={26} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.firCardTitle}>File a Police Complaint</Text>
+              <Text style={styles.firCardSub}>Get a ready FIR draft in your language — by voice or text</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#fff" />
+          </Pressable>
+        )}
 
         {loading && <ActivityIndicator color={theme.colors.brand} />}
-        {topics.map(t => {
+        {sortedTopics.map(t => {
           const open = expanded === t.id;
           return (
             <Pressable

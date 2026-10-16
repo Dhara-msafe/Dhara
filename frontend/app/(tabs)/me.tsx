@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -6,6 +7,7 @@ import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
 import { SOSButton } from '@/src/components/SOSButton';
+import { INTERESTS, useUserProfile, type ProfileInterest } from '@/src/userProfile';
 
 const c = theme.colors;
 
@@ -15,6 +17,9 @@ export default function Me() {
   const { user, language, logout } = useAuth();
   const lang = language.code;
   const name = user?.name || tr('me.guest', lang);
+  const { interests, saveInterests, loaded } = useUserProfile();
+  const [selected, setSelected] = useState<ProfileInterest[]>([]);
+  useEffect(() => { if (loaded) setSelected(interests); }, [loaded, interests]);
 
   const rows: { icon: any; key: string; value?: string; route?: string; action?: () => void }[] = [
     { icon: 'globe-outline', key: 'me.language', value: language.native, route: '/language' },
@@ -66,6 +71,68 @@ export default function Me() {
           ))}
         </View>
 
+        {/* ── What matters to you? — interest picker ─────────────────── */}
+        <View style={styles.interestCard} testID="interest-picker">
+          <View style={styles.interestHeader}>
+            <Ionicons name="sparkles" size={17} color="#F59E0B" />
+            <Text style={styles.interestTitle}>Personalize your DHARA</Text>
+          </View>
+          <Text style={styles.interestSub}>
+            Select up to {3} topics — home, suggestions &amp; rights adapt
+          </Text>
+          <View style={styles.interestGrid}>
+            {INTERESTS.map(interest => {
+              const isOn = selected.includes(interest.key);
+              const canPick = isOn || selected.length < 3;
+              return (
+                <Pressable
+                  key={interest.key}
+                  testID={`interest-chip-${interest.key}`}
+                  style={[
+                    styles.interestChip,
+                    isOn && { backgroundColor: interest.bgColor, borderColor: interest.color },
+                    !canPick && { opacity: 0.38 },
+                  ]}
+                  onPress={() => {
+                    let next: ProfileInterest[];
+                    if (isOn) {
+                      next = selected.filter(k => k !== interest.key);
+                    } else if (canPick) {
+                      next = [...selected, interest.key];
+                    } else {
+                      return;
+                    }
+                    setSelected(next);
+                    void saveInterests(next);
+                  }}
+                >
+                  <Text style={styles.chipEmoji}>{interest.emoji}</Text>
+                  <Text
+                    style={[styles.chipLabel, isOn && { color: interest.color }]}
+                    numberOfLines={2}
+                  >
+                    {interest.label}
+                  </Text>
+                  {isOn && (
+                    <View style={[styles.chipCheck, { backgroundColor: interest.color }]}>
+                      <Ionicons name="checkmark" size={9} color="#fff" />
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+          {selected.length > 0 ? (
+            <Text style={styles.interestSaved}>
+              ✓ Saved · your home is now personalized
+            </Text>
+          ) : (
+            <Text style={styles.interestHint}>
+              No selection · showing general questions
+            </Text>
+          )}
+        </View>
+
         <Pressable style={styles.signout} onPress={async () => { await logout(); router.replace('/login'); }} testID="me-signout">
           <Ionicons name="log-out-outline" size={20} color={c.error} />
           <Text style={styles.signoutTxt}>{tr('me.signout', lang)}</Text>
@@ -95,6 +162,18 @@ const styles = StyleSheet.create({
   rowIcon: { width: 40, height: 40, borderRadius: 11, backgroundColor: c.navySoft, alignItems: 'center', justifyContent: 'center' },
   rowLabel: { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 16, color: c.ink },
   rowValue: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, maxWidth: 120 },
+  // ── Interest picker ────────────────────────────────────────────────
+  interestCard: { backgroundColor: c.surface, borderRadius: 18, borderWidth: 1, borderColor: c.lines, padding: 18, marginTop: 18 },
+  interestHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 5 },
+  interestTitle: { fontFamily: theme.fonts.displayBold, fontSize: 16, color: c.ink },
+  interestSub: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, marginBottom: 16, lineHeight: 18 },
+  interestGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  interestChip: { width: '47%', flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1.5, borderColor: c.lines, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11, backgroundColor: c.background },
+  chipEmoji: { fontSize: 18 },
+  chipLabel: { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.ink, lineHeight: 17 },
+  chipCheck: { width: 17, height: 17, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  interestSaved: { fontFamily: theme.fonts.body, fontSize: 12, color: '#059669', marginTop: 14, textAlign: 'center' },
+  interestHint: { fontFamily: theme.fonts.body, fontSize: 12, color: c.onSurfaceTertiary, marginTop: 14, textAlign: 'center' },
   signout: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.lines, paddingVertical: 16, marginTop: 20 },
   signoutTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.error },
 });

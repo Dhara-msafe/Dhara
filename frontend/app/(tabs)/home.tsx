@@ -6,6 +6,7 @@ import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
 import { useComplaints, isDraftReady, complaintTitle, complaintProgress } from '@/src/home/complaints';
+import { useUserProfile } from '@/src/userProfile';
 
 const c = theme.colors;
 
@@ -35,6 +36,20 @@ export default function Home() {
     );
   };
 
+  const journeyProfileMap: Record<string, string[]> = {
+    women:    ['/women-shield'],
+    domestic: ['/women-shield'],
+    cyber:    ['/fraud-checklist'],
+    police:   ['/fir-draft'],
+    motor:    ['/fir-draft'],
+    consumer: ['/all-help'],
+    rti:      ['/all-help'],
+    labor:    ['/all-help'],
+  };
+
+  const { interests, primaryInterest, loaded } = useUserProfile();
+  const profileRoutes = primaryInterest ? (journeyProfileMap[primaryInterest.key] ?? []) : [];
+
   const journeys = [
     { key: 'engine.title', sub: 'FIR · नोटिस · मिसिंग', icon: 'construct-outline', route: '/engine', navy: true, isNew: true },
     { key: 'j.shield',   sub: 'महिला सुरक्षा', icon: 'shield-half', route: '/women-shield' },
@@ -46,6 +61,18 @@ export default function Home() {
     { key: 'j.voter',    sub: 'मतदाता',       icon: 'checkbox-outline', route: '/(tabs)/voter-roll' },
     { key: 'home.allHelp', sub: 'सारी मदद',   icon: 'apps-outline', route: '/all-help', allHelp: true },
   ];
+
+  // Promote profile-matching tiles right after the engine tile (position 1).
+  const sortedJourneys = profileRoutes.length > 0
+    ? [
+        journeys[0], // engine always first
+        ...journeys.slice(1).sort((a, b) => {
+          const aMatch = profileRoutes.includes(a.route) ? -1 : 0;
+          const bMatch = profileRoutes.includes(b.route) ? -1 : 0;
+          return aMatch - bMatch;
+        }),
+      ]
+    : journeys;
   // 'engine.title' and 'j.*' are looked up in ui18n.ts; fall back to a plain
   // English label if a language pack hasn't added the key yet.
   const jLabel = (key: string) => (key === 'engine.title' ? 'Dhara Engine' : tr(key, lang));
@@ -107,11 +134,38 @@ export default function Home() {
             </Pressable>
           </View>
           <Text style={styles.tryLabel}>{tr('home.trySaying', lang).toUpperCase()}</Text>
-          {['home.try1', 'home.try2', 'home.try3'].map(k => (
-            <Pressable key={k} style={styles.tryChip} onPress={() => router.push('/(tabs)')}>
-              <Text style={styles.tryChipTxt}>{tr(k, lang)}</Text>
+          {(primaryInterest
+            ? primaryInterest.homeTryQuestions
+            : ['home.try1', 'home.try2', 'home.try3'].map(k => tr(k, lang))
+          ).map((q, idx) => (
+            <Pressable
+              key={idx}
+              style={styles.tryChip}
+              onPress={() => {
+                const clean = q.replace(/^"|"$/g, '');
+                router.push({ pathname: '/(tabs)', params: { draft: clean, entry: Date.now().toString() } } as any);
+              }}
+            >
+              <Text style={styles.tryChipTxt}>{q}</Text>
             </Pressable>
           ))}
+
+          {/* ── Onboarding nudge for users who haven't set interests yet ── */}
+          {loaded && interests.length === 0 && (
+            <Pressable
+              style={styles.onboardCard}
+              onPress={() => router.push('/(tabs)/me')}
+              testID="home-onboarding-card"
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.onboardTitle}>✨ What matters to you?</Text>
+                <Text style={styles.onboardBody}>
+                  Pick your interests on the Me tab and DHARA will personalize these suggestions for you.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={c.navy} />
+            </Pressable>
+          )}
         </View>
 
         {/* ── For you right now ────────────────────────── */}
@@ -160,6 +214,30 @@ export default function Home() {
               <Text style={styles.navyBtnTxt}>Start</Text>
             </Pressable>
           </View>
+
+          {/* ── Profile-specific card — changes with user interest ─── */}
+          {primaryInterest && (
+            <Pressable
+              style={[styles.forYouCard, { backgroundColor: primaryInterest.bgColor, borderWidth: 1.5, borderColor: primaryInterest.color + '40' }]}
+              onPress={() => router.push(primaryInterest.forYouCard.route as any)}
+              testID="home-profile-foryou-card"
+            >
+              <View style={styles.forYouTag}>
+                <Text style={[styles.forYouTagTxt, { color: primaryInterest.color }]}>
+                  {primaryInterest.forYouCard.tag}
+                </Text>
+              </View>
+              <Text style={[styles.forYouTitle, { color: c.ink }]} numberOfLines={2}>
+                {primaryInterest.forYouCard.title}
+              </Text>
+              <Text style={[styles.forYouBody, { color: c.muted }]} numberOfLines={3}>
+                {primaryInterest.forYouCard.body}
+              </Text>
+              <View style={[styles.navyBtn, { backgroundColor: primaryInterest.color }]}>
+                <Text style={styles.navyBtnTxt}>{primaryInterest.forYouCard.cta}</Text>
+              </View>
+            </Pressable>
+          )}
         </ScrollView>
 
         {/* ── Help journeys ────────────────────────────── */}
@@ -174,19 +252,25 @@ export default function Home() {
             </Pressable>
           </View>
           <View style={styles.grid}>
-            {journeys.map(j => (
-              <Pressable
-                key={j.key}
-                style={[styles.tile, j.navy && styles.tileNavy]}
-                onPress={() => router.push(j.route as any)}
-                testID={`journey-${j.key}`}
-              >
-                {j.isNew && <View style={styles.newBadge}><Text style={styles.newTxt}>{tr('common.new', lang)}</Text></View>}
-                <Ionicons name={j.icon as any} size={26} color={j.navy ? c.gold : c.navy} />
-                <Text style={[styles.tileTitle, j.navy && { color: '#fff' }]} numberOfLines={2}>{jLabel(j.key)}</Text>
-                <Text style={[styles.tileSub, j.navy && { color: c.onNavyMuted }]} numberOfLines={1}>{j.sub}</Text>
-              </Pressable>
-            ))}
+            {sortedJourneys.map(j => {
+              const isForYou = profileRoutes.includes(j.route);
+              return (
+                <Pressable
+                  key={j.key}
+                  style={[styles.tile, j.navy && styles.tileNavy, isForYou && styles.tileForYou]}
+                  onPress={() => router.push(j.route as any)}
+                  testID={`journey-${j.key}`}
+                >
+                  {j.isNew && <View style={styles.newBadge}><Text style={styles.newTxt}>{tr('common.new', lang)}</Text></View>}
+                  {isForYou && !j.isNew && (
+                    <View style={styles.forYouBadge}><Text style={styles.forYouBadgeTxt}>FOR YOU</Text></View>
+                  )}
+                  <Ionicons name={j.icon as any} size={26} color={j.navy ? c.gold : isForYou ? primaryInterest?.color ?? c.navy : c.navy} />
+                  <Text style={[styles.tileTitle, j.navy && { color: '#fff' }, isForYou && { color: primaryInterest?.color ?? c.ink }]} numberOfLines={2}>{jLabel(j.key)}</Text>
+                  <Text style={[styles.tileSub, j.navy && { color: c.onNavyMuted }]} numberOfLines={1}>{j.sub}</Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
 
@@ -197,7 +281,9 @@ export default function Home() {
         <Pressable style={styles.verified} onPress={() => router.push('/(tabs)/rights')} testID="rights-reminder-banner">
           <Ionicons name="shield-checkmark" size={20} color={c.verifiedGreen} />
           <Text style={styles.verifiedTxt}>
-            Your rights are protected under Indian law — tap to learn more.
+            {primaryInterest
+              ? `${primaryInterest.chatSubline} — tap to explore your rights.`
+              : 'Your rights are protected under Indian law — tap to learn more.'}
           </Text>
           <Ionicons name="chevron-forward" size={16} color={c.muted} />
         </Pressable>
@@ -292,10 +378,17 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
   tile: { width: '47%', backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.lines, padding: 16, gap: 6, minHeight: 112 },
   tileNavy: { backgroundColor: c.navy, borderColor: c.navy },
+  tileForYou: { borderWidth: 2, borderColor: c.navy + '30' },
   tileTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink, marginTop: 4 },
   tileSub: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted },
   newBadge: { position: 'absolute', top: 12, right: 12, backgroundColor: c.goldSoft, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   newTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 9, color: c.darkGold, letterSpacing: 0.5 },
+  forYouBadge: { position: 'absolute', top: 12, right: 12, backgroundColor: c.navy, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  forYouBadgeTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 8, color: '#fff', letterSpacing: 0.5 },
+
+  onboardCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#EFF6FF', borderRadius: 14, borderWidth: 1.5, borderColor: c.navy + '30', padding: 16, marginTop: 12, width: '100%' },
+  onboardTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.ink, marginBottom: 3 },
+  onboardBody: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 17 },
 
   verified: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.successSoft, marginHorizontal: 20, marginTop: 24, borderRadius: 14, padding: 14 },
   verifiedTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18 },

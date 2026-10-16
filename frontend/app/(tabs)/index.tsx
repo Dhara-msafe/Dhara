@@ -35,6 +35,7 @@ import { createBrowserTtsPlayer } from '@/src/voice/browserPlayer';
 import { VoiceNotice } from '@/src/components/VoiceNotice';
 import { File, Paths } from 'expo-file-system';
 import { useAuth, API_BASE, logClientError } from '@/src/auth';
+import { useUserProfile } from '@/src/userProfile';
 import { theme } from '@/src/theme';
 import { trackEvent } from '@/src/analytics';
 import { getConfiguredSTT, whisperTranscribeFile } from '@/src/voice/stt';
@@ -275,6 +276,7 @@ const isIpcCitation = (c: { act?: string; citation?: string } | null | undefined
 
 export default function ChatScreen() {
   const { token, user, language, autoSpeak, ttsVolume, ttsVoiceMode, refreshUser, forceLogout } = useAuth();
+  const { primaryInterest } = useUserProfile();
   // Phase 1: shared evidence recorder from provider (needed for safety trigger)
   const { startTriggerRecording } = useEvidenceRecorder();
   const router = useRouter();
@@ -1903,9 +1905,19 @@ export default function ChatScreen() {
     setSamplesRemaining(null);
   }, []);
 
-  const activeSuggestions = entryParams.topicId && TOPIC_SUGGESTIONS[entryParams.topicId]
-    ? TOPIC_SUGGESTIONS[entryParams.topicId]
-    : proMode ? getProSuggestions(language.code) : getBasicSuggestions(language.code);
+  const activeSuggestions = (() => {
+    if (entryParams.topicId && TOPIC_SUGGESTIONS[entryParams.topicId]) {
+      return TOPIC_SUGGESTIONS[entryParams.topicId];
+    }
+    if (primaryInterest) {
+      // Map profile suggestions to the same shape the chips expect.
+      return primaryInterest.chatSuggestions.map(s => ({
+        text: s.text,
+        icon: s.icon as React.ComponentProps<typeof Ionicons>['name'],
+      }));
+    }
+    return proMode ? getProSuggestions(language.code) : getBasicSuggestions(language.code);
+  })();
 
   /** True whenever the user has sent at least one message — collapses the reports strip */
   const chatIsActive = messages.length > 0;
@@ -2063,9 +2075,15 @@ export default function ChatScreen() {
               <View style={styles.emblem}>
                 <Ionicons name="library" size={40} color={theme.colors.brandSecondary} />
               </View>
-              <Text style={styles.emptyTitle}>{t('home.headline', language.code)}</Text>
+              <Text style={styles.emptyTitle}>
+                {primaryInterest
+                  ? `Hi${user?.name ? ` ${user.name.split(' ')[0]}` : ''}, ${primaryInterest.chatHeadline}`
+                  : t('home.headline', language.code)}
+              </Text>
               <Text style={styles.emptySub}>
-                {t('home.sub', language.code)}
+                {primaryInterest
+                  ? primaryInterest.chatSubline
+                  : t('home.sub', language.code)}
               </Text>
               <View style={{ marginTop: theme.spacing.xl, gap: theme.spacing.sm, alignSelf: 'stretch', width: '100%' }}>
                 {activeSuggestions.map((s, i) => (
