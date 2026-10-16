@@ -175,3 +175,35 @@ async def get_raw_bytes(path: str) -> tuple[bytes, str]:
 async def delete_raw_object(path: str) -> None:
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(_executor, _delete_object_sync, path)
+
+
+# ── Strict variant for the account-deletion cascade ──────────────────────────
+
+def _delete_object_strict_sync(path: str) -> None:
+    """Like _delete_object_sync but propagates non-404 HTTP errors.
+
+    404 means the file is already gone — we treat that as success (idempotent
+    re-run).  Any other non-2xx status (5xx, 403, …) raises
+    requests.HTTPError so the caller can decide whether to keep or drop the
+    matching DB row.
+    """
+    key = _storage_key or _init_storage_sync()
+    resp = requests.delete(
+        f"{STORAGE_URL}/objects/{path}",
+        headers={"X-Storage-Key": key},
+        timeout=30,
+    )
+    if resp.status_code == 404:
+        return  # Already deleted — idempotent success
+    resp.raise_for_status()  # raises requests.HTTPError for other non-2xx
+
+
+async def delete_raw_object_strict(path: str) -> None:
+    """Async wrapper for _delete_object_strict_sync.
+
+    Callers MUST handle requests.HTTPError: it signals a real storage failure
+    that the caller should respond to (e.g. keeping the DB row for retry).
+    404 is silently swallowed — it means the object was already deleted.
+    """
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(_executor, _delete_object_strict_sync, path)

@@ -180,13 +180,14 @@ class UploadChunkIn(BaseModel):
 
 @router.post("/evidence/upload/chunk")
 async def upload_chunk(body: UploadChunkIn, user: dict = Depends(current_user)):
-    # E2/A2: owner check always on — no feature flag gate here. Login is
-    # enforced by Depends(current_user); the 404 below also guards ownership.
+    # E2/A2 response order: 1) login 401 (Depends), 2) owner 404, 3) flag 503.
+    # Size guard is a cheap local check and does not touch the DB.
     if len(body.data_b64) > MAX_CHUNK_B64_BYTES:
         raise HTTPException(413, "Chunk too large.")
     session = await db.evidence_upload_sessions.find_one({"session_id": body.session_id, **_owner_filter(user["id"])})
     if not session:
         raise HTTPException(404, "Upload session not found or expired. Please retry the backup.")
+    await _flags_or_503()  # Owner confirmed above; gate vault writes on the feature flag.
     if body.index >= session["total_chunks"]:
         raise HTTPException(400, "Chunk index out of range.")
     session_dir = TMP_ROOT / body.session_id
@@ -206,10 +207,11 @@ class UploadCompleteIn(BaseModel):
 
 @router.post("/evidence/upload/complete")
 async def upload_complete(body: UploadCompleteIn, user: dict = Depends(current_user)):
-    # E2/A2: owner check always on — no feature flag gate here.
+    # E2/A2 response order: 1) login 401 (Depends), 2) owner 404, 3) flag 503.
     session = await db.evidence_upload_sessions.find_one({"session_id": body.session_id, **_owner_filter(user["id"])})
     if not session:
         raise HTTPException(404, "Upload session not found or expired. Please retry the backup.")
+    await _flags_or_503()  # Owner confirmed above; gate vault writes on the feature flag.
     session_dir = TMP_ROOT / body.session_id
     total = session["total_chunks"]
     buf = bytearray()

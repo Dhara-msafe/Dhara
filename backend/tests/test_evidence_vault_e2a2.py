@@ -125,59 +125,127 @@ def test_migration_dry_run_writes_nothing():
 
 
 def test_chunk_complete_owner_check_flag_off():
-    """Step 2: chunk/complete must verify ownership even when vault flag is OFF.
-    Owner gets the correct response; non-owner gets 404 — not 503 from the flag."""
-    ha, _ = _guest()
-    hb, _ = _guest()
-    # Turn OFF the flag temporarily
+    """STEP 3.2/3.3 — response ordering: login 401 → owner 404 → flag 503.
+
+    When evidence_vault_enabled is OFF:
+      unauthenticated           → 401/403   (login fires first)
+      authenticated + non-owner → 404       (owner check fires before flag)
+      authenticated + owner     → 503       (flag check fires after owner confirmed)
+    """
+    ha, ua = _guest()
+    hb, _  = _guest()
+    sid = str(uuid.uuid4())
     _run(_db().settings.update_one(
         {"_id": "app_flags"}, {"$set": {"evidence_vault_enabled": False}}, upsert=True
     ))
     try:
-        # init is flag-gated → 503 expected (that's correct for new uploads)
+        # init is flag-gated — 503 is expected
         ri = requests.post(f"{BASE}/evidence/upload/init",
                            json={"item_id": "flagoff", "scope": "x", "total_chunks": 1},
                            headers=ha)
-        assert ri.status_code == 503, f"expected 503 from init when flag OFF, got {ri.status_code}"
+        assert ri.status_code == 503, f"init flag-OFF should be 503, got {ri.status_code}"
 
-        # Manually insert an upload session to simulate a pre-existing in-flight upload
-        sid = str(uuid.uuid4())
+        # Insert an in-flight session owned by ua (real user_id)
         _run(_db().evidence_upload_sessions.insert_one({
-            "session_id": sid,
-            "item_id": "flagoff-item",
-            "user_id": ha["Authorization"].split()[-1][:8],  # placeholder — real owner is ha
-            "scope":   ha["Authorization"].split()[-1][:8],
-            "total_chunks": 1,
-            "ext": "bin", "iv": "", "created_at": 0,
+            "session_id": sid, "item_id": "flagoff-item",
+            "user_id": ua, "scope": ua,
+            "total_chunks": 1, "ext": "bin", "iv": "", "created_at": 0,
         }))
-        # Re-insert with the actual user_id resolved via a real session creation
-        # (Can't decode JWT easily here, so test the non-owner path directly)
-        rb = requests.post(f"{BASE}/evidence/upload/chunk",
-                           json={"session_id": sid, "index": 0, "data_b64": "AA=="},
-                           headers=hb)
-        # Non-owner should get 404, not 503 (flag-independent ownership check)
-        assert rb.status_code == 404, (
-            f"chunk by non-owner when flag OFF should be 404, got {rb.status_code}: {rb.text}"
-        )
-        rc = requests.post(f"{BASE}/evidence/upload/complete",
-                           json={"session_id": sid},
-                           headers=hb)
-        assert rc.status_code == 404, (
-            f"complete by non-owner when flag OFF should be 404, got {rc.status_code}: {rc.text}"
-        )
-        # Unauthenticated request must return 401/403 — never 503
-        r_unauth_chunk = requests.post(f"{BASE}/evidence/upload/chunk",
-                                       json={"session_id": sid, "index": 0, "data_b64": "AA=="})
-        assert r_unauth_chunk.status_code in (401, 403), (
-            f"unauthenticated chunk should be 401/403, got {r_unauth_chunk.status_code}"
-        )
-        r_unauth_complete = requests.post(f"{BASE}/evidence/upload/complete",
-                                          json={"session_id": sid})
-        assert r_unauth_complete.status_code in (401, 403), (
-            f"unauthenticated complete should be 401/403, got {r_unauth_complete.status_code}"
-        )
+
+        # 1. Unauthenticated → 401/403 (never 503)
+        for path, body in [
+            ("/evidence/upload/chunk",    {"session_id": sid, "index": 0, "data_b64": "AA=="}),
+            ("/evidence/upload/complete", {"session_id": sid}),
+        ]:
+            r = requests.post(f"{BASE}{path}", json=body)
+            assert r.status_code in (401, 403), f"unauth {path} should be 401/403, got {r.status_code}"
+
+        # 2. Authenticated non-owner → 404 (before flag check)
+        for path, body in [
+            ("/evidence/upload/chunk",    {"session_id": sid, "index": 0, "data_b64": "AA=="}),
+            ("/evidence/upload/complete", {"session_id": sid}),
+        ]:
+            r = requests.post(f"{BASE}{path}", json=body, headers=hb)
+            assert r.status_code == 404, f"non-owner {path} flag-OFF should be 404, got {r.status_code}: {r.text}"
+
+        # 3. Authenticated owner → 503 (owner check passes, flag check fires next)
+        for path, body in [
+            ("/evidence/upload/chunk",    {"session_id": sid, "index": 0, "data_b64": "AA=="}),
+            ("/evidence/upload/complete", {"session_id": sid}),
+        ]:
+            r = requests.post(f"{BASE}{path}", json=body, headers=ha)
+            assert r.status_code == 503, f"owner {path} flag-OFF should be 503, got {r.status_code}: {r.text}"
     finally:
         _run(_db().settings.update_one(
             {"_id": "app_flags"}, {"$set": {"evidence_vault_enabled": True}}
         ))
         _run(_db().evidence_upload_sessions.delete_one({"session_id": sid}))
+
+
+def test_cascade_non_404_storage_error_keeps_row():
+    """STEP 3.1/3.3 — non-404 storage error must keep the DB row for retry.
+
+    Cascade contract:
+      404  from storage → treat as success (file already gone), delete row.
+      non-404 from storage → keep row so the run can be retried safely, count failure.
+    """
+    sys.path.insert(0, str(ROOT))
+    from account_deletion import hard_delete_user
+    import fir_storage
+    from unittest.mock import patch
+    import requests as req_lib
+
+    uid = f"storageerr-{uuid.uuid4()}"
+    backup_item = f"item-{uuid.uuid4()}"
+
+    _run(_db().evidence_backups.insert_one({
+        "id": str(uuid.uuid4()), "item_id": backup_item,
+        "user_id": uid, "scope": uid,
+        "storage_path": f"dhara-legal-aid/evidence_vault/{uid}/{backup_item}.enc",
+        "size": 0, "uploaded_at": "2026-01-01T00:00:00+00:00",
+    }))
+
+    # Patch delete_raw_object_strict on the fir_storage module so the
+    # in-function `from fir_storage import delete_raw_object_strict` sees it.
+    async def _raise_500(*_a, **_kw):
+        raise req_lib.exceptions.HTTPError("500 Server Error: mock")
+
+    with patch.object(fir_storage, "delete_raw_object_strict", _raise_500):
+        counts = _run(hard_delete_user(_db(), uid))
+
+    # Row must still be present — kept for retry
+    row = _run(_db().evidence_backups.find_one({"item_id": backup_item, "user_id": uid}))
+    assert row is not None, "backup row must be kept when storage delete raises non-404"
+    assert counts.get("evidence_backup_files_failed", 0) >= 1, "failed count should be ≥ 1"
+    assert counts.get("evidence_backups", -1) == 0, "removed count should be 0 on storage failure"
+
+    # Cleanup
+    _run(_db().evidence_backups.delete_one({"item_id": backup_item, "user_id": uid}))
+
+
+def test_cascade_works_with_vault_flag_off():
+    """STEP 3.3 — hard_delete_user runs regardless of evidence_vault_enabled flag.
+    The cascade has no flag check and must complete when the vault is disabled."""
+    sys.path.insert(0, str(ROOT))
+    from account_deletion import hard_delete_user
+    uid = f"flagoff-cas-{uuid.uuid4()}"
+    _run(_db().settings.update_one(
+        {"_id": "app_flags"}, {"$set": {"evidence_vault_enabled": False}}, upsert=True
+    ))
+    try:
+        async def go():
+            db_ = _db()
+            await db_.evidence_anchors.insert_one({
+                "receipt_id": str(uuid.uuid4()), "item_id": f"i-{uid}",
+                "user_id": uid, "scope": uid,
+            })
+            counts = await hard_delete_user(db_, uid)
+            remaining = await db_.evidence_anchors.count_documents({"user_id": uid})
+            return counts, remaining
+        counts, remaining = _run(go())
+        assert counts["evidence_anchors"] >= 1, "cascade must delete anchors even when flag is OFF"
+        assert remaining == 0
+    finally:
+        _run(_db().settings.update_one(
+            {"_id": "app_flags"}, {"$set": {"evidence_vault_enabled": True}}
+        ))
