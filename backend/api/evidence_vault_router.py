@@ -180,7 +180,8 @@ class UploadChunkIn(BaseModel):
 
 @router.post("/evidence/upload/chunk")
 async def upload_chunk(body: UploadChunkIn, user: dict = Depends(current_user)):
-    await _flags_or_503()
+    # E2/A2: owner check always on — no feature flag gate here. Login is
+    # enforced by Depends(current_user); the 404 below also guards ownership.
     if len(body.data_b64) > MAX_CHUNK_B64_BYTES:
         raise HTTPException(413, "Chunk too large.")
     session = await db.evidence_upload_sessions.find_one({"session_id": body.session_id, **_owner_filter(user["id"])})
@@ -205,7 +206,7 @@ class UploadCompleteIn(BaseModel):
 
 @router.post("/evidence/upload/complete")
 async def upload_complete(body: UploadCompleteIn, user: dict = Depends(current_user)):
-    await _flags_or_503()
+    # E2/A2: owner check always on — no feature flag gate here.
     session = await db.evidence_upload_sessions.find_one({"session_id": body.session_id, **_owner_filter(user["id"])})
     if not session:
         raise HTTPException(404, "Upload session not found or expired. Please retry the backup.")

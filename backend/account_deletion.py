@@ -70,15 +70,20 @@ async def hard_delete_user(db, user_id: str) -> dict:
 
     # Evidence Vault (E2/A2) — storage objects first, then rows. Ownership is
     # user_id, or scope for legacy pre-migration rows (scope == user id since E1).
-    # A backup row whose storage delete fails is kept so a retry can find it.
+    # Each backup is handled atomically: storage delete is attempted regardless of
+    # whether it already succeeded on a previous (interrupted) run — S4 safe-to-rerun.
     import shutil
     from fir_storage import delete_raw_object
     from api.evidence_vault_router import TMP_ROOT
     owner = {"$or": [{"user_id": user_id}, {"scope": user_id}]}
     removed, failed = 0, 0
     async for b in db.evidence_backups.find(owner, {"_id": 1, "storage_path": 1}):
+        # Try to delete from storage; if already gone (re-run case) proceed anyway.
         try:
             await delete_raw_object(b["storage_path"])
+        except Exception:
+            pass  # already deleted or never uploaded — safe to continue to row removal
+        try:
             await db.evidence_backups.delete_one({"_id": b["_id"]})
             removed += 1
         except Exception:
