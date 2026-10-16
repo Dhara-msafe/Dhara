@@ -147,6 +147,8 @@ async def _validation_error_handler(request: Request, exc: RequestValidationErro
 
     Converts the list-of-errors detail format to a human-readable string so
     the client can display it directly without special-casing arrays.
+    CORS headers are added explicitly because this handler short-circuits
+    CORSMiddleware and cross-origin clients would otherwise be blocked.
     """
     errors = exc.errors()
     first = errors[0] if errors else {}
@@ -156,6 +158,11 @@ async def _validation_error_handler(request: Request, exc: RequestValidationErro
     return JSONResponse(
         status_code=422,
         content={"detail": detail, "errors": errors},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+            "Access-Control-Allow-Headers": "*",
+        },
     )
 
 
@@ -163,7 +170,10 @@ async def _validation_error_handler(request: Request, exc: RequestValidationErro
 async def _unhandled_exception_handler(request: Request, exc: Exception):
     """Catch-all: guarantees JSON even when an unhandled exception escapes
     FastAPI's own router (e.g. during startup hooks, ASGI middleware, or
-    database connection failures). Logs the full traceback server-side."""
+    database connection failures). Logs the full traceback server-side.
+    CORS headers are added explicitly because this handler short-circuits
+    CORSMiddleware and cross-origin clients would otherwise be blocked.
+    """
     import logging as _log
     _log.getLogger("gandhikar").exception(
         "Unhandled exception on %s: %s", request.url.path, exc
@@ -171,6 +181,11 @@ async def _unhandled_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content={"detail": "An unexpected error occurred. Please try again."},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+            "Access-Control-Allow-Headers": "*",
+        },
     )
 
 api = APIRouter(prefix="/api")
