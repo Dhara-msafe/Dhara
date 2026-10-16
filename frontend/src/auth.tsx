@@ -128,13 +128,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(u);
   };
 
+  /** Safely extract a human-readable error message from any fetch Response.
+   *  Handles: JSON string detail, JSON array detail (Pydantic v2), plain text,
+   *  and non-parseable bodies (e.g. HTML error pages from proxies).        */
+  const _extractError = async (r: Response, fallback: string): Promise<string> => {
+    try {
+      const ct = r.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        const err = await r.json();
+        if (typeof err?.detail === 'string' && err.detail) return err.detail;
+        if (Array.isArray(err?.detail) && err.detail.length > 0) {
+          const first = err.detail[0];
+          const field = Array.isArray(first?.loc) ? String(first.loc[first.loc.length - 1] ?? '') : '';
+          const msg   = typeof first?.msg === 'string' ? first.msg : '';
+          return field && msg ? `${field}: ${msg}` : msg || fallback;
+        }
+        if (typeof err?.message === 'string' && err.message) return err.message;
+      } else {
+        // Non-JSON body (e.g. plain text or HTML from proxy) — discard it
+        await r.text().catch(() => {});
+      }
+    } catch {
+      // r.json() / r.text() itself threw (body already consumed or malformed)
+    }
+    return fallback;
+  };
+
   const login = async (email: string, password: string) => {
     const r = await fetch(`${API}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
-    if (!r.ok) throw new Error((await r.json()).detail || 'Login failed');
+    if (!r.ok) throw new Error(await _extractError(r, 'Login failed'));
     const data = await r.json();
     await persist(data.token, data.user);
   };
@@ -145,7 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, name, phone, terms_accepted, terms_version }),
     });
-    if (!r.ok) throw new Error((await r.json()).detail || 'Register failed');
+    if (!r.ok) throw new Error(await _extractError(r, 'Registration failed'));
     const data = await r.json();
     await persist(data.token, data.user);
   };
@@ -156,7 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ language: langCode || language.code || 'en' }),
     });
-    if (!r.ok) throw new Error((await r.json()).detail || 'Could not start guest session');
+    if (!r.ok) throw new Error(await _extractError(r, 'Could not start guest session'));
     const data = await r.json();
     await persist(data.token, data.user);
   };

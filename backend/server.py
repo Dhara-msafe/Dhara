@@ -22,7 +22,8 @@ from pathlib import Path
 from typing import List, Optional, AsyncGenerator
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, Form, Header, Request, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.exceptions import RequestValidationError
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
@@ -133,6 +134,45 @@ if razorpay and RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
         razor_client = None
 
 app = FastAPI(title="Dhara API")
+
+# ── Global JSON error guarantees ──────────────────────────────────────────────
+# Ensure every error response from this app is application/json — never HTML.
+# This prevents "Unexpected non-whitespace character after JSON" on the client
+# when a proxy, middleware, or unhandled exception would otherwise produce a
+# plain-text or HTML body that the frontend's r.json() cannot parse.
+
+@app.exception_handler(RequestValidationError)
+async def _validation_error_handler(request: Request, exc: RequestValidationError):
+    """Return Pydantic v2 validation errors as a clean JSON object.
+
+    Converts the list-of-errors detail format to a human-readable string so
+    the client can display it directly without special-casing arrays.
+    """
+    errors = exc.errors()
+    first = errors[0] if errors else {}
+    field = (first.get("loc") or [])[-1] if first.get("loc") else ""
+    msg   = first.get("msg") or "Invalid request"
+    detail = f"{field}: {msg}" if field and isinstance(field, str) else msg
+    return JSONResponse(
+        status_code=422,
+        content={"detail": detail, "errors": errors},
+    )
+
+
+@app.exception_handler(Exception)
+async def _unhandled_exception_handler(request: Request, exc: Exception):
+    """Catch-all: guarantees JSON even when an unhandled exception escapes
+    FastAPI's own router (e.g. during startup hooks, ASGI middleware, or
+    database connection failures). Logs the full traceback server-side."""
+    import logging as _log
+    _log.getLogger("gandhikar").exception(
+        "Unhandled exception on %s: %s", request.url.path, exc
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An unexpected error occurred. Please try again."},
+    )
+
 api = APIRouter(prefix="/api")
 
 # ── Modular routers (Phase 1 extraction) ─────────────────────────────────────
