@@ -306,18 +306,19 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Scan a Notice v2 staged journey"
-    - "Document type classification (legal vs non-legal)"
-    - "Backend scan_router structured response"
-    - "OCR review step"
-    - "Scan result structured sections"
+    - "S2 Head Out Safe Session screen navigation and timer"
+    - "S1 Trusted Circle 2.0 email field (flag OFF = hidden)"
+    - "S4 Campus pilot layer in Women Shield (flag OFF = hidden)"
+    - "S5 Evidence action tie-in: notes + FIR button (flag OFF = hidden)"
+    - "AQF Phase 1b backend import check"
+    - "Women Shield loads without errors"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
     - agent: "main"
-      message: "P0-A: Applied microphone permission pre-check (getRecordingPermissionsAsync before requestRecordingPermissionsAsync) to all 6 voice screens: (1) Ask DHARA index.tsx, (2) FIR Draft, (3) Lookup, (4) Intake, (5) Interpreter, (6) Evidence Locker (already done). Additionally fixed the AppState lifecycle bug in Ask DHARA (identical to Evidence Locker's bug — Android permission dialog backgrounds the app, triggering onLockedCancel). Added permissionPhaseRef guard. P0-B: Implemented segmented evidence recording behind feature flag EXPO_PUBLIC_EVIDENCE_SEGMENTED_RECORDING=false. New files: evidenceSession.ts (session manager), updated evidenceStore.ts/web.ts with v2 types and segment helpers. Evidence Locker now supports: ~5s segment cycling, individual segment encryption+persistence, interrupted session recovery, v2 parent items with segment references, sequential segment playback. Feature flag is currently OFF (disabled). Existing v1 recordings untouched. Test credentials: voicetest2026@example.com / TestPass123! Backend port 8001, frontend port 3000."
+      message: "SPRINT COMPLETE: S2/S1/S5/S4/AQF-Phase1b implemented. All features behind feature flags defaulting to false. (1) S2: New screen /women/head-out with destination input, duration chips (30m/1h/2h/4h), countdown timer, 'I'm home safely' + expired alert flow. Accessed from Women's Shield when EXPO_PUBLIC_SAFETY_SESSION_V1=true. (2) S1: Trusted Circle extended with optional email field (shown when EXPO_PUBLIC_TRUSTED_CIRCLE_V2=true). Contact type updated. (3) S5: Evidence Locker gets per-item notes (TextInput editor) + 'Start FIR draft from this recording' button navigating to /fir-draft with evidence params. Both visible when EXPO_PUBLIC_EVIDENCE_ACTIONS=true. (4) S4: Campus safety section added to Women's Shield (Anti-Ragging 1800-180-5522, POSH/ICC, campus security). Visible when EXPO_PUBLIC_CAMPUS_LAYER=true. (5) AQF Phase 1b: resolve_jurisdiction_state wired in chat_router.py behind FEATURE_MATTER_CONTEXT_V2=false flag. Test credentials: voicetest2026@example.com / TestPass123!"
     - agent: "testing"
       message: "✅ BACKEND TESTING COMPLETE - All backend APIs tested and working: (1) POST /api/auth/login - ✅ PASSED, (2) GET /api/auth/me - ✅ PASSED, (3) POST /api/chat/stream (SSE) - ✅ PASSED with proper streaming, (4) POST /api/voice/tts - ✅ PASSED with audio output. STT endpoint not tested (requires audio file). Created /app/backend_test.py for automated testing. Frontend tasks (WhatsApp-style mic UI, text chat, TTS speaker button, web compatibility) are marked needs_retesting=true but NOT TESTED per instructions (frontend testing not in scope). Main agent should verify frontend functionality or request user testing."
     - agent: "testing"

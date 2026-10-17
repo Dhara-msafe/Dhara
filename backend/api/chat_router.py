@@ -74,6 +74,8 @@ from engine.answer_generator import (
     augment_prompt_with_actor_conduct_lock,
     reframe_misdirected_obligations,
 )
+# AQF Phase 1b — jurisdiction-state unification (FEATURE_MATTER_CONTEXT_V2)
+from engine.models import FEATURE_MATTER_CONTEXT_V2, resolve_jurisdiction_state
 from engine.output_guard import validate_dhara_text, looks_like_refusal, CANNOT_CONFIRM_MESSAGE
 
 # DHARA P0 Legal-Answer-Engine audit — Phase 1 hotfix flag. Default OFF =
@@ -501,7 +503,22 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
     # (b0) State / UT layer — rent, liquor, traffic compounding and stamp duty are
     # state subjects. If the user has told us their state we serve its verified
     # rules ALONGSIDE the central law; we never substitute another state's rule.
-    user_state = (user.get("state") or "").upper()
+    # AQF Phase 1b: when FEATURE_MATTER_CONTEXT_V2 is ON, resolve_jurisdiction_state
+    # unifies the session-level jurisdiction (from CaseState.legal_query) with the
+    # user-profile state, giving in-session confirmation precedence.
+    if FEATURE_MATTER_CONTEXT_V2:
+        _session_jur_state = (
+            (
+                _v2_state.legal_query.jurisdiction.state
+                if _v2_state.legal_query and _v2_state.legal_query.jurisdiction
+                else None
+            )
+            or None
+        )
+        _resolved = resolve_jurisdiction_state(_session_jur_state, user.get("state"))
+        user_state = (_resolved["state"] or "").upper()
+    else:
+        user_state = (user.get("state") or "").upper()
     state_hits = [] if early_refusal else corpus_retrieve_state(retrieval_text, user_state, limit=2)
     state_topic = None if early_refusal else state_sensitive_topic(retrieval_text)
 

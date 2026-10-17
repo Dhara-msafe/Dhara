@@ -1,6 +1,43 @@
 # Dhara (formerly Gandhikar) — PRD
 
-## 13 October 2026 — Talk to DHARA STEP 2 (reduced scope): voice core modules + mic arbiter (flag OFF)
+## 16 October 2026 — Feature Sprint: S2 Head Out, S1 Trusted Circle 2.0, S5 Evidence Actions, S4 Campus Layer, AQF Phase 1b
+
+### S2 — Head Out Safe Session (`EXPO_PUBLIC_SAFETY_SESSION_V1=false`)
+- **New screen** `/app/frontend/app/women/head-out.tsx`
+- User enters destination text + selects expected return time (30 min / 1 h / 2 h / 4 h)
+- `AsyncStorage` persists session across app restarts; countdown timer runs in `useEffect` / `setInterval`
+- On expiry: shows "Check-in missed" state + "Prepare alert for trusted circle" button — opens SMS draft to notify contacts (uses `Linking.openURL sms:`)
+- "I'm home safely" ends the session and clears storage
+- Nothing is sent automatically — explicit user action required for every SMS
+- Women's Shield ToolRow entry added (visible only when `EXPO_PUBLIC_SAFETY_SESSION_V1=true`)
+
+### S1 — Trusted Circle 2.0 (`EXPO_PUBLIC_TRUSTED_CIRCLE_V2=false`)
+- `Contact` type in `src/women/api.ts` extended with optional `email?: string`
+- Trusted Circle add-contact form shows an email address field when `TC_V2` flag is ON
+- Validation: email format check before save; existing v1 contacts (phone only) unchanged
+- Email displayed in contact row when present
+
+### S5 — Evidence Action Tie-in (`EXPO_PUBLIC_EVIDENCE_ACTIONS=false`)
+- Per-item inline `NoteEditor` component added to Evidence Locker item list
+- Notes persisted in `AsyncStorage` under `evidence_notes_${scope}` key
+- "Start FIR draft from this recording" button navigates to `/fir-draft` with `evidence_id`, `evidence_date`, `evidence_type`, `evidence_note` params
+- Both note editor and FIR button hidden behind `EXPO_PUBLIC_EVIDENCE_ACTIONS=true`
+
+### S4 — Campus Pilot Layer (`EXPO_PUBLIC_CAMPUS_LAYER=false`)
+- Campus safety section added to Women's Shield between Safety tools and Talk to someone
+- Anti-Ragging national helpline `1800-180-5522` (free call, `tel:` link)
+- POSH / Internal Complaints Committee tile → routes to All Help with `q=POSH committee`
+- Campus security tile → routes to Ask DHARA with a pre-filled question
+- Informational note: "Campus security numbers vary by institution — check your campus app or notice boards"
+
+### AQF Phase 1b — MatterContext Jurisdiction Unification (`FEATURE_MATTER_CONTEXT_V2=false`)
+- `resolve_jurisdiction_state()` from `engine/models.py` now imported in `api/chat_router.py`
+- When `FEATURE_MATTER_CONTEXT_V2=true`: state is resolved from session-level `CaseState.legal_query.jurisdiction.state` (takes precedence) falling back to `user.get("state")`
+- When flag is `false` (default): behaviour byte-identical to before (reads `user.get("state")` only)
+- `FEATURE_MATTER_CONTEXT_V2=false` added to `backend/.env`
+- All 5 tests passed via `testing_agent`; backend `/api/health` unaffected
+
+
 - Scope approved by founder: core TS modules + 33 unit tests + single-owner microphone arbiter ONLY. Speech gate, voice companion flow and iPhone TestFlight explicitly deferred. Hard ceiling 12 ECU.
 - **Core modules added verbatim** at `frontend/src/voice/core/`: `voiceStateMachine.ts`, `audioResourceArbiter.ts`, `voicePolicy.ts`, `voicePlatform.ts`. Pure TypeScript, no React/Expo imports. Not yet driving any UI (only the arbiter is wired).
 - **Tests**: `frontend/src/voice/core/__tests__/voiceCore.test.ts`, `voicePlatform.test.ts`, `ts-resolve.mjs`. Run: `cd frontend && node --experimental-strip-types --import ./src/voice/core/__tests__/ts-resolve.mjs --test src/voice/core/__tests__/*.test.ts` → **33/33 pass** (Node 24 strips TS natively; flag harmless). `tsconfig.json` excludes `src/voice/core/__tests__`.

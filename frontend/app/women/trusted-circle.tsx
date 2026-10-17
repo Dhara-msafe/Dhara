@@ -9,11 +9,13 @@ import { getCircle, saveCircle, type Contact } from '@/src/women/api';
 import { openPhone } from '@/src/women/helpActions';
 
 const c = theme.colors;
+const TC_V2 = process.env.EXPO_PUBLIC_TRUSTED_CIRCLE_V2 === 'true';
 
 export default function TrustedCircle() {
   const [list, setList] = useState<Contact[]>([]);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(true);
   const router = useRouter();
@@ -24,11 +26,14 @@ export default function TrustedCircle() {
   const add = async () => {
     const number = phone.replace(/[\s()-]/g, '');
     if (!name.trim() || !/^\+?\d{10,15}$/.test(number)) { setStatus('Enter a name and a valid phone number (10–15 digits).'); return; }
+    if (TC_V2 && email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setStatus('Enter a valid email address or leave it blank.'); return; }
     if (busy || list.length >= 3) return;
     if (list.some(ct => ct.phone === number)) { setStatus('This number is already in your circle.'); return; }
-    const next = [...list, { id: Date.now().toString(), name: name.trim(), phone: number, notify: true }];
+    const newContact: Contact = { id: Date.now().toString(), name: name.trim(), phone: number, notify: true };
+    if (TC_V2 && email.trim()) newContact.email = email.trim();
+    const next = [...list, newContact];
     setBusy(true);
-    try { await saveCircle(next); setList(next); setName(''); setPhone(''); setStatus('Contact saved on this device. No message has been sent.'); }
+    try { await saveCircle(next); setList(next); setName(''); setPhone(''); setEmail(''); setStatus('Contact saved on this device. No message has been sent.'); }
     catch { setStatus('Could not save contact. Please try again.'); }
     finally { setBusy(false); }
   };
@@ -61,6 +66,7 @@ export default function TrustedCircle() {
             <View style={{ flex: 1 }}>
               <Text style={styles.rowName}>{ct.name}</Text>
               <Text style={styles.rowPhone}>{ct.phone}</Text>
+              {TC_V2 && !!ct.email && <Text style={styles.rowEmail}>{ct.email}</Text>}
               <Text style={styles.rowNotify}>{ct.notify === false ? 'Call only' : 'Notified in Silent alert'}</Text>
             </View>
             <Pressable testID={`circle-toggle-notify-${ct.id}`} disabled={busy} onPress={() => toggleNotify(ct.id)} style={styles.iconBtn}>
@@ -76,6 +82,7 @@ export default function TrustedCircle() {
             <Text style={styles.addTitle}>Add a person</Text>
             <TextInput testID="circle-name" value={name} onChangeText={setName} placeholder="Name" placeholderTextColor={c.muted} style={styles.input} />
             <TextInput testID="circle-phone" value={phone} onChangeText={setPhone} placeholder="Phone number" placeholderTextColor={c.muted} keyboardType="phone-pad" style={styles.input} />
+            {TC_V2 && <TextInput testID="circle-email" value={email} onChangeText={setEmail} placeholder="Email address (optional)" placeholderTextColor={c.muted} keyboardType="email-address" autoCapitalize="none" style={styles.input} />}
             <Pressable testID="circle-add" disabled={busy} style={styles.addBtn} onPress={add}><Text style={styles.addBtnTxt}>{busy ? 'Please wait…' : 'Add to circle'}</Text></Pressable>
           </View>
         )}
@@ -94,6 +101,7 @@ const styles = StyleSheet.create({
   avatarTxt: { fontFamily: theme.fonts.displayBold, fontSize: 18, color: c.navy },
   rowName: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.ink },
   rowPhone: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted },
+  rowEmail: { fontFamily: theme.fonts.body, fontSize: 12, color: c.navy, marginTop: 1 },
   rowNotify: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 2 },
   iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   addCard: { backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.lines, padding: 16, marginTop: 6 },

@@ -8,9 +8,12 @@ import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
 import { SosPill, Divider } from '@/src/components/dhara/SosPill';
-import { fetchFlags, fetchHelplines, safetyRoute, setCheckin as persistCheckin, getCheckin, getCircle, type Helpline, type Flags } from '@/src/women/api';
+import { fetchFlags, fetchHelplines, safetyRoute, setCheckin as persistCheckin, getCheckin, getCircle, type Helpline } from '@/src/women/api';
 import { loadVisibleRecordings, releaseRecordings } from '@/src/women/evidenceStore'; // Fix (S1-2): count only visible (non-segment) items
 import { enterWomensShield, leaveWomensShield } from '@/src/voice/speechGate';
+
+const HEAD_OUT_ENABLED = process.env.EXPO_PUBLIC_SAFETY_SESSION_V1 === 'true';
+const CAMPUS_ENABLED   = process.env.EXPO_PUBLIC_CAMPUS_LAYER === 'true';
 
 const c = theme.colors;
 const PANIC_LESSON_SEEN_KEY = 'ws_panic_lesson_seen';
@@ -44,7 +47,6 @@ export default function WomenShield() {
   const lang = language.code;
   const [discreet, setDiscreet] = useState(false);
   const [checkin, setCheckin] = useState(true);
-  const [flags, setFlags] = useState<Flags | null>(null);
   const [helplines, setHelplines] = useState<Helpline[]>([]);
   const [circleCount, setCircleCount] = useState(0);
   const [lockerCount, setLockerCount] = useState(0);
@@ -52,7 +54,7 @@ export default function WomenShield() {
   useEffect(() => {
     (async () => {
       const [f, h, ci] = await Promise.all([fetchFlags(), fetchHelplines(), getCheckin()]);
-      setFlags(f);
+      void f; // flags loaded for future feature gates
       if (h.length) setHelplines(h);
       setCheckin(ci);
     })();
@@ -184,6 +186,10 @@ export default function WomenShield() {
             <ToolRow icon="lock-closed-outline" title={tr('ws.locker', lang)} sub={tr('ws.locker.sub.count', lang).replace('{n}', String(lockerCount))} action={tr('ws.open', lang)} onPress={() => router.push('/women/evidence-locker')} />
             <Divider />
             <ToolRow icon="mic-outline" title={tr('ws.code', lang)} sub={tr('ws.code.sub', lang)} action={tr('ws.setup', lang)} onPress={() => router.push('/women/code-phrase')} />
+            {HEAD_OUT_ENABLED && <>
+              <Divider />
+              <ToolRow icon="navigate-outline" title="Head out safely" sub="Set a check-in timer before you leave" action="Set timer" onPress={() => router.push('/women/head-out')} />
+            </>}
           </View>
           <Pressable style={styles.lessonRow} onPress={() => router.push('/women/panic-lesson')}>
             <Ionicons name="school-outline" size={18} color={c.darkGold} />
@@ -191,6 +197,25 @@ export default function WomenShield() {
             <Ionicons name="chevron-forward" size={18} color={c.onSurfaceTertiary} />
           </Pressable>
         </View>
+
+        {/* Campus safety — S4 Campus Pilot Layer */}
+        {CAMPUS_ENABLED && (
+          <View style={styles.section}>
+            <Text style={styles.h2}>Campus safety</Text>
+            <Text style={styles.h2sub}>Resources for students and campus communities</Text>
+            <View style={styles.toolCard}>
+              <ToolRow icon="school-outline" title="Anti-Ragging helpline" sub="National helpline: 1800-180-5522 (free call)" action="Call" onPress={() => Linking.openURL('tel:18001805522')} />
+              <Divider />
+              <ToolRow icon="briefcase-outline" title="POSH / Internal Complaints" sub="Your institution's Internal Complaints Committee (ICC)" action="How to find" onPress={() => router.push({ pathname: '/all-help', params: { q: 'POSH committee' } })} />
+              <Divider />
+              <ToolRow icon="shield-checkmark-outline" title="Campus security" sub="Contact your campus security office directly" action="Ask DHARA" onPress={() => router.push({ pathname: '/(tabs)/index', params: { q: 'How do I contact campus security or file a complaint?' } })} />
+            </View>
+            <View style={styles.lessonRow}>
+              <Ionicons name="information-circle-outline" size={18} color={c.darkGold} />
+              <Text style={styles.lessonTxt}>Campus security numbers vary by institution — check your campus app or notice boards</Text>
+            </View>
+          </View>
+        )}
 
         {/* Talk to someone */}
         <View style={styles.section}>

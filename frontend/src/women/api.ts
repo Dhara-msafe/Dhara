@@ -45,7 +45,7 @@ const CIRCLE_KEY  = 'ws_trusted_circle';
 const PLAN_KEY    = 'ws_safety_plan';
 const CHECKIN_KEY = 'ws_checkin_enabled';
 
-export type Contact = { id: string; name: string; phone: string; notify?: boolean };
+export type Contact = { id: string; name: string; phone: string; email?: string; notify?: boolean };
 
 export async function getCircle(): Promise<Contact[]> {
   const v = await AsyncStorage.getItem(CIRCLE_KEY); return v ? JSON.parse(v) : [];

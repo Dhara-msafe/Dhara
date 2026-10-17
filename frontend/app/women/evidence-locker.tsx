@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Platform, AppState, Image, TextInput, Linking } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AudioModule, setAudioModeAsync } from 'expo-audio';
 import { VideoView, useVideoPlayer } from 'expo-video';
@@ -31,6 +32,8 @@ import {
   computeSessionElapsedMs,
   type EvidenceSession,
 } from '@/src/women/evidenceSession';
+
+const EVIDENCE_ACTIONS_ENABLED = process.env.EXPO_PUBLIC_EVIDENCE_ACTIONS === 'true';
 
 const c = theme.colors;
 
@@ -99,6 +102,33 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
   );
 }
 
+// S5 — inline note editor (feature flag: EXPO_PUBLIC_EVIDENCE_ACTIONS)
+function NoteEditor({ initial, onSave, onCancel }: { initial: string; onSave: (text: string) => void; onCancel: () => void }) {
+  const tc = theme.colors;
+  const [text, setText] = useState(initial);
+  return (
+    <View style={{ gap: 8, marginTop: 4 }}>
+      <TextInput
+        value={text}
+        onChangeText={setText}
+        placeholder="Add context for this recording…"
+        placeholderTextColor={tc.muted}
+        multiline
+        style={{ borderWidth: 1, borderColor: tc.lines, borderRadius: 10, padding: 10, fontFamily: theme.fonts.body, fontSize: 14, color: tc.ink, minHeight: 70, backgroundColor: tc.background }}
+        testID="evidence-note-input"
+      />
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <Pressable onPress={() => onSave(text)} style={{ flex: 1, backgroundColor: tc.navy, borderRadius: 10, padding: 10, alignItems: 'center' }} testID="evidence-note-save">
+          <Text style={{ color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14 }}>Save note</Text>
+        </Pressable>
+        <Pressable onPress={onCancel} style={{ flex: 1, borderWidth: 1, borderColor: tc.lines, borderRadius: 10, padding: 10, alignItems: 'center' }} testID="evidence-note-cancel">
+          <Text style={{ color: tc.muted, fontFamily: theme.fonts.body, fontSize: 14 }}>Cancel</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 export default function EvidenceLocker() {
   const router = useRouter();
   const params = useLocalSearchParams<{ record?: string }>();
@@ -127,6 +157,11 @@ export default function EvidenceLocker() {
       .catch(() => { if (alive) setVaultEnabled(false); });
     return () => { alive = false; };
   }, []);
+  // S5 — load saved notes for this user scope
+  useEffect(() => {
+    if (!unlocked) return;
+    AsyncStorage.getItem(`evidence_notes_${scope}`).then(v => { if (v) setNotesMap(JSON.parse(v)); }).catch(() => {});
+  }, [scope, unlocked]);
   const player = useRef<TtsPlayer | null>(null);
   const epoch = useRef(0);
   const working = useRef(false);
@@ -143,6 +178,9 @@ export default function EvidenceLocker() {
   const lastCommittedUriRef = useRef<string | null>(null); // FIX (RC4): URI of segment most recently committed by commitCurrentSegment — save() skips it to avoid double-save
   const [segmentCount, setSegmentCount] = useState(0);
   const [recoverable, setRecoverable] = useState<EvidenceSession[]>([]);
+  // S5 — Evidence Actions: per-item notes (stored locally, keyed by item.id)
+  const [notesMap, setNotesMap] = useState<Record<string, string>>({});
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const owned = useRef<RecordingItem[]>([]);
   const photoUrisRef = useRef<Record<string, string>>({});
   const videoPreviewRef = useRef<typeof videoPreview>(null);
@@ -155,6 +193,13 @@ export default function EvidenceLocker() {
     playingIdRef.current = null; // Fix (S1-1): clear the synchronous id alongside the state setter
     if (playingTempUri.current) { releaseDecryptedTempUri(playingTempUri.current.uri, playingTempUri.current.wasDecrypted); playingTempUri.current = null; }
   }, []);
+  // S5 — save a note for one item
+  const saveNote = useCallback(async (itemId: string, text: string) => {
+    const next = { ...notesMap, [itemId]: text };
+    setNotesMap(next);
+    AsyncStorage.setItem(`evidence_notes_${scope}`, JSON.stringify(next)).catch(() => {});
+    setEditingNoteId(null);
+  }, [notesMap, scope]);
   const closeVideoPreview = useCallback(() => {
     if (videoPreviewRef.current) releaseDecryptedTempUri(videoPreviewRef.current.uri, videoPreviewRef.current.wasDecrypted);
     setVideoPreview(null);
@@ -820,6 +865,34 @@ export default function EvidenceLocker() {
           </View>
           <Pressable testID={`recording-delete-${item.id}`} style={styles.control} onPress={() => deleting === item.id ? remove(item) : setDeleting(item.id)}><Text style={styles.label}>{deleting === item.id ? 'Confirm delete permanently' : 'Delete'}</Text></Pressable>
           {deleting === item.id && <Pressable testID={`recording-keep-${item.id}`} style={styles.control} onPress={() => setDeleting(null)}><Text style={styles.label}>Keep</Text></Pressable>}
+          {EVIDENCE_ACTIONS_ENABLED && (
+            <View style={[styles.vaultRow, { marginTop: 8 }]}>
+              {editingNoteId === item.id ? (
+                <NoteEditor
+                  initial={notesMap[item.id] || ''}
+                  onSave={(t) => saveNote(item.id, t)}
+                  onCancel={() => setEditingNoteId(null)}
+                />
+              ) : (
+                <Pressable
+                  testID={`recording-note-${item.id}`}
+                  style={styles.control}
+                  onPress={() => setEditingNoteId(item.id)}
+                >
+                  <Text style={styles.label}>
+                    {notesMap[item.id] ? `📝 Note: ${notesMap[item.id].slice(0, 60)}${notesMap[item.id].length > 60 ? '…' : ''}` : '📝 Add note'}
+                  </Text>
+                </Pressable>
+              )}
+              <Pressable
+                testID={`recording-fir-${item.id}`}
+                style={styles.control}
+                onPress={() => router.push({ pathname: '/fir-draft', params: { evidence_id: item.id, evidence_date: new Date(item.createdAt).toISOString(), evidence_type: item.type, evidence_note: notesMap[item.id] || '' } })}
+              >
+                <Text style={[styles.label, { color: c.darkGold }]}>⚖️ Start FIR draft from this recording</Text>
+              </Pressable>
+            </View>
+          )}
         </View>)}
         <Text testID="evidence-other-media-notice" style={styles.note}>Items are encrypted on this device (AES-256) and only decrypted briefly to preview, play or share. A PIN protects this screen itself. Scan a notice remains a separate tool, not evidence storage.</Text>
       </ScrollView>
