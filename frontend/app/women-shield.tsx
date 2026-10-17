@@ -126,7 +126,7 @@ export default function WomenShield() {
         {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
           <View style={styles.topRow}>
-            <Pressable onPress={() => router.back()} style={styles.backBtn} testID="ws-back">
+            <Pressable onPress={() => router.back()} style={styles.backBtn} testID="ws-back" accessibilityRole="button" accessibilityLabel="Go back">
               <Ionicons name="chevron-back" size={24} color="#fff" />
             </Pressable>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -161,7 +161,7 @@ export default function WomenShield() {
           <Text style={styles.h2sub}>{tr('ws.rights.sub', lang)}</Text>
           <View style={styles.grid}>
             {RIGHTS.map(r => (
-              <Pressable key={r.key} style={styles.rightCard} onPress={() => openScenario(r.scenario)} testID={`ws-${r.key}`}>
+              <Pressable key={r.key} style={styles.rightCard} onPress={() => openScenario(r.scenario)} testID={`ws-${r.key}`} accessibilityRole="button" accessibilityLabel={r.label}>
                 <View style={styles.rightIcon}><Ionicons name={r.icon} size={18} color={c.darkGold} /></View>
                 <Text style={styles.rightTxt} numberOfLines={2}>{tr(r.key, lang)}</Text>
               </Pressable>
@@ -189,6 +189,10 @@ export default function WomenShield() {
             {HEAD_OUT_ENABLED && <>
               <Divider />
               <ToolRow icon="navigate-outline" title="Head out safely" sub="Set a check-in timer before you leave" action="Set timer" onPress={() => router.push('/women/head-out')} />
+            </>}
+            {HEAD_OUT_ENABLED && (process.env.EXPO_PUBLIC_GUARDIAN_SHARE === 'true') && <>
+              <Divider />
+              <ToolRow icon="people-circle-outline" title="Guardian Journey" sub="Notify someone about your live journey" action="Share" onPress={() => router.push('/women/guardian-share')} />
             </>}
           </View>
           <Pressable style={styles.lessonRow} onPress={() => router.push('/women/panic-lesson')}>
@@ -223,7 +227,7 @@ export default function WomenShield() {
           <Text style={styles.h2sub}>{tr('ws.talk.sub', lang)}</Text>
           <View style={styles.hlGrid}>
             {shownHelplines.map(h => (
-              <Pressable key={h.num} style={styles.hlCard} onPress={() => Linking.openURL(`tel:${h.num}`)} testID={`hl-${h.num}`}>
+              <Pressable key={h.num} style={styles.hlCard} onPress={() => Linking.openURL(`tel:${h.num}`)} testID={`hl-${h.num}`} accessibilityRole="button" accessibilityLabel={`Call ${h.name}, ${h.num}`}>
                 {h.verified && <Ionicons name="checkmark-circle" size={13} color={c.verifiedGreen} style={styles.hlVerified} />}
                 <Text style={styles.hlNum}>{h.num}</Text>
                 <Text style={styles.hlLabel} numberOfLines={1}>{h.label}</Text>
@@ -239,7 +243,7 @@ export default function WomenShield() {
               <Text style={styles.planTitle}>{tr('ws.plan', lang)}</Text>
               <Text style={styles.planSub}>{tr('ws.plan.sub', lang)}</Text>
             </View>
-            <Pressable style={styles.planBtn} onPress={() => router.push('/women/safety-plan')}>
+            <Pressable style={styles.planBtn} onPress={() => router.push('/women/safety-plan')} accessibilityRole="button" accessibilityLabel="Create my safety plan">
               <Text style={styles.planBtnTxt}>{tr('ws.start', lang)}</Text>
             </Pressable>
           </View>
@@ -251,14 +255,20 @@ export default function WomenShield() {
 
 function ToolRow({ icon, title, sub, action, onPress }: { icon: any; title: string; sub: string; action: string; onPress: () => void }) {
   return (
-    <View style={styles.toolRow}>
+    <Pressable
+      style={styles.toolRow}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${title} — ${action}`}
+      accessibilityHint={sub}
+    >
       <View style={styles.toolIcon}><Ionicons name={icon} size={20} color={c.navy} /></View>
       <View style={{ flex: 1 }}>
         <Text style={styles.toolTitle}>{title}</Text>
         <Text style={styles.toolSub}>{sub}</Text>
       </View>
-      <Pressable onPress={onPress}><Text style={styles.toolAction}>{action}</Text></Pressable>
-    </View>
+      <Text style={styles.toolAction}>{action}</Text>
+    </Pressable>
   );
 }
 

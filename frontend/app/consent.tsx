@@ -13,10 +13,11 @@ import { ConsentTermsModal } from '@/src/components/ConsentTermsModal';
 import { ConsentPublicHelp } from '@/src/components/ConsentPublicHelp';
 import { API_BASE, useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { updateConsentCache } from '@/src/analytics';
 import { consentStyles as styles } from '@/src/consentStyles';
+import { grievanceOfficerName, grievanceContactEmail, isGrievanceContactPlaceholder } from '@/src/operatorIdentity';
 
 const colors = theme.colors;
-import { grievanceOfficerName, grievanceContactEmail, isGrievanceContactPlaceholder } from '@/src/operatorIdentity';
 
 const PLACEHOLDERS: Record<string, string> = {
   '{{DATA_LOCATION}}': 'India (cloud-hosted, encrypted at rest)',
@@ -64,6 +65,9 @@ export default function ConsentScreen() {
       }
       const purposes = { core: true, analytics, updates };
       await saveConsentLocally(purposes, user?.id);
+      // Sync the in-memory analytics consent cache immediately so trackEvent
+      // honours the user's choice without waiting for an async re-read.
+      updateConsentCache(analytics);
       // Preserve the existing offline-first policy: local success unblocks the
       // screen; server logging is best-effort and cannot hang the Continue action.
       void fetch(`${API_BASE}/api/consent/log`, {

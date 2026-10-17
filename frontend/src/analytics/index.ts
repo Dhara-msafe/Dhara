@@ -15,7 +15,9 @@
 
 import { Platform } from 'react-native';
 import * as Crypto from 'expo-crypto';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type PostHogType from 'posthog-react-native';
+import { CONSENT_PREFS_KEY } from '../consentStorage';
 
 // ── PostHog constants ─────────────────────────────────────────────────────
 export const POSTHOG_API_KEY = 'phc_sRQRpeBn6TEPHJmZ7DfDxLVP68yExZv3UUMQckBcxAGD';
@@ -24,10 +26,12 @@ export const POSTHOG_OPTIONS = {
   // Disable auto-pageview here; we fire screen_view manually via the
   // AnalyticsNavigationTracker hook so we can attach the language prop.
   capturePageview: false,
-  // Session replay masking — ensures no form field values are recorded.
+  // Session replay masking — DPDP Act 2023 compliance:
+  // ensures no form field values, text, or images are recorded.
   sessionReplay: {
     maskAllInputs: true,
     maskAllTextInputs: true,
+    maskAllImages: true,
   },
 } as const;
 
@@ -35,6 +39,39 @@ export const POSTHOG_OPTIONS = {
 // Using a lazy singleton avoids import-time initialisation and ensures the
 // PostHogProvider (which calls new PostHog()) is always in charge on native.
 let _posthog: PostHogType | null = null;
+
+// ── DPDP consent gate ───────────────────────────────────────────────────────
+// null  = not yet loaded (optimistically allow to avoid blocking the first event)
+// true  = user has accepted analytics
+// false = user has declined analytics (all sinks silenced)
+let _analyticsConsent: boolean | null = null;
+
+/**
+ * Load the stored consent preferences for the given user and cache the result.
+ * Call this once after login / consent changes so trackEvent checks are sync.
+ */
+export async function loadAnalyticsConsent(userId?: string): Promise<void> {
+  try {
+    const key = userId ? `${CONSENT_PREFS_KEY}:${userId}` : CONSENT_PREFS_KEY;
+    const raw = await AsyncStorage.getItem(key);
+    if (raw) {
+      const prefs = JSON.parse(raw) as { core: boolean; analytics: boolean; updates: boolean };
+      _analyticsConsent = !!prefs.analytics;
+    } else {
+      // No stored preference — treat as not-consented (conservative default)
+      _analyticsConsent = false;
+    }
+  } catch {
+    _analyticsConsent = false;
+  }
+}
+
+/**
+ * Synchronously update the in-memory consent cache (call after consent dialog resolves).
+ */
+export function updateConsentCache(analyticsAllowed: boolean): void {
+  _analyticsConsent = analyticsAllowed;
+}
 
 export function setPostHogInstance(instance: PostHogType): void {
   _posthog = instance;
@@ -85,11 +122,17 @@ function ga4(eventName: string, params?: Record<string, unknown>): void {
 /**
  * Fire a named event to PostHog (all platforms) + GA4 (web only).
  * Properties must NEVER contain raw PII. Pass lengths, booleans, and codes.
+ *
+ * DPDP compliance: silenced when analytics consent is explicitly false.
+ * If consent has not been loaded yet (_analyticsConsent is null) the event
+ * fires optimistically — call loadAnalyticsConsent() at login to resolve.
  */
 export function trackEvent(
   eventName: string,
   properties?: Record<string, unknown>,
 ): void {
+  // Consent gate — explicit false blocks all sinks
+  if (_analyticsConsent === false) return;
   // PostHog
   try {
     ph()?.capture(eventName, properties);

@@ -9,6 +9,7 @@ import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { getCircle, type Contact } from '@/src/women/api';
 
 const c = theme.colors;
+const GUARDIAN_SHARE_ENABLED = process.env.EXPO_PUBLIC_GUARDIAN_SHARE === 'true';
 
 const DURATIONS = [
   { label: '30 min', mins: 30 },
@@ -194,6 +195,25 @@ export default function HeadOut() {
               <Text style={styles.timerLbl}>Check-in in</Text>
               <Text testID="headout-timer" style={styles.timerDisplay}>{formatCountdown(secsLeft)}</Text>
               <Text style={styles.note}>{'Tap "I\'m home safely" when you\'re back. DHARA will help you alert your circle if this timer runs out.'}</Text>
+              {GUARDIAN_SHARE_ENABLED && (
+                <Pressable
+                  testID="headout-notify-guardian"
+                  style={[styles.button, styles.guardianBtn]}
+                  onPress={() => router.push({
+                    pathname: '/women/guardian-share',
+                    params: {
+                      destination: session.destination,
+                      startTime: String(session.startTime),
+                      durationMins: String(session.durationMins),
+                    },
+                  })}
+                  accessibilityRole="button"
+                  accessibilityLabel="Notify your guardian about this journey"
+                >
+                  <Ionicons name="people-outline" size={18} color={c.navy} />
+                  <Text style={[styles.buttonText, { color: c.navy }]}>Notify your guardian</Text>
+                </Pressable>
+              )}
             </View>
           ) : (
             <View style={[styles.activeCard, styles.expiredCard]} testID="headout-expired-card">
@@ -261,6 +281,7 @@ const styles = StyleSheet.create({
   buttonText: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: '#fff' },
   safeButton: { backgroundColor: c.verifiedGreen },
   alertButton: { backgroundColor: c.emergencyRed },
+  guardianBtn: { backgroundColor: c.navySoft, borderWidth: 1.5, borderColor: c.navy },
   warningCard: {
     backgroundColor: c.goldMuted, borderRadius: 14, borderWidth: 1,
     borderColor: c.goldSoft, padding: 16, gap: 10,

@@ -42,7 +42,7 @@ export function QuickExit({ dark }: { dark?: boolean }) {
 /** Rounded chip with icon + label (globe language pill, etc.). */
 export function Chip({ icon, label, onPress, light }: { icon: any; label: string; onPress?: () => void; light?: boolean }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.chip, light && styles.chipLight, pressed && { opacity: 0.8 }]}>
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [styles.chip, light && styles.chipLight, pressed && { opacity: 0.8 }]}>
       <Ionicons name={icon} size={14} color={light ? c.navy : '#fff'} />
       <Text style={[styles.chipTxt, light && { color: c.navy }]} numberOfLines={1}>{label}</Text>
     </Pressable>

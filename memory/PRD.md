@@ -1,6 +1,30 @@
 # Dhara (formerly Gandhikar) — PRD
 
-## 16 October 2026 — Feature Sprint: S2 Head Out, S1 Trusted Circle 2.0, S5 Evidence Actions, S4 Campus Layer, AQF Phase 1b
+## 16 October 2026 — Sprint Activation + Compliance + S3 Guardian Journey
+
+### All sprint flags turned ON
+- `EXPO_PUBLIC_SAFETY_SESSION_V1=true` — Head Out row visible in Women's Shield
+- `EXPO_PUBLIC_TRUSTED_CIRCLE_V2=true` — email field live in Trusted Circle
+- `EXPO_PUBLIC_EVIDENCE_ACTIONS=true` — notes + FIR button live in Evidence Locker
+- `EXPO_PUBLIC_CAMPUS_LAYER=true` — Campus safety section live in Women's Shield
+- `EXPO_PUBLIC_GUARDIAN_SHARE=true` — Guardian Journey row + Notify button live
+
+### Compliance Audit (DPDP Act 2023)
+**A. PostHog session replay masking** — added `maskAllImages: true` to `POSTHOG_OPTIONS` alongside existing `maskAllInputs` and `maskAllTextInputs`. No PII in images recorded to EU servers.
+
+**B. Consent-gated `trackEvent`** — `analytics/index.ts` now carries a module-level `_analyticsConsent` boolean. `trackEvent()` silently returns when consent is `false`. `loadAnalyticsConsent(userId)` called at login in `_layout.tsx`. `updateConsentCache(bool)` called immediately when the user saves consent in `consent.tsx`.
+
+**C. Accessibility labels** — `ToolRow` refactored to a full-row `Pressable` with `accessibilityRole="button"`, `accessibilityLabel`, and `accessibilityHint`. Back button, helpline cards, safety-plan button, scenario right cards, and `SosPill.Chip` all have `accessibilityLabel` + `accessibilityRole`.
+
+### S3 — Guardian Journey Engine (SMS/link mode, `EXPO_PUBLIC_GUARDIAN_SHARE=true`)
+- **New screen** `/app/frontend/app/women/guardian-share.tsx`
+- Journey preview card (destination + check-in time), contact selector with pre-selection of `notify`-enabled contacts, editable, message preview panel, "Send" button opens native SMS app with pre-filled body
+- "Notify your guardian" button added to Head Out active-session card (behind `GUARDIAN_SHARE` flag)
+- "Guardian Journey" ToolRow added to Women's Shield Safety tools section
+- Nothing sent automatically — user controls every SMS send action
+- All 9 frontend + backend tests passed via `testing_agent`
+
+
 
 ### S2 — Head Out Safe Session (`EXPO_PUBLIC_SAFETY_SESSION_V1=false`)
 - **New screen** `/app/frontend/app/women/head-out.tsx`

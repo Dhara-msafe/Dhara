@@ -24,6 +24,7 @@ import {
   identifyUser,
   resetAnalyticsIdentity,
   trackEvent,
+  loadAnalyticsConsent,
 } from "@/src/analytics";
 
 LogBox.ignoreAllLogs(true);
@@ -139,6 +140,9 @@ function AnalyticsIdentitySync() {
       prevIdRef.current = user.id;
       // Fire-and-forget; hash is async but the user session is already set.
       identifyUser(user.id, { is_pro: user.is_pro ?? false }).catch(() => {});
+      // Load analytics consent into the in-memory cache so trackEvent
+      // respects the user's DPDP preference from this point forward.
+      loadAnalyticsConsent(user.id).catch(() => {});
     } else if (!user && prevIdRef.current) {
       prevIdRef.current = null;
       resetAnalyticsIdentity();
