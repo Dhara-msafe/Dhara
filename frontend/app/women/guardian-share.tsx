@@ -1,25 +1,28 @@
 /**
- * S3 — Guardian Journey Engine (SMS/link mode)
+ * S3 — Guardian Journey Engine (SMS + status page)
  *
  * Feature flag: EXPO_PUBLIC_GUARDIAN_SHARE=true
  *
- * Allows the user — while a Head Out session is active — to send a one-tap
- * status SMS to selected trusted circle members. Nothing is sent automatically;
- * the user always controls each send action.
+ * Phase 2 addition:
+ *   Before sending SMS, creates a backend journey record that returns a
+ *   short public URL ({host}/api/journey/status/{token}). The URL is
+ *   appended to the SMS so the guardian can check real-time status in any
+ *   browser without the app.
  *
- * The SMS tells the guardian:
- *   - Where the user is going
- *   - When they expect to check in
- *   - What to do if the check-in is missed
- *   - A pre-composed reply shortcode ("SAFE" / "CALL ME")
+ * Nothing is sent automatically; the user always controls every send.
  */
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, Linking } from 'react-native';
+import {
+  View, Text, Pressable, StyleSheet, ScrollView,
+  Linking, ActivityIndicator,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
+import { useAuth } from '@/src/auth';
+import { API_BASE } from '@/src/apiBase';
 import { getCircle, type Contact } from '@/src/women/api';
 
 const c = theme.colors;
@@ -30,22 +33,32 @@ function formatDeadline(startTime: number, durationMins: number): string {
 }
 
 export default function GuardianShare() {
-  const insets = useSafeAreaInsets();
-  const router = useRouter();
+  const insets  = useSafeAreaInsets();
+  const router  = useRouter();
+  const { token: authToken } = useAuth();
+
   const params = useLocalSearchParams<{
     destination?: string;
     startTime?: string;
     durationMins?: string;
   }>();
 
-  const destination = params.destination ?? '';
-  const startTime   = parseInt(params.startTime  ?? '0', 10);
+  const destination  = params.destination ?? '';
+  const startTime    = parseInt(params.startTime   ?? '0',  10);
   const durationMins = parseInt(params.durationMins ?? '60', 10);
 
-  const [circle, setCircle]       = useState<Contact[]>([]);
-  const [selected, setSelected]   = useState<Set<string>>(new Set());
-  const [sent, setSent]           = useState(false);
-  const [loading, setLoading]     = useState(true);
+  const [circle,       setCircle]       = useState<Contact[]>([]);
+  const [selected,     setSelected]     = useState<Set<string>>(new Set());
+  const [sent,         setSent]         = useState(false);
+  const [loading,      setLoading]      = useState(true);
+
+  // Phase 2 state
+  const [statusUrl,    setStatusUrl]    = useState<string | null>(null);
+  const [journeyToken, setJourneyToken] = useState<string | null>(null);
+  const [creating,     setCreating]     = useState(false);
+  const [markingSafe,  setMarkingSafe]  = useState(false);
+  const [markedSafe,   setMarkedSafe]   = useState(false);
+  const [createError,  setCreateError]  = useState<string | null>(null);
 
   const checkInBy = startTime > 0 ? formatDeadline(startTime, durationMins) : `${durationMins} min`;
 
@@ -53,7 +66,6 @@ export default function GuardianShare() {
     getCircle()
       .then(contacts => {
         setCircle(contacts);
-        // Pre-select all notify-enabled contacts
         setSelected(new Set(contacts.filter(ct => ct.notify !== false).map(ct => ct.id)));
       })
       .catch(() => {})
@@ -68,30 +80,84 @@ export default function GuardianShare() {
     });
   }, []);
 
-  const buildMessage = useCallback(() => {
+  /** Create journey record on backend → get public status URL */
+  const createJourneyRecord = useCallback(async (): Promise<string | null> => {
+    if (!authToken || !destination) return null;
+    try {
+      setCreating(true);
+      setCreateError(null);
+      const r = await fetch(`${API_BASE}/api/journey/status`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          destination: destination || 'a location',
+          duration_mins: durationMins || 60,
+        }),
+      });
+      if (!r.ok) throw new Error('Could not create status page');
+      const data = await r.json();
+      const url = `${API_BASE}${data.status_url}`;
+      setStatusUrl(url);
+      setJourneyToken(data.token);
+      return url;
+    } catch {
+      setCreateError('Status link unavailable — SMS will be sent without it.');
+      return null;
+    } finally {
+      setCreating(false);
+    }
+  }, [authToken, destination, durationMins]);
+
+  const buildMessage = useCallback((pageUrl?: string | null) => {
     const dest = destination || 'a location';
+    const link = pageUrl
+      ? `\n\nTrack my journey live: ${pageUrl}`
+      : '';
     return (
-      `Hi, I'm heading to ${dest}. I plan to check in by ${checkInBy}.\n\n` +
+      `Hi, I'm heading to ${dest}. I plan to check in by ${checkInBy}.${link}\n\n` +
       `If you don't hear from me by then, please call me to confirm I'm safe.\n\n` +
-      `(Sent via DHARA legal aid app — my check-in is timed and on-device only.)`
+      `(Sent via DHARA legal aid app)`
     );
   }, [destination, checkInBy]);
 
-  const sendSMS = useCallback(() => {
+  const sendSMS = useCallback(async () => {
     const phones = circle
       .filter(ct => selected.has(ct.id))
       .map(ct => ct.phone)
       .join(',');
     if (!phones) return;
-    const body = buildMessage();
+
+    // Phase 2: create backend record first (or reuse existing)
+    const pageUrl = statusUrl ?? await createJourneyRecord();
+    const body = buildMessage(pageUrl);
+
     Linking.openURL(`sms:${phones}?body=${encodeURIComponent(body)}`).catch(() =>
       Linking.openURL(`sms:&body=${encodeURIComponent(body)}`).catch(() => {}),
     );
     setSent(true);
-  }, [circle, selected, buildMessage]);
+  }, [circle, selected, statusUrl, createJourneyRecord, buildMessage]);
+
+  const markSafe = useCallback(async () => {
+    if (!journeyToken || !authToken) return;
+    setMarkingSafe(true);
+    try {
+      const r = await fetch(`${API_BASE}/api/journey/status/${journeyToken}/safe`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (r.ok) setMarkedSafe(true);
+    } catch {
+      // non-critical — silently fail
+    } finally {
+      setMarkingSafe(false);
+    }
+  }, [journeyToken, authToken]);
 
   const selectedCount = selected.size;
-  const canSend = selectedCount > 0 && !loading;
+  const canSend = selectedCount > 0 && !loading && !creating;
 
   if (loading) return null;
 
@@ -116,6 +182,14 @@ export default function GuardianShare() {
           <Ionicons name="time-outline" size={20} color={c.navy} />
           <Text style={styles.journeyTxt}>Check-in by {checkInBy}</Text>
         </View>
+        {statusUrl && (
+          <View style={styles.journeyRow}>
+            <Ionicons name="link-outline" size={20} color={c.verifiedGreen ?? '#16a34a'} />
+            <Text style={[styles.journeyTxt, { color: c.verifiedGreen ?? '#16a34a', fontSize: 12 }]}>
+              Status page ready — link added to SMS
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Contact selector */}
@@ -162,8 +236,14 @@ export default function GuardianShare() {
       {/* Message preview */}
       <View style={styles.messagePreview}>
         <Text style={styles.previewLabel}>Message preview</Text>
-        <Text style={styles.previewBody}>{buildMessage()}</Text>
+        <Text style={styles.previewBody}>
+          {buildMessage(statusUrl ?? '[status link will be added]')}
+        </Text>
       </View>
+
+      {createError && (
+        <Text style={styles.errorTxt}>{createError}</Text>
+      )}
 
       {/* Send button */}
       <Pressable
@@ -174,9 +254,12 @@ export default function GuardianShare() {
         accessibilityRole="button"
         accessibilityLabel={`Send journey update to ${selectedCount} contact${selectedCount === 1 ? '' : 's'}`}
       >
-        <Ionicons name="chatbubble-outline" size={18} color="#fff" />
+        {creating
+          ? <ActivityIndicator color="#fff" size="small" />
+          : <Ionicons name="chatbubble-outline" size={18} color="#fff" />
+        }
         <Text style={styles.sendBtnTxt}>
-          {sent ? 'Send again' : `Send to ${selectedCount} contact${selectedCount === 1 ? '' : 's'}`}
+          {creating ? 'Preparing…' : sent ? 'Send again' : `Send to ${selectedCount} contact${selectedCount === 1 ? '' : 's'}`}
         </Text>
       </Pressable>
 
@@ -187,8 +270,37 @@ export default function GuardianShare() {
         </View>
       )}
 
+      {/* Mark safe — shown after SMS is sent */}
+      {sent && journeyToken && !markedSafe && (
+        <Pressable
+          testID="guardian-mark-safe"
+          style={styles.safeBtn}
+          onPress={markSafe}
+          disabled={markingSafe}
+          accessibilityRole="button"
+          accessibilityLabel="I have arrived safely"
+        >
+          {markingSafe
+            ? <ActivityIndicator color={c.navy} size="small" />
+            : <Ionicons name="shield-checkmark-outline" size={18} color={c.navy} />
+          }
+          <Text style={styles.safeBtnTxt}>
+            {markingSafe ? 'Updating\u2026' : 'I have arrived safely \u2014 update my guardian'}
+          </Text>
+        </Pressable>
+      )}
+
+      {markedSafe && (
+        <View style={styles.safeBanner} testID="guardian-safe-banner">
+          <Ionicons name="shield-checkmark" size={18} color="#16a34a" />
+          <Text style={styles.safeBannerTxt}>
+            {'Status page updated \u2014 your guardian can see you are safe.'}
+          </Text>
+        </View>
+      )}
+
       <Text style={styles.disclosureNote}>
-        Nothing is sent automatically. DHARA opens your SMS app with a pre-filled message; you control every send.
+        Nothing is sent automatically. DHARA opens your SMS app with a pre-filled message; you control every send. Status pages expire after 24 hours.
       </Text>
     </ScrollView>
   );
@@ -241,6 +353,19 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: c.verifiedGreen,
   },
   sentTxt: { fontFamily: theme.fonts.body, fontSize: 14, color: c.ink, flex: 1 },
+  safeBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, backgroundColor: c.navySoft, borderRadius: 14, paddingVertical: 14,
+    borderWidth: 1.5, borderColor: c.navy,
+  },
+  safeBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.navy },
+  safeBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#F0FFF4', borderRadius: 12, padding: 14,
+    borderWidth: 1, borderColor: '#16a34a',
+  },
+  safeBannerTxt: { fontFamily: theme.fonts.body, fontSize: 14, color: c.ink, flex: 1 },
+  errorTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: '#dc2626', textAlign: 'center' },
   disclosureNote: {
     fontFamily: theme.fonts.body, fontSize: 12, color: c.muted,
     textAlign: 'center', lineHeight: 18,

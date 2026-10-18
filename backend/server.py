@@ -215,6 +215,7 @@ from api.women_router    import router as women_router
 from api.evidence_vault_router import router as evidence_vault_router, cleanup_stale_upload_sessions
 from api.scan_router     import router as scan_router
 from api.safety_router   import router as safety_router   # GO1A — saved places
+from api.journey_router  import router as journey_router  # S3 Phase 2 — guardian status
 api.include_router(auth_router)
 api.include_router(chat_router)
 api.include_router(fir_router)
@@ -222,6 +223,7 @@ api.include_router(visitor_router)
 api.include_router(journeys_router)
 api.include_router(women_router)
 api.include_router(safety_router)   # GO1A — saved places
+api.include_router(journey_router)  # S3 Phase 2 — guardian status
 api.include_router(evidence_vault_router)
 api.include_router(scan_router)
 
