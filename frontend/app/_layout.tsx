@@ -12,6 +12,7 @@ import { useIconFonts } from "@/src/hooks/use-icon-fonts";
 import { useAppFonts } from "@/src/hooks/use-app-fonts";
 import { DesktopFrame } from "@/src/components/dhara/DesktopFrame";
 import { GlobalHelpButton } from "@/src/components/dhara/GlobalHelpButton";
+import { LanguageOnboardModal } from "@/src/components/LanguageOnboardModal";
 import { AuthProvider, useAuth } from "@/src/auth";
 import { consentVersionKey, isCurrentConsent } from "@/src/consentStorage";
 import { theme } from "@/src/theme";
@@ -197,6 +198,7 @@ export default function RootLayout() {
               <AnalyticsIdentitySync />
               <AnalyticsScreenTracker />
               <ConsentGuard />
+              <LanguageOnboardModal />
               <StatusBar style="dark" />
               {isWideWeb ? (
                 <DesktopFrame>
