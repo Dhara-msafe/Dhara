@@ -196,7 +196,7 @@ function NotInDatabaseWall({ sectionQuery, totalInDb }: { sectionQuery: string; 
         <Text style={w.secPillTxt}>{sectionQuery}</Text>
       </View>
       <Text style={w.body}>
-        This section is not in our verified cross-reference database.{'\n'}
+        This section is not in our cross-reference database.{'\n'}
         The database currently covers <Text style={{ fontWeight: '700' }}>{totalInDb} entries</Text> and is still expanding.
       </Text>
       <View style={w.actionBox}>
@@ -209,7 +209,7 @@ function NotInDatabaseWall({ sectionQuery, totalInDb }: { sectionQuery: string; 
       </View>
       <Text style={w.note}>
         This tool never guesses or infers a BNS equivalent. Only entries
-        present in the verified cross-reference database are shown.
+        present in the cross-reference database are shown.
       </Text>
     </View>
   );
@@ -327,8 +327,8 @@ function GuardStatusBar({ guard, total }: { guard: CitationGuard; total: number 
       <Text style={gb.right}>
         {total} result{total !== 1 ? 's' : ''}{' · '}
         {guard.unverified_count > 0
-          ? `${guard.unverified_count} unverified`
-          : 'all verified'}
+          ? `${guard.unverified_count} pending review`
+          : 'all reviewed'}
       </Text>
     </View>
   );

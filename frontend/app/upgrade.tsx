@@ -271,7 +271,7 @@ export default function Upgrade() {
           'Welcome to Dhara Pro',
           data.trust_based
             ? 'Your Pro access has been activated. We will confirm your payment shortly.'
-            : 'Payment verified. Your account is now Pro.'
+            : 'Payment received. Your account is now Pro.'
         );
       }
     } catch (e: any) {

@@ -49,6 +49,14 @@ interface Props {
   authToken?: string;
   testID?: string;
   apiBase?: string;
+  /**
+   * Wording hotfix: when the caller's foreground-GPS feature flag
+   * (e.g. EXPO_PUBLIC_GO1B_GPS) is on, the disclosure below must say so —
+   * never silently claim "no location tracking" while a foreground GPS
+   * hook is about to run for this journey. Omit/false = today's behaviour
+   * (no GPS feature active anywhere for this journey).
+   */
+  gpsForegroundEnabled?: boolean;
 }
 
 // ── Radius presets ────────────────────────────────────────────────────────────
@@ -269,7 +277,7 @@ function EditPlaceModal({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function DestinationPicker({ value, onChange, authToken, testID, apiBase }: Props) {
+export function DestinationPicker({ value, onChange, authToken, testID, apiBase, gpsForegroundEnabled }: Props) {
   const base = apiBase ?? process.env.EXPO_PUBLIC_BACKEND_URL ?? '';
   const [places, setPlaces] = useState<SavedPlace[]>([]);
   const [loadingPlaces, setLoadingPlaces] = useState(false);
@@ -485,7 +493,12 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase 
       <View style={styles.disclosureBox} testID="dp-disclosure">
         <Ionicons name="information-circle-outline" size={15} color={c.muted} />
         <Text style={styles.disclosureTxt}>
-          Planned arrival area only. Radius selection does not activate geofence monitoring or any automatic location tracking.
+          {gpsForegroundEnabled
+            // GPS feature is on for this journey: say so accurately — foreground-only,
+            // not yet running, never background, never an automatic alert.
+            ? 'Planned arrival area only. Radius selection does not activate geofence monitoring. If you start this journey, DHARA will share your location only while this app is open on your screen — never in the background, and no one is alerted automatically.'
+            // Default (feature off): no GPS capability exists for this journey at all.
+            : 'Planned arrival area only. Radius selection does not activate geofence monitoring or any location tracking.'}
         </Text>
       </View>
 

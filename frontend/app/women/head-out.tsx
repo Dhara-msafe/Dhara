@@ -175,6 +175,7 @@ export default function HeadOut() {
               value={destValue}
               onChange={setDestValue}
               authToken={authToken ?? undefined}
+              gpsForegroundEnabled={GO1B_GPS_ENABLED}
             />
           ) : (
             // Original plain TextInput — unchanged
@@ -244,7 +245,13 @@ export default function HeadOut() {
               </View>
               <Text style={styles.destTxt}>{session.destination}</Text>
               {!!session.radiusMeters && (
-                <Text style={styles.radiusTxt}>Planned area: {session.radiusMeters} m · Monitoring not active</Text>
+                <Text style={styles.radiusTxt}>
+                  {GO1B_GPS_ENABLED
+                    // GPS row below already states the real tracking status — don't
+                    // also assert "not active" here, that would contradict it.
+                    ? `Planned area: ${session.radiusMeters} m`
+                    : `Planned area: ${session.radiusMeters} m · Monitoring not active`}
+                </Text>
               )}
               <Text style={styles.timerLbl}>Check-in in</Text>
               <Text testID="headout-timer" style={styles.timerDisplay}>{formatCountdown(secsLeft)}</Text>

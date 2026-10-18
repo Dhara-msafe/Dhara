@@ -188,7 +188,7 @@ export const UI: Record<string, L> = {
 
   // ── My files ─────────────────────────────────────────────────────
   'mf.title':        { en: 'My files', hi: 'मेरी फाइलें', mr: 'माझ्या फायली', ta: 'எனது கோப்புகள்' },
-  'mf.pin':          { en: 'PIN protected', hi: 'PIN सुरक्षित', mr: 'PIN संरक्षित', ta: 'PIN பாதுகாப்பு' },
+  'mf.pin':          { en: 'Private to your account', hi: 'आपके खाते तक सीमित', mr: 'फक्त तुमच्या खात्यापुरते', ta: 'உங்கள் கணக்கிற்கு மட்டுமே' },
   'mf.active':       { en: 'Active', hi: 'सक्रिय', mr: 'सक्रिय', ta: 'செயலில்' },
   'mf.evidence':     { en: 'Evidence', hi: 'सबूत', mr: 'पुरावा', ta: 'ஆதாரம்' },
   'mf.documents':    { en: 'Documents', hi: 'दस्तावेज़', mr: 'कागदपत्रे', ta: 'ஆவணங்கள்' },

@@ -101,7 +101,7 @@ export default function OfficerCard() {
                 <Text style={styles.revealTxt}>
                   {card.law?.length
                     ? card.law.map((l: any, i: number) => `${l.act} ${l.section}${l.status ? ` (${l.status})` : ''}`).join('\n')
-                    : 'Source citation is being advocate-verified.'}
+                    : 'Source citation is pending advocate review.'}
                 </Text>
               </View>
             )}
@@ -127,7 +127,7 @@ export default function OfficerCard() {
             </Text>
             <View style={styles.pendingChip}>
               <Ionicons name="time-outline" size={14} color={c.navy} />
-              <Text style={styles.pendingTxt}>Detailed law citations are being verified before release</Text>
+              <Text style={styles.pendingTxt}>Detailed law citations are pending advocate review before release</Text>
             </View>
             <Text style={styles.why}>
               Ask DHARA your question below — it checks live law before answering, even without a pre-built card.
