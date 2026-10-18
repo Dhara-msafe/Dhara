@@ -41,20 +41,23 @@ export default function GuardianShare() {
     destination?: string;
     startTime?: string;
     durationMins?: string;
+    journeyToken?: string;    // GO1B: pre-created token from head-out.tsx (when GPS is active)
   }>();
 
   const destination  = params.destination ?? '';
   const startTime    = parseInt(params.startTime   ?? '0',  10);
   const durationMins = parseInt(params.durationMins ?? '60', 10);
+  // If a journey was already created in head-out.tsx (GO1B GPS on), reuse it
+  const preCreatedToken = params.journeyToken || null;
 
   const [circle,       setCircle]       = useState<Contact[]>([]);
   const [selected,     setSelected]     = useState<Set<string>>(new Set());
   const [sent,         setSent]         = useState(false);
   const [loading,      setLoading]      = useState(true);
 
-  // Phase 2 state
+  // Phase 2 state — seed with pre-created token from GPS session if available
   const [statusUrl,    setStatusUrl]    = useState<string | null>(null);
-  const [journeyToken, setJourneyToken] = useState<string | null>(null);
+  const [journeyToken, setJourneyToken] = useState<string | null>(preCreatedToken);
   const [creating,     setCreating]     = useState(false);
   const [markingSafe,  setMarkingSafe]  = useState(false);
   const [markedSafe,   setMarkedSafe]   = useState(false);
@@ -70,7 +73,11 @@ export default function GuardianShare() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+    // If journey was pre-created in head-out.tsx, build the status URL immediately
+    if (preCreatedToken) {
+      setStatusUrl(`${API_BASE}/api/journey/status/${preCreatedToken}`);
+    }
+  }, [preCreatedToken]);
 
   const toggleContact = useCallback((id: string) => {
     setSelected(prev => {
@@ -80,8 +87,10 @@ export default function GuardianShare() {
     });
   }, []);
 
-  /** Create journey record on backend → get public status URL */
+  /** Create journey record on backend → get public status URL (skipped if already created) */
   const createJourneyRecord = useCallback(async (): Promise<string | null> => {
+    // Reuse existing token (pre-created from head-out GPS session)
+    if (statusUrl) return statusUrl;
     if (!authToken || !destination) return null;
     try {
       setCreating(true);

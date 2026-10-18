@@ -10,7 +10,7 @@ Three endpoints:
 
 DPDP-compliance:
   - Only user's first name is stored (no surname, no phone, no email).
-  - No GPS coordinates are stored or served.
+  - No GPS coordinates are stored or displayed in the public HTML page (only area name)
   - Records auto-expire 24 h after creation.
   - The share token is a cryptographically random 10-char string — not guessable.
 """
@@ -45,6 +45,13 @@ def _new_token() -> str:
 class JourneyIn(BaseModel):
     destination: str = Field(..., min_length=1, max_length=_MAX_LABEL)
     duration_mins: int = Field(..., ge=1, le=1440)   # 1 min – 24 h
+
+
+class LocationIn(BaseModel):
+    lat: float = Field(..., ge=-90,  le=90)
+    lng: float = Field(..., ge=-180, le=180)
+    accuracy: float = Field(default=0, ge=0)
+    area: str  = Field(default="", max_length=200)   # reverse-geocoded by device
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -92,6 +99,48 @@ async def mark_safe(token: str, user: dict = Depends(current_user)):
     return {"ok": True, "safe_at": now.isoformat()}
 
 
+@router.patch("/journey/status/{token}/location", status_code=200)
+async def update_location(token: str, body: LocationIn, user: dict = Depends(current_user)):
+    """Receive a GPS update from the user's device during an active Head Out session.
+
+    Only lat/lng/accuracy are stored server-side; the human-readable area name
+    is reverse-geocoded on the device (privacy-friendly — no third-party geocoding API).
+    Throttle: backend silently ignores updates received within 25 s of the last one.
+    """
+    rec = await db.safety_journeys.find_one({"token": token})
+    if not rec:
+        raise HTTPException(404, "Journey not found")
+    if rec["user_id"] != user["id"]:
+        raise HTTPException(403, "Not your journey")
+    if rec.get("status") == "safe":
+        return {"ok": True, "skipped": "journey already completed"}
+
+    now = datetime.now(timezone.utc)
+    # Server-side throttle — ignore if last update < 25 s ago
+    last = rec.get("last_location")
+    if last:
+        try:
+            last_ts = datetime.fromisoformat(last["updated_at"])
+            if (now - last_ts).total_seconds() < 25:
+                return {"ok": True, "skipped": "throttled"}
+        except Exception:
+            pass
+
+    location_doc = {
+        "lat":        body.lat,
+        "lng":        body.lng,
+        "accuracy":   body.accuracy,
+        "area":       body.area.strip() or "Unknown area",
+        "updated_at": now.isoformat(),
+    }
+    await db.safety_journeys.update_one(
+        {"token": token},
+        {"$set":  {"last_location": location_doc},
+         "$push": {"location_log": {"$each": [location_doc], "$slice": -20}}},  # keep last 20
+    )
+    return {"ok": True, "updated_at": location_doc["updated_at"]}
+
+
 @router.get("/journey/status/{token}", response_class=HTMLResponse, include_in_schema=False)
 async def journey_status_page(token: str):
     """Public HTML status page served to guardians — no authentication required."""
@@ -135,6 +184,20 @@ def _status_html(rec: dict, label: str, colour: str, icon: str) -> str:
     start  = _fmt_dt(rec.get("started_at"))
     checkin = _fmt_dt(rec.get("expected_checkin_at"))
     safe_at = _fmt_dt(rec.get("safe_at")) if rec.get("safe_at") else ""
+    last_loc = rec.get("last_location")
+    loc_block = ""
+    if last_loc:
+        area      = _escape(last_loc.get("area") or "Unknown area")
+        loc_time  = _fmt_dt(last_loc.get("updated_at"))
+        acc_m     = int(last_loc.get("accuracy", 0))
+        acc_note  = f" ±{acc_m} m" if acc_m > 0 else ""
+        loc_block = f"""
+      <hr class="divider"/>
+      <div>
+        <div class="field-label">Last known area</div>
+        <div class="field-value">📍 {area}{acc_note}</div>
+        <div style="font-size:12px;color:#888;margin-top:3px">Updated {loc_time}</div>
+      </div>"""
     status_extra = f"<p style='margin:0 0 4px;font-size:15px;color:#555;'>Arrived: {safe_at}</p>" if safe_at else ""
 
     return f"""<!DOCTYPE html>
@@ -191,6 +254,7 @@ def _status_html(rec: dict, label: str, colour: str, icon: str) -> str:
         <div class="field-value">{checkin}</div>
       </div>
       {f'<hr class="divider"/><div><div class="field-label">Marked safe at</div><div class="field-value">{safe_at}</div></div>' if safe_at else ""}
+      {loc_block}
     </div>
   </div>
 

@@ -9,12 +9,14 @@ import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { getCircle, type Contact } from '@/src/women/api';
 import { DestinationPicker, type DestinationValue } from '@/src/women/DestinationPicker';
 import { useAuth } from '@/src/auth';
+import { useJourneyGPS } from '@/src/hooks/useJourneyGPS';
+import { API_BASE } from '@/src/apiBase';
 
 const c = theme.colors;
-const GUARDIAN_SHARE_ENABLED = process.env.EXPO_PUBLIC_GUARDIAN_SHARE === 'true';
-// GO1A: DestinationPicker replaces the plain TextInput when this flag is true.
-// Existing countdown behaviour is identical in both branches.
+const GUARDIAN_SHARE_ENABLED   = process.env.EXPO_PUBLIC_GUARDIAN_SHARE === 'true';
 const DESTINATION_PICKER_ENABLED = process.env.EXPO_PUBLIC_DESTINATION_PICKER === 'true';
+// GO1B: Live GPS tracking — default OFF; guardian status page shows last known area
+const GO1B_GPS_ENABLED = process.env.EXPO_PUBLIC_GO1B_GPS === 'true';
 
 const DURATIONS = [
   { label: '30 min', mins: 30 },
@@ -56,6 +58,8 @@ export default function HeadOut() {
   const [expired, setExpired] = useState(false);
   const [circle, setCircle] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
+  // GO1B: journey token created when session starts (so GPS can start immediately)
+  const [journeyToken, setJourneyToken] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Load persisted session + circle on mount
@@ -108,7 +112,19 @@ export default function HeadOut() {
     await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(ses)).catch(() => {});
     setSession(ses);
     setExpired(false);
-  }, [destination, destValue, selectedMins]);
+
+    // GO1B: create backend journey record so GPS tracking starts immediately
+    if (GO1B_GPS_ENABLED && authToken) {
+      fetch(`${API_BASE}/api/journey/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ destination: label, duration_mins: selectedMins }),
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data?.token) setJourneyToken(data.token); })
+        .catch(() => {});   // non-fatal — GPS is best-effort
+    }
+  }, [destination, destValue, selectedMins, authToken]);
 
   const endSession = useCallback(async () => {
     await AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
@@ -116,7 +132,11 @@ export default function HeadOut() {
     setExpired(false);
     setDestination('');
     setDestValue({ label: '', radiusMeters: 200 });
+    setJourneyToken(null);
   }, []);
+
+  // GO1B: GPS tracking — active only while session is running and flag is on
+  const gps = useJourneyGPS(journeyToken, GO1B_GPS_ENABLED && !!session && !expired);
 
   const prepareAlertSMS = useCallback(() => {
     const notifyContacts = circle.filter(ct => ct.notify !== false);
@@ -239,6 +259,7 @@ export default function HeadOut() {
                       destination: session.destination,
                       startTime: String(session.startTime),
                       durationMins: String(session.durationMins),
+                      journeyToken: journeyToken ?? '',
                     },
                   })}
                   accessibilityRole="button"
@@ -247,6 +268,23 @@ export default function HeadOut() {
                   <Ionicons name="people-outline" size={18} color={c.navy} />
                   <Text style={[styles.buttonText, { color: c.navy }]}>Notify your guardian</Text>
                 </Pressable>
+              )}
+              {/* GO1B: GPS live-tracking indicator */}
+              {GO1B_GPS_ENABLED && (
+                <View style={styles.gpsRow} accessibilityLabel={gps.tracking ? `GPS tracking active, last area: ${gps.area}` : 'GPS starting'}>
+                  <Ionicons
+                    name={gps.tracking ? 'location' : 'location-outline'}
+                    size={14}
+                    color={gps.tracking ? '#16a34a' : c.muted}
+                  />
+                  <Text style={[styles.gpsLabel, gps.tracking && { color: '#16a34a' }]}>
+                    {gps.denied
+                      ? 'Location access denied — guardian page will not show your area'
+                      : gps.tracking
+                        ? `Tracking active${gps.area ? ` · ${gps.area}` : ''}`
+                        : 'Starting location tracking…'}
+                  </Text>
+                </View>
               )}
             </View>
           ) : (
@@ -348,4 +386,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.body, fontSize: 12, color: c.muted,
     textAlign: 'center', marginTop: 8,
   },
+  gpsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  gpsLabel: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, flex: 1, textAlign: 'center' },
 });
