@@ -587,7 +587,7 @@ export default function EvidenceLocker() {
         await deleteSession(scope, item.session_id).catch(() => {});
       }
       owned.current = owned.current.filter(row => row.id !== item.id); setItems(owned.current); setDeleting(null); setStatus('Recording deleted from this device.');
-    } catch { setStatus('Could not delete this recording. Please try again.'); }
+    } catch { setStatus('Could not delete this recording. Please try again.'); setDeleting(null); }
   }, [scope, stopPlayer, videoPreview, closeVideoPreview, photoUris]);
 
   // ── P0-B: Recover an interrupted session ──────────────────────────────────
@@ -863,8 +863,8 @@ export default function EvidenceLocker() {
               </Pressable>
             )}
           </View>
-          <Pressable testID={`recording-delete-${item.id}`} style={styles.control} onPress={() => deleting === item.id ? remove(item) : setDeleting(item.id)}><Text style={styles.label}>{deleting === item.id ? 'Confirm delete permanently' : 'Delete'}</Text></Pressable>
-          {deleting === item.id && <Pressable testID={`recording-keep-${item.id}`} style={styles.control} onPress={() => setDeleting(null)}><Text style={styles.label}>Keep</Text></Pressable>}
+          <Pressable testID={`recording-delete-${item.id}`} style={[styles.control, deleting === item.id && styles.controlDanger]} onPress={() => deleting === item.id ? remove(item) : setDeleting(item.id)}><Text style={[styles.label, deleting === item.id && { color: c.emergencyRed }]}>{deleting === item.id ? '⚠️ Confirm delete — this is permanent' : 'Delete'}</Text></Pressable>
+          {deleting === item.id && <Pressable testID={`recording-keep-${item.id}`} style={styles.control} onPress={() => setDeleting(null)}><Text style={styles.label}>Cancel</Text></Pressable>}
           {EVIDENCE_ACTIONS_ENABLED && (
             <View style={[styles.vaultRow, { marginTop: 8 }]}>
               {editingNoteId === item.id ? (
@@ -909,6 +909,7 @@ const styles = StyleSheet.create({
   secondary: { borderRadius: 14, borderWidth: 1, borderColor: c.lines, padding: 16, backgroundColor: c.surface },
   label: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.navy },
   control: { minHeight: 44, justifyContent: 'center', marginTop: 8 },
+  controlDanger: { borderRadius: 8, backgroundColor: '#fff0f0', paddingHorizontal: 8, borderWidth: 1, borderColor: '#fecaca' },
   vaultRow: { marginTop: 4, gap: 6, borderTopWidth: 1, borderTopColor: c.lines, paddingTop: 8 },
   captureRow: { flexDirection: 'row', gap: 12 },
   captureBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 56 },

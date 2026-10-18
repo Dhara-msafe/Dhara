@@ -11,6 +11,20 @@ import { openPhone } from '@/src/women/helpActions';
 
 const c = theme.colors;
 
+// Human-readable scenario titles mapped from backend keys
+const SCENARIO_TITLES: Record<string, string> = {
+  police_wont_file:    'Police refusing to file a complaint (FIR)',
+  violence_at_home:    'Domestic violence or harassment at home',
+  thrown_out_of_home:  'Thrown out of home / shelter needed',
+  dowry_demands:       'Dowry demands or harassment',
+  harassment_at_work:  'Workplace sexual harassment (POSH)',
+  stalking_online_abuse:'Stalking or online abuse',
+  private_photos_leaked:'Private photos or videos leaked',
+  after_assault:       'After sexual assault — next steps',
+  woman_arrested:      'Woman being arrested — your rights',
+  children_safety:     'Child safety or custody concern',
+};
+
 export default function OfficerCard() {
   const router = useRouter();
   const { language } = useAuth();
@@ -99,9 +113,25 @@ export default function OfficerCard() {
           </>
         ) : (
           <>
-            <Text testID="officer-unavailable" style={styles.big}>{error || 'A released rights card is not available for this situation yet.'}</Text>
-            <View style={styles.pendingChip}><Ionicons name="time-outline" size={14} color={c.navy} /><Text style={styles.pendingTxt}>Detailed law is being advocate-verified</Text></View>
-            <Text style={styles.why}>Open DHARA and ask your question to get the exact section and procedure, checked against current law before you see it.</Text>
+            {/* Show matched scenario name if we got a result but no card */}
+            {res?.scenario_key && (
+              <View style={styles.scenarioBox}>
+                <Ionicons name="search-circle-outline" size={18} color={c.gold} />
+                <Text style={styles.scenarioTxt}>
+                  {SCENARIO_TITLES[res.scenario_key] || res.scenario_key.replace(/_/g, ' ')}
+                </Text>
+              </View>
+            )}
+            <Text testID="officer-unavailable" style={styles.big}>
+              {error || 'A rights card for this situation is being reviewed by an advocate.'}
+            </Text>
+            <View style={styles.pendingChip}>
+              <Ionicons name="time-outline" size={14} color={c.navy} />
+              <Text style={styles.pendingTxt}>Detailed law citations are being verified before release</Text>
+            </View>
+            <Text style={styles.why}>
+              Ask DHARA your question below — it checks live law before answering, even without a pre-built card.
+            </Text>
             {!!error && <Pressable testID="officer-retry" style={styles.askBtn} onPress={retry}><Text style={styles.askTxt}>Try again</Text></Pressable>}
             <Pressable testID="officer-ask-dhara" style={styles.askBtn} onPress={() => router.push({ pathname: '/(tabs)', params: { autostartMic: Date.now().toString() } })}>
               <Ionicons name="mic" size={18} color={c.navy} />
@@ -154,4 +184,6 @@ const styles = StyleSheet.create({
   actionTxt: { color: '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 13 },
   revealBox: { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 14, marginTop: 10 },
   revealTxt: { color: '#fff', fontFamily: theme.fonts.body, fontSize: 14, lineHeight: 20 },
+  scenarioBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 12, padding: 12, marginBottom: 14 },
+  scenarioTxt: { flex: 1, color: c.gold, fontFamily: theme.fonts.bodySemiBold, fontSize: 14, lineHeight: 20 },
 });

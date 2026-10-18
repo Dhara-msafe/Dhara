@@ -7,9 +7,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '@/src/theme';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { getCircle, type Contact } from '@/src/women/api';
+import { DestinationPicker, type DestinationValue } from '@/src/women/DestinationPicker';
+import { useAuth } from '@/src/auth';
 
 const c = theme.colors;
 const GUARDIAN_SHARE_ENABLED = process.env.EXPO_PUBLIC_GUARDIAN_SHARE === 'true';
+// GO1A: DestinationPicker replaces the plain TextInput when this flag is true.
+// Existing countdown behaviour is identical in both branches.
+const DESTINATION_PICKER_ENABLED = process.env.EXPO_PUBLIC_DESTINATION_PICKER === 'true';
 
 const DURATIONS = [
   { label: '30 min', mins: 30 },
@@ -24,6 +29,8 @@ interface HeadOutSession {
   destination: string;
   startTime: number;
   durationMins: number;
+  radiusMeters?: number;   // GO1A: optional, undefined in sessions created before GO1A
+  savedPlaceId?: string;   // GO1A: optional reference to a saved place
 }
 
 function formatCountdown(secs: number): string {
@@ -38,8 +45,11 @@ function formatCountdown(secs: number): string {
 export default function HeadOut() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { token: authToken } = useAuth();
 
   const [destination, setDestination] = useState('');
+  // GO1A: DestinationPicker state (used when DESTINATION_PICKER_ENABLED)
+  const [destValue, setDestValue] = useState<DestinationValue>({ label: '', radiusMeters: 200 });
   const [selectedMins, setSelectedMins] = useState(60);
   const [session, setSession] = useState<HeadOutSession | null>(null);
   const [secsLeft, setSecsLeft] = useState(0);
@@ -83,22 +93,29 @@ export default function HeadOut() {
   }, [session]);
 
   const startSession = useCallback(async () => {
-    if (!destination.trim()) return;
+    // Resolve destination label from whichever input mode is active
+    const label = DESTINATION_PICKER_ENABLED ? destValue.label.trim() : destination.trim();
+    if (!label) return;
     const ses: HeadOutSession = {
-      destination: destination.trim(),
+      destination: label,
       startTime: Date.now(),
       durationMins: selectedMins,
+      ...(DESTINATION_PICKER_ENABLED && {
+        radiusMeters: destValue.radiusMeters,
+        savedPlaceId: destValue.savedPlaceId,
+      }),
     };
     await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(ses)).catch(() => {});
     setSession(ses);
     setExpired(false);
-  }, [destination, selectedMins]);
+  }, [destination, destValue, selectedMins]);
 
   const endSession = useCallback(async () => {
     await AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
     setSession(null);
     setExpired(false);
     setDestination('');
+    setDestValue({ label: '', radiusMeters: 200 });
   }, []);
 
   const prepareAlertSMS = useCallback(() => {
@@ -131,16 +148,30 @@ export default function HeadOut() {
             {'Tell DHARA where you\'re going. If you do not tap "I\'m home safely" before your timer expires, DHARA will help you prepare an SMS alert for your trusted circle. Nothing is sent without your action.'}
           </Text>
 
-          <Text style={styles.fieldLabel}>Where are you going?</Text>
-          <TextInput
-            testID="headout-destination"
-            value={destination}
-            onChangeText={setDestination}
-            placeholder="e.g. Office, market, bus stop…"
-            placeholderTextColor={c.muted}
-            style={styles.input}
-            returnKeyType="done"
-          />
+          {DESTINATION_PICKER_ENABLED ? (
+            // GO1A: full DestinationPicker with saved places + radius
+            <DestinationPicker
+              testID="headout-destination-picker"
+              value={destValue}
+              onChange={setDestValue}
+              authToken={authToken ?? undefined}
+            />
+          ) : (
+            // Original plain TextInput — unchanged
+            <>
+              <Text style={styles.fieldLabel}>Where are you going?</Text>
+              <TextInput
+                testID="headout-destination"
+                value={destination}
+                onChangeText={setDestination}
+                placeholder="e.g. Office, market, bus stop…"
+                placeholderTextColor={c.muted}
+                style={styles.input}
+                returnKeyType="done"
+                accessibilityLabel="Destination"
+              />
+            </>
+          )}
 
           <Text style={styles.fieldLabel}>Expected return time</Text>
           <View style={styles.durationRow}>
@@ -161,8 +192,8 @@ export default function HeadOut() {
 
           <Pressable
             testID="headout-start"
-            style={[styles.button, !destination.trim() && styles.buttonDisabled]}
-            disabled={!destination.trim()}
+            style={[styles.button, !(DESTINATION_PICKER_ENABLED ? destValue.label.trim() : destination.trim()) && styles.buttonDisabled]}
+            disabled={!(DESTINATION_PICKER_ENABLED ? destValue.label.trim() : destination.trim())}
             onPress={startSession}
             accessibilityRole="button"
             accessibilityLabel="Head out — start timer"
@@ -192,6 +223,9 @@ export default function HeadOut() {
                 <Text style={styles.activeTitle}>Session active</Text>
               </View>
               <Text style={styles.destTxt}>{session.destination}</Text>
+              {!!session.radiusMeters && (
+                <Text style={styles.radiusTxt}>Planned area: {session.radiusMeters} m · Monitoring not active</Text>
+              )}
               <Text style={styles.timerLbl}>Check-in in</Text>
               <Text testID="headout-timer" style={styles.timerDisplay}>{formatCountdown(secsLeft)}</Text>
               <Text style={styles.note}>{'Tap "I\'m home safely" when you\'re back. DHARA will help you alert your circle if this timer runs out.'}</Text>
@@ -299,6 +333,10 @@ const styles = StyleSheet.create({
   destTxt: {
     fontFamily: theme.fonts.bodyBold, fontSize: 17, color: c.ink,
     textAlign: 'center', paddingHorizontal: 8,
+  },
+  radiusTxt: {
+    fontFamily: theme.fonts.body, fontSize: 12, color: c.muted,
+    textAlign: 'center', fontStyle: 'italic',
   },
   timerLbl: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, marginTop: 8 },
   timerDisplay: {

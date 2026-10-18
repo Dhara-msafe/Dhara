@@ -306,12 +306,10 @@ metadata:
 
 test_plan:
   current_focus:
-    - "S2 Head Out Safe Session screen navigation and timer"
-    - "S1 Trusted Circle 2.0 email field (flag OFF = hidden)"
-    - "S4 Campus pilot layer in Women Shield (flag OFF = hidden)"
-    - "S5 Evidence action tie-in: notes + FIR button (flag OFF = hidden)"
-    - "AQF Phase 1b backend import check"
-    - "Women Shield loads without errors"
+    - "GO1A backend tests (test_safety_go1a.py) — all 23 should pass"
+    - "Help button overlap fix — button at insets.bottom+140, not overlapping Code phrase row"
+    - "Evidence Locker confirm-delete — red danger styling + cancel button + error reset"
+    - "Rights card fallback — shows matched scenario name in gold box when card is null"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -324,4 +322,4 @@ agent_communication:
     - agent: "testing"
       message: "✅ FRONTEND TESTING COMPLETE - All frontend features tested and working perfectly on web (mobile viewport 390x844). Test results: (1) Login flow: ✅ Language selector → Login → Chat screen navigation works. (2) Chat UI: ✅ All elements present (header, SOS, New Chat, mode toggle, upgrade banner, suggestions, input bar, tabs). (3) WhatsApp-style mic UI: ✅ Visual implementation correct (terracotta/orange circular button 52x52px), mic/send toggle works perfectly. (4) Text chat: ✅ Type, send, streaming response, speaker icons all working. (5) Tab navigation: ✅ All 4 tabs (Ask, Rights, History, Settings) accessible. (6) New Chat: ✅ Clears messages, shows suggestions. (7) Pro mode toggle: ✅ Works correctly. (8) Suggestions: ✅ Clickable and send messages. Audio recording NOT tested (requires native build, as expected). All text-based interactions fully functional. No critical issues found."
     - agent: "main"
-      message: "SCAN NOTICE V2 IMPLEMENTATION COMPLETE. Changes: (1) Backend scan_router.py: Updated _system() prompt to return document_type (17-class enum), is_legal_document boolean, material_facts object (issuing_authority, recipient, date_of_issue, reference_number, amount, deadline, statutes_cited, jurisdiction), legal_truth_state (VERIFIED_DIRECT/VERIFIED_CONDITIONAL/FRAMEWORK_VERIFIED/CANNOT_VERIFY). Added ALL_DOC_TYPES, LEGAL_DOC_TYPES, VALID_LTS, FACT_KEYS, NULL_VALS constants. (2) Frontend scan.tsx: Complete rewrite with 5-step journey: entry → review (DHARA-controlled, Retake/Rotate/Use this scan, no native editor) → processing (animated 5-step progress) → ocr-review (editable TextInput) → result (legal vs non-legal branching). Key: allowsEditing=false removes native OK/Retry editor. expo-image-manipulator installed for 90deg rotation. (3) GlobalHelpButton.tsx: Added /scan to exclusion so FAB doesn't overlap scan screens. (4) scan/[id].tsx: Updated to handle v2 fields (document_type, material_facts, legal_truth_state) as optional with fallback to v1 display. Test credentials: voicetest2026@example.com / TestPass123!"
+      message: "GO1A COMPLETE + P1 FIXES. (1) GO1A backend: Rewrote test_safety_go1a.py to use requests against live backend (not ASGI fixture), added phone+terms_accepted to _register_and_login, fixed Pydantic v2 ValidationError JSON serialization in server.py _validation_error_handler (ctx.error was not JSON-serializable). All 23 tests PASS. (2) Help button: Reduced bottom offset from insets.bottom+180 to insets.bottom+140 in GlobalHelpButton.tsx — clears tab bar + DisclaimerBanner without overlapping the Code phrase row on women-shield.tsx. (3) Evidence Locker confirm-delete: Added red danger styling (controlDanger) + changed 'Keep' to 'Cancel', improved text to '⚠️ Confirm delete — this is permanent', also fixed catch block to call setDeleting(null) on error. (4) Rights card fallback: Added SCENARIO_TITLES map in officer-card.tsx; shows gold scenario name box + improved copy when card=null. Test credentials: voicetest2026@example.com / TestPass123!"

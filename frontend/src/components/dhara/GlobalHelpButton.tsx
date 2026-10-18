@@ -34,14 +34,12 @@ export function GlobalHelpButton() {
       testID="global-help-button"
       accessibilityLabel="Help — emergency numbers and what to do next"
       onPress={() => router.push('/emergency')}
-      // DHARA fix: the previous fixed offset (90 native / 24 web) only
-      // cleared the tab bar's icon row alone. On screens where the
-      // non-dismissible DisclaimerBanner also renders above the tab bar
-      // (every tab screen except Home), the combined height pushed this
-      // button down onto the "Me" tab, blocking it from being tapped.
-      // Use one generous offset for both platforms so it always floats
-      // clear of disclaimer + tab bar, worst case included.
-      style={[styles.btn, { bottom: insets.bottom + 180 }]}
+      // Tab bar (minHeight 52) + DisclaimerBanner (~64px text + 12px padding = 76px)
+      // + safe-area bottom (~34px on iPhone X+) ≈ 162px total from the screen edge.
+      // 140 offset gives ~174px on modern iPhones — clears the full disclaimer
+      // without rising into the screen content (the previous 180 was 52px too high
+      // and overlapped the "Code phrase" ToolRow on the Women's Shield screen).
+      style={[styles.btn, { bottom: insets.bottom + 140 }]}
     >
       <Ionicons name="alert-circle" size={18} color="#fff" />
       <Text style={styles.txt}>Help</Text>

@@ -155,9 +155,22 @@ async def _validation_error_handler(request: Request, exc: RequestValidationErro
     field = (first.get("loc") or [])[-1] if first.get("loc") else ""
     msg   = first.get("msg") or "Invalid request"
     detail = f"{field}: {msg}" if field and isinstance(field, str) else msg
+    # Sanitise errors for JSON: Pydantic v2 ctx.error may hold a raw Exception
+    def _sanitise(obj):
+        if isinstance(obj, dict):
+            return {k: _sanitise(v) for k, v in obj.items() if k != "url"}
+        if isinstance(obj, (list, tuple)):
+            return [_sanitise(i) for i in obj]
+        if isinstance(obj, Exception):
+            return str(obj)
+        try:
+            import json as _json; _json.dumps(obj); return obj
+        except (TypeError, ValueError):
+            return str(obj)
+    safe_errors = _sanitise(errors)
     return JSONResponse(
         status_code=422,
-        content={"detail": detail, "errors": errors},
+        content={"detail": detail, "errors": safe_errors},
         headers={
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
@@ -201,12 +214,14 @@ from api.journeys_router import router as journeys_router
 from api.women_router    import router as women_router
 from api.evidence_vault_router import router as evidence_vault_router, cleanup_stale_upload_sessions
 from api.scan_router     import router as scan_router
+from api.safety_router   import router as safety_router   # GO1A — saved places
 api.include_router(auth_router)
 api.include_router(chat_router)
 api.include_router(fir_router)
 api.include_router(visitor_router)
 api.include_router(journeys_router)
 api.include_router(women_router)
+api.include_router(safety_router)   # GO1A — saved places
 api.include_router(evidence_vault_router)
 api.include_router(scan_router)
 
