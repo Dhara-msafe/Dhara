@@ -1,0 +1,61 @@
+{
+  "summary": "Tested Trusted Circle Recipient Experience + Profile Photo (P1-P4) with EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT=true and EXPO_PUBLIC_GO1B_GPS=true (temporarily flipped in /app/frontend/.env for this pass, expo restarted). Backend smoke tests (9/9 passed) + extensive Playwright UI testing on owner account (voicetest2026@example.com). All core P1-P4 flows verified working end-to-end via UI. One UNRELATED pre-existing consent-screen bug found blocking UI automation login for the recipient account (fir-test-user2) specifically after a post-login consent redirect.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "app/consent.tsx (or equivalent) - NOT in files_of_reference, found incidentally",
+        "issue": "When logging in with an account that has not yet given consent server-side (fir-test-user2@example.com), login redirects back to the consent screen a second time. On this second occurrence, tapping 'I am 18 years or older' radio and both mandatory checkboxes does NOT update component state -- the Continue button remains aria-disabled=true and the radio/checkboxes stay visually unchecked, even after multiple attempts with increasing waits. This blocked automated UI testing of /alerts and /invite/[id] as the recipient user. Reproduced 3 times. This appears to be a PRE-EXISTING bug unrelated to the Trusted Circle Recipient feature (consent screen is not in files_of_reference for this task) but is worth a separate RCA since it blocks any new/unconsented account from completing login via UI.",
+        "testID": "consent-age-adult, consent-terms-checkbox, consent-data-checkbox, consent-continue-button",
+        "priority": "MEDIUM (out of scope for this feature, but blocking - recommend separate investigation)"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "verified_working_flows": [
+    "Me tab: avatar shows default when no photo; tapping avatar or Edit profile row -> /edit-profile works.",
+    "Edit Profile: tapping avatar opens PhotoPicker action sheet (Take a photo / Choose from gallery / Cancel; Remove photo appears only when hasPhoto=true).",
+    "Choose from gallery -> file chooser -> circular preview with Retake/Use this photo -> Use this photo uploads and avatar updates IMMEDIATELY on both Edit Profile and Me tab (confirmed via testID presence + screenshots).",
+    "Remove photo: action sheet shows Remove photo when photo set; after tap, avatar reverts to default icon on both screens.",
+    "Edit Profile: editing display name ('QA Tester' then 'QA Renamed') and Save persists -- re-verified on Me tab header immediately after navigating back.",
+    "Me tab rows: Edit profile, Trusted Circle, Notifications, Privacy & Security all present with correct testIDs and route correctly; existing rows (Language, State, History, Saved, Advocate, Settings) still present/unchanged -- no regression.",
+    "Home tab: bell icon with testID home-alerts-bell appears next to language pill only when flag true; tapping navigates to /alerts.",
+    "/alerts inbox: All/Active/Completed/Invitations tabs render (alerts-tab-all/active/completed/invitations), empty state 'Nothing here yet' shown correctly for owner account with no alerts (expected, no regressions, no crash).",
+    "women/trusted-circle.tsx: add contact (circle-name/circle-phone/circle-add) works, status message shown; existing local-only disclosure text intact (regression OK). NEW invite link (circle-invite-{id}) appears per-contact when flag true, tapping it calls POST /trusted-circle/invite and shows inline confirmation 'Invitation sent -- {name} will see it in their DHARA app.' (matched_existing_user=true case, since phone 9000000002 = recipient test user) -- confirmed via UI text.",
+    "women/head-out.tsx: screen loads without crash with both flags true and DESTINATION_PICKER still false (untouched/invisible, confirmed plain TextInput mode active, no DestinationPicker component rendered). Trusted-circle checklist correctly shows empty state (no accepted links yet for this account via the UI-driven invite, since acceptance requires the invite to actually be accepted by recipient -- acceptable empty state, no crash). Starting a journey (destination + 30 min duration) transitions to active card showing countdown timer, 'Starting location tracking...' GPS status row, Notify your guardian button. Tapping 'I'm home safely' correctly ends session and returns to the initial Head out form -- full regression of existing GO1B/S3 journey flow confirmed working."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_trusted_circle_recipient_p1p4.py",
+    "/app/test_reports/pytest/pytest_tc_recipient.xml"
+  ],
+  "action_items": [
+    "IMPORTANT: /app/frontend/.env currently has EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT=true and EXPO_PUBLIC_GO1B_GPS=true (flipped for this test pass per instructions). Main agent MUST revert both to 'false' before considering this production-safe, then restart expo.",
+    "Investigate the consent-screen re-tap bug: when a never-consented account logs in and is redirected back to the consent screen post-login, taps on age radio/checkboxes do not register (Continue stays disabled). This blocked UI testing of /alerts and /invite/[id] as the recipient (fir-test-user2) via Playwright, though backend API access for that account was separately confirmed working via pytest (listAlerts, listInvitations, unread-count all return 200 with correct data for that account).",
+    "Because of the above, /invite/[id] accept/decline/mute/leave UI and /alerts/[id] detail screen UI (call/message/acknowledge buttons, location display) could NOT be interactively tested this pass -- these still need a UI retest once the consent-redirect issue is resolved or by seeding that account's consent flag directly in DB so UI testing can proceed without hitting the loop.",
+    "P4 push delivery is expected to be FAILED/inert per problem statement (no EMERGENT_PUSH_KEY/device token in this dev env) -- not re-verified further, consistent with expectations."
+  ],
+  "critical_code_review_comments": [
+    "PhotoPicker.tsx and edit-profile.tsx are clean, well-commented, and correctly handle loading/error states (uploading/removing spinners, retry/cancel paths).",
+    "trustedCircle/api.ts correctly scopes all new endpoints under /api/ and uses Authorization headers consistently; no hardcoded URLs.",
+    "home.tsx and trusted-circle.tsx correctly gate all new UI behind process.env.EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT === 'true' checks -- confirmed bell/invite-link only appear when flag true (did not attempt to verify flag=false state in this pass since main agent explicitly requested flag=true for full testing; recommend a quick main-agent self-check with flag reverted to confirm invisibility).",
+    "head-out.tsx correctly nests the Trusted-Circle checklist render behind BOTH TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && recipients.length > 0 -- confirmed DESTINATION_PICKER flag remains fully independent and untouched (still renders plain TextInput)."
+  ],
+  "updated_files": [
+    "/app/frontend/.env (EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT and EXPO_PUBLIC_GO1B_GPS set to true for this test pass -- NEEDS REVERT to false by main agent)",
+    "/app/backend/tests/test_trusted_circle_recipient_p1p4.py (new smoke test file)"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 smoke tests passed)",
+    "frontend": "~90% (all testable P1-P4 flows passed for owner account; recipient-account UI flows for /invite and /alerts blocked by an unrelated pre-existing consent-screen bug, not a P1-P4 regression)"
+  },
+  "seed_data_creation": "Added one trusted-circle contact ('Fir Recipient', phone 9000000002) to voicetest2026's local circle via UI, which triggered a real invite to fir-test-user2 (matched_existing_user). Also set voicetest2026's name to 'QA Renamed' via Edit Profile UI test, and uploaded/removed a test profile photo (red 200x200 jpg) via UI. None of this is harmful test data and can remain.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Owner account (voicetest2026) completes full consent+login flow reliably via UI automation. Recipient account (fir-test-user2) intermittently loops at the consent screen after login (Continue stays disabled after re-tapping checkboxes) -- reproduced 3/3 times when attempted after a prior login. If retesting /invite/[id] or /alerts/[id] UI as recipient, either resolve that consent bug first or seed consent_given=true directly in the DB for fir-test-user2 to bypass it. Backend API access for that account (list alerts/invitations/unread-count) is already confirmed working via pytest in /app/backend/tests/test_trusted_circle_recipient_p1p4.py. REMEMBER: EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT and EXPO_PUBLIC_GO1B_GPS are currently 'true' in frontend/.env -- must be reverted to 'false' before production.",
+  "rca_of_issue": "Consent-redirect bug: root cause not fully diagnosed (out of scope for this testing pass, and not in files_of_reference). Observable symptom: aria-disabled stays true on consent-continue-button even after programmatically clicking all 3 required controls (age radio + 2 checkboxes) on the SECOND occurrence of the consent screen within the same browser session (post-login redirect). The FIRST occurrence (pre-login, fresh session) works correctly for both test accounts. Suggests the consent screen's local checkbox/radio state may not be re-initializing cleanly when the component remounts after a login-triggered redirect, or an event handler is stale/bound to an old render. Recommend main agent inspect the consent screen's state management (useState initial values tied to a prop that may be stale on remount) and add a regression test for 'login with unconsented existing account' as a dedicated test case."
+}

@@ -11,12 +11,14 @@ import { DestinationPicker, type DestinationValue } from '@/src/women/Destinatio
 import { useAuth } from '@/src/auth';
 import { useJourneyGPS } from '@/src/hooks/useJourneyGPS';
 import { API_BASE } from '@/src/apiBase';
+import { listAcceptedRecipients, type InviteLink } from '@/src/trustedCircle/api';
 
 const c = theme.colors;
 const GUARDIAN_SHARE_ENABLED   = process.env.EXPO_PUBLIC_GUARDIAN_SHARE === 'true';
 const DESTINATION_PICKER_ENABLED = process.env.EXPO_PUBLIC_DESTINATION_PICKER === 'true';
 // GO1B: Live GPS tracking — default OFF; guardian status page shows last known area
 const GO1B_GPS_ENABLED = process.env.EXPO_PUBLIC_GO1B_GPS === 'true';
+const TRUSTED_CIRCLE_RECIPIENT = process.env.EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT === 'true';
 
 const DURATIONS = [
   { label: '30 min', mins: 30 },
@@ -60,6 +62,9 @@ export default function HeadOut() {
   const [loading, setLoading] = useState(true);
   // GO1B: journey token created when session starts (so GPS can start immediately)
   const [journeyToken, setJourneyToken] = useState<string | null>(null);
+  // Part B/P4: accepted Trusted Circle recipients eligible to be alerted for THIS journey
+  const [recipients, setRecipients] = useState<InviteLink[]>([]);
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Load persisted session + circle on mount
@@ -96,6 +101,12 @@ export default function HeadOut() {
     return () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
   }, [session]);
 
+  useEffect(() => {
+    if (TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && authToken) {
+      listAcceptedRecipients(authToken).then(setRecipients).catch(() => {});
+    }
+  }, [authToken]);
+
   const startSession = useCallback(async () => {
     // Resolve destination label from whichever input mode is active
     const label = DESTINATION_PICKER_ENABLED ? destValue.label.trim() : destination.trim();
@@ -118,22 +129,49 @@ export default function HeadOut() {
       fetch(`${API_BASE}/api/journey/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ destination: label, duration_mins: selectedMins }),
+        body: JSON.stringify({ destination: label, duration_mins: selectedMins, recipient_link_ids: selectedRecipients }),
       })
         .then(r => r.ok ? r.json() : null)
         .then(data => { if (data?.token) setJourneyToken(data.token); })
         .catch(() => {});   // non-fatal — GPS is best-effort
     }
-  }, [destination, destValue, selectedMins, authToken]);
+  }, [destination, destValue, selectedMins, authToken, selectedRecipients]);
 
   const endSession = useCallback(async () => {
+    // Part B/P4: tell linked recipients this journey completed safely — best-effort
+    if (GO1B_GPS_ENABLED && authToken && journeyToken) {
+      fetch(`${API_BASE}/api/journey/status/${journeyToken}/safe`, {
+        method: 'PATCH', headers: { Authorization: `Bearer ${authToken}` },
+      }).catch(() => {});
+    }
     await AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
     setSession(null);
     setExpired(false);
     setDestination('');
     setDestValue({ label: '', radiusMeters: 200 });
     setJourneyToken(null);
-  }, []);
+    setSelectedRecipients([]);
+  }, [authToken, journeyToken]);
+
+  // Part B/P4: report a missed check-in to the backend exactly once per expiry
+  const missedReportedRef = useRef(false);
+  useEffect(() => {
+    if (expired && GO1B_GPS_ENABLED && authToken && journeyToken && !missedReportedRef.current) {
+      missedReportedRef.current = true;
+      fetch(`${API_BASE}/api/journey/status/${journeyToken}/missed-checkin`, {
+        method: 'POST', headers: { Authorization: `Bearer ${authToken}` },
+      }).catch(() => {});
+    }
+    if (!expired) missedReportedRef.current = false;
+  }, [expired, authToken, journeyToken]);
+
+  const requestHelp = useCallback(() => {
+    if (GO1B_GPS_ENABLED && authToken && journeyToken) {
+      fetch(`${API_BASE}/api/journey/status/${journeyToken}/help`, {
+        method: 'POST', headers: { Authorization: `Bearer ${authToken}` },
+      }).catch(() => {});
+    }
+  }, [authToken, journeyToken]);
 
   // GO1B: GPS tracking — active only while session is running and flag is on
   const gps = useJourneyGPS(journeyToken, GO1B_GPS_ENABLED && !!session && !expired);
@@ -210,6 +248,28 @@ export default function HeadOut() {
               </Pressable>
             ))}
           </View>
+
+          {TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && recipients.length > 0 && (
+            <>
+              <Text style={styles.fieldLabel}>Alert these Trusted Circle members for this journey</Text>
+              {recipients.map(r => {
+                const sel = selectedRecipients.includes(r.id);
+                return (
+                  <Pressable
+                    key={r.id}
+                    testID={`headout-recipient-${r.id}`}
+                    style={[styles.recipientRow, sel && styles.recipientRowActive]}
+                    onPress={() => setSelectedRecipients(cur => sel ? cur.filter(x => x !== r.id) : [...cur, r.id])}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: sel }}
+                  >
+                    <Ionicons name={sel ? 'checkbox' : 'square-outline'} size={20} color={sel ? c.navy : c.muted} />
+                    <Text style={styles.recipientTxt}>{r.contact_name}</Text>
+                  </Pressable>
+                );
+              })}
+            </>
+          )}
 
           <Pressable
             testID="headout-start"
@@ -293,6 +353,18 @@ export default function HeadOut() {
                   </Text>
                 </View>
               )}
+              {TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && journeyToken && selectedRecipients.length > 0 && (
+                <Pressable
+                  testID="headout-need-help"
+                  style={[styles.button, styles.alertButton, { marginTop: 10 }]}
+                  onPress={requestHelp}
+                  accessibilityRole="button"
+                  accessibilityLabel="Request help from your Trusted Circle"
+                >
+                  <Ionicons name="warning-outline" size={18} color="#fff" />
+                  <Text style={styles.buttonText}>Need help</Text>
+                </Pressable>
+              )}
             </View>
           ) : (
             <View style={[styles.activeCard, styles.expiredCard]} testID="headout-expired-card">
@@ -366,6 +438,9 @@ const styles = StyleSheet.create({
     borderColor: c.goldSoft, padding: 16, gap: 10,
   },
   warningRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  recipientRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 8, minHeight: 44 },
+  recipientRowActive: { borderColor: c.navy, backgroundColor: '#EEF2F7' },
+  recipientTxt: { fontFamily: theme.fonts.bodyMedium, fontSize: 14, color: c.ink },
   warningTxt: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, lineHeight: 19, flex: 1 },
   linkTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.navy },
   activeCard: {

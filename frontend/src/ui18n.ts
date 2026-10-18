@@ -211,6 +211,11 @@ export const UI: Record<string, L> = {
   'me.saved':        { en: 'Saved answers', hi: 'सहेजे उत्तर', mr: 'जतन उत्तरे', ta: 'சேமித்த பதில்கள்' },
   'me.advocate':     { en: 'Advocates', hi: 'अधिवक्ता', mr: 'वकील', ta: 'வழக்கறிஞர்' },
   'me.settings':     { en: 'Settings', hi: 'सेटिंग्स', mr: 'सेटिंग्ज', ta: 'அமைப்புகள்' },
+  'me.editProfile':  { en: 'Edit profile', hi: 'प्रोफ़ाइल संपादित करें', mr: 'प्रोफाइल संपादित करा', ta: 'சுயவிவரத்தைத் திருத்து' },
+  'me.trustedCircle':{ en: 'Trusted Circle', hi: 'ट्रस्टेड सर्कल', mr: 'ट्रस्टेड सर्कल', ta: 'நம்பகமான வட்டம்' },
+  'me.notifications':{ en: 'Notifications', hi: 'सूचनाएं', mr: 'सूचना', ta: 'அறிவிப்புகள்' },
+  'me.privacy':      { en: 'Privacy & Security', hi: 'गोपनीयता और सुरक्षा', mr: 'गोपनीयता आणि सुरक्षा', ta: 'தனியுரிமை & பாதுகாப்பு' },
+  'me.help':         { en: 'Help & Support', hi: 'सहायता और समर्थन', mr: 'मदत आणि समर्थन', ta: 'உதவி & ஆதரவு' },
   'me.signout':      { en: 'Sign out', hi: 'साइन आउट', mr: 'साइन आउट', ta: 'வெளியேறு' },
 };
 

@@ -13,8 +13,8 @@
       "bundleIdentifier": "com.msafesolutions.legalaid",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Speak questions or save local voice evidence",
-        "NSCameraUsageDescription": "Attach photos to your missing-person complaint",
-        "NSPhotoLibraryUsageDescription": "Choose photos for your missing-person complaint",
+        "NSCameraUsageDescription": "Take your profile photo or complaint evidence",
+        "NSPhotoLibraryUsageDescription": "Choose a profile photo or complaint evidence",
         "NSLocationWhenInUseUsageDescription": "Share your area with your guardian during Head Out",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Keep guardian updated even when screen is off"
       }

@@ -216,6 +216,9 @@ from api.evidence_vault_router import router as evidence_vault_router, cleanup_s
 from api.scan_router     import router as scan_router
 from api.safety_router   import router as safety_router   # GO1A — saved places
 from api.journey_router  import router as journey_router  # S3 Phase 2 — guardian status
+from api.profile_router  import router as profile_router         # P1 — profile photo
+from api.trusted_circle_router import router as trusted_circle_router  # P3 — recipient invitations
+from api.alerts_router   import router as alerts_router           # P3/P4 — safety alerts inbox
 api.include_router(auth_router)
 api.include_router(chat_router)
 api.include_router(fir_router)
@@ -226,6 +229,9 @@ api.include_router(safety_router)   # GO1A — saved places
 api.include_router(journey_router)  # S3 Phase 2 — guardian status
 api.include_router(evidence_vault_router)
 api.include_router(scan_router)
+api.include_router(profile_router)
+api.include_router(trusted_circle_router)
+api.include_router(alerts_router)
 
 # ---------------------------------------------------------------------------
 # Build-only fix (live prod bug, 2025-06 — stale-client JSON error):
@@ -1511,6 +1517,13 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def _startup():
+    # Object Storage (profile photos) — best-effort warm-up, never blocks startup
+    try:
+        from services.object_storage import init_storage as _init_object_storage
+        await _init_object_storage()
+    except Exception as e:
+        logger.warning(f"[startup] object storage init warning: {e}")
+
     # Court Data Engine — 24h CNR lookup cache TTL index (idempotent)
     try:
         from services.court_data import ensure_cache_indexes as _ensure_court_cache_indexes

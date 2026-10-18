@@ -98,6 +98,9 @@ def public_user(u: dict) -> dict:
         "terms_accepted": u.get("terms_accepted", False),
         "terms_version": u.get("terms_version"),
         "terms_accepted_at": u.get("terms_accepted_at"),
+        # Profile photo (P1) — additive; never embeds image bytes in the user doc.
+        "photo_url": (f"/api/profile/photo/{u['id']}?v={u.get('photo_version')}" if u.get("photo_path") else None),
+        "photo_visibility": u.get("photo_visibility", "only_me"),
     }
 
 

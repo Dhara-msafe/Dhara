@@ -7,11 +7,17 @@ import { theme } from '@/src/theme';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { getCircle, saveCircle, type Contact } from '@/src/women/api';
 import { openPhone } from '@/src/women/helpActions';
+import { useAuth } from '@/src/auth';
+import { inviteContact } from '@/src/trustedCircle/api';
+
+const TRUSTED_CIRCLE_RECIPIENT = process.env.EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT === 'true';
 
 const c = theme.colors;
 const TC_V2 = process.env.EXPO_PUBLIC_TRUSTED_CIRCLE_V2 === 'true';
 
 export default function TrustedCircle() {
+  const { token: authToken } = useAuth();
+  const [invited, setInvited] = useState<Record<string, string>>({});
   const [list, setList] = useState<Contact[]>([]);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -77,6 +83,30 @@ export default function TrustedCircle() {
           </View>
         ))}
 
+        {TRUSTED_CIRCLE_RECIPIENT && list.map(ct => (
+          <View key={`invite-${ct.id}`} style={styles.inviteRow}>
+            {invited[ct.id] ? (
+              <Text style={styles.inviteSentTxt}>{invited[ct.id]}</Text>
+            ) : (
+              <Pressable
+                testID={`circle-invite-${ct.id}`}
+                disabled={!authToken}
+                onPress={async () => {
+                  if (!authToken) return;
+                  try {
+                    const r = await inviteContact(authToken, { name: ct.name, phone: ct.phone });
+                    setInvited(cur => ({ ...cur, [ct.id]: r.matched_existing_user ? `Invitation sent — ${ct.name} will see it in their DHARA app.` : `Invitation saved — we'll link it automatically if ${ct.name} joins DHARA.` }));
+                  } catch {
+                    setInvited(cur => ({ ...cur, [ct.id]: 'Could not send invitation. Try again.' }));
+                  }
+                }}
+              >
+                <Text style={styles.inviteLinkTxt}>Invite {ct.name} to see your Safety Alerts in DHARA →</Text>
+              </Pressable>
+            )}
+          </View>
+        ))}
+
         {list.length < 3 && (
           <View style={styles.addCard}>
             <Text style={styles.addTitle}>Add a person</Text>
@@ -110,4 +140,7 @@ const styles = StyleSheet.create({
   addBtn: { backgroundColor: c.navy, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   addBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 16 },
   full: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, marginTop: 8 },
+  inviteRow: { marginTop: -6, marginBottom: 10, paddingLeft: 56 },
+  inviteLinkTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12.5, color: c.navy },
+  inviteSentTxt: { fontFamily: theme.fonts.body, fontSize: 12.5, color: c.muted },
 });

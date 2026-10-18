@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,21 +8,31 @@ import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
 import { SOSButton } from '@/src/components/SOSButton';
 import { INTERESTS, useUserProfile, type ProfileInterest } from '@/src/userProfile';
+import { getPhotoViewToken } from '@/src/trustedCircle/api';
+import { API_BASE } from '@/src/apiBase';
 
 const c = theme.colors;
 
 export default function Me() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, language, logout } = useAuth();
+  const { user, token, language, logout } = useAuth();
   const lang = language.code;
   const name = user?.name || tr('me.guest', lang);
   const { interests, saveInterests, loaded } = useUserProfile();
   const [selected, setSelected] = useState<ProfileInterest[]>([]);
+  const [viewToken, setViewToken] = useState<string | null>(null);
   useEffect(() => { if (loaded) setSelected(interests); }, [loaded, interests]);
+  useEffect(() => { if (token && user?.photo_url) getPhotoViewToken(token).then(setViewToken); }, [token, user?.photo_url]);
+  const photoSrc = user?.photo_url && viewToken ? `${API_BASE}${user.photo_url}&token=${viewToken}` : null;
 
   const rows: { icon: any; key: string; value?: string; route?: string; action?: () => void }[] = [
+    { icon: 'person-outline', key: 'me.editProfile', route: '/edit-profile' },
+    { icon: 'people-outline', key: 'me.trustedCircle', route: '/women/trusted-circle' },
+    { icon: 'notifications-outline', key: 'me.notifications', route: '/(tabs)/settings' },
+    { icon: 'shield-checkmark-outline', key: 'me.privacy', route: '/settings/data-privacy' },
     { icon: 'globe-outline', key: 'me.language', value: language.native, route: '/language' },
+    { icon: 'help-buoy-outline', key: 'me.help', route: '/(tabs)/settings' },
     { icon: 'location-outline', key: 'me.state', value: user?.state_name || '—', route: '/state' },
     { icon: 'chatbubbles-outline', key: 'me.history', route: '/(tabs)/history' },
     { icon: 'bookmark-outline', key: 'me.saved', route: '/(tabs)/saved' },
@@ -36,7 +46,13 @@ export default function Me() {
         <Text style={styles.title}>{tr('me.title', lang)}</Text>
 
         <View style={styles.profile}>
-          <View style={styles.avatar}><Text style={styles.avatarTxt}>{name.charAt(0).toUpperCase()}</Text></View>
+          <Pressable onPress={() => router.push('/edit-profile')} testID="me-avatar">
+            {photoSrc ? (
+              <Image source={{ uri: photoSrc }} style={styles.avatarImg} />
+            ) : (
+              <View style={styles.avatar}><Text style={styles.avatarTxt}>{name.charAt(0).toUpperCase()}</Text></View>
+            )}
+          </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={styles.name}>{name}</Text>
             <Text style={styles.email}>{user?.email || tr('me.guest', lang)}</Text>
@@ -147,6 +163,7 @@ const styles = StyleSheet.create({
   title: { fontFamily: theme.fonts.displayBold, fontSize: 28, color: c.ink, marginBottom: 18 },
   profile: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: c.navy, borderRadius: 18, padding: 18 },
   avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: c.gold, alignItems: 'center', justifyContent: 'center' },
+  avatarImg: { width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: c.gold },
   avatarTxt: { fontFamily: theme.fonts.displayBold, fontSize: 26, color: c.navy },
   name: { fontFamily: theme.fonts.displayBold, fontSize: 20, color: '#fff' },
   email: { fontFamily: theme.fonts.body, fontSize: 13, color: c.onNavyMuted, marginTop: 2 },

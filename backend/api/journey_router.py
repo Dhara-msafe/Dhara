@@ -26,7 +26,11 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
+import logging
+logger = logging.getLogger("journey_router")
+
 from dependencies import db, current_user
+from api.alerts_router import create_alert_and_notify
 
 router = APIRouter()
 
@@ -40,11 +44,50 @@ def _new_token() -> str:
     return "".join(secrets.choice(_TOKEN_CHARS) for _ in range(_TOKEN_LEN))
 
 
+async def _notify_linked_recipients(user: dict, rec: dict, type_: str, extra_payload: Optional[dict] = None) -> None:
+    """Fan out a safety alert to every ACCEPTED trusted-circle link selected
+    for this journey (rec['recipient_link_ids']). Best-effort — a push/alert
+    failure must never break the journey action that triggered it."""
+    link_ids = rec.get("recipient_link_ids") or []
+    if not link_ids:
+        return
+    payload = {
+        "destination": rec.get("destination"),
+        "journey_status": rec.get("status"),
+        "expected_checkin_at": rec.get("expected_checkin_at"),
+    }
+    last_loc = rec.get("last_location")
+    if last_loc:
+        try:
+            age_min = int((datetime.now(timezone.utc) - datetime.fromisoformat(last_loc["updated_at"])).total_seconds() / 60)
+        except Exception:
+            age_min = None
+        payload["last_location"] = {
+            "area": last_loc.get("area"), "accuracy": last_loc.get("accuracy"),
+            "updated_at": last_loc.get("updated_at"), "age_minutes": age_min,
+        }
+    if extra_payload:
+        payload.update(extra_payload)
+    for link_id in link_ids:
+        try:
+            link = await db.trusted_circle_links.find_one({"id": link_id, "owner_id": user["id"]})
+            if not link:
+                continue
+            await create_alert_and_notify(
+                type_=type_, owner_id=user["id"], owner_name=user.get("name") or "A DHARA user",
+                link=link, payload=payload, journey_token=rec["token"],
+                idempotency_key=f"{rec['token']}:{type_}:{link_id}" if type_ != "journey_status" else None,
+            )
+        except Exception as e:
+            logger.warning("[journey] alert fan-out failed for link %s: %s", link_id, e)
+
+
 # ── Models ────────────────────────────────────────────────────────────────────
 
 class JourneyIn(BaseModel):
     destination: str = Field(..., min_length=1, max_length=_MAX_LABEL)
     duration_mins: int = Field(..., ge=1, le=1440)   # 1 min – 24 h
+    recipient_link_ids: list[str] = Field(default_factory=list)   # accepted trusted_circle_links chosen for THIS journey
 
 
 class LocationIn(BaseModel):
@@ -74,8 +117,10 @@ async def create_journey(body: JourneyIn, user: dict = Depends(current_user)):
         "safe_at":             None,
         "created_at":          now.isoformat(),
         "expires_at":          (now + timedelta(hours=_TTL_HOURS)).isoformat(),
+        "recipient_link_ids":  body.recipient_link_ids,
     }
     await db.safety_journeys.insert_one(doc)
+    await _notify_linked_recipients(user, doc, "journey_started")
     return {
         "token":      token,
         "status_url": f"/api/journey/status/{token}",
@@ -96,7 +141,40 @@ async def mark_safe(token: str, user: dict = Depends(current_user)):
         {"token": token},
         {"$set": {"status": "safe", "safe_at": now.isoformat()}},
     )
+    rec["status"] = "safe"
+    rec["safe_at"] = now.isoformat()
+    await _notify_linked_recipients(user, rec, "journey_completed")
     return {"ok": True, "safe_at": now.isoformat()}
+
+
+@router.post("/journey/status/{token}/missed-checkin", status_code=200)
+async def report_missed_checkin(token: str, user: dict = Depends(current_user)):
+    """Client calls this when its own local check-in timer expires with no
+    response. Nothing server-side watches a clock for this — it stays
+    exactly as client-driven / foreground-only as the rest of Head Out."""
+    rec = await db.safety_journeys.find_one({"token": token})
+    if not rec:
+        raise HTTPException(404, "Journey not found")
+    if rec["user_id"] != user["id"]:
+        raise HTTPException(403, "Not your journey")
+    if rec.get("status") == "safe":
+        return {"ok": True, "skipped": "journey already completed"}
+    await _notify_linked_recipients(user, rec, "missed_checkin")
+    return {"ok": True}
+
+
+@router.post("/journey/status/{token}/help", status_code=200)
+async def report_help_requested(token: str, user: dict = Depends(current_user)):
+    """Explicit 'Need help' tap during an active journey — distinct from a
+    missed check-in: the student actively asked, rather than just being
+    unresponsive."""
+    rec = await db.safety_journeys.find_one({"token": token})
+    if not rec:
+        raise HTTPException(404, "Journey not found")
+    if rec["user_id"] != user["id"]:
+        raise HTTPException(403, "Not your journey")
+    await _notify_linked_recipients(user, rec, "help_requested")
+    return {"ok": True}
 
 
 @router.patch("/journey/status/{token}/location", status_code=200)

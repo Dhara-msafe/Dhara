@@ -2,23 +2,32 @@ import { View, Text, ScrollView, Pressable, StyleSheet, Image, useWindowDimensio
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useState, useEffect, useCallback } from 'react';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
 import { useComplaints, isDraftReady, complaintTitle, complaintProgress } from '@/src/home/complaints';
 import { useUserProfile } from '@/src/userProfile';
+import { unreadCount } from '@/src/trustedCircle/api';
 
 const c = theme.colors;
+const TRUSTED_CIRCLE_RECIPIENT = process.env.EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT === 'true';
 
 export default function Home() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, language } = useAuth();
+  const { user, language, token } = useAuth();
   const lang = language.code;
   const name = user?.name?.split(' ')[0] || tr('me.guest', lang);
   const place = user?.state_name || 'India';
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === 'web' && width >= 768;
+  const [alertCount, setAlertCount] = useState(0);
+
+  const refreshAlertCount = useCallback(() => {
+    if (TRUSTED_CIRCLE_RECIPIENT && token) unreadCount(token).then(setAlertCount);
+  }, [token]);
+  useEffect(() => { refreshAlertCount(); }, [refreshAlertCount]);
 
   // Real case data — same source as the old Complaints screen
   // (GET /api/fir/sessions/:user_id) — replaces the hardcoded "File #2" sample.
@@ -94,6 +103,14 @@ export default function Home() {
               </View>
             </View>
             <View style={styles.headerActions}>
+              {TRUSTED_CIRCLE_RECIPIENT && (
+                <Pressable style={styles.bellBtn} onPress={() => router.push('/alerts' as any)} testID="home-alerts-bell">
+                  <Ionicons name="notifications-outline" size={20} color="#fff" />
+                  {alertCount > 0 && (
+                    <View style={styles.bellBadge}><Text style={styles.bellBadgeTxt}>{alertCount > 9 ? '9+' : alertCount}</Text></View>
+                  )}
+                </Pressable>
+              )}
               <Pressable style={styles.langPill} onPress={() => router.push('/language')}>
                 <Ionicons name="globe-outline" size={14} color="#fff" />
                 <Text style={styles.langTxt} numberOfLines={1}>{language.native}</Text>
@@ -336,6 +353,9 @@ const styles = StyleSheet.create({
   brand: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 24, letterSpacing: 1 },
   tagline: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 11 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginRight: 72 },
+  bellBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
+  bellBadge: { position: 'absolute', top: -2, right: -2, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: c.error, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
+  bellBadgeTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 9 },
   langPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 12, height: 40, borderRadius: 999, maxWidth: 92 },
   langTxt: { color: '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 13 },
   greeting: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 26, marginTop: 18 },

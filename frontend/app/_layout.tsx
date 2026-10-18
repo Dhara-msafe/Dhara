@@ -153,6 +153,26 @@ function AnalyticsIdentitySync() {
   return null;
 }
 
+const TRUSTED_CIRCLE_RECIPIENT = process.env.EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT === 'true';
+
+/** Part P4 — routes a tapped push notification's `action_url`
+ * (e.g. /alerts/{id} or /invite/{id}) into the app. Inert while the
+ * Trusted Circle Recipient flag is off — no behavior change otherwise. */
+function NotificationTapBridge() {
+  const router = useRouter();
+  useEffect(() => {
+    if (!TRUSTED_CIRCLE_RECIPIENT) return;
+    let remove: (() => void) | undefined;
+    import("@/src/push").then(({ addNotificationTapListener }) => {
+      remove = addNotificationTapListener((actionUrl) => {
+        if (actionUrl) router.push(actionUrl as any);
+      });
+    }).catch(() => {});
+    return () => remove?.();
+  }, [router]);
+  return null;
+}
+
 export default function RootLayout() {
   const [iconsLoaded, iconError] = useIconFonts();
   const [brandLoaded, brandError] = useAppFonts();
@@ -198,6 +218,7 @@ export default function RootLayout() {
               <AnalyticsIdentitySync />
               <AnalyticsScreenTracker />
               <ConsentGuard />
+              <NotificationTapBridge />
               <LanguageOnboardModal />
               <StatusBar style="dark" />
               {isWideWeb ? (
