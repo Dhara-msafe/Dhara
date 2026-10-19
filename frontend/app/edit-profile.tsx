@@ -46,7 +46,7 @@ export default function EditProfileScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={['bottom']}>
       <ScreenHeader title="Edit profile" />
       <ScrollView contentContainerStyle={styles.body}>
-        <Pressable onPress={() => setPickerOpen(true)} style={styles.avatarWrap} testID="edit-profile-avatar">
+        <Pressable onPress={() => setPickerOpen(true)} style={styles.avatarWrap} testID="edit-profile-avatar" accessibilityRole="button" accessibilityLabel="Change profile photo">
           {photoSrc ? (
             <Image source={{ uri: photoSrc }} style={styles.avatarImg} />
           ) : (
@@ -56,7 +56,7 @@ export default function EditProfileScreen() {
           )}
           <View style={styles.cameraBadge}><Ionicons name="camera" size={14} color="#fff" /></View>
         </Pressable>
-        <Text style={styles.changeTxt}>Change photo</Text>
+        <Text style={styles.changeTxt} onPress={() => setPickerOpen(true)} accessibilityRole="button">Change photo</Text>
 
         <View style={styles.field}>
           <Text style={styles.label}>Display name</Text>
@@ -65,11 +65,6 @@ export default function EditProfileScreen() {
         <View style={styles.field}>
           <Text style={styles.label}>Email</Text>
           <Text style={styles.readOnly}>{user?.email || '—'}</Text>
-        </View>
-
-        <View style={styles.visBox}>
-          <Text style={styles.label}>Who can see your profile photo?</Text>
-          <Text style={styles.hint}>Manage this from Me → Privacy & Security → Profile Photo Visibility.</Text>
         </View>
 
         <Pressable style={styles.saveBtn} onPress={onSave} disabled={saving} testID="edit-profile-save">

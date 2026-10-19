@@ -59,6 +59,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [language, setLanguageState] = useState<Language>(DEFAULT_LANG);
+  // Keep <html lang> in step with the selected language so screen readers pronounce web content correctly.
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined' && language?.code) {
+      document.documentElement.lang = language.code;
+    }
+  }, [language?.code]);
   const [autoSpeak, setAutoSpeakState] = useState<boolean>(true);
   const [ttsVolume, setTtsVolumeState] = useState<number>(1.0);
   const [ttsVoiceMode, setTtsVoiceModeState] = useState<TtsVoiceMode>('cloud');

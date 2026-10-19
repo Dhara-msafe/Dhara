@@ -29,7 +29,7 @@ export default function Me() {
   const rows: { icon: any; key: string; value?: string; route?: string; action?: () => void }[] = [
     { icon: 'person-outline', key: 'me.editProfile', route: '/edit-profile' },
     { icon: 'people-outline', key: 'me.trustedCircle', route: '/women/trusted-circle' },
-    { icon: 'notifications-outline', key: 'me.notifications', route: '/(tabs)/settings' },
+    { icon: 'notifications-outline', key: 'me.notifications', route: '/alerts' },
     { icon: 'shield-checkmark-outline', key: 'me.privacy', route: '/settings/data-privacy' },
     { icon: 'globe-outline', key: 'me.language', value: language.native, route: '/language' },
     { icon: 'help-buoy-outline', key: 'me.help', route: '/(tabs)/settings' },

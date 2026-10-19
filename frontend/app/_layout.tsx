@@ -74,7 +74,7 @@ function ConsentGuard() {
   const segments = useSegments();
 
   useEffect(() => {
-    if (loading || !segments.length || segments[0] === 'language' || segments[0] === 'consent') return;
+    if (loading || !segments.length || segments[0] === 'language' || segments[0] === 'consent' || segments[0] === 'emergency') return;
     let active = true;
     void (async () => {
       const stored = await AsyncStorage.getItem(consentVersionKey(user?.id)).catch(() => null);

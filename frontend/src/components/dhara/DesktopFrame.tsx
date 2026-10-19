@@ -59,7 +59,7 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
   const [q, setQ] = useState('');
 
   const Item = ({ it }: { it: NavItem }) => (
-    <Pressable style={[styles.navItem, active(it.match) && styles.navItemActive]} onPress={() => router.push(it.route as any)}>
+    <Pressable accessibilityRole="button" style={[styles.navItem, active(it.match) && styles.navItemActive]} onPress={() => router.push(it.route as any)}>
       <Ionicons name={it.icon} size={20} color={active(it.match) ? c.navy : c.onNavyMuted} />
       <Text style={[styles.navTxt, active(it.match) && styles.navTxtActive]}>{it.label}</Text>
     </Pressable>
@@ -86,25 +86,25 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
           />
         </View>
         <View style={styles.topRight}>
-          <Pressable style={styles.topLink} onPress={() => router.push('/(tabs)/advocate')}>
+          <Pressable accessibilityRole="button" style={styles.topLink} onPress={() => router.push('/(tabs)/advocate')}>
             <Text style={styles.topLinkTxt}>For advocates</Text>
           </Pressable>
-          <Pressable style={styles.langPill} onPress={() => router.push('/language')}>
+          <Pressable accessibilityRole="button" style={styles.langPill} onPress={() => router.push('/language')}>
             <Ionicons name="globe-outline" size={14} color="#fff" />
             <Text style={styles.langTxt}>{language.native}</Text>
           </Pressable>
           {user ? (
-            <Pressable style={styles.userPill} onPress={() => router.push('/(tabs)/me')}>
+            <Pressable accessibilityRole="button" style={styles.userPill} onPress={() => router.push('/(tabs)/me')}>
               <View style={styles.userAvatar}><Text style={styles.userAvatarTxt}>{(user.name || 'U').charAt(0).toUpperCase()}</Text></View>
               <Text style={styles.userTxt} numberOfLines={1}>{(user.name || 'Me').split(' ')[0]}</Text>
             </Pressable>
           ) : (
-            <Pressable style={styles.signInTop} onPress={() => router.push('/login')}>
+            <Pressable accessibilityRole="button" style={styles.signInTop} onPress={() => router.push('/login')}>
               <Text style={styles.signInTopTxt}>Sign in</Text>
             </Pressable>
           )}
           {!isHome && (
-          <Pressable style={styles.sosTop} onPress={() => router.push('/emergency')}>
+          <Pressable accessibilityRole="button" style={styles.sosTop} onPress={() => router.push('/emergency')}>
             <Ionicons name="warning-outline" size={16} color="#fff" />
             <Text style={styles.sosTopTxt}>SOS</Text>
           </Pressable>
@@ -115,7 +115,7 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
       <View style={styles.row}>
       {/* ── Sidebar ── */}
       <View style={styles.sidebar}>
-        <Pressable style={styles.brand} onPress={() => router.push('/(tabs)/home')}>
+        <Pressable accessibilityRole="button" style={styles.brand} onPress={() => router.push('/(tabs)/home')}>
           <View style={styles.logo}><Image source={require('../../../assets/images/dhara_icon.png')} style={styles.logoImg} resizeMode="cover" /></View>
           <View>
             <Text style={styles.brandTxt}>DHARA</Text>
@@ -128,7 +128,7 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
           {journeys.map(it => <Item key={it.match} it={it} />)}
         </ScrollView>
         {!isHome && (
-        <Pressable style={styles.sos} onPress={() => router.push('/emergency')}>
+        <Pressable accessibilityRole="button" style={styles.sos} onPress={() => router.push('/emergency')}>
           <Ionicons name="warning-outline" size={18} color="#fff" />
           <Text style={styles.sosTxt}>SOS · {tr('all.emergency', lang)}</Text>
         </Pressable>
@@ -148,13 +148,13 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
             <>
               <Text style={styles.railTitle} numberOfLines={2}>{complaintTitle(railCase)}</Text>
               <Text style={styles.railBody}>{isDraftReady(railCase) ? 'Your complaint draft is ready to review.' : railProgress.label}</Text>
-              <Pressable style={styles.railBtn} onPress={openRailCase}><Text style={styles.railBtnTxt}>{isDraftReady(railCase) ? 'View draft' : 'Continue'}</Text></Pressable>
+              <Pressable accessibilityRole="button" style={styles.railBtn} onPress={openRailCase}><Text style={styles.railBtnTxt}>{isDraftReady(railCase) ? 'View draft' : 'Continue'}</Text></Pressable>
             </>
           ) : (
             <>
               <Text style={styles.railTitle}>Start your first case</Text>
               <Text style={styles.railBody}>Tell DHARA what happened — we’ll help you draft a complaint, step by step.</Text>
-              <Pressable style={styles.railBtn} onPress={openRailCase}><Text style={styles.railBtnTxt}>Start</Text></Pressable>
+              <Pressable accessibilityRole="button" style={styles.railBtn} onPress={openRailCase}><Text style={styles.railBtnTxt}>Start</Text></Pressable>
             </>
           )}
         </View>
@@ -171,7 +171,7 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
         </View>
 
         {!user && (
-          <Pressable style={styles.signIn} onPress={() => router.push('/login')}><Text style={styles.signInTxt}>Sign in</Text></Pressable>
+          <Pressable accessibilityRole="button" style={styles.signIn} onPress={() => router.push('/login')}><Text style={styles.signInTxt}>Sign in</Text></Pressable>
         )}
       </ScrollView>
       </View>

@@ -91,7 +91,7 @@ export default function ConsentScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} testID="consent-screen">
+    <SafeAreaView style={styles.safe} testID="consent-screen" lang={langCode}>
       <ScrollView testID="consent-scroll" style={styles.scroll} contentContainerStyle={styles.content}>
         <View style={styles.titleRow}>
           <Image source={require('../assets/images/dhara_icon.png')} style={styles.logoBox} resizeMode="contain" />

@@ -36,7 +36,7 @@ export function ConsentTermsModal({ visible, onClose, copy }: {
   }, [visible, attempt]);
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose} testID="consent-terms-modal">
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose} testID="consent-terms-modal" aria-label={copy.termsTitle} accessibilityLabel={copy.termsTitle}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
           <Text testID="consent-terms-title" style={styles.title}>{copy.termsTitle}</Text>

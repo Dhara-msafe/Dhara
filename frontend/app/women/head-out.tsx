@@ -241,6 +241,7 @@ export default function HeadOut() {
                 style={[styles.durChip, selectedMins === d.mins && styles.durChipActive]}
                 onPress={() => setSelectedMins(d.mins)}
                 accessibilityRole="radio"
+                aria-checked={selectedMins === d.mins}
                 accessibilityState={{ checked: selectedMins === d.mins }}
                 accessibilityLabel={d.label}
               >

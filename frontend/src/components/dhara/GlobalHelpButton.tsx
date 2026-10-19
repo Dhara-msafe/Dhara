@@ -32,6 +32,7 @@ export function GlobalHelpButton() {
   return (
     <Pressable
       testID="global-help-button"
+      accessibilityRole="button"
       accessibilityLabel="Help — emergency numbers and what to do next"
       onPress={() => router.push('/emergency')}
       // Tab bar (minHeight 52) + DisclaimerBanner (~64px text + 12px padding = 76px)
