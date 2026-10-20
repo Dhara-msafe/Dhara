@@ -1,0 +1,66 @@
+{
+  "summary": "QA pass on Trusted Circle Recipient flow (flag EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT now true). Scoped-permission visibility, accept/decline, revoke, and no-expiry were verified live via API (requests) with Create->GET persistence checks, plus one live-UI pass (login + invite screen) via Playwright. Core permission-gating logic is correct and was independently confirmed both in code and live on the recipient's invite screen. However found 2 CRITICAL gaps vs the requested scenarios: (1) the owner-side UI has NO revoke button and NO permission-selection control at all (both only exist as backend endpoints / hardcoded defaults), so 'owner selects specific permissions' and 'owner revokes from trusted-circle.tsx' could NOT be exercised through the UI as specified — backend endpoints themselves work correctly when called directly. (2) /api/alerts and /api/alerts/{id} leak payload.last_location.area to the recipient's raw API response even when temp_location permission is False — enforcement of that permission is currently client-side only (alerts/[id].tsx hides it visually) not server-side. Also found a UI regression: a 'Choose your language' modal persistently overlays screens during this test session and intercepted the Accept button tap (live UI accept attempt did not register; confirmed via API recheck that status stayed 'pending'). No expiry mechanism exists in trusted_circle_links at all (no expires_at field, no code path checks it) — pending invites never expire.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "GET /api/alerts, GET /api/alerts/{id}",
+        "issue": "payload.last_location.area (human-readable last known location, e.g. 'QA Secret Area 3') is returned in the raw JSON response to the recipient even when the link's permissions.temp_location is False. Verified live: created an accepted link with temp_location:false, created a journey, PATCHed a location update, triggered a help_requested alert -> GET /api/alerts/{id} returned payload.last_location.area despite permissions.temp_location=false. Raw lat/lng are correctly never included (confirmed in journey_router.py _notify_linked_recipients, which only forwards 'area', not lat/lng) so the raw-coordinate leak specifically asked about is NOT present, but a location-name leak is. Enforcement of temp_location is currently done ONLY on the frontend (alerts/[id].tsx checks perms.temp_location before rendering) — not server-side.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": [
+      {"endpoint": "POST /api/trusted-circle/invite -> push relay", "issue": "Every created alert/invite ends in state 'FAILED' (push send failed, non-fatal per design) in this preview env — real push delivery to recipients cannot be verified here; likely SuprSend relay unreachable from preview."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "women/trusted-circle.tsx", "issue": "No UI exists for the owner to revoke a sent/accepted connection. revokeInvitation() is exported from src/trustedCircle/api.ts but is never imported or called anywhere in the frontend. There is also no list of sent invitations with their status on this screen.", "testID": "n/a - missing", "priority": "CRITICAL"},
+      {"component": "women/trusted-circle.tsx", "issue": "Owner has no UI control to choose which permissions to grant. The invite button calls inviteContact(authToken, { name, phone }) with NO permissions argument, so every invite silently uses the backend PermissionsIn defaults (journey_status/expected_arrival/missed_checkin/emergency_requests=True, temp_location=False). The reviewed scenario 'owner selects a specific subset of permissions' cannot be performed via the app UI at all.", "testID": "circle-invite-{id}", "priority": "CRITICAL"},
+      {"component": "global language-picker overlay", "issue": "A 'Choose your language' modal appeared stacked on top of invite detail, alerts inbox and home screens repeatedly during this automated session and intercepted a tap on testID=invite-accept (API recheck confirmed invite status stayed 'pending' after the tap). Could be a genuine overlay/z-index regression or an environment-specific one-time prompt that is mis-triggering on every route change; worth a quick look since it blocks taps on underlying controls.", "testID": "invite-accept", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Recipient invite accept (live UI)", "issue": "Tapping Accept via Playwright did not transition the invite out of 'pending' (blocked by the overlay above). Backend respond endpoint itself was separately verified correct via direct API calls (pytest: accept -> 200, status accepted, persisted on reload; double-respond -> 400).", "affected_testIDs": ["invite-accept"]}
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "scenario_results": {
+    "owner_creates_scoped_invite": "PARTIAL - verified via direct API call only (no UI control exists to pick permissions); not exercisable through the app as requested",
+    "recipient_sees_only_granted_permissions": "PASS - verified live via UI: invite screen showed ONLY 'Journey status updates' and 'Expected arrival time' text; no mention/affordance anywhere for temp_location or emergency_requests. Also confirmed via code (Object.entries(PERM_LABEL).map renders conditionally per perms[key]) and via API (GET invitation returns temp_location:false, emergency_requests:false).",
+    "recipient_accept": "PASS via API (status pending->accepted, persisted); BLOCKED via live UI tap due to overlay interception",
+    "recipient_decline": "PASS via API (fresh invite -> decline -> status 'declined', persisted, no further pending actions)",
+    "coordinate_location_denial": "PASS for raw GPS lat/lng (never sent to recipients by design, confirmed in code). FAIL for location-name leak: payload.last_location.area is present in raw API responses even with temp_location=false (see backend critical issue above). Frontend correctly hides it from the rendered UI, so a typical user would not see it, but the data is technically exposed over the API.",
+    "temp_location_granted_journey_active_gating": "PARTIALLY VERIFIED - triggered a real journey + location update + help_requested alert with temp_location granted on a separate link (not shown in detail above but same mechanism); last_location.area appears in payload once a location update has occurred, consistent with 'only while journey active' intent. Could not fully trigger the no-active-journey case distinctly within budget.",
+    "link_revocation": "Backend PASS (owner revoke -> 200, recipient GET shows status 'revoked', non-owner cannot revoke -> 403). Frontend BLOCKED - no revoke UI exists on trusted-circle.tsx.",
+    "link_expiry": "NOT IMPLEMENTED - no expires_at/expiry field in trusted_circle_links schema or any router logic; a pending invite never expires server-side. Confirmed by code review and live API check (GET invitation never returns an expiry field).",
+    "alerts_inbox_invitations_tab": "PASS - live UI: /alerts with Invitations tab correctly lists pending invitations ('Trusted Circle invitation · From <owner>') alongside other alert types in the 'All' tab.",
+    "regression_navigation": "PASS (light check) - login redirected to /home successfully; bottom tab testids present and intact (tab-home, tab-rights, tab-ask, tab-myfiles, tab-me). Did not deep-test NotificationTapBridge push-tap behavior (out of scope for this budget / requires real push tap simulation)."
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_trusted_circle_qa_pass.py",
+    "/app/test_reports/pytest/pytest_tc_qa.xml"
+  ],
+  "action_items": [
+    "CRITICAL: Build owner-side revoke UI on trusted-circle.tsx (call revokeInvitation from src/trustedCircle/api.ts) — currently unreachable from the app.",
+    "CRITICAL: Build owner-side permission-selection UI before sending an invite — currently inviteContact() always uses hardcoded backend defaults; no way for a real user to grant/withhold temp_location or emergency_requests from the app.",
+    "HIGH: Server-side filter payload.last_location out of GET /api/alerts and /api/alerts/{id} responses when the link's permissions.temp_location is False (mirror the access_revoked stripping pattern already in alerts_router.get_alert). Do not rely on frontend-only hiding for a privacy-sensitive field.",
+    "HIGH: Investigate the 'Choose your language' modal appearing stacked over invite/alerts/home screens during navigation and intercepting taps on testID=invite-accept — reproduce and fix the overlay/z-index or trigger condition.",
+    "MEDIUM: Decide if a link-expiry mechanism (expires_at + background check or check-on-read) is in-scope for this feature; currently pending invites live forever.",
+    "LOW: Push delivery state is 'FAILED' for all generated alerts/invites in this preview env — confirm whether this is expected (no relay configured) or needs investigation before going live."
+  ],
+  "critical_code_review_comments": [
+    "trusted_circle_router.py and alerts_router.py are clean, async, and use Depends(current_user) consistently with proper 403/404 handling and no leaked _id — good baseline.",
+    "alerts_router.get_alert() already has the right pattern for stripping data on revocation (out['payload'] = {} when link not accepted) — the same pattern should be extended to strip last_location when temp_location permission is false, for both list_alerts and get_alert.",
+    "trusted_circle_router.py has zero expiry-related fields/logic; if link expiry is a hard requirement it needs net-new schema (expires_at) and a check in respond()/get_invitation().",
+    "Frontend trusted-circle.tsx's TRUSTED_CIRCLE_RECIPIENT block only renders a one-shot 'Invite' link per local contact with no follow-up state (no owner visibility into pending/accepted/revoked invites at all) — this is a significant UX gap now that the flag is on."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_trusted_circle_qa_pass.py (new test file)"
+  ],
+  "success_rate": {"backend": "100% (5/5 custom QA tests passed; findings documented as design/security observations, not test failures)", "frontend": "~40% (permission-visibility and alerts-inbox verified live; accept-tap, revoke-UI, and permission-selection-UI could not be completed/do not exist)"},
+  "seed_data_creation": "Created several TEST trusted_circle_links + safety_journeys + safety_alerts docs via live API calls using Account A (owner) and Account B (recipient) during this QA pass (contact_name prefixed 'QA ...'). Not cleaned up — low risk since these are throwaway dev-preview QA accounts already used for other testing per /app/memory/test_credentials.md.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Flag EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT is currently 'true' in frontend/.env for this QA pass per explicit user instruction — do NOT assume it should stay on; main agent must report back to user to decide keep-on vs revert. If kept on, the two CRITICAL frontend gaps (no revoke UI, no permission-picker UI) mean real users cannot use the owner side of this feature meaningfully yet even though backend is solid. Re-run /app/backend/tests/test_trusted_circle_qa_pass.py after any fix (requires EXPO_BACKEND_URL env var exported from frontend/.env's EXPO_PUBLIC_BACKEND_URL before invoking pytest, since BASE_URL reads EXPO_BACKEND_URL not EXPO_PUBLIC_BACKEND_URL).",
+  "rca_of_issue": "Location-name leak RCA: _notify_linked_recipients() in journey_router.py builds the alert payload directly from rec['last_location'] without checking the target link's permissions.temp_location at all (it only checks link.status=='accepted' and link.invitee_user_id inside create_alert_and_notify). The permission is enforced only by the UI layer (alerts/[id].tsx's `perms.temp_location && loc && loc.area` guard and invite/[id].tsx's conditional PERM_LABEL rendering), never by the API. Fix: in alerts_router.py's list_alerts and get_alert, after resolving the link, pop/clear payload['last_location'] when link.permissions.get('temp_location') is falsy, same place access_revoked already clears payload."
+}
