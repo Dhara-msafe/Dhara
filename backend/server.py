@@ -1352,6 +1352,20 @@ def _xref_search(q: str = "", ipc: str = "", bns: str = "") -> list[dict]:
             return q_lower in combined
         return False
 
+    # P0-A targeted containment (2026-06). These (ipc_section, bns_section)
+    # pairs were CONFIRMED INCORRECT by legal-truth audit against the NCRB
+    # BNS correspondence table + official BNS Act text, and have already been
+    # corrected in ipc_bns_mapping.json / build_ipc_mapping.py. Kept here ONLY
+    # as a defence-in-depth tripwire: if either file is ever regenerated or
+    # hand-edited and one of these exact wrong pairs reappears, the endpoint
+    # must flag it as quarantined rather than silently serving it again as an
+    # authoritative answer. This is intentionally a narrow, hardcoded set —
+    # NOT a new global review-gating system, and does not affect any other
+    # record in the dataset.
+    _KNOWN_INCORRECT_IPC_BNS_PAIRS = {
+        ("155", "199"), ("166A", "202"), ("168", "205"), ("255", "199"),
+    }
+
     def _normalise(entry: dict, source: str, is_dead_law_section: bool = False) -> dict:
         """Flatten heterogeneous entries into a single shape.
 
@@ -1361,6 +1375,21 @@ def _xref_search(q: str = "", ipc: str = "", bns: str = "") -> list[dict]:
           • new_bns_offences entries                        → 'new'
           • all others must carry their own change_type from the file;
             entries missing a tag are skipped by the caller.
+
+        P0-A additions (additive only — no existing key removed/renamed, so
+        this is backward-compatible with every current caller/consumer):
+          • review_status / review_source / reviewed_at / reviewed_by /
+            mapping_version — provenance fields surfaced when present on the
+            record; default review_status is an honest "unreviewed_draft"
+            label (NOT a block) for the ~971 other draft records in the file.
+          • new_subsection — carries bns_subsection/bnss_subsection/
+            bsa_subsection when a correction needs it (e.g. IPC 155 → BNS
+            193(2)).
+          • Targeted quarantine: if this exact (old_sec, new_sec) pair is a
+            KNOWN-INCORRECT pair (see _KNOWN_INCORRECT_IPC_BNS_PAIRS above),
+            change_type is forced to 'quarantined_incorrect' and what_changed
+            is replaced with an honest notice — this can only ever affect
+            those specific wrong pairs, never any other record.
         """
         old_sec = (
             entry.get("ipc_section")  or
@@ -1379,17 +1408,40 @@ def _xref_search(q: str = "", ipc: str = "", bns: str = "") -> list[dict]:
         else:
             ct = entry.get("change_type", "")
 
+        what_changed = (
+            entry.get("what_changed") or entry.get("note") or
+            entry.get("reason") or entry.get("punishment_note") or ""
+        )
+
+        # Targeted quarantine tripwire (P0-A) — see docstring above.
+        if (str(old_sec), str(new_sec)) in _KNOWN_INCORRECT_IPC_BNS_PAIRS:
+            ct = "quarantined_incorrect"
+            what_changed = (
+                f"⚠️ This correspondence ({old_sec} → {new_sec}) was identified as "
+                f"INCORRECT by legal audit and is pending a corrected, reviewed "
+                f"value. Do not treat this as an authoritative answer — consult "
+                f"an advocate or the official BNS text for the current position."
+            )
+
         return {
             "source":             source,
             "old_section":        str(old_sec),
             "new_section":        str(new_sec),
             "offence":            entry.get("offence") or entry.get("procedure") or entry.get("provision") or "",
             "change_type":        ct,
-            "what_changed":       entry.get("what_changed") or entry.get("note") or entry.get("reason") or entry.get("punishment_note") or "",
+            "what_changed":       what_changed,
             "verified":           entry.get("verified", False),
             "source_link":        entry.get("source_link", ""),
             "judicial_citation":  entry.get("judicial_citation", ""),
             "dead_law":           bool(entry.get("dead_law", False)),
+            # P0-A additive provenance fields (see docstring) — never breaks
+            # an existing consumer that doesn't look for these keys.
+            "review_status":      entry.get("review_status", "unreviewed_draft"),
+            "review_source":      entry.get("review_source", ""),
+            "reviewed_at":        entry.get("reviewed_at"),
+            "reviewed_by":        entry.get("reviewed_by"),
+            "mapping_version":    entry.get("mapping_version", ""),
+            "new_subsection":     entry.get("bns_subsection") or entry.get("bnss_subsection") or entry.get("bsa_subsection") or "",
         }
 
     seen: set[str] = set()

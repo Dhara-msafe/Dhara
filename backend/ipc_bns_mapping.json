@@ -5442,12 +5442,18 @@
     },
     {
       "ipc_section": "155",
-      "bns_section": "199",
+      "bns_section": "193",
+      "bns_subsection": "(2)",
       "offence": "Liability of person for whose benefit riot is committed",
       "change_type": "renumbering_only",
-      "what_changed": "Renumbered to BNS 199; substance unchanged.",
+      "what_changed": "P0-A correction (2026-06): previous value 'BNS 199' was incorrect (it collided with IPC 255). Correct correspondence is BNS Section 193(2), per NCRB BNS correspondence table and the official BNS Act text.",
       "verified": false,
-      "source_link": "https://www.indiacode.gov.in/handle/123456789/45168"
+      "source_link": "https://www.indiacode.gov.in/handle/123456789/45168",
+      "review_status": "corrected_pending_review",
+      "review_source": "NCRB SectionTableBNS (cytrain.ncrb.gov.in) + indiacode.nic.in/bitstream/123456789/20062/1/a2023-45.pdf",
+      "reviewed_at": null,
+      "reviewed_by": null,
+      "mapping_version": "2026-06-p0a-patch1"
     },
     {
       "ipc_section": "156",
@@ -5559,12 +5565,17 @@
     },
     {
       "ipc_section": "166A",
-      "bns_section": "202",
+      "bns_section": "199",
       "offence": "Public servant disobeying direction under law",
       "change_type": "renumbering_only",
-      "what_changed": "Renumbered to BNS 202; covers police officers failing to record FIR for rape/acid attack victims. Rigorous imprisonment 6 months to 2 years + fine.",
+      "what_changed": "P0-A correction (2026-06): previous value 'BNS 202' was incorrect. Correct correspondence is BNS Section 199, per NCRB BNS correspondence table and the official BNS Act text. Covers police officers failing to record FIR for rape/acid attack victims. Rigorous imprisonment 6 months to 2 years + fine.",
       "verified": false,
-      "source_link": "https://www.indiacode.gov.in/handle/123456789/45168"
+      "source_link": "https://www.indiacode.gov.in/handle/123456789/45168",
+      "review_status": "corrected_pending_review",
+      "review_source": "NCRB SectionTableBNS (cytrain.ncrb.gov.in) + indiacode.nic.in/bitstream/123456789/20062/1/a2023-45.pdf",
+      "reviewed_at": null,
+      "reviewed_by": null,
+      "mapping_version": "2026-06-p0a-patch1"
     },
     {
       "ipc_section": "166B",
@@ -5586,12 +5597,17 @@
     },
     {
       "ipc_section": "168",
-      "bns_section": "205",
+      "bns_section": "202",
       "offence": "Public servant unlawfully engaging in trade",
       "change_type": "renumbering_only",
-      "what_changed": "Renumbered to BNS 205; substance unchanged.",
+      "what_changed": "P0-A correction (2026-06): previous value 'BNS 205' was incorrect. Correct correspondence is BNS Section 202, per NCRB BNS correspondence table and the official BNS Act text.",
       "verified": false,
-      "source_link": "https://www.indiacode.gov.in/handle/123456789/45168"
+      "source_link": "https://www.indiacode.gov.in/handle/123456789/45168",
+      "review_status": "corrected_pending_review",
+      "review_source": "NCRB SectionTableBNS (cytrain.ncrb.gov.in) + indiacode.nic.in/bitstream/123456789/20062/1/a2023-45.pdf",
+      "reviewed_at": null,
+      "reviewed_by": null,
+      "mapping_version": "2026-06-p0a-patch1"
     },
     {
       "ipc_section": "169",
@@ -6423,12 +6439,17 @@
     },
     {
       "ipc_section": "255",
-      "bns_section": "199",
+      "bns_section": "178",
       "offence": "Making or selling instrument for counterfeiting government stamp",
       "change_type": "renumbering_only",
-      "what_changed": "Renumbered to BNS 199; substance unchanged.",
+      "what_changed": "P0-A correction (2026-06): previous value 'BNS 199' was incorrect (it collided with IPC 155). Correct correspondence is BNS Section 178, per NCRB BNS correspondence table and the official BNS Act text. Note: BNS 178 covers multiple historical IPC stamp-counterfeiting provisions (legitimate many-to-one correspondence) — this record is NOT the only IPC section mapping to BNS 178.",
       "verified": false,
-      "source_link": "https://www.indiacode.gov.in/handle/123456789/45168"
+      "source_link": "https://www.indiacode.gov.in/handle/123456789/45168",
+      "review_status": "corrected_pending_review",
+      "review_source": "NCRB SectionTableBNS (cytrain.ncrb.gov.in) + indiacode.nic.in/bitstream/123456789/20062/1/a2023-45.pdf",
+      "reviewed_at": null,
+      "reviewed_by": null,
+      "mapping_version": "2026-06-p0a-patch1"
     },
     {
       "ipc_section": "256",
