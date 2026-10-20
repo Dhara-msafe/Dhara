@@ -251,17 +251,10 @@ class TestForwardedGuardianLink:
                 f"forwarding changed whether '{marker}' appears - unexpected access difference"
         assert "QA Forwarded Area" in resp1.text
 
-    def test_guardian_page_still_shows_last_location_after_marked_safe(self, owner_token):
-        """KNOWN, DOCUMENTED BEHAVIOR (not changed by this pass, flagged for
-        visibility): marking a journey 'safe' does not clear last_location
-        from the Guardian page - it remains visible (clearly labelled
-        'Arrived safely') until the normal 24h token expiry. A forwarded
-        link therefore still shows a historical location snapshot after
-        arrival, for up to 24h. This is pre-existing behavior, unrelated to
-        the P1 map addition (the page already showed the area text before
-        this pass; it now additionally shows the map). Not fixed in this
-        pass - would need explicit product sign-off to change the TTL or
-        add an early-clear-on-safe behavior."""
+    def test_guardian_page_location_and_map_removed_after_marked_safe(self, owner_token):
+        """UPDATED per the P1 follow-up GO: once 'safe', exact coordinates
+        and the map must disappear - 'Arrived safely' and non-location
+        fields (traveller, destination, timestamps) remain."""
         h_o = {"Authorization": f"Bearer {owner_token}"}
         j = requests.post(f"{BASE_URL}/api/journey/status",
                            json={"destination": "QA Safe Test", "duration_mins": 30, "recipient_link_ids": []},
@@ -272,6 +265,48 @@ class TestForwardedGuardianLink:
         requests.patch(f"{BASE_URL}/api/journey/status/{token}/safe", headers=h_o)
         page = requests.get(f"{BASE_URL}/api/journey/status/{token}")
         assert page.status_code == 200
-        assert "Arrived safely" in page.text
-        assert "leaflet" in page.text.lower(), \
-            "documenting known behavior: map/location stays visible after arrival, within the 24h window"
+        html = page.text
+        assert "Arrived safely" in html
+        assert "QA Safe Test" in html  # non-location field (destination) preserved
+        assert "leaflet" not in html.lower()
+        assert str(SYN_LAT) not in html and str(SYN_LNG) not in html
+        assert "QA Safe Area" not in html, "area text must also be removed once safe"
+
+    def test_existing_forwarded_link_loses_location_after_safe(self, owner_token):
+        """An 'existing forwarded link' scenario: a second viewer opens the
+        SAME already-circulating token both BEFORE and AFTER the journey is
+        marked safe - must see location before, and lose it after, exactly
+        like the first viewer (no caching/staleness loophole)."""
+        h_o = {"Authorization": f"Bearer {owner_token}"}
+        j = requests.post(f"{BASE_URL}/api/journey/status",
+                           json={"destination": "QA Forward Safe Test", "duration_mins": 30, "recipient_link_ids": []},
+                           headers=h_o)
+        token = j.json()["token"]
+        requests.patch(f"{BASE_URL}/api/journey/status/{token}/location",
+                        json={"lat": SYN_LAT, "lng": SYN_LNG, "accuracy": 12, "area": "QA Forward Area"}, headers=h_o)
+
+        forwarded_viewer = requests.Session()
+        before = forwarded_viewer.get(f"{BASE_URL}/api/journey/status/{token}")
+        assert "leaflet" in before.text.lower() and str(SYN_LAT) in before.text
+
+        requests.patch(f"{BASE_URL}/api/journey/status/{token}/safe", headers=h_o)
+
+        after = forwarded_viewer.get(f"{BASE_URL}/api/journey/status/{token}")
+        assert "leaflet" not in after.text.lower()
+        assert str(SYN_LAT) not in after.text and str(SYN_LNG) not in after.text
+        assert "Arrived safely" in after.text
+
+    def test_expiry_behaviour_unaffected_by_safe_change(self, owner_token):
+        """Preserve existing expiry behaviour for the rest of the page -
+        this change must not interact with the 24h TTL path at all."""
+        h_o = {"Authorization": f"Bearer {owner_token}"}
+        j = requests.post(f"{BASE_URL}/api/journey/status",
+                           json={"destination": "QA Expiry Still Works", "duration_mins": 30, "recipient_link_ids": []},
+                           headers=h_o)
+        token = j.json()["token"]
+        requests.patch(f"{BASE_URL}/api/journey/status/{token}/location",
+                        json={"lat": SYN_LAT, "lng": SYN_LNG, "accuracy": 12, "area": "QA Area"}, headers=h_o)
+        asyncio.get_event_loop().run_until_complete(_force_expire(token))
+        page = requests.get(f"{BASE_URL}/api/journey/status/{token}")
+        assert page.status_code == 410
+        assert "expired" in page.text.lower()

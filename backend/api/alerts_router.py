@@ -47,7 +47,7 @@ _TITLES = {
 }
 
 
-def _sanitize_location(payload: dict, link: Optional[dict]) -> dict:
+def _sanitize_location(payload: dict, link: Optional[dict], journey: Optional[dict] = None) -> dict:
     """Server-side enforcement (do not rely on the frontend to hide this).
 
     Strips every location-bearing field from the alert payload unless the
@@ -57,21 +57,32 @@ def _sanitize_location(payload: dict, link: Optional[dict]) -> dict:
     metadata are all treated as "not permitted" — never assume sharing is
     allowed. Scoped narrowly to the `last_location` sub-object (lat, lng,
     accuracy, area, age_minutes, and any other nested fields it carries).
+
+    ALSO fails closed once the related journey (`journey`, the LIVE
+    safety_journeys record for the alert's journey_token) has status
+    "safe": once a student has arrived, continued exact-location access
+    serves no safety purpose, so last_location is removed regardless of
+    the recipient's permission grant — this is a stricter, additional gate
+    on top of the permission check, not a replacement for it.
     """
     sanitized = dict(payload or {})
     permissions = (link or {}).get("permissions") or {}
     is_accepted = bool(link) and link.get("status") == "accepted"
     temp_location_granted = is_accepted and permissions.get("temp_location") is True
-    if not temp_location_granted:
+    journey_is_safe = bool(journey) and journey.get("status") == "safe"
+    if not temp_location_granted or journey_is_safe:
         sanitized.pop("last_location", None)
     return sanitized
 
 
-def _public_alert(a: dict, link: Optional[dict] = None) -> dict:
+def _public_alert(a: dict, link: Optional[dict] = None, journey: Optional[dict] = None) -> dict:
     """`link` is the LIVE trusted_circle_links record for a["link_id"],
     looked up fresh on every read — never trust a value cached at alert
     creation time, since revocation/permission changes must take effect
-    immediately for all historical alerts too."""
+    immediately for all historical alerts too. `journey` is the LIVE
+    safety_journeys record for a["journey_token"] (may be None if the
+    alert has no journey_token, or the journey was deleted) — see
+    _sanitize_location for why its "safe" status also strips location."""
     revoked = (not link) or link.get("status") != "accepted"
     return {
         "id": a["id"],
@@ -80,7 +91,7 @@ def _public_alert(a: dict, link: Optional[dict] = None) -> dict:
         "owner_name": a.get("owner_name"),
         "link_id": a.get("link_id"),
         "journey_token": a.get("journey_token"),
-        "payload": {} if revoked else _sanitize_location(a.get("payload", {}), link),
+        "payload": {} if revoked else _sanitize_location(a.get("payload", {}), link, journey),
         "state": "ACCESS_REVOKED" if revoked else a.get("state", "CREATED"),
         "created_at": a["created_at"],
         "read_at": a.get("read_at"),
@@ -172,7 +183,19 @@ async def list_alerts(filter: str = "all", user: dict = Depends(current_user)):
         async for l in db.trusted_circle_links.find({"id": {"$in": list(link_ids)}}):
             links_by_id[l["id"]] = l
 
-    return [_public_alert(a, links_by_id.get(a.get("link_id"))) for a in alerts]
+    # P1 follow-up: also fetch the LIVE journey record for every alert so a
+    # journey marked "safe" SINCE the alert was created strips location on
+    # every subsequent read here too — not just on the Guardian page.
+    journey_tokens = {a["journey_token"] for a in alerts if a.get("journey_token")}
+    journeys_by_token: dict = {}
+    if journey_tokens:
+        async for j in db.safety_journeys.find({"token": {"$in": list(journey_tokens)}}):
+            journeys_by_token[j["token"]] = j
+
+    return [
+        _public_alert(a, links_by_id.get(a.get("link_id")), journeys_by_token.get(a.get("journey_token")))
+        for a in alerts
+    ]
 
 
 @router.get("/alerts/{alert_id}")
@@ -187,7 +210,8 @@ async def get_alert(alert_id: str, user: dict = Depends(current_user)):
     # was created, or the owner's permissions changed, this always reflects
     # the CURRENT record — never a value cached at alert-creation time.
     link = await db.trusted_circle_links.find_one({"id": a.get("link_id")})
-    out = _public_alert(a, link)
+    journey = await db.safety_journeys.find_one({"token": a.get("journey_token")}) if a.get("journey_token") else None
+    out = _public_alert(a, link, journey)
     if not out["access_revoked"]:
         out["permissions"] = (link.get("permissions") if link else {}) or {}
         owner = await db.users.find_one({"id": a["owner_id"]}, {"_id": 0, "phone": 1})

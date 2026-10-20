@@ -274,7 +274,12 @@ def _status_html(rec: dict, label: str, colour: str, icon: str) -> str:
     last_loc = rec.get("last_location")
     loc_block = ""
     map_block = ""
-    if last_loc:
+    # P1 follow-up: once the journey is marked "safe", exact location and
+    # the map must disappear from this page — continued exact-location
+    # access after safe arrival serves no safety purpose. Non-location
+    # fields (traveller, destination, timestamps, "Arrived safely") are
+    # untouched and still render above/below this block as before.
+    if last_loc and rec.get("status") != "safe":
         area      = _escape(last_loc.get("area") or "Unknown area")
         loc_time  = _fmt_dt(last_loc.get("updated_at"))
         acc_m     = int(last_loc.get("accuracy", 0))
