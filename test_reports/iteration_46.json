@@ -1,0 +1,47 @@
+{
+  "summary": "Focused UI verification of NEW owner-side Trusted Circle permission-selection panel + revoke-access button (dhara-shield-2). Backend sanity test + full mobile UI pass executed. All target scenarios PASS.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "scenario_results": [
+    {"scenario": "Permission panel expands on 'Invite {name}...' tap with 5 toggles (circle-perm-{key}-{contactId})", "result": "PASS"},
+    {"scenario": "Default permission states match DEFAULT_PERMS (journey_status/expected_arrival/missed_checkin/emergency_requests ON, temp_location OFF)", "result": "PASS"},
+    {"scenario": "Owner can toggle each permission independently", "result": "PASS - toggled temp_location and emergency_requests independently, state updates as expected"},
+    {"scenario": "Cancel (circle-perm-cancel-{contactId}) collapses panel without sending", "result": "PASS - panel closed, Invite link reappeared, no invite created"},
+    {"scenario": "Send invitation (circle-perm-send-{contactId}) creates invite with EXACT chosen permissions", "result": "PASS (verified both via backend pytest and UI) - row updates to 'Invitation sent to {name} - waiting for them to respond', Invite button disappears"},
+    {"scenario": "Recipient's invite view shows only chosen permissions", "result": "PASS - backend pytest confirms permissions object matches exactly what owner selected (expected_arrival/temp_location OFF correctly excluded); invite/[id].tsx renders only truthy perms via PERM_LABEL map"},
+    {"scenario": "Owner sees 'Connected — sharing: <labels>' + Revoke access button after acceptance", "result": "PASS - screenshot shows 'Connected — sharing: Journey status updates, Expected arrival time, Emergency help requests' (missed_checkin/temp_location correctly excluded since OFF)"},
+    {"scenario": "Revoke access button (circle-revoke-{contactId}) calls revoke endpoint and updates status", "result": "PASS - tapped button, status text changed to 'Connection with ... was revoked', backend invite status became 'revoked'"},
+    {"scenario": "Regression: local contact add/remove/notify-toggle/call (device-only)", "result": "PASS - add/remove worked correctly across multiple test runs, notify bell and call icons present and tappable"},
+    {"scenario": "LanguageOnboardModal zIndex/elevation fix - no tap-swallowing near tab bar", "result": "PASS - modal 'Continue in English' tap worked cleanly post-login; bottom tab bar (Home/Rights/Ask/My files/Me) visible and not obstructed after dismissal"},
+    {"scenario": "Full backend cycle: invite(custom perms)->sent list->received list->accept->revoke, permissions preserved exactly", "result": "PASS - see backend/tests/test_trusted_circle_permissions_revoke.py"}
+  ],
+  "test_report_links": [
+    "backend/tests/test_trusted_circle_permissions_revoke.py",
+    "test_reports/pytest/iteration_dhara_shield2_perm_revoke.xml"
+  ],
+  "action_items": [
+    "No code fixes required - all NEW UI (permission panel + revoke button) works as specified.",
+    "Remember to revert EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT back to false in frontend/.env after this dev/preview verification, as stated in the problem description (not reverted by this testing agent - leaving that to main agent per instructions)."
+  ],
+  "critical_code_review_comments": [
+    "trusted-circle.tsx: inviteFor() matches sentInvites by contact_phone only - if an owner re-invites the same phone after a prior revoke/decline, the UI will show the OLD invite's terminal status (revoked/declined) indefinitely instead of offering a fresh Invite link, because inviteFor() returns the first match rather than the most recent. Confirmed this behavior while testing (a previously-revoked test invite blocked the panel from appearing again for the same phone number). This is a minor UX edge case, not a security issue - not in explicit scope of this pass but worth a follow-up ticket for 'allow re-invite after revoke/decline'.",
+    "No regressions found in the local device-only circle (add/remove/notify-toggle/call) or app navigation during this pass."
+  ],
+  "updated_files": [
+    "backend/tests/test_trusted_circle_permissions_revoke.py (new test file)"
+  ],
+  "success_rate": {"backend": "100% (1/1 new sanity test passed)", "frontend": "100% (all 11 scenarios passed)"},
+  "seed_data_creation": "Created and cleaned up via normal flow: 2 trusted_circle invites between Account A (owner) and Account B (recipient) - one via backend pytest (phone 9000000002, accepted then revoked), one via UI test (phone 9000000002, accepted then revoked via UI tap). No residual pending invites left; both ended in 'revoked' terminal state which is safe/expected test residue.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT=true was required in frontend/.env for this feature to render; confirm with main agent whether it has been reverted to false post-test as planned. Local device contact list (src/women/api.ts getCircle/saveCircle) does NOT persist across separate browser-automation tool invocations (resets each session) - this is expected device-local storage behavior, not a bug; just requires adding a fresh contact within the same script when chaining multi-step UI tests.",
+  "rca_of_issue": "N/A - no bugs found in the NEW UI being tested this pass. One minor pre-existing UX limitation noted in code review above (inviteFor() first-match-wins on repeat invites to same phone after revoke/decline)."
+}

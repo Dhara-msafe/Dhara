@@ -266,6 +266,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0,0,0,0.45)',
+    // Defensive stacking fix: on web (react-native-web), a custom-styled
+    // bottom tab bar can occasionally share the same stacking context as a
+    // portaled Modal, letting a tap land on the tab bar underneath instead
+    // of this sheet. Pin this overlay unambiguously above everything,
+    // including the tab bar, on every platform.
+    zIndex: 9999,
+    elevation: 24,
   },
   sheet: {
     backgroundColor: c.surface,

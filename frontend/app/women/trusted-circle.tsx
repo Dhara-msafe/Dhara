@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, Pressable, Switch, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,16 +8,29 @@ import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { getCircle, saveCircle, type Contact } from '@/src/women/api';
 import { openPhone } from '@/src/women/helpActions';
 import { useAuth } from '@/src/auth';
-import { inviteContact } from '@/src/trustedCircle/api';
+import { inviteContact, listInvitations, revokeInvitation, type InviteLink, type Permissions } from '@/src/trustedCircle/api';
 
 const TRUSTED_CIRCLE_RECIPIENT = process.env.EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT === 'true';
 
 const c = theme.colors;
 const TC_V2 = process.env.EXPO_PUBLIC_TRUSTED_CIRCLE_V2 === 'true';
 
+// Matches the labels shown on the recipient's own invite screen
+// (app/invite/[id].tsx PERM_LABEL) so owner and recipient see identical wording.
+const PERM_FIELDS: { key: keyof Permissions; label: string }[] = [
+  { key: 'journey_status', label: 'Journey status updates' },
+  { key: 'expected_arrival', label: 'Expected arrival time' },
+  { key: 'missed_checkin', label: 'Missed check-in alerts' },
+  { key: 'temp_location', label: 'Temporary location (only while a journey is active)' },
+  { key: 'emergency_requests', label: 'Emergency help requests' },
+];
+const DEFAULT_PERMS: Permissions = {
+  journey_status: true, expected_arrival: true, missed_checkin: true,
+  temp_location: false, emergency_requests: true,
+};
+
 export default function TrustedCircle() {
   const { token: authToken } = useAuth();
-  const [invited, setInvited] = useState<Record<string, string>>({});
   const [list, setList] = useState<Contact[]>([]);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -27,7 +40,51 @@ export default function TrustedCircle() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
+  // Real invite/connection state from the backend (replaces the old
+  // in-memory-only "invited" flag, which forgot everything on screen leave
+  // and never reflected actual accept/decline/revoke status).
+  const [sentInvites, setSentInvites] = useState<InviteLink[]>([]);
+  const [draftPerms, setDraftPerms] = useState<Record<string, Permissions>>({});
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [inviteBusyId, setInviteBusyId] = useState<string | null>(null);
+
   useEffect(() => { getCircle().then(setList).catch(() => setStatus('Could not load contacts. Please reopen this screen.')).finally(() => setBusy(false)); }, []);
+
+  const refreshInvites = () => {
+    if (!authToken || !TRUSTED_CIRCLE_RECIPIENT) return;
+    listInvitations(authToken, 'sent').then(setSentInvites);
+  };
+  useEffect(refreshInvites, [authToken]);
+
+  const inviteFor = (ct: Contact) => sentInvites.find(inv => inv.contact_phone === ct.phone);
+
+  const sendInvite = async (ct: Contact) => {
+    if (!authToken) return;
+    setInviteBusyId(ct.id);
+    try {
+      const perms = draftPerms[ct.id] || DEFAULT_PERMS;
+      await inviteContact(authToken, { name: ct.name, phone: ct.phone, permissions: perms });
+      refreshInvites();
+      setExpandedId(null);
+      setStatus(`Invitation sent to ${ct.name} with the permissions you chose.`);
+    } catch {
+      setStatus('Could not send invitation. Try again.');
+    } finally {
+      setInviteBusyId(null);
+    }
+  };
+
+  const revoke = async (invite: InviteLink) => {
+    if (!authToken) return;
+    setInviteBusyId(invite.id);
+    try {
+      await revokeInvitation(authToken, invite.id);
+      refreshInvites();
+      setStatus(`Access revoked. ${invite.contact_name} can no longer see your Safety Alerts.`);
+    } finally {
+      setInviteBusyId(null);
+    }
+  };
 
   const add = async () => {
     const number = phone.replace(/[\s()-]/g, '');
@@ -83,29 +140,80 @@ export default function TrustedCircle() {
           </View>
         ))}
 
-        {TRUSTED_CIRCLE_RECIPIENT && list.map(ct => (
-          <View key={`invite-${ct.id}`} style={styles.inviteRow}>
-            {invited[ct.id] ? (
-              <Text style={styles.inviteSentTxt}>{invited[ct.id]}</Text>
-            ) : (
-              <Pressable
-                testID={`circle-invite-${ct.id}`}
-                disabled={!authToken}
-                onPress={async () => {
-                  if (!authToken) return;
-                  try {
-                    const r = await inviteContact(authToken, { name: ct.name, phone: ct.phone });
-                    setInvited(cur => ({ ...cur, [ct.id]: r.matched_existing_user ? `Invitation sent — ${ct.name} will see it in their DHARA app.` : `Invitation saved — we'll link it automatically if ${ct.name} joins DHARA.` }));
-                  } catch {
-                    setInvited(cur => ({ ...cur, [ct.id]: 'Could not send invitation. Try again.' }));
-                  }
-                }}
-              >
-                <Text style={styles.inviteLinkTxt}>Invite {ct.name} to see your Safety Alerts in DHARA →</Text>
-              </Pressable>
-            )}
-          </View>
-        ))}
+        {TRUSTED_CIRCLE_RECIPIENT && list.map(ct => {
+          const invite = inviteFor(ct);
+          const isBusy = inviteBusyId === ct.id || (!!invite && inviteBusyId === invite.id);
+
+          if (invite?.status === 'accepted') {
+            const shared = PERM_FIELDS.filter(f => invite.permissions?.[f.key]).map(f => f.label);
+            return (
+              <View key={`invite-${ct.id}`} style={styles.inviteRow}>
+                <Text style={styles.connectedTxt}>
+                  Connected — sharing: {shared.length ? shared.join(', ') : 'nothing yet'}
+                </Text>
+                <Pressable testID={`circle-revoke-${ct.id}`} disabled={isBusy} onPress={() => revoke(invite)} style={styles.revokeBtn}>
+                  <Text style={styles.revokeBtnTxt}>{isBusy ? 'Revoking…' : 'Revoke access'}</Text>
+                </Pressable>
+              </View>
+            );
+          }
+          if (invite?.status === 'pending') {
+            return (
+              <View key={`invite-${ct.id}`} style={styles.inviteRow}>
+                <Text style={styles.inviteSentTxt}>Invitation sent to {ct.name} — waiting for them to respond.</Text>
+              </View>
+            );
+          }
+          if (invite?.status === 'declined') {
+            return (
+              <View key={`invite-${ct.id}`} style={styles.inviteRow}>
+                <Text style={styles.inviteSentTxt}>{ct.name} declined this invitation.</Text>
+              </View>
+            );
+          }
+          if (invite?.status === 'revoked') {
+            return (
+              <View key={`invite-${ct.id}`} style={styles.inviteRow}>
+                <Text style={styles.inviteSentTxt}>Connection with {ct.name} was revoked.</Text>
+              </View>
+            );
+          }
+
+          const isExpanded = expandedId === ct.id;
+          const perms = draftPerms[ct.id] || DEFAULT_PERMS;
+          if (!isExpanded) {
+            return (
+              <View key={`invite-${ct.id}`} style={styles.inviteRow}>
+                <Pressable testID={`circle-invite-${ct.id}`} disabled={!authToken} onPress={() => setExpandedId(ct.id)}>
+                  <Text style={styles.inviteLinkTxt}>Invite {ct.name} to see your Safety Alerts in DHARA →</Text>
+                </Pressable>
+              </View>
+            );
+          }
+          return (
+            <View key={`invite-${ct.id}`} style={styles.permPanel}>
+              <Text style={styles.permPanelTitle}>Choose what {ct.name} can see</Text>
+              {PERM_FIELDS.map(f => (
+                <View key={f.key} style={styles.permToggleRow}>
+                  <Text style={styles.permToggleLabel}>{f.label}</Text>
+                  <Switch
+                    testID={`circle-perm-${f.key}-${ct.id}`}
+                    value={!!perms[f.key]}
+                    onValueChange={(v) => setDraftPerms(cur => ({ ...cur, [ct.id]: { ...perms, [f.key]: v } }))}
+                  />
+                </View>
+              ))}
+              <View style={styles.permActionsRow}>
+                <Pressable testID={`circle-perm-cancel-${ct.id}`} style={styles.permCancelBtn} onPress={() => setExpandedId(null)}>
+                  <Text style={styles.permCancelTxt}>Cancel</Text>
+                </Pressable>
+                <Pressable testID={`circle-perm-send-${ct.id}`} disabled={isBusy} style={styles.permSendBtn} onPress={() => sendInvite(ct)}>
+                  <Text style={styles.permSendTxt}>{isBusy ? 'Sending…' : 'Send invitation'}</Text>
+                </Pressable>
+              </View>
+            </View>
+          );
+        })}
 
         {list.length < 3 && (
           <View style={styles.addCard}>
@@ -143,4 +251,16 @@ const styles = StyleSheet.create({
   inviteRow: { marginTop: -6, marginBottom: 10, paddingLeft: 56 },
   inviteLinkTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12.5, color: c.navy },
   inviteSentTxt: { fontFamily: theme.fonts.body, fontSize: 12.5, color: c.muted },
+  connectedTxt: { fontFamily: theme.fonts.body, fontSize: 12.5, color: c.success, marginBottom: 6 },
+  revokeBtn: { alignSelf: 'flex-start', minHeight: 36, paddingHorizontal: 12, justifyContent: 'center', backgroundColor: '#FCEBE9', borderRadius: 999 },
+  revokeBtnTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12.5, color: c.error },
+  permPanel: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 14, padding: 14, marginTop: -6, marginBottom: 12 },
+  permPanelTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.ink, marginBottom: 10 },
+  permToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 40 },
+  permToggleLabel: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, paddingRight: 12 },
+  permActionsRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  permCancelBtn: { flex: 1, minHeight: 44, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: c.background, borderWidth: 1, borderColor: c.lines },
+  permCancelTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.muted },
+  permSendBtn: { flex: 1, minHeight: 44, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: c.navy },
+  permSendTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: '#fff' },
 });
