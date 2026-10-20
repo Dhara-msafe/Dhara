@@ -75,6 +75,9 @@ from retrieval_logic import (
     relative_top_cutoff as _relative_top_cutoff,
     expand_query as _expand_query,
     extract_exact_statute_ref as _extract_exact_statute_ref,  # P0-B
+    classify_statute_reference_intent as _classify_statute_reference_intent,  # P0-D
+    STATUTE_REF_VALID as _STATUTE_REF_VALID,  # P0-D
+    STATUTE_REF_INVALID as _STATUTE_REF_INVALID,  # P0-D
 )
 
 # ── State code → corpus jurisdiction string ──────────────────────────────────
@@ -398,16 +401,27 @@ async def retrieve_db(
             act_hint = hint_name
             break
 
-    # ── P0-B: explicit Act+section identifier check — run on the RAW question,
-    # before synonym expansion could introduce noise. Covers phrasings the old
-    # _SEC_RE below misses entirely: "IPC 166A", "IPC-166A", "166A IPC",
-    # "BNS-199", "BNS 193(2)" (no "Section"/"Sec" keyword required).
-    exact_act, exact_sec, exact_sub = _extract_exact_statute_ref(question)
+    # ── P0-D: classify explicit-statute intent BEFORE synonym expansion —
+    # VALID / INVALID_OR_UNSUPPORTED / NO_EXPLICIT_REFERENCE. Reuses P0-B's
+    # extract_exact_statute_ref(); adds detection of a FAILED citation
+    # ATTEMPT (overlong number, overlong suffix, a bare enactment year) so
+    # it is never silently treated as an ordinary open-ended question and
+    # promoted to an unrelated same-Act citation via the fuzzy path below.
+    _ref_state = _classify_statute_reference_intent(question)
 
     question = _expand_query(question)          # synonym expansion before retrieval
     question_sig = _significant_words(question)
 
-    if exact_act and exact_sec:
+    if _ref_state == _STATUTE_REF_INVALID:
+        # P0-D highest-priority fix: a malformed/unsupported explicit
+        # citation attempt (e.g. "IPC 9999", "IPC 166ABCD", "1860 IPC").
+        # Fail safely — NEVER fall through to fuzzy retrieval here, where
+        # the act-label sentinel could promote an unrelated same-Act
+        # section as if it answered this malformed reference.
+        return []
+
+    if _ref_state == _STATUTE_REF_VALID:
+        exact_act, exact_sec, exact_sub = _extract_exact_statute_ref(question)
         # P0-B rule: an EXPLICIT Act+section identifier was named. Return ONLY
         # a deterministic exact match for that identifier — NEVER fall back to
         # the fuzzy/corroboration path below, whose act-label sentinel
@@ -423,8 +437,8 @@ async def retrieve_db(
         return []
 
     # ── 1. (legacy, unchanged) Attempt exact section lookup for a bare
-    # "Section N" mention with no Act name — only reached when the P0-B check
-    # above found no explicit Act+section identifier.
+    # "Section N" mention with no Act name — only reached when NO explicit
+    # Act+section identifier (valid or invalid-attempt) was detected above.
     sec_match = _SEC_RE.search(question)
     if sec_match:
         sec_num = sec_match.group(1).upper()
@@ -583,6 +597,15 @@ async def check_query_for_orphan_warnings(
     the act no longer appears in the corpus but a Supreme Court ruling is
     tracked.
     """
+    # P0-D: try the P0-B/P0-C exact-statute extractor FIRST — preserves Act
+    # identity and catches bare phrasings like "IPC 377", which the legacy
+    # _SEC_RE-only check below missed entirely (it required the literal
+    # word "Section"). Falls back to the legacy bare-"Section N" check,
+    # unchanged, for queries with no Act name of their own.
+    exact_act, exact_sec, _exact_sub = _extract_exact_statute_ref(question)
+    if exact_act and exact_sec:
+        return await check_orphan_invalidation(db, exact_sec, exact_act)
+
     sec_match = _SEC_RE.search(question)
     if not sec_match:
         return None

@@ -85,6 +85,9 @@ from engine.output_guard import validate_dhara_text, looks_like_refusal, CANNOT_
 # output guard. See backend/.env CITATION_GUARD_ENABLED.
 CITATION_GUARD_ENABLED = os.getenv("CITATION_GUARD_ENABLED", "false").strip().lower() == "true"
 
+# P0-D: reuse the single P0-B/P0-C exact-statute parser — no duplicate engine.
+from retrieval_logic import extract_exact_statute_ref as _p0d_extract_exact_ref
+
 router = APIRouter()
 
 # ── Pydantic models ───────────────────────────────────────────────────────────
@@ -434,6 +437,17 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
         if (_v2_lq.normalized_query and _v2_lq.normalized_query != body.message)
         else None
     )
+    # P0-D: if this turn's own text has no explicit Act+section AND is not
+    # already being overridden by a restored clarification-answer query, but
+    # an explicit statute reference IS active from an earlier turn (P0-C's
+    # CaseState.active_statute_ref), carry it forward into retrieval so a
+    # plain follow-up phrased as a longer continuation (not a short
+    # clarification) still retrieves against the right section.
+    if not _retrieval_override and _v2_state and _v2_state.active_statute_ref:
+        _own_act, _own_sec, _own_sub = _p0d_extract_exact_ref(body.message)
+        if not (_own_act and _own_sec):
+            _ref = _v2_state.active_statute_ref
+            _retrieval_override = f"{body.message} ({_ref.get('act')} Section {_ref.get('section')})"
     # If Layer C says we need a material clarification question, emit it and stop.
     if _v2_fact.answer_mode == "ESCALATE" and _v2_fact.follow_up_question:
         async def _clarify_gen():
@@ -709,6 +723,38 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
         lq=_v2_lq,
         classify_result=_v2_classify,
     )
+
+    # -------- P0-D: Citation Truth Guard — content validation ------------
+    # Runs HERE, upstream of ALL downstream citation-payload construction AND
+    # upstream of the CITATION_GUARD_ENABLED buffering/timing branch further
+    # below — so this content check applies IDENTICALLY regardless of
+    # streaming/buffering mode (the prior audit's finding: that flag only
+    # ever controlled TIMING, never content). An Act-name match alone (the
+    # corroboration_score() 9999 sentinel in corpus_db.py) is NOT sufficient
+    # evidence that a db_hit supports the SPECIFIC exact section the active
+    # conversation context is about — only a genuine exact lookup for this
+    # turn (exact_identifier_requested=True) or an exact act+section match
+    # against the active reference is trusted. Scope: only engages when an
+    # explicit statute reference is actually active (P0-C); ordinary
+    # non-citation conversations are completely unaffected.
+    _p0d_active_ref = _v2_state.active_statute_ref if _v2_state else None
+    if _p0d_active_ref and db_hits:
+        _p0d_req_act = _p0d_active_ref.get("act")
+        _p0d_req_sec = (_p0d_active_ref.get("section") or "").upper()
+        def _p0d_hit_supports_active_ref(h: dict) -> bool:
+            if h.get("exact_identifier_requested"):
+                return True
+            return (
+                h.get("act_name") == _p0d_req_act
+                and (h.get("section_number") or "").upper() == _p0d_req_sec
+            )
+        _p0d_before = len(db_hits)
+        db_hits = [h for h in db_hits if _p0d_hit_supports_active_ref(h)]
+        if _p0d_before > len(db_hits):
+            logger.info(
+                "[citation_truth_guard] dropped %d unsupported same-Act citation(s) for active ref %s %s",
+                _p0d_before - len(db_hits), _p0d_req_act, _p0d_req_sec,
+            )
 
     # Layer M gate: if EVERY surviving provision is dead/superseded and there
     # is no live orphan judicial hit either, emit a deterministic cannot-verify

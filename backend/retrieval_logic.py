@@ -452,6 +452,46 @@ _EXACT_STATUTE_REV = re.compile(
 )
 
 
+# ── P0-D: malformed-explicit-reference detection ────────────────────────────
+# Distinguishes three states for a message, used by retrieve_db() and
+# check_query_for_orphan_warnings() so a FAILED citation attempt (overlong
+# number, overlong suffix, a bare enactment year) is never silently treated
+# as an ordinary open-ended question and promoted to an unrelated same-Act
+# citation via fuzzy retrieval's act-label sentinel.
+STATUTE_REF_VALID = "VALID_EXPLICIT_REFERENCE"
+STATUTE_REF_INVALID = "INVALID_OR_UNSUPPORTED_EXPLICIT_REFERENCE"
+STATUTE_REF_NONE = "NO_EXPLICIT_REFERENCE"
+
+# Loose detector: an Act name adjacent to ANY digit run, WITHOUT the strict
+# complete-identifier boundary checks used above. If this matches but
+# extract_exact_statute_ref() does not, the user attempted an explicit
+# citation that failed structural validation. A bare number/year with NO Act
+# name anywhere near it does NOT match this and is correctly NO_EXPLICIT_REFERENCE
+# — general questions that merely mention a year/amount are unaffected.
+_LOOSE_ATTEMPT_FWD = re.compile(
+    rf"\b(?:{_ACT_ALT})\b[\s\-]*(?:section|sections|sec\.?|\u00a7)?\s*\d",
+    re.IGNORECASE,
+)
+_LOOSE_ATTEMPT_REV = re.compile(
+    rf"\d[\dA-Za-z]*\s*(?:\(\d+\))?\s*(?:of\s+(?:the\s+)?)?(?:{_ACT_ALT})\b",
+    re.IGNORECASE,
+)
+
+
+def classify_statute_reference_intent(text: str) -> str:
+    """P0-D — classify a message's explicit-statute intent for safe retrieval
+    routing. Returns STATUTE_REF_VALID / STATUTE_REF_INVALID / STATUTE_REF_NONE.
+    Never treats a bare year/number with no Act name as an attempted citation."""
+    if not text:
+        return STATUTE_REF_NONE
+    act, sec, _sub = extract_exact_statute_ref(text)
+    if act and sec:
+        return STATUTE_REF_VALID
+    if _LOOSE_ATTEMPT_FWD.search(text) or _LOOSE_ATTEMPT_REV.search(text):
+        return STATUTE_REF_INVALID
+    return STATUTE_REF_NONE
+
+
 def relative_top_cutoff(
     scored: list[tuple[float, object]],
     limit: int,
