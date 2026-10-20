@@ -260,7 +260,17 @@ async def journey_status_page(token: str):
         status_colour = "#d97706"   # amber-600
         status_icon   = "🟡"
 
-    return HTMLResponse(content=_status_html(rec, status_label, status_colour, status_icon))
+    return HTMLResponse(
+        content=_status_html(rec, status_label, status_colour, status_icon),
+        # P1 map follow-up: tile requests to tile.openstreetmap.org are
+        # cross-origin. Modern browsers already default to
+        # "strict-origin-when-cross-origin" (origin only, no path/token on
+        # cross-origin requests), but this header makes that explicit and
+        # robust rather than relying on an implicit default. See the
+        # OpenStreetMap tile documentation note in this module's docstring
+        # for the full analysis of what a tile request can reveal.
+        headers={"Referrer-Policy": "strict-origin"},
+    )
 
 
 # ── HTML templates ─────────────────────────────────────────────────────────────
@@ -323,6 +333,7 @@ def _status_html(rec: dict, label: str, colour: str, icon: str) -> str:
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
+  <meta name="referrer" content="strict-origin"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <meta http-equiv="refresh" content="30"/>
   <title>DHARA — {name}'s journey</title>

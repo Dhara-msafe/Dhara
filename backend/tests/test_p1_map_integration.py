@@ -150,3 +150,18 @@ class TestGuardianPageMapRendering:
         assert page.status_code == 200
         # No location ever posted -> no map script should be injected
         assert "L.marker" not in page.text
+
+    def test_guardian_page_sets_strict_referrer_policy(self, owner_token):
+        """P1 follow-up: tile requests to tile.openstreetmap.org are
+        cross-origin - confirm we explicitly pin a strict Referrer-Policy
+        (both response header and <meta> tag) rather than relying on an
+        implicit browser default, so the token-bearing page path is never
+        sent to the third-party tile provider."""
+        headers_o = {"Authorization": f"Bearer {owner_token}"}
+        j = requests.post(f"{BASE_URL}/api/journey/status",
+                           json={"destination": "QA Referrer Test", "duration_mins": 30, "recipient_link_ids": []},
+                           headers=headers_o)
+        token = j.json()["token"]
+        page = requests.get(f"{BASE_URL}/api/journey/status/{token}")
+        assert page.headers.get("referrer-policy") == "strict-origin"
+        assert '<meta name="referrer" content="strict-origin"/>' in page.text
