@@ -211,6 +211,16 @@ class CaseState(BaseModel):
     # behaviour; this field is simply absent/None until a future, separately
     # approved phase populates it behind FEATURE_MATTER_CONTEXT_V2.
     matter_context: Optional[MatterContext] = None
+    # ── P0-C: Multi-Turn Legal Context Preservation (additive) ─────────────
+    # Optional, defaults to None — same additive pattern as matter_context
+    # above. Holds the single most recently named EXPLICIT Act+section
+    # identifier in this conversation (see engine.pipeline.run_pre_retrieval
+    # / retrieval_logic.extract_exact_statute_ref), so a later short turn
+    # ("What is the corresponding BNS section?") can resolve against the
+    # correct subject even though that turn's own text carries no Act name.
+    # A new explicit reference in any later turn simply replaces this dict —
+    # the user is always allowed to change legal focus.
+    active_statute_ref: Optional[Dict[str, Any]] = None
 
     def to_mongo(self) -> dict:
         return self.model_dump()

@@ -28,6 +28,7 @@ from engine.conduct_classifier import classify
 from engine.fact_detector import detect as detect_facts
 from engine.irrelevance_filter import filter_provisions
 from engine.law_status_guard import annotate_provisions
+from retrieval_logic import extract_exact_statute_ref  # P0-C: reuse P0-B's parser — no duplicate
 
 logger = logging.getLogger("gandhikar")
 
@@ -41,13 +42,24 @@ def classify_turn(
     """Classify the turn type. Pure code, no LLM.
 
     Returns: NEW_QUERY | CONTINUATION | CLARIFICATION_ANSWER |
-             NEW_SUBQUESTION_SAME_ISSUE | TOPIC_CHANGE | AMBIGUOUS
+             NEW_SUBQUESTION_SAME_ISSUE | TOPIC_CHANGE | AMBIGUOUS |
+             EXPLICIT_STATUTE_REFERENCE
     """
     if not existing_state or not existing_state.legal_query:
         return "NEW_QUERY"
 
     prior = existing_state.legal_query
     msg_len = len(message.strip())
+
+    # P0-C: an explicit Act+section identifier in THIS message ALWAYS wins,
+    # even on a short, action/issue-less message. A bare citation like
+    # "IPC 166A." or "Does IPC 166A still apply?" never describes an
+    # action/issue, so without this check it would fall into the
+    # CLARIFICATION_ANSWER branch below and have its own content silently
+    # discarded in favour of an EARLIER turn's query — the exact defect this
+    # phase fixes. Reuses P0-B's extract_exact_statute_ref() (single parser).
+    if extract_exact_statute_ref(message)[0]:
+        return "EXPLICIT_STATUTE_REFERENCE"
 
     # Very short message with no new actions → likely a clarification answer
     # (e.g. "We are Hindu." / "Goa." / "Yes.")
@@ -116,8 +128,18 @@ async def run_pre_retrieval(
     turn_type = classify_turn(query, lq, existing_state)
     logger.info("[pipeline] turn_type=%s domain_hints=%s", turn_type, lq.candidate_issues[:3])
 
+    # P0-C: deterministic exact-statute check on the RAW user message, reused
+    # from P0-B (retrieval_logic.extract_exact_statute_ref) — no second parser.
+    exact_act, exact_sec, exact_sub = extract_exact_statute_ref(query)
+
     # ── Merge state based on turn type ────────────────────────────────────────
-    if turn_type == "CLARIFICATION_ANSWER" and existing_state and prior_lq:
+    if turn_type == "EXPLICIT_STATUTE_REFERENCE":
+        # P0-C: the user named a specific Act+section in THIS turn — it IS
+        # the new subject, not a fact-answer to an earlier question, so
+        # (unlike CLARIFICATION_ANSWER below) we do NOT restore an earlier
+        # turn's normalized_query/original_query.
+        lq.normalized_query = query
+    elif turn_type == "CLARIFICATION_ANSWER" and existing_state and prior_lq:
         # Merge new facts into prior query; keep original issue frame
         lq = prior_lq.merge_update(lq)
         _absorb_short_answer_facts(query, existing_state)
@@ -130,7 +152,7 @@ async def run_pre_retrieval(
     elif turn_type == "TOPIC_CHANGE":
         # Fresh state for a genuinely different topic
         existing_state = CaseState(session_id=session.get("id", "") if session else "")
-    # CONTINUATION / NEW_SUBQUESTION: keep prior state, use new lq directly
+    # CONTINUATION / NEW_SUBQUESTION / NEW_QUERY: keep prior state, use new lq directly
 
     # ── Layer B: Conduct Classifier ───────────────────────────────────────────
     classify_result = classify(lq)
@@ -148,6 +170,21 @@ async def run_pre_retrieval(
     new_state.classify_result = classify_result
     new_state.turn_count = (new_state.turn_count or 0) + 1
     new_state.turn_type_history = (new_state.turn_type_history or [])[-9:] + [turn_type]
+
+    # P0-C: persist/refresh the single active explicit statute reference.
+    # If THIS turn named one, it REPLACES whatever was active before — the
+    # user may change legal focus at any time, even with a short message
+    # (e.g. Turn 2 "IPC 166A." replaces Turn 1's "BNS 166A"). If this turn
+    # did NOT name one (a genuine clarification answer like "Maharashtra" /
+    # "2023" / "Yes", or a plain follow-up question), whatever was already
+    # active is left untouched so later short turns still resolve against it.
+    if exact_act and exact_sec:
+        new_state.active_statute_ref = {
+            "act": exact_act,
+            "section": exact_sec,
+            "subsection": exact_sub,
+            "source_message": query,
+        }
 
     return lq, classify_result, fact_result, new_state
 
