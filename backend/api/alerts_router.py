@@ -47,7 +47,32 @@ _TITLES = {
 }
 
 
-def _public_alert(a: dict) -> dict:
+def _sanitize_location(payload: dict, link: Optional[dict]) -> dict:
+    """Server-side enforcement (do not rely on the frontend to hide this).
+
+    Strips every location-bearing field from the alert payload unless the
+    OWNER'S CURRENT permission record on `link` explicitly grants
+    `temp_location` to this recipient on an accepted link. Fails closed:
+    a missing link, a non-accepted link, or missing/unsupported permission
+    metadata are all treated as "not permitted" — never assume sharing is
+    allowed. Scoped narrowly to the `last_location` sub-object (lat, lng,
+    accuracy, area, age_minutes, and any other nested fields it carries).
+    """
+    sanitized = dict(payload or {})
+    permissions = (link or {}).get("permissions") or {}
+    is_accepted = bool(link) and link.get("status") == "accepted"
+    temp_location_granted = is_accepted and permissions.get("temp_location") is True
+    if not temp_location_granted:
+        sanitized.pop("last_location", None)
+    return sanitized
+
+
+def _public_alert(a: dict, link: Optional[dict] = None) -> dict:
+    """`link` is the LIVE trusted_circle_links record for a["link_id"],
+    looked up fresh on every read — never trust a value cached at alert
+    creation time, since revocation/permission changes must take effect
+    immediately for all historical alerts too."""
+    revoked = (not link) or link.get("status") != "accepted"
     return {
         "id": a["id"],
         "type": a["type"],
@@ -55,11 +80,12 @@ def _public_alert(a: dict) -> dict:
         "owner_name": a.get("owner_name"),
         "link_id": a.get("link_id"),
         "journey_token": a.get("journey_token"),
-        "payload": a.get("payload", {}),
-        "state": a.get("state", "CREATED"),
+        "payload": {} if revoked else _sanitize_location(a.get("payload", {}), link),
+        "state": "ACCESS_REVOKED" if revoked else a.get("state", "CREATED"),
         "created_at": a["created_at"],
         "read_at": a.get("read_at"),
         "acknowledged_at": a.get("acknowledged_at"),
+        "access_revoked": revoked,
     }
 
 
@@ -133,10 +159,20 @@ async def list_alerts(filter: str = "all", user: dict = Depends(current_user)):
         q["type"] = {"$in": ["journey_started", "journey_status", "missed_checkin", "help_requested", "location_unavailable"]}
     elif filter == "completed":
         q["type"] = {"$in": ["arrival_confirmed", "journey_completed", "sharing_ended"]}
-    out = []
-    async for a in db.safety_alerts.find(q).sort("created_at", -1).limit(200):
-        out.append(_public_alert(a))
-    return out
+    alerts = [a async for a in db.safety_alerts.find(q).sort("created_at", -1).limit(200)]
+
+    # Server-side enforcement: fetch the LIVE link/permission record for
+    # every alert in this page before serializing — list results must get
+    # identical protection to the detail endpoint (previously this endpoint
+    # returned raw, unsanitized payloads with no revocation/permission
+    # check at all). Batched to avoid N+1 queries.
+    link_ids = {a["link_id"] for a in alerts if a.get("link_id")}
+    links_by_id: dict = {}
+    if link_ids:
+        async for l in db.trusted_circle_links.find({"id": {"$in": list(link_ids)}}):
+            links_by_id[l["id"]] = l
+
+    return [_public_alert(a, links_by_id.get(a.get("link_id"))) for a in alerts]
 
 
 @router.get("/alerts/{alert_id}")
@@ -147,18 +183,13 @@ async def get_alert(alert_id: str, user: dict = Depends(current_user)):
     if a["recipient_user_id"] != user["id"]:
         raise HTTPException(403, "Not your alert")
 
-    out = _public_alert(a)
     # Live re-check: if the link was revoked/left/declined SINCE this alert
-    # was created, strip anything beyond the bare fact an alert existed —
-    # per spec, revocation must immediately stop future data access.
+    # was created, or the owner's permissions changed, this always reflects
+    # the CURRENT record — never a value cached at alert-creation time.
     link = await db.trusted_circle_links.find_one({"id": a.get("link_id")})
-    if not link or link["status"] != "accepted":
-        out["access_revoked"] = True
-        out["payload"] = {}
-        out["state"] = "ACCESS_REVOKED"
-    else:
-        out["access_revoked"] = False
-        out["permissions"] = link.get("permissions", {})
+    out = _public_alert(a, link)
+    if not out["access_revoked"]:
+        out["permissions"] = (link.get("permissions") if link else {}) or {}
         owner = await db.users.find_one({"id": a["owner_id"]}, {"_id": 0, "phone": 1})
         out["owner_phone"] = (owner or {}).get("phone")
     return out
