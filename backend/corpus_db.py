@@ -74,6 +74,7 @@ from retrieval_logic import (
     corroborates as _corroborates,  # noqa: F401  (kept for external callers)
     relative_top_cutoff as _relative_top_cutoff,
     expand_query as _expand_query,
+    extract_exact_statute_ref as _extract_exact_statute_ref,  # P0-B
 )
 
 # ── State code → corpus jurisdiction string ──────────────────────────────────
@@ -396,10 +397,34 @@ async def retrieve_db(
         if pattern.search(question):
             act_hint = hint_name
             break
+
+    # ── P0-B: explicit Act+section identifier check — run on the RAW question,
+    # before synonym expansion could introduce noise. Covers phrasings the old
+    # _SEC_RE below misses entirely: "IPC 166A", "IPC-166A", "166A IPC",
+    # "BNS-199", "BNS 193(2)" (no "Section"/"Sec" keyword required).
+    exact_act, exact_sec, exact_sub = _extract_exact_statute_ref(question)
+
     question = _expand_query(question)          # synonym expansion before retrieval
     question_sig = _significant_words(question)
 
-    # ── 1. Attempt exact section lookup first ─────────────────────────────────
+    if exact_act and exact_sec:
+        # P0-B rule: an EXPLICIT Act+section identifier was named. Return ONLY
+        # a deterministic exact match for that identifier — NEVER fall back to
+        # the fuzzy/corroboration path below, whose act-label sentinel
+        # (corroboration_score() == 9999 for ANY same-Act document) is exactly
+        # the mechanism that could otherwise promote an unrelated same-Act
+        # citation as if it answered this specific section. A failed exact
+        # lookup returns [] — an explicit "no exact match" — not a guess.
+        exact = await lookup_section(db, exact_sec, exact_act)
+        if exact:
+            exact["requested_subsection"] = exact_sub
+            exact["exact_identifier_requested"] = True
+            return [exact]
+        return []
+
+    # ── 1. (legacy, unchanged) Attempt exact section lookup for a bare
+    # "Section N" mention with no Act name — only reached when the P0-B check
+    # above found no explicit Act+section identifier.
     sec_match = _SEC_RE.search(question)
     if sec_match:
         sec_num = sec_match.group(1).upper()

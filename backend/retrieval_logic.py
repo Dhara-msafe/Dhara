@@ -377,6 +377,69 @@ def corroborates(question_sig: set, doc: dict, act_hint: str | None) -> bool:
 # a bigamy question ("can an Indian marry twice") returning an unrelated
 # "National Commission for Indian System of Medicine Act" hit that only
 # shared the word "Indian".
+def extract_exact_statute_ref(text: str) -> tuple[str | None, str | None, str | None]:
+    """P0-B — Deterministic exact-statute-reference extractor.
+
+    Recognises an EXPLICIT Act + section (+ optional letter suffix + optional
+    numeric subsection) citation regardless of phrasing order, WITHOUT
+    requiring the literal word "Section"/"Sec" — the gap that made the old
+    corpus_db._SEC_RE miss bare forms like "IPC 166A", "166A IPC", "BNS-199".
+
+    Supports (case-insensitive):
+      IPC 166A | IPC-166A | 166A IPC | Section 166A of IPC |
+      Indian Penal Code Section 166A | BNS 199 | BNS-199 |
+      Section 193(2) BNS | IPC 166 | IPC 166B
+
+    Returns (act_name_canonical, section_with_suffix, subsection_or_None).
+    Returns (None, None, None) if no explicit Act name is present anywhere
+    near a number — a BARE number alone is deliberately never treated as a
+    statute citation (weak evidence, not a legal identifier). Letter suffixes
+    are never stripped ("166A" always stays "166A", never becomes "166") and
+    the Act name is never guessed/substituted for a different Act.
+    """
+    if not text:
+        return None, None, None
+    m = _EXACT_STATUTE_FWD.search(text) or _EXACT_STATUTE_REV.search(text)
+    if not m:
+        return None, None, None
+    act_name = ACT_ALIASES.get(m.group("act").lower())
+    if not act_name:
+        return None, None, None
+    section = m.group("num").upper()
+    return act_name, section, m.group("sub")
+
+
+# ── Act aliases recognised by extract_exact_statute_ref() ────────────────────
+# Canonical values match the `act_name` hint strings already used for exact
+# MongoDB lookups elsewhere (corpus_db._ACT_HINTS) — no new naming scheme.
+ACT_ALIASES: dict[str, str] = {
+    "ipc": "Indian Penal Code",
+    "indian penal code": "Indian Penal Code",
+    "bns": "Bharatiya Nyaya Sanhita",
+    "bharatiya nyaya sanhita": "Bharatiya Nyaya Sanhita",
+    "bnss": "Bharatiya Nagarik Suraksha Sanhita",
+    "bharatiya nagarik suraksha sanhita": "Bharatiya Nagarik Suraksha Sanhita",
+    "bsa": "Bharatiya Sakshya Adhiniyam",
+    "bharatiya sakshya adhiniyam": "Bharatiya Sakshya Adhiniyam",
+    "crpc": "Code of Criminal Procedure",
+    "code of criminal procedure": "Code of Criminal Procedure",
+}
+_ACT_ALT = "|".join(sorted((re.escape(a) for a in ACT_ALIASES), key=len, reverse=True))
+
+# Act name FIRST: "IPC 166A", "IPC-166A", "BNS 193(2)", "Indian Penal Code Section 166A"
+_EXACT_STATUTE_FWD = re.compile(
+    rf"\b(?P<act>{_ACT_ALT})\b[\s\-]*(?:section|sections|sec\.?|§)?\s*"
+    rf"(?P<num>\d{{1,3}}[A-Za-z]{{0,2}})(?:\s*\((?P<sub>\d+)\))?",
+    re.IGNORECASE,
+)
+# Number FIRST: "166A IPC", "Section 166A of IPC", "Section 193(2) BNS"
+_EXACT_STATUTE_REV = re.compile(
+    rf"\b(?:section|sections|sec\.?|§)?\s*(?P<num>\d{{1,3}}[A-Za-z]{{0,2}})"
+    rf"(?:\s*\((?P<sub>\d+)\))?\s*(?:of\s+(?:the\s+)?)?(?P<act>{_ACT_ALT})\b",
+    re.IGNORECASE,
+)
+
+
 def relative_top_cutoff(
     scored: list[tuple[float, object]],
     limit: int,
