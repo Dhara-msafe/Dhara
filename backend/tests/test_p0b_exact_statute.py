@@ -101,6 +101,64 @@ class TestSubsectionPreserved:
 
 
 # ─────────────────────────────────────────────────────────────────────────
+# 1b. P0-C.1 hardening — complete-identifier-boundary enforcement
+# ─────────────────────────────────────────────────────────────────────────
+
+class TestNoPartialTruncatedMatch:
+    """The parser must never accept a PREFIX of a longer number/suffix as if
+    it were the whole, correct identifier. Each of these must fail safely
+    (None, None, None) — never resolve to a shorter, different section."""
+
+    @pytest.mark.parametrize("text", [
+        "IPC 9999",      # 4-digit overlong number -> must NOT become "999"
+        "1860 IPC",      # enactment year -> must NOT become "860 IPC"
+        "IPC 166ABCD",   # 4-letter overlong suffix -> must NOT become "166AB"
+    ])
+    def test_overlong_reference_fails_safely(self, text):
+        act, sec, sub = extract_exact_statute_ref(text)
+        assert (act, sec, sub) == (None, None, None), f"{text!r} must fail safely, got ({act!r},{sec!r},{sub!r})"
+
+    @pytest.mark.parametrize("text,exp_sec", [
+        ("IPC 166A", "166A"),
+        ("IPC 511", "511"),
+        ("BNS 199", "199"),
+    ])
+    def test_valid_references_still_work_after_hardening(self, text, exp_sec):
+        act, sec, sub = extract_exact_statute_ref(text)
+        assert sec == exp_sec
+
+    def test_subsection_still_works_after_hardening(self):
+        act, sec, sub = extract_exact_statute_ref("BNS 193(2)")
+        assert (act, sec, sub) == ("Bharatiya Nyaya Sanhita", "193", "2")
+
+    def test_166a_vs_166b_still_distinct_after_hardening(self):
+        a = extract_exact_statute_ref("IPC 166A")
+        b = extract_exact_statute_ref("IPC 166B")
+        assert a[1] == "166A" and b[1] == "166B" and a[1] != b[1]
+
+
+class TestMultipleReferencesInOneMessage:
+    """Known, documented limitation (unchanged from P0-C): the parser finds
+    only the FIRST explicit reference via .search(). It must still return a
+    VALID identifier (never a corrupted/truncated one) and must never
+    silently substitute a DIFFERENT section than the first one actually
+    named. True multi-reference preservation (keeping both 166A and 168
+    simultaneously) would require a broader CaseState/return-type change —
+    NOT implemented here; flagged as a separate, larger dependency."""
+
+    def test_first_of_two_references_is_returned_intact(self):
+        act, sec, sub = extract_exact_statute_ref("IPC 166A and IPC 168")
+        assert act == "Indian Penal Code"
+        assert sec == "166A"  # the FIRST one named — not corrupted, not swapped
+
+    def test_166a_vs_168_both_individually_valid(self):
+        a = extract_exact_statute_ref("IPC 166A")
+        b = extract_exact_statute_ref("IPC 168")
+        assert a[1] == "166A"
+        assert b[1] == "168"
+
+
+# ─────────────────────────────────────────────────────────────────────────
 # 2. retrieve_db() behaviour — mocked Motor DB, no live DB/network/LLM
 # ─────────────────────────────────────────────────────────────────────────
 

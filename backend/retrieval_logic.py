@@ -427,14 +427,26 @@ ACT_ALIASES: dict[str, str] = {
 _ACT_ALT = "|".join(sorted((re.escape(a) for a in ACT_ALIASES), key=len, reverse=True))
 
 # Act name FIRST: "IPC 166A", "IPC-166A", "BNS 193(2)", "Indian Penal Code Section 166A"
+# P0-C.1 hardening: (?<!\d) before and (?![\dA-Za-z]) after the number+suffix
+# group enforce COMPLETE identifier boundaries. Without these, a regex engine
+# backtrack/retry could accept a mere PREFIX of a longer digit run ("IPC 9999"
+# silently becoming "999") or a longer letter-suffix run ("166ABCD" becoming
+# "166AB") as if it were the whole, correct identifier — a truncation bug,
+# not a real section number. With the boundary checks, any input that is not
+# EXACTLY a 1-3 digit section optionally followed by 0-2 letters, bounded on
+# both sides by a non-alphanumeric character, fails to match at all (returns
+# None, None, None) rather than silently resolving to a different, shorter
+# identifier. This also prevents a bare enactment year ("1860 IPC") from
+# being misread as "860 IPC" by starting the digit match mid-run.
 _EXACT_STATUTE_FWD = re.compile(
     rf"\b(?P<act>{_ACT_ALT})\b[\s\-]*(?:section|sections|sec\.?|§)?\s*"
-    rf"(?P<num>\d{{1,3}}[A-Za-z]{{0,2}})(?:\s*\((?P<sub>\d+)\))?",
+    rf"(?<!\d)(?P<num>\d{{1,3}}[A-Za-z]{{0,2}})(?![\dA-Za-z])(?:\s*\((?P<sub>\d+)\))?",
     re.IGNORECASE,
 )
 # Number FIRST: "166A IPC", "Section 166A of IPC", "Section 193(2) BNS"
 _EXACT_STATUTE_REV = re.compile(
-    rf"\b(?:section|sections|sec\.?|§)?\s*(?P<num>\d{{1,3}}[A-Za-z]{{0,2}})"
+    rf"\b(?:section|sections|sec\.?|§)?\s*"
+    rf"(?<!\d)(?P<num>\d{{1,3}}[A-Za-z]{{0,2}})(?![\dA-Za-z])"
     rf"(?:\s*\((?P<sub>\d+)\))?\s*(?:of\s+(?:the\s+)?)?(?P<act>{_ACT_ALT})\b",
     re.IGNORECASE,
 )
