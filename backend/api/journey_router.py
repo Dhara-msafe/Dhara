@@ -65,6 +65,15 @@ async def _notify_linked_recipients(user: dict, rec: dict, type_: str, extra_pay
         payload["last_location"] = {
             "area": last_loc.get("area"), "accuracy": last_loc.get("accuracy"),
             "updated_at": last_loc.get("updated_at"), "age_minutes": age_min,
+            # P1 Map Integration: lat/lng now included so an authorized
+            # recipient's Alerts screen can render a marker + accuracy
+            # circle. Safe to add unconditionally here because the SAME
+            # permission check already enforced at read time in
+            # alerts_router.py (_sanitize_location) strips this ENTIRE
+            # last_location object — lat/lng included — for any recipient
+            # whose link is not accepted or does not have temp_location=True.
+            # No separate per-field filtering needed; see P0 security hotfix.
+            "lat": last_loc.get("lat"), "lng": last_loc.get("lng"),
         }
     if extra_payload:
         payload.update(extra_payload)
@@ -264,6 +273,7 @@ def _status_html(rec: dict, label: str, colour: str, icon: str) -> str:
     safe_at = _fmt_dt(rec.get("safe_at")) if rec.get("safe_at") else ""
     last_loc = rec.get("last_location")
     loc_block = ""
+    map_block = ""
     if last_loc:
         area      = _escape(last_loc.get("area") or "Unknown area")
         loc_time  = _fmt_dt(last_loc.get("updated_at"))
@@ -276,6 +286,32 @@ def _status_html(rec: dict, label: str, colour: str, icon: str) -> str:
         <div class="field-value">📍 {area}{acc_note}</div>
         <div style="font-size:12px;color:#888;margin-top:3px">Updated {loc_time}</div>
       </div>"""
+        # P1 Map Integration — explicit user decision: show an exact marker
+        # + accuracy circle on this page, accepting that this public,
+        # unauthenticated, token-in-URL page is reachable by anyone holding
+        # the SMS link (not gated by Trusted Circle permissions — see
+        # module docstring). Uses Leaflet.js + OpenStreetMap tiles: no
+        # Google Maps Platform API/key involved for this page, so this
+        # stays within the explicit "Maps SDK for Android only, no other
+        # APIs without separate authorization" constraint.
+        lat, lng = last_loc.get("lat"), last_loc.get("lng")
+        if lat is not None and lng is not None:
+            acc_m_js = max(int(last_loc.get("accuracy", 0)), 1)
+            map_block = f"""
+      <hr class="divider"/>
+      <div id="map" style="height:220px;border-radius:12px;overflow:hidden"></div>
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+      <script>
+        (function() {{
+          var map = L.map('map', {{ zoomControl: true, attributionControl: true }}).setView([{lat}, {lng}], 15);
+          L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+            maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+          }}).addTo(map);
+          L.marker([{lat}, {lng}]).addTo(map).bindPopup('Last known location');
+          L.circle([{lat}, {lng}], {{ radius: {acc_m_js}, color: '#1A3F74', fillColor: '#1A3F74', fillOpacity: 0.15 }}).addTo(map);
+        }})();
+      </script>"""
     status_extra = f"<p style='margin:0 0 4px;font-size:15px;color:#555;'>Arrived: {safe_at}</p>" if safe_at else ""
 
     return f"""<!DOCTYPE html>
@@ -333,6 +369,7 @@ def _status_html(rec: dict, label: str, colour: str, icon: str) -> str:
       </div>
       {f'<hr class="divider"/><div><div class="field-label">Marked safe at</div><div class="field-value">{safe_at}</div></div>' if safe_at else ""}
       {loc_block}
+      {map_block}
     </div>
   </div>
 

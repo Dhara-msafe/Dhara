@@ -190,6 +190,18 @@ class TestGuardianShareArchitecturalSeparation:
         assert page.status_code == 200
         html = page.text
         assert "QA Guardian Area" in html
-        assert "12.9716" not in html and "77.5946" not in html, \
-            "Guardian Share page leaked raw coordinates"
+        # UPDATED per explicit user GO (P1 Map Integration acceptance):
+        # the Guardian Share page now DELIBERATELY renders an exact marker
+        # via an embedded Leaflet/OpenStreetMap map for anyone holding the
+        # link. This reverses the PRIOR "no raw coordinates" assertion -
+        # the user explicitly accepted this privacy tradeoff. Coordinates
+        # ARE now expected to appear (inside the Leaflet init script).
+        assert "12.9716" in html and "77.5946" in html, \
+            "Guardian Share page should now render the exact coordinates (explicit user decision)"
+        # Still confirm NO Google Maps Platform key/API is used for this
+        # page (OpenStreetMap/Leaflet only, per the "no other paid APIs
+        # without separate authorization" constraint).
+        assert "maps.googleapis.com" not in html, \
+            "Guardian page must not call the Google Maps JS API (not authorized)"
+        assert "leaflet" in html.lower(), "Expected Leaflet.js map embed not found"
         assert "lat" not in html.lower().replace("relate", "") or True  # heuristic only; coordinate check above is authoritative

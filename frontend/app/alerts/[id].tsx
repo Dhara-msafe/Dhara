@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
+import { AlertLocationMap } from '@/src/components/dhara/AlertLocationMap';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { getAlert, markAlertRead, ackAlert, SafetyAlert } from '@/src/trustedCircle/api';
@@ -117,6 +118,9 @@ export default function AlertDetail() {
             <>
               <Text style={styles.cardVal}>{loc.area}</Text>
               <Text style={styles.hint}>Last known location — not necessarily current. Accuracy: {loc.accuracy || 'unknown'} · {loc.age_minutes != null ? `${loc.age_minutes} min ago` : ''}</Text>
+              {!!(loc.lat && loc.lng) && (
+                <AlertLocationMap lat={loc.lat} lng={loc.lng} accuracyMeters={loc.accuracy} />
+              )}
               {!!(loc.lat && loc.lng) && (
                 <Pressable onPress={onOpenMaps} style={styles.linkRow} testID="alert-open-maps">
                   <Ionicons name="map-outline" size={16} color={c.navy} />
