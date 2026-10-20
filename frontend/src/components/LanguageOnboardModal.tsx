@@ -7,7 +7,21 @@
  *   2. Visual — Tappable language-chip grid (top 10 Indian languages + "More").
  *
  * Key persisted in AsyncStorage: `lang_onboarded_v1_<userId>` (or `_guest`).
- * Not shown on consent / language / login / register screens.
+ * Not shown on consent / language / login / register / state-selection screens.
+ *
+ * P0 fix (consent-overlay bug): the eligibility check used to be a true
+ * one-shot (`checkedRef.current`, set forever on first non-excluded route)
+ * with no logic to ever close the modal again. Signup briefly passes through
+ * /state?onboarding=1 (NOT in the exclusion list) before ConsentGuard
+ * redirects to /consent — the modal opened there and then had no mechanism
+ * to close itself once the route became /consent, silently intercepting
+ * every tap on the real consent checkboxes underneath. Fixed by: (1) adding
+ * /state to EXCLUDED_PATHS, (2) making exclusion checking REACTIVE (closes
+ * the modal immediately if navigation ever lands on an excluded route,
+ * regardless of any earlier decision), (3) scoping the one-shot check
+ * per-ACCOUNT instead of forever, resetting `visible` on every account
+ * change, and (4) guarding the async AsyncStorage read against a stale
+ * route/account by the time it resolves.
  */
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
@@ -46,8 +60,10 @@ const TOP_LANGUAGES: Language[] = [
   { code: 'pa',  name: 'Punjabi',   native: 'ਪੰਜਾਬੀ',    tts: 'pa-IN'  },
 ];
 
-// Screens where the modal must NOT appear
-const EXCLUDED_PATHS = ['/consent', '/language', '/login', '/register', '/welcome'];
+// Screens where the modal must NOT appear. '/state' added (P0 fix) — signup
+// briefly passes through /state?onboarding=1 before ConsentGuard redirects
+// to /consent; without this, the modal could open there and persist.
+const EXCLUDED_PATHS = ['/consent', '/language', '/login', '/register', '/welcome', '/state'];
 
 const STORAGE_KEY = (uid: string) => `lang_onboarded_v1_${uid}`;
 
@@ -66,17 +82,45 @@ export function LanguageOnboardModal() {
   const [visible,  setVisible]  = useState(false);
   const [selected, setSelected] = useState<Language>(language);
   const [saving,   setSaving]   = useState(false);
-  const checkedRef = useRef(false);
+  // One-shot PER ACCOUNT (not forever) — tracks which user id the eligibility
+  // check has already been decided for. A different uid (including null, on
+  // sign-out) means "decide fresh"; the same uid means "don't re-check".
+  const checkedForUidRef = useRef<string | null>(null);
+  // Mirrors the live pathname so the async AsyncStorage callback below can
+  // check the CURRENT route at resolution time, not the one captured in the
+  // effect's closure when the check started.
+  const pathnameRef = useRef(pathname);
+  useEffect(() => { pathnameRef.current = pathname; }, [pathname]);
 
-  // ── Check once whether to show the modal ─────────────────────────────────
+  // ── Decide whether to show the modal — reactive to BOTH account changes
+  // and route changes, so the modal can never stay latched across either. ──
   useEffect(() => {
-    if (!user || checkedRef.current) return;
-    // Don't interrupt sensitive screens
-    if (EXCLUDED_PATHS.some(p => pathname?.startsWith(p))) return;
-    checkedRef.current = true;
+    const uid = user ? (user.is_guest ? 'guest' : user.id) : null;
 
-    const key = STORAGE_KEY(user.is_guest ? 'guest' : user.id);
+    // Account changed (including sign-out, uid -> null) since our last
+    // decision: never let a different account's modal state leak across a
+    // switch. This also re-arms the one-shot check for the new account.
+    if (checkedForUidRef.current !== uid) {
+      setVisible(false);
+    }
+
+    const onExcludedRoute = EXCLUDED_PATHS.some(p => pathname?.startsWith(p));
+    if (onExcludedRoute) {
+      // Never open here, and close immediately if we land here while open —
+      // regardless of any decision made earlier on a different route.
+      setVisible(false);
+      return;
+    }
+    if (!user) return;
+    if (checkedForUidRef.current === uid) return; // already decided for this account
+    checkedForUidRef.current = uid;
+
+    const key = STORAGE_KEY(uid as string);
     AsyncStorage.getItem(key).then(v => {
+      // Race guard: only honour this async result if, by the time it
+      // resolves, we're still on a non-excluded route for this SAME account.
+      if (EXCLUDED_PATHS.some(p => pathnameRef.current?.startsWith(p))) return;
+      if (checkedForUidRef.current !== uid) return;
       if (!v) setVisible(true);
     }).catch(() => {});
   }, [user, pathname]);
