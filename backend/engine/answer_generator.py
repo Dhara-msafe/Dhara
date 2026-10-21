@@ -121,6 +121,30 @@ def build_cannot_verify_response(
     return body
 
 
+def build_bns_identifier_hypothesis_response(act_hint: str, section_hint: str, hypothesis: dict) -> str:
+    """Deterministic, hedged response for a well-formed BNS/BNSS/BSA reference
+    whose exact record is absent AND whose number is not confirmed to exist
+    in the verified correspondence index, but DOES match a former IPC/CrPC/
+    Evidence-Act number.
+
+    Never asserts the section doesn't exist — only that this is unconfirmed —
+    and OFFERS the old-law correspondence as a possible intended reference,
+    never a silent substitution. Deterministic/template, not LLM-authored, so
+    it can never invent a punishment or statutory claim.
+    """
+    bns_sec = hypothesis.get("bns_section", "")
+    return (
+        f"I don't have a verified record confirming that {act_hint} has a Section "
+        f"{section_hint}. I also can't independently confirm it does NOT exist \u2014 this is "
+        f"only a gap in what I can verify right now, not a ruling on the section itself.\n\n"
+        f"You may be thinking of the former IPC Section {section_hint}, which under the "
+        f"IPC\u2192BNS renumbering corresponds to BNS Section {bns_sec}. I haven't "
+        f"independently re-verified this beyond that correspondence table, so please confirm "
+        f"with a licensed advocate before relying on it.\n\n"
+        f"\u26a0\ufe0f Legal information, not legal advice."
+    )
+
+
 def augment_prompt_with_status_guard(prompt: str, hits: Iterable[dict]) -> str:
     """Append a plain-language instruction reminding the LLM to flag dead laws.
 

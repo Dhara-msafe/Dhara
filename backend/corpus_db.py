@@ -59,7 +59,10 @@ Returned dict shape (per result)
 from __future__ import annotations
 
 import asyncio
+import json as _json
 import re
+from pathlib import Path as _Path
+
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 # Scoring + the ≥2-word Corroboration Rule are defined once in retrieval_logic
@@ -281,6 +284,83 @@ def _shape(doc: dict, score: float, jflag: str | None, is_anchored: bool = False
         "act_year": doc.get("act_year"),
         "act_id": doc.get("act_id", ""),
         "dead_law_reason": doc.get("dead_law_reason"),
+        # P1 fix: pass through an optional successor-provision hint (e.g. IPC
+        # 166A -> "Bharatiya Nyaya Sanhita, Section 199") so the EXISTING
+        # cannot-verify/dead-law template in answer_generator.py can name the
+        # current provision instead of just saying "superseded".
+        "successor_act": doc.get("successor_act"),
+    }
+
+
+# ── P1 identifier-existence check ────────────────────────────────────────────
+# Reuses the SAME ipc_bns_mapping.json correspondence table server.py's own
+# IPC<->BNS cross-reference search already loads — no new dataset, no new
+# engine. Purpose: tell apart "this BNS/BNSS/BSA section number genuinely has
+# no record in legal_sections yet" (a grounding gap) from "there is no
+# evidence this section number exists at all" (where an old IPC/CrPC/Evidence
+# Act number may explain the user's confusion). Absence from this index must
+# NEVER be read as proof of non-existence — only as "no evidence either way".
+_XREF_JSON_PATH = _Path(__file__).parent / "ipc_bns_mapping.json"
+_bns_family_existence_index: "set[str] | None" = None
+_ipc_origin_hypothesis_index: "dict[str, dict] | None" = None
+
+_NEW_SECTION_KEYS = ("bns_section", "bnss_section", "bsa_section")
+_OLD_SECTION_KEYS = ("ipc_section", "crpc_section", "iea_section")
+
+
+def _build_bns_family_indexes() -> None:
+    global _bns_family_existence_index, _ipc_origin_hypothesis_index
+    _bns_family_existence_index = set()
+    _ipc_origin_hypothesis_index = {}
+    if not _XREF_JSON_PATH.exists():
+        return
+    try:
+        with open(_XREF_JSON_PATH, encoding="utf-8") as f:
+            data = _json.load(f)
+    except Exception:
+        return
+    for _table_name, entries in data.items():
+        if not isinstance(entries, list):
+            continue
+        for e in entries:
+            if not isinstance(e, dict):
+                continue
+            for k in _NEW_SECTION_KEYS:
+                v = e.get(k)
+                if v:
+                    _bns_family_existence_index.add(str(v).strip().upper())
+            for k in _OLD_SECTION_KEYS:
+                old_num = e.get(k)
+                if not old_num:
+                    continue
+                new_num = e.get("bns_section") or e.get("bnss_section") or e.get("bsa_section")
+                if new_num:
+                    _ipc_origin_hypothesis_index.setdefault(str(old_num).strip().upper(), {
+                        "bns_section": str(new_num).strip(),
+                        "what_changed": e.get("what_changed", ""),
+                        "source_link": e.get("source_link", ""),
+                    })
+
+
+def check_bns_family_identifier(section_number: str) -> dict:
+    """
+    For a well-formed "BNS/BNSS/BSA <section_number>" reference whose exact
+    legal_sections record is missing, report whether the verified
+    correspondence index confirms the number as a real current section, and
+    if not, whether it matches a former IPC/CrPC/Evidence-Act number that
+    could explain the confusion.
+
+    Returns {"confirmed_existing": bool, "ipc_origin_hypothesis": dict|None}.
+    Callers MUST treat confirmed_existing=False as "no evidence either way",
+    never as "this section does not exist" — the index only covers sections
+    that happen to appear in this correspondence table.
+    """
+    if _bns_family_existence_index is None:
+        _build_bns_family_indexes()
+    sec = (section_number or "").strip().upper()
+    return {
+        "confirmed_existing": sec in (_bns_family_existence_index or set()),
+        "ipc_origin_hypothesis": (_ipc_origin_hypothesis_index or {}).get(sec),
     }
 
 

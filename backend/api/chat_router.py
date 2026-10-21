@@ -54,6 +54,7 @@ from corpus_db import (
     retrieve_db as db_retrieve,
     lookup_section as db_lookup_section,
     check_query_for_orphan_warnings as db_orphan_check,
+    check_bns_family_identifier as db_check_bns_family_identifier,  # P1 fix
     STATE_CODE_TO_JURISDICTION,
 )
 from langpolicy import needs_language_repair, repair_prompt, needs_retrieval_translation
@@ -69,6 +70,7 @@ from services.ai_gateway import build_chat as _ai_build_chat, gateway_status
 from engine.answer_generator import (
     all_provisions_dead,
     build_cannot_verify_response,
+    build_bns_identifier_hypothesis_response,
     augment_prompt_with_status_guard,
     strip_leaked_citations,
     augment_prompt_with_actor_conduct_lock,
@@ -612,6 +614,30 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                     if _own_section_number(it.get("short_label", "")) in (None, _cited_sec)
                 ]
 
+    # (b3b) P1 grounding-safety fix for the BNS 199 / IPC 166A contradiction:
+    # when an EXPLICIT statute reference is active for this turn (this turn's
+    # own citation, or one carried forward via _v2_state.active_statute_ref)
+    # but the exact MongoDB lookup found NOTHING (db_hits empty), the Python-
+    # corpus fuzzy hits in `retrieved` cannot be trusted to answer this
+    # specific-section question either. The (b3) guard above only filters
+    # `retrieved` when db_hits DID find an exact match — with db_hits empty,
+    # an irrelevant fuzzy hit (sharing generic words with the query, e.g. a
+    # completely unrelated section) was slipping through as "grounding",
+    # letting the LLM blend in that unrelated section's facts/punishment
+    # instead of honestly saying it has no verified text for this section.
+    # Reuses the SAME active-reference signal as (b3)/P0-D — no new engine.
+    _active_ref_now = _v2_state.active_statute_ref if _v2_state else None
+    if not _active_ref_now:
+        _this_turn_act, _this_turn_sec, _ = _p0d_extract_exact_ref(body.message)
+        if _this_turn_act and _this_turn_sec:
+            _active_ref_now = {"act": _this_turn_act, "section": _this_turn_sec}
+    if _active_ref_now and not db_hits and retrieved and not early_refusal:
+        logger.info(
+            "[grounding_guard] dropping %d unverified fuzzy hit(s) for %s %s — exact lookup found no record",
+            len(retrieved), _active_ref_now.get("act"), _active_ref_now.get("section"),
+        )
+        retrieved = []
+
     # Orphan-invalidation check — sections in judicial_invalidations but NOT
     # in legal_sections (e.g. IPC §377: IPC replaced by BNS, absent from corpus
     # but Supreme Court ruling is tracked).  Fires only when db_hits is empty.
@@ -628,6 +654,28 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
     # for an act not in the corpus.  Either of these counts as a verified source.
     if not early_refusal and not retrieved and not state_hits and not db_hits and not db_orphan:
         early_refusal = REFUSAL_NO_CORPUS
+        # P1 fix: a missing legal_sections record does NOT mean the section
+        # doesn't exist — check the verified IPC<->BNS correspondence index
+        # before saying anything more specific than the generic refusal.
+        # Never swap the user's own Act for another; only ever OFFER a
+        # hedged hypothesis when the number matches a former IPC/CrPC/
+        # Evidence-Act number, and always say the limitation out loud.
+        _ref_for_hint = _active_ref_now
+        _hint_act = (_ref_for_hint or {}).get("act") or ""
+        _hint_sec = (_ref_for_hint or {}).get("section") or ""
+        if _ref_for_hint and re.search(r"bharatiya|bns|bnss|bsa", _hint_act, re.IGNORECASE):
+            try:
+                _existence = db_check_bns_family_identifier(_hint_sec)
+            except Exception as e:
+                _existence = {"confirmed_existing": False, "ipc_origin_hypothesis": None}
+                logger.warning("[grounding_guard] check_bns_family_identifier failed: %s", e)
+            if not _existence.get("confirmed_existing") and _existence.get("ipc_origin_hypothesis"):
+                early_refusal = build_bns_identifier_hypothesis_response(
+                    _hint_act, _hint_sec, _existence["ipc_origin_hypothesis"],
+                )
+            # confirmed_existing=True: leave early_refusal as the plain
+            # REFUSAL_NO_CORPUS — this is an honest "missing grounding" gap
+            # for a real section, not a naming mix-up.
 
     logger.info(
         "retrieval-result | corpus=%d | state=%d | db=%d | orphan=%s | branch=%s",
