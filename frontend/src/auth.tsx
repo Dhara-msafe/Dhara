@@ -359,3 +359,22 @@ export function logClientError(
 }
 
 export const API_BASE = API;
+
+/**
+ * Reads the CURRENTLY signed-in account's id straight from the same
+ * AsyncStorage key (`gk_user`) that `persist()`/`logout()` above already
+ * write/remove on every login, refresh, and sign-out — the single source
+ * of truth for "who is active right now", usable from plain (non-hook)
+ * modules like src/women/api.ts to namespace on-device data per account.
+ * Returns null if nobody is signed in (not even a guest session).
+ */
+export async function getActiveUserId(): Promise<string | null> {
+  try {
+    const raw = await AsyncStorage.getItem(USER_KEY);
+    if (!raw) return null;
+    const u = JSON.parse(raw);
+    return u?.id ?? null;
+  } catch {
+    return null;
+  }
+}

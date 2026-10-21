@@ -180,6 +180,8 @@ No backend changes were required.
 
 ---
 
+---
+
 ## 6. Maps-key validation — does it run in Emergent's real Publish path?
 
 The local Node simulation (see prior session) proves the `app.config.js`
@@ -191,6 +193,145 @@ invokes Expo's config resolution internally (whether it calls
 pass `platform` into `ConfigContext` per Expo's documented contract, vs.
 some other invocation that might not). This could not be confirmed without
 an actual Publish run, which is out of scope for this pass per explicit
-constraints (no build/deploy/activation). Flagged as a **remaining
-blocker** — see summary sent to the user for the `deployment_agent` /
-`support_agent` follow-up on this specific point.
+constraints (no build/deploy/activation). A follow-up `deployment_agent`
+check ran a general static scan (no blockers found) but did not have
+visibility into this specific internal pipeline detail; `support_agent`
+confirmed no Android signing keystore/SHA-1 exists yet for this project —
+one is only generated on the first real Publish → Android build (safe, no
+rotation since nothing exists yet), and the SHA-1 itself is only
+obtainable afterward via an Emergent Support ticket referencing the build
+job id, not queryable from this sandbox. **Flagged as a remaining,
+unverifiable-without-a-real-build blocker.**
+
+---
+
+## 7. Addendum (second pass) — AsyncStorage persistence investigation, and revoke/mark_safe independence fix
+
+### 7a. Persistence bug — root cause
+
+Reproduced separately, using a real authenticated browser session (not raw
+script injection) against the web preview:
+
+- **Raw browser storage mechanics work correctly** on this web preview:
+  `localStorage.setItem/getItem` survive full page reloads, client-side
+  navigation, and origin stayed stable (`http://localhost:3000`) throughout
+  — ruled out as a generic iframe/storage-partitioning problem.
+- **The Language Onboarding Modal blocking automated clicks was the proximate
+  cause of the earlier false "persistence failure" report**: on a FRESH
+  session (no `lang_onboarded_v1_{uid}` key yet), the modal renders as a
+  full-screen overlay; a scripted click that doesn't first dismiss it
+  properly lands on the overlay, not the form underneath — so "Add to
+  circle" never actually fires, which looks identical to "the write didn't
+  persist." Once the modal is dismissed via its real Continue button first,
+  **both** the language flag and Trusted Circle contacts save and persist
+  correctly across refresh, navigation, and sign-out/sign-in as the same
+  account (all re-verified live, see §7c).
+- **Data is NOT lost** — it was **not restored to the UI in the test
+  environment** because the write call never ran, not because a successful
+  write vanished afterward.
+
+### 7b. Real bug found and fixed — account-switch data leak (Trusted Circle + siblings)
+
+While reproducing the above, a genuine, confirmed, reproducible bug was
+found: `src/women/api.ts` stored Trusted Circle contacts (`ws_trusted_circle`),
+safety-plan answers (`ws_safety_plan`), the check-in toggle
+(`ws_checkin_enabled`), and the Silent Alert evidence preference
+(`ws_silent_alert_evidence_pref`) under **flat, device-global AsyncStorage
+keys** — not scoped per account — and `auth.tsx::logout()` never cleared
+them. Live-verified: signing in as Account B after Account A had saved a
+contact showed Account A's contact to Account B (screenshot captured).
+
+**Fix (smallest change, no new schema/DB):**
+- Added `getActiveUserId()` to `src/auth.tsx` — reads the same `gk_user`
+  AsyncStorage key already written on every login/persist.
+- `src/women/api.ts`: all four keys are now namespaced by the active
+  account id (`${key}_${uid}`, falling back to a shared `guest` bucket only
+  when nobody is signed in at all — an inherent limit of unauthenticated
+  local storage, not fixable without requiring login). **Zero call-site
+  changes** — `getCircle()`/`saveCircle()`/etc. keep the same signatures;
+  only the internal key is now resolved per-account.
+- One-time, self-guarding migration copies whatever was under the OLD flat
+  key into whichever account reads it FIRST after this ships (matches prior
+  behaviour for that one account, preserves existing data) and never runs
+  again afterward (no leak to subsequent different accounts).
+- This stays entirely **local/preference data** — it was never the
+  authoritative store for accepted relationships, permissions, or
+  revocation; those remain exactly where they already were, in
+  `trusted_circle_links` on the backend, untouched by this fix. No new
+  database or schema was introduced or needed.
+- **Not fixed in this pass (flagged, same pattern):** `codePhraseStore.ts`'s
+  `expo-secure-store` key is similarly device-global, not account-scoped.
+  Out of the explicit scope of this request (code phrase, not Trusted
+  Circle/contacts) — noted for a future pass if desired.
+
+### 7c. Verification — web preview (native-device verification NOT performed, see below)
+
+All of the following were verified live, in one continuous authenticated
+browser session (not across separate/isolated automation runs, which would
+incorrectly look like data loss due to fresh browser-context isolation,
+not an app bug):
+- Add contact → refresh page → contact still present. ✅
+- Navigate to Head Out → back to Trusted Circle → contact still present,
+  Head Out's "trusted circle is empty" warning correctly absent. ✅
+- Sign out → sign back in as the **same** account → contact still present. ✅
+- Sign in as a **different** account → previously, the first account's
+  contact was visible (confirmed bug, screenshot captured) → **after the
+  fix**, requires a fresh regression pass (see testing_agent call for this
+  round) to confirm the leak is closed.
+
+**Native-device verification was NOT performed** — this sandbox only has
+access to the web preview via headless browser automation; a real
+iOS/Android build was explicitly out of scope this session (no APK build
+per your constraint). `AsyncStorage` on a real device uses SQLite/file
+storage directly (unrelated to any browser storage mechanism), so this fix
+should behave identically there, but that has not been device-verified.
+
+### 7d. Revoke ↔ mark_safe — corrected to be independent (this supersedes §2's original wording)
+
+The first version of this change made `mark_safe` a no-op after
+`sharing_revoked_at` was set ("symmetric guard"). **This was wrong** and has
+been reverted: a traveller who withdrew sharing must still be able to mark
+themselves safe — revoking never claimed anything about arrival, so there
+is nothing to protect by blocking it. Corrected design:
+- `mark_safe` and `revoke_sharing` are now fully independent — either can
+  be called in either order, each only guarded against being repeated on
+  itself (idempotent), never against the other.
+- `journey_status_page` has a dedicated **combined-state** label when both
+  flags are set: *"Arrived safely (sharing had already been turned off —
+  no location was shown for this update)"* — states both true facts
+  instead of one overwriting the other.
+- Coordinates/map stay hidden in **every** combination — driven solely by
+  `_sharing_closed()` (status=="safe" OR sharing_revoked_at set), untouched
+  by this fix.
+- `guardian-share.tsx`: the "I have arrived safely" button is now always
+  available (removed the incorrect `!revoked` hide-condition); the
+  "Withdraw sharing" button still hides once used or once already marked
+  safe (no functional value there — location is already hidden).
+
+### 7e. Missed-check-in escalation — documented consequence, now surfaced in UI
+
+Confirmed **intentional**: `report_missed_checkin` already skips once
+`_sharing_closed(rec)` is true, including the revoke case — withdrawing a
+link that can show nothing further also withdraws the passive
+missed-check-in safety net tied to that same link. `report_help_requested`
+(SOS/"Need help") is explicitly NOT gated this way and remains unaffected.
+This is now called out explicitly in `report_missed_checkin`'s docstring,
+and the **"Withdraw sharing" button in guardian-share.tsx now shows an
+inline warning before the tap**: *"Note: if you withdraw sharing, your
+guardian will NOT be notified even if you miss your check-in — the
+missed-check-in alert is tied to this same link."* The post-action banner
+also reiterates this and points out `mark_safe` is still available.
+
+### 7f. Family-pilot plan — Tier 2 stays deferred; public links are NOT selectively revocable
+
+Re-confirming §3: for the first family pilot, **authenticated in-app
+recipients** (the existing, flag-gated `trusted_circle_links` +
+`recipient_link_ids` channel) is the right model to extend with
+per-recipient revocation if/when needed — that channel already has a real
+per-recipient identity (`link_id`) to key off of. **Public SMS-shared
+status links must continue to be presented to users as all-or-nothing**
+(one shared link, one owner-level "withdraw sharing" switch) — they must
+never be described in-app as selectively revocable per recipient, since
+that is not true of the current architecture and would mislead a user
+about what revoking actually does. No UI copy in this app claims otherwise
+today; this is recorded here to guide future copy/feature decisions.

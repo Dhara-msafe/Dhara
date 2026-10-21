@@ -1,0 +1,30 @@
+{
+  "summary": "Follow-up regression pass for DHARA Guardian-link + Trusted Circle fixes. Verified both reported fixes work correctly on live rendered app (not raw script injection): (1) mark_safe/revoke independence with combined-state message, and (2) account-switch data leak fix for Trusted Circle contacts. 52/52 backend pytest tests passed. All frontend flows tested via continuous single-browser-session automation (avoiding the previous round's fresh-context false-positive trap).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/pytest/iteration_followup_guardian.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "journey_router.py: mark_safe and revoke_sharing are correctly independent, each idempotent, _sharing_closed() correctly gates coordinate/map withholding on either flag. Combined-state label logic in journey_status_page is correct and verified live.",
+    "guardian-share.tsx: 'I have arrived safely' button condition is `sent && journeyToken && !markedSafe` (no longer gated on !revoked) — correctly matches the fix. Inline warning text before 'Withdraw sharing' button present and verified live.",
+    "src/women/api.ts + src/auth.tsx::getActiveUserId(): per-account AsyncStorage namespacing (_scopedKey) with one-time legacy-key migration guarded by a marker key is implemented correctly and verified to prevent cross-account leakage live.",
+    "Note for future testing agents: each mcp_browser_automation tool invocation appears to spin up a FRESH browser context (localStorage/AsyncStorage wiped between calls) — any multi-step auth/persistence test (login->action->logout->re-login) MUST be done within a SINGLE script invocation, otherwise re-login checks will falsely appear to fail (reproduced this exact false-negative once during this session before correcting the approach)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (52/52)", "frontend": "100% of tested flows passed"},
+  "seed_data_creation": "Added one trusted-circle contact ('AccountA Guardian', 9876543210) under voicetest2026@example.com for testing; left in place (harmless local-only test data). Created several test journeys via API in this session (self-expire in 24h, no cleanup needed).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Both previously-reported bugs are now confirmed FIXED via live verification in a single continuous browser session: (a) FIX 1 - revoke then mark_safe succeeds with combined banner 'Status page updated — arrived safely. Sharing had already been turned off, so no location was shown for this update.', guardian-mark-safe button stays visible after guardian-revoke-sharing is tapped, inline warning text appears next to Withdraw sharing button, coordinates/map stay hidden in all combinations (confirmed via raw HTML check - no `id=\"map\"` div present). (b) FIX 2 - Trusted Circle contact added as Account A persists across refresh, head-out navigation (no 'empty circle' warning), and re-login as the SAME account; but does NOT leak to Account B after switching accounts in the same session (circle correctly empty for B). All verified via direct DOM/body-text inspection, not screenshots alone. 52/52 backend pytest suite still green (test_guardian_link_revocation_and_reinvite.py, test_p0_security_alert_location_sanitization.py, test_p1_map_integration.py, test_p1_map_authorization_boundaries.py, test_p1_safe_transition_followup.py, test_p1_notification_content_audit.py, test_p0_hotfix_live_verification.py). No new issues found. Both GPS feature flags remain OFF as required; no build/deploy/SMS was triggered.",
+  "rca_of_issue": "N/A - no new bugs found this round. Both fixes from the previous round's RCA were correctly implemented and are now closed."
+}

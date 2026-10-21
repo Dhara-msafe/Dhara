@@ -161,10 +161,7 @@ export default function GuardianShare() {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${authToken}` },
       });
-      if (r.ok) {
-        const data = await r.json().catch(() => ({}));
-        if (!data?.skipped) setMarkedSafe(true);
-      }
+      if (r.ok) setMarkedSafe(true);
     } catch {
       // non-critical — silently fail
     } finally {
@@ -306,8 +303,12 @@ export default function GuardianShare() {
         </View>
       )}
 
-      {/* Mark safe — shown after SMS is sent */}
-      {sent && journeyToken && !markedSafe && !revoked && (
+      {/* Mark safe — shown after SMS is sent. Deliberately available even
+          after "Withdraw sharing" was already used: revoking never claimed
+          anything about arrival, so there is nothing to protect by hiding
+          this — see journey_router.py::mark_safe() for the matching
+          backend-side independence. */}
+      {sent && journeyToken && !markedSafe && (
         <Pressable
           testID="guardian-mark-safe"
           style={styles.safeBtn}
@@ -326,7 +327,15 @@ export default function GuardianShare() {
         </Pressable>
       )}
 
-      {markedSafe && (
+      {markedSafe && revoked && (
+        <View style={styles.safeBanner} testID="guardian-safe-banner">
+          <Ionicons name="shield-checkmark" size={18} color="#16a34a" />
+          <Text style={styles.safeBannerTxt}>
+            {'Status page updated \u2014 arrived safely. Sharing had already been turned off, so no location was shown for this update.'}
+          </Text>
+        </View>
+      )}
+      {markedSafe && !revoked && (
         <View style={styles.safeBanner} testID="guardian-safe-banner">
           <Ionicons name="shield-checkmark" size={18} color="#16a34a" />
           <Text style={styles.safeBannerTxt}>
@@ -336,31 +345,41 @@ export default function GuardianShare() {
       )}
 
       {/* Withdraw sharing — shown after SMS is sent, available independently
-          of "I have arrived safely"; hidden once either action is taken. */}
+          of "I have arrived safely"; hidden once used (can't revoke twice)
+          or once already marked safe (location is already hidden by then,
+          so revoking adds nothing). The warning below is required reading
+          BEFORE tapping — withdrawing also turns off the missed-check-in
+          safety escalation tied to this same link (see journey_router.py's
+          report_missed_checkin() docstring for why that is intentional). */}
       {sent && journeyToken && !markedSafe && !revoked && (
-        <Pressable
-          testID="guardian-revoke-sharing"
-          style={styles.revokeSharingBtn}
-          onPress={revokeSharing}
-          disabled={revoking}
-          accessibilityRole="button"
-          accessibilityLabel="Withdraw location sharing for this link"
-        >
-          {revoking
-            ? <ActivityIndicator color={c.error ?? '#dc2626'} size="small" />
-            : <Ionicons name="lock-closed-outline" size={18} color={c.error ?? '#dc2626'} />
-          }
-          <Text style={styles.revokeSharingBtnTxt}>
-            {revoking ? 'Withdrawing\u2026' : 'Withdraw sharing for this link'}
+        <View style={styles.revokeSection}>
+          <Text style={styles.revokeWarningTxt}>
+            Note: if you withdraw sharing, your guardian will NOT be notified even if you miss your check-in — the missed-check-in alert is tied to this same link.
           </Text>
-        </Pressable>
+          <Pressable
+            testID="guardian-revoke-sharing"
+            style={styles.revokeSharingBtn}
+            onPress={revokeSharing}
+            disabled={revoking}
+            accessibilityRole="button"
+            accessibilityLabel="Withdraw location sharing for this link"
+          >
+            {revoking
+              ? <ActivityIndicator color={c.error ?? '#dc2626'} size="small" />
+              : <Ionicons name="lock-closed-outline" size={18} color={c.error ?? '#dc2626'} />
+            }
+            <Text style={styles.revokeSharingBtnTxt}>
+              {revoking ? 'Withdrawing\u2026' : 'Withdraw sharing for this link'}
+            </Text>
+          </Pressable>
+        </View>
       )}
 
       {revoked && (
         <View style={styles.revokedBanner} testID="guardian-revoked-banner">
           <Ionicons name="lock-closed" size={18} color={c.error ?? '#dc2626'} />
           <Text style={styles.revokedBannerTxt}>
-            Sharing withdrawn — the status link no longer shows your location to anyone, including anyone it was forwarded to.
+            Sharing withdrawn — the status link no longer shows your location to anyone, including anyone it was forwarded to. Missed-check-in alerts for this link are also off now; you can still tap &ldquo;I have arrived safely&rdquo; below at any time.
           </Text>
         </View>
       )}
@@ -431,6 +450,8 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#16a34a',
   },
   safeBannerTxt: { fontFamily: theme.fonts.body, fontSize: 14, color: c.ink, flex: 1 },
+  revokeSection: { gap: 8 },
+  revokeWarningTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 17, paddingHorizontal: 4 },
   revokeSharingBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, backgroundColor: '#FCEBE9', borderRadius: 14, paddingVertical: 14,

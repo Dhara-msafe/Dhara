@@ -164,21 +164,24 @@ async def create_journey(body: JourneyIn, user: dict = Depends(current_user)):
 
 @router.patch("/journey/status/{token}/safe", status_code=200)
 async def mark_safe(token: str, user: dict = Depends(current_user)):
-    """User marks their own journey as completed safely."""
+    """User marks their own journey as completed safely.
+
+    Deliberately INDEPENDENT of `sharing_revoked_at`: a traveller who
+    earlier withdrew sharing must still be able to confirm they arrived
+    safely — revoking sharing never claimed anything about arrival, so
+    there is nothing to "protect" by blocking this transition. The public
+    page's location/map withholding is driven solely by `_sharing_closed`
+    (status=="safe" OR sharing_revoked_at set) — that gate is unaffected
+    by this change and keeps coordinates hidden in every combination.
+    See journey_status_page() for how the two flags render together when
+    both are set (distinct combined message, not an overwrite)."""
     rec = await db.safety_journeys.find_one({"token": token})
     if not rec:
         raise HTTPException(404, "Journey not found")
     if rec["user_id"] != user["id"]:
         raise HTTPException(403, "Not your journey")
-    if rec.get("sharing_revoked_at"):
-        # Symmetric with revoke_sharing()'s own _sharing_closed guard: once
-        # EITHER terminal state is reached first, the other transition is a
-        # no-op rather than silently overwriting it. Without this, revoke
-        # -> mark_safe would flip the public page from the neutral "Sharing
-        # turned off" banner back to "Arrived safely", contradicting the
-        # traveller's own revoke action. (status=="safe" already can't be
-        # re-marked safe again — this only guards the cross-transition.)
-        return {"ok": True, "skipped": "sharing already withdrawn"}
+    if rec["status"] == "safe":
+        return {"ok": True, "already_safe": True}
     now = datetime.now(timezone.utc)
     await db.safety_journeys.update_one(
         {"token": token},
@@ -236,7 +239,21 @@ async def revoke_sharing(token: str, user: dict = Depends(current_user)):
 async def report_missed_checkin(token: str, user: dict = Depends(current_user)):
     """Client calls this when its own local check-in timer expires with no
     response. Nothing server-side watches a clock for this — it stays
-    exactly as client-driven / foreground-only as the rest of Head Out."""
+    exactly as client-driven / foreground-only as the rest of Head Out.
+
+    INTENTIONAL CONSEQENCE OF REVOKING SHARING: once `sharing_revoked_at`
+    is set, this call becomes a no-op — a missed check-in after the
+    traveller has withdrawn sharing will NOT escalate to their Trusted
+    Circle. This is a deliberate trade-off (withdrawing a link that can
+    show nothing further also withdraws the passive missed-check-in
+    safety net tied to that same link), not an oversight. The frontend
+    MUST surface this consequence to the user before they tap "Withdraw
+    sharing" (see guardian-share.tsx's inline warning next to that
+    button) — silently turning off an active safety escalation without
+    telling the traveller would itself be a safety regression.
+    `report_help_requested` (above) is explicitly NOT gated the same way:
+    "Need help" must always reach the Trusted Circle regardless of any
+    earlier revoke."""
     rec = await db.safety_journeys.find_one({"token": token})
     if not rec:
         raise HTTPException(404, "Journey not found")
@@ -323,7 +340,17 @@ async def journey_status_page(token: str):
     status_label: str
     status_colour: str
     status_icon: str
-    if rec["status"] == "safe":
+    if rec["status"] == "safe" and rec.get("sharing_revoked_at"):
+        # Both independent flags are set: the traveller marked themselves
+        # safe AFTER already withdrawing sharing. Neither flag is allowed
+        # to silently overwrite the other (see mark_safe()/revoke_sharing()
+        # docstrings) — the page says BOTH true things instead of picking
+        # one. Coordinates/map stay hidden either way (_sharing_closed
+        # gates on EITHER flag, independent of this label choice).
+        status_label  = "Arrived safely (sharing had already been turned off — no location was shown for this update)"
+        status_colour = "#16a34a"   # green-600 — arrival is the most reassuring fact for a guardian reading this
+        status_icon   = "✅"
+    elif rec["status"] == "safe":
         status_label  = "Arrived safely"
         status_colour = "#16a34a"   # green-600
         status_icon   = "✅"

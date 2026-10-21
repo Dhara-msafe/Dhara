@@ -180,21 +180,37 @@ class TestRevokeSharing:
         assert missing.status_code == 404
 
 
-    def test_revoke_then_mark_safe_does_not_overwrite_revoked_banner(self, owner_token):
-        """Symmetric guard: once revoked, a later mark_safe call must be a
-        no-op — it must NOT flip the public page back to 'Arrived safely',
-        contradicting the traveller's own earlier revoke action."""
+    def test_revoke_then_mark_safe_stays_independent_combined_state(self, owner_token):
+        """Revised design: revoking sharing and marking safe are INDEPENDENT
+        states. A traveller who withdrew sharing must still be able to mark
+        themselves safe afterward — this is a true, additional fact, not a
+        contradiction. Coordinates must stay hidden either way, and the page
+        must say BOTH things rather than picking one."""
         headers = {"Authorization": f"Bearer {owner_token}"}
         token = _create_journey(headers, destination="QA Revoke Then Safe")
+        _post_location(headers, token, lat=2.0, lng=3.0, area="QA Pre-Revoke")
         requests.post(f"{BASE_URL}/api/journey/status/{token}/revoke", headers=headers)
 
         safe = requests.patch(f"{BASE_URL}/api/journey/status/{token}/safe", headers=headers)
         assert safe.status_code == 200
-        assert safe.json().get("skipped")
+        assert safe.json().get("skipped") is None   # no longer blocked — must actually succeed
+        assert "safe_at" in safe.json()
 
         page = requests.get(f"{BASE_URL}/api/journey/status/{token}")
-        assert "Sharing turned off by traveller" in page.text
-        assert "Arrived safely" not in page.text
+        assert "Arrived safely" in page.text          # the real, additional fact is shown
+        assert "sharing had already been turned off" in page.text.lower()
+        assert "2.0" not in page.text and "L.marker" not in page.text   # coordinates still hidden
+
+    def test_missed_checkin_is_a_noop_after_revoke_by_design(self, owner_token):
+        """Documents the intentional trade-off: withdrawing sharing also
+        withdraws the passive missed-check-in escalation tied to that link
+        (report_help_requested / SOS remains unaffected — tested elsewhere)."""
+        headers = {"Authorization": f"Bearer {owner_token}"}
+        token = _create_journey(headers, destination="QA Missed Checkin After Revoke")
+        requests.post(f"{BASE_URL}/api/journey/status/{token}/revoke", headers=headers)
+        mc = requests.post(f"{BASE_URL}/api/journey/status/{token}/missed-checkin", headers=headers)
+        assert mc.status_code == 200
+        assert mc.json().get("skipped")
 
 
 class TestAlertsChannelRespectsRevoke:
