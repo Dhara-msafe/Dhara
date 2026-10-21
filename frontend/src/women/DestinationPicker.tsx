@@ -23,6 +23,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
+import { DestinationMapPicker } from './DestinationMapPicker';
 
 const c = theme.colors;
 
@@ -32,6 +33,13 @@ export interface DestinationValue {
   label: string;
   radiusMeters: number;
   savedPlaceId?: string;
+  /**
+   * GO1A map pilot: set only by dragging/tapping the DestinationMapPicker
+   * pin, or by selecting a saved place that already has coordinates.
+   * Never populated from device GPS or any geocoding/search API.
+   */
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface SavedPlace {
@@ -305,8 +313,14 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
       label: p.label,
       radiusMeters: p.radius_meters,
       savedPlaceId: p.place_id,
+      latitude: p.latitude,
+      longitude: p.longitude,
     });
   }, [onChange]);
+
+  const movePin = useCallback((lat: number, lng: number) => {
+    onChange({ ...value, latitude: lat, longitude: lng });
+  }, [value, onChange]);
 
   const saveCurrentAsPlace = useCallback(async () => {
     if (!hasAuth || !value.label.trim()) return;
@@ -315,6 +329,8 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
       const created = await createSavedPlace(base, authToken!, {
         label: value.label.trim(),
         radius_meters: value.radiusMeters,
+        latitude: value.latitude ?? undefined,
+        longitude: value.longitude ?? undefined,
       });
       if (created) {
         setPlaces(prev => [created, ...prev]);
@@ -404,6 +420,16 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
           </Pressable>
         )}
       </View>
+
+      {/* ── Map pin (GO1A pilot — web: OSM/Leaflet; native: placeholder) ── */}
+      <DestinationMapPicker
+        testID="dp-map-picker"
+        latitude={value.latitude ?? null}
+        longitude={value.longitude ?? null}
+        radiusMeters={value.radiusMeters}
+        onPositionChange={movePin}
+        recenterKey={value.savedPlaceId ?? 'manual'}
+      />
 
       {/* ── Saved places quick-select ─────────────────────────────────── */}
       {hasAuth && (

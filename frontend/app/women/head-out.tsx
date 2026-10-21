@@ -35,6 +35,8 @@ interface HeadOutSession {
   durationMins: number;
   radiusMeters?: number;   // GO1A: optional, undefined in sessions created before GO1A
   savedPlaceId?: string;   // GO1A: optional reference to a saved place
+  latitude?: number | null;  // GO1A map pilot: manual pin position, never device GPS
+  longitude?: number | null;
 }
 
 function formatCountdown(secs: number): string {
@@ -118,6 +120,8 @@ export default function HeadOut() {
       ...(DESTINATION_PICKER_ENABLED && {
         radiusMeters: destValue.radiusMeters,
         savedPlaceId: destValue.savedPlaceId,
+        latitude: destValue.latitude ?? null,
+        longitude: destValue.longitude ?? null,
       }),
     };
     await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(ses)).catch(() => {});
