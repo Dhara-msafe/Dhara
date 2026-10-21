@@ -164,17 +164,52 @@ export default function TrustedCircle() {
               </View>
             );
           }
-          if (invite?.status === 'declined') {
+          if (invite?.status === 'declined' || invite?.status === 'revoked') {
+            const isExpanded = expandedId === ct.id;
+            const perms = draftPerms[ct.id] || DEFAULT_PERMS;
+            const noticeTxt = invite.status === 'declined'
+              ? `${ct.name} declined this invitation.`
+              : `Connection with ${ct.name} was revoked.`;
+            if (!isExpanded) {
+              return (
+                <View key={`invite-${ct.id}`} style={styles.inviteRow}>
+                  <Text style={styles.inviteSentTxt}>{noticeTxt}</Text>
+                  <Pressable
+                    testID={`circle-reinvite-${ct.id}`}
+                    disabled={!authToken}
+                    onPress={() => setExpandedId(ct.id)}
+                  >
+                    <Text style={styles.inviteLinkTxt}>Invite {ct.name} again →</Text>
+                  </Pressable>
+                </View>
+              );
+            }
+            // Re-invite always creates a BRAND NEW invitation record on the
+            // backend (fresh id, status "pending") — the old declined/revoked
+            // record is left untouched for history; its id/token is never
+            // reused, and its (possibly now-stale) permissions never carry
+            // over automatically — the owner re-chooses permissions below.
             return (
-              <View key={`invite-${ct.id}`} style={styles.inviteRow}>
-                <Text style={styles.inviteSentTxt}>{ct.name} declined this invitation.</Text>
-              </View>
-            );
-          }
-          if (invite?.status === 'revoked') {
-            return (
-              <View key={`invite-${ct.id}`} style={styles.inviteRow}>
-                <Text style={styles.inviteSentTxt}>Connection with {ct.name} was revoked.</Text>
+              <View key={`invite-${ct.id}`} style={styles.permPanel}>
+                <Text style={styles.permPanelTitle}>Choose what {ct.name} can see</Text>
+                {PERM_FIELDS.map(f => (
+                  <View key={f.key} style={styles.permToggleRow}>
+                    <Text style={styles.permToggleLabel}>{f.label}</Text>
+                    <Switch
+                      testID={`circle-perm-${f.key}-${ct.id}`}
+                      value={!!perms[f.key]}
+                      onValueChange={(v) => setDraftPerms(cur => ({ ...cur, [ct.id]: { ...perms, [f.key]: v } }))}
+                    />
+                  </View>
+                ))}
+                <View style={styles.permActionsRow}>
+                  <Pressable testID={`circle-perm-cancel-${ct.id}`} style={styles.permCancelBtn} onPress={() => setExpandedId(null)}>
+                    <Text style={styles.permCancelTxt}>Cancel</Text>
+                  </Pressable>
+                  <Pressable testID={`circle-perm-send-${ct.id}`} disabled={isBusy} style={styles.permSendBtn} onPress={() => sendInvite(ct)}>
+                    <Text style={styles.permSendTxt}>{isBusy ? 'Sending…' : 'Send invitation'}</Text>
+                  </Pressable>
+                </View>
               </View>
             );
           }

@@ -59,18 +59,22 @@ def _sanitize_location(payload: dict, link: Optional[dict], journey: Optional[di
     accuracy, area, age_minutes, and any other nested fields it carries).
 
     ALSO fails closed once the related journey (`journey`, the LIVE
-    safety_journeys record for the alert's journey_token) has status
-    "safe": once a student has arrived, continued exact-location access
-    serves no safety purpose, so last_location is removed regardless of
-    the recipient's permission grant — this is a stricter, additional gate
-    on top of the permission check, not a replacement for it.
+    safety_journeys record for the alert's journey_token) is CLOSED —
+    either status "safe" (student arrived) or the owner has explicitly
+    revoked sharing via POST .../revoke (`sharing_revoked_at` set): once
+    either happens, continued exact-location access serves no safety
+    purpose, so last_location is removed regardless of the recipient's
+    permission grant — this is a stricter, additional gate on top of the
+    permission check, not a replacement for it.
     """
     sanitized = dict(payload or {})
     permissions = (link or {}).get("permissions") or {}
     is_accepted = bool(link) and link.get("status") == "accepted"
     temp_location_granted = is_accepted and permissions.get("temp_location") is True
-    journey_is_safe = bool(journey) and journey.get("status") == "safe"
-    if not temp_location_granted or journey_is_safe:
+    journey_is_closed = bool(journey) and (
+        journey.get("status") == "safe" or bool(journey.get("sharing_revoked_at"))
+    )
+    if not temp_location_granted or journey_is_closed:
         sanitized.pop("last_location", None)
     return sanitized
 

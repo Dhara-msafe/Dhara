@@ -44,6 +44,30 @@ def _new_token() -> str:
     return "".join(secrets.choice(_TOKEN_CHARS) for _ in range(_TOKEN_LEN))
 
 
+def _sharing_closed(rec: dict) -> bool:
+    """True once this journey's link must reveal nothing further.
+
+    Two independent ways a journey reaches this state:
+      - status == "safe"       — the traveller arrived (existing P1 behaviour).
+      - sharing_revoked_at set — the OWNER explicitly withdrew sharing without
+        claiming arrival (new). Distinct from "safe" on purpose: the public
+        page shows a different, non-alarming-but-not-"arrived" message for
+        this case (see journey_status_page), and alerts_router.py applies
+        this SAME check so the in-app Alerts channel is closed identically.
+
+    Guardian-link architecture note (read before changing this function):
+    a journey today has exactly ONE token shared with every recipient this
+    journey was sent to (one SMS, possibly multiple phone numbers, or one
+    set of recipient_link_ids) — there is no per-recipient token. So there
+    is currently no way to revoke ONE recipient's view while others keep
+    seeing live location; "withdraw sharing" always closes the link for
+    EVERY current holder of the URL, direct or forwarded. See
+    docs in /app/memory/guardian_link_revocation_design.md for the
+    per-recipient-token design that would be required to change this.
+    """
+    return rec.get("status") == "safe" or bool(rec.get("sharing_revoked_at"))
+
+
 async def _notify_linked_recipients(user: dict, rec: dict, type_: str, extra_payload: Optional[dict] = None) -> None:
     """Fan out a safety alert to every ACCEPTED trusted-circle link selected
     for this journey (rec['recipient_link_ids']). Best-effort — a push/alert
@@ -124,6 +148,7 @@ async def create_journey(body: JourneyIn, user: dict = Depends(current_user)):
         "expected_checkin_at": (now + timedelta(minutes=body.duration_mins)).isoformat(),
         "status":              "in_progress",
         "safe_at":             None,
+        "sharing_revoked_at":  None,   # set by POST .../revoke — owner withdraws sharing without claiming arrival
         "created_at":          now.isoformat(),
         "expires_at":          (now + timedelta(hours=_TTL_HOURS)).isoformat(),
         "recipient_link_ids":  body.recipient_link_ids,
@@ -145,6 +170,15 @@ async def mark_safe(token: str, user: dict = Depends(current_user)):
         raise HTTPException(404, "Journey not found")
     if rec["user_id"] != user["id"]:
         raise HTTPException(403, "Not your journey")
+    if rec.get("sharing_revoked_at"):
+        # Symmetric with revoke_sharing()'s own _sharing_closed guard: once
+        # EITHER terminal state is reached first, the other transition is a
+        # no-op rather than silently overwriting it. Without this, revoke
+        # -> mark_safe would flip the public page from the neutral "Sharing
+        # turned off" banner back to "Arrived safely", contradicting the
+        # traveller's own revoke action. (status=="safe" already can't be
+        # re-marked safe again — this only guards the cross-transition.)
+        return {"ok": True, "skipped": "sharing already withdrawn"}
     now = datetime.now(timezone.utc)
     await db.safety_journeys.update_one(
         {"token": token},
@@ -154,6 +188,48 @@ async def mark_safe(token: str, user: dict = Depends(current_user)):
     rec["safe_at"] = now.isoformat()
     await _notify_linked_recipients(user, rec, "journey_completed")
     return {"ok": True, "safe_at": now.isoformat()}
+
+
+@router.post("/journey/status/{token}/revoke", status_code=200)
+async def revoke_sharing(token: str, user: dict = Depends(current_user)):
+    """Owner explicitly withdraws location/status sharing for this
+    journey's link — distinct from `mark_safe` (which asserts "I
+    arrived"); this says "stop showing anyone anything new from this
+    link", with no claim about arrival. Use case: the user changed their
+    mind, the plan changed, or they simply no longer want the link live.
+
+    Takes effect IMMEDIATELY for every current holder of the public URL —
+    the original recipient(s) and anyone they may have forwarded the link
+    to alike — because journey_status_page() re-reads this record on
+    every request; there is no cache to invalidate. See _sharing_closed()
+    docstring for the current shared-link limitation (this closes the
+    link for ALL holders at once; there is no per-recipient granularity
+    without per-recipient tokens — see the design doc).
+
+    Idempotent: revoking an already-revoked or already-safe journey is a
+    harmless no-op.
+    """
+    rec = await db.safety_journeys.find_one({"token": token})
+    if not rec:
+        raise HTTPException(404, "Journey not found")
+    if rec["user_id"] != user["id"]:
+        raise HTTPException(403, "Not your journey")
+    if _sharing_closed(rec):
+        return {"ok": True, "already_closed": True}
+    now = datetime.now(timezone.utc)
+    await db.safety_journeys.update_one(
+        {"token": token},
+        {"$set": {"sharing_revoked_at": now.isoformat()}},
+    )
+    rec["sharing_revoked_at"] = now.isoformat()
+    # Reuses the pre-existing (previously-unwired) "sharing_ended" alert
+    # type already defined in alerts_router.py's _TITLES — informs any
+    # ACCEPTED in-app Trusted Circle recipients that sharing has ended.
+    # Their read-time permission check (alerts_router._sanitize_location)
+    # now also treats sharing_revoked_at as closed, so no stale location
+    # leaks through this notification either.
+    await _notify_linked_recipients(user, rec, "sharing_ended")
+    return {"ok": True, "revoked_at": rec["sharing_revoked_at"]}
 
 
 @router.post("/journey/status/{token}/missed-checkin", status_code=200)
@@ -166,8 +242,8 @@ async def report_missed_checkin(token: str, user: dict = Depends(current_user)):
         raise HTTPException(404, "Journey not found")
     if rec["user_id"] != user["id"]:
         raise HTTPException(403, "Not your journey")
-    if rec.get("status") == "safe":
-        return {"ok": True, "skipped": "journey already completed"}
+    if _sharing_closed(rec):
+        return {"ok": True, "skipped": "journey already completed or sharing withdrawn"}
     await _notify_linked_recipients(user, rec, "missed_checkin")
     return {"ok": True}
 
@@ -199,8 +275,8 @@ async def update_location(token: str, body: LocationIn, user: dict = Depends(cur
         raise HTTPException(404, "Journey not found")
     if rec["user_id"] != user["id"]:
         raise HTTPException(403, "Not your journey")
-    if rec.get("status") == "safe":
-        return {"ok": True, "skipped": "journey already completed"}
+    if _sharing_closed(rec):
+        return {"ok": True, "skipped": "journey already completed or sharing withdrawn"}
 
     now = datetime.now(timezone.utc)
     # Server-side throttle — ignore if last update < 25 s ago
@@ -251,6 +327,13 @@ async def journey_status_page(token: str):
         status_label  = "Arrived safely"
         status_colour = "#16a34a"   # green-600
         status_icon   = "✅"
+    elif rec.get("sharing_revoked_at"):
+        # Owner withdrew sharing without claiming arrival — deliberately
+        # NOT the same colour/icon/wording as "Arrived safely" (that would
+        # be a false claim) nor "overdue" (that would be alarming/wrong).
+        status_label  = "Sharing turned off by traveller"
+        status_colour = "#6b7280"   # gray-500 — neutral
+        status_icon   = "🔒"
     elif is_overdue:
         status_label  = "Check-in overdue — please call them"
         status_colour = "#dc2626"   # red-600
@@ -289,7 +372,12 @@ def _status_html(rec: dict, label: str, colour: str, icon: str) -> str:
     # access after safe arrival serves no safety purpose. Non-location
     # fields (traveller, destination, timestamps, "Arrived safely") are
     # untouched and still render above/below this block as before.
-    if last_loc and rec.get("status") != "safe":
+    # Guardian-link revocation follow-up: the SAME withholding now also
+    # applies once the owner has withdrawn sharing (_sharing_closed),
+    # even though that is a different status than "safe" — see
+    # _sharing_closed()'s docstring for why these two states share this
+    # gate but render different banners above.
+    if last_loc and not _sharing_closed(rec):
         area      = _escape(last_loc.get("area") or "Unknown area")
         loc_time  = _fmt_dt(last_loc.get("updated_at"))
         acc_m     = int(last_loc.get("accuracy", 0))

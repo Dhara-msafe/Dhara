@@ -62,6 +62,10 @@ export default function GuardianShare() {
   const [markingSafe,  setMarkingSafe]  = useState(false);
   const [markedSafe,   setMarkedSafe]   = useState(false);
   const [createError,  setCreateError]  = useState<string | null>(null);
+  // Guardian-link revocation follow-up: owner can withdraw sharing without
+  // claiming arrival — distinct action/state from "mark safe" above.
+  const [revoking,     setRevoking]     = useState(false);
+  const [revoked,      setRevoked]      = useState(false);
 
   const checkInBy = startTime > 0 ? formatDeadline(startTime, durationMins) : `${durationMins} min`;
 
@@ -157,11 +161,34 @@ export default function GuardianShare() {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${authToken}` },
       });
-      if (r.ok) setMarkedSafe(true);
+      if (r.ok) {
+        const data = await r.json().catch(() => ({}));
+        if (!data?.skipped) setMarkedSafe(true);
+      }
     } catch {
       // non-critical — silently fail
     } finally {
       setMarkingSafe(false);
+    }
+  }, [journeyToken, authToken]);
+
+  /** Owner withdraws sharing — distinct from markSafe: no claim of arrival,
+   * just "stop showing anyone anything new from this link". Takes effect
+   * immediately for every holder of the status link (direct or forwarded)
+   * since the backend strips location on every page read once this is set. */
+  const revokeSharing = useCallback(async () => {
+    if (!journeyToken || !authToken) return;
+    setRevoking(true);
+    try {
+      const r = await fetch(`${API_BASE}/api/journey/status/${journeyToken}/revoke`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (r.ok) setRevoked(true);
+    } catch {
+      // non-critical — silently fail
+    } finally {
+      setRevoking(false);
     }
   }, [journeyToken, authToken]);
 
@@ -280,7 +307,7 @@ export default function GuardianShare() {
       )}
 
       {/* Mark safe — shown after SMS is sent */}
-      {sent && journeyToken && !markedSafe && (
+      {sent && journeyToken && !markedSafe && !revoked && (
         <Pressable
           testID="guardian-mark-safe"
           style={styles.safeBtn}
@@ -304,6 +331,36 @@ export default function GuardianShare() {
           <Ionicons name="shield-checkmark" size={18} color="#16a34a" />
           <Text style={styles.safeBannerTxt}>
             {'Status page updated \u2014 your guardian can see you are safe.'}
+          </Text>
+        </View>
+      )}
+
+      {/* Withdraw sharing — shown after SMS is sent, available independently
+          of "I have arrived safely"; hidden once either action is taken. */}
+      {sent && journeyToken && !markedSafe && !revoked && (
+        <Pressable
+          testID="guardian-revoke-sharing"
+          style={styles.revokeSharingBtn}
+          onPress={revokeSharing}
+          disabled={revoking}
+          accessibilityRole="button"
+          accessibilityLabel="Withdraw location sharing for this link"
+        >
+          {revoking
+            ? <ActivityIndicator color={c.error ?? '#dc2626'} size="small" />
+            : <Ionicons name="lock-closed-outline" size={18} color={c.error ?? '#dc2626'} />
+          }
+          <Text style={styles.revokeSharingBtnTxt}>
+            {revoking ? 'Withdrawing\u2026' : 'Withdraw sharing for this link'}
+          </Text>
+        </Pressable>
+      )}
+
+      {revoked && (
+        <View style={styles.revokedBanner} testID="guardian-revoked-banner">
+          <Ionicons name="lock-closed" size={18} color={c.error ?? '#dc2626'} />
+          <Text style={styles.revokedBannerTxt}>
+            Sharing withdrawn — the status link no longer shows your location to anyone, including anyone it was forwarded to.
           </Text>
         </View>
       )}
@@ -374,6 +431,18 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#16a34a',
   },
   safeBannerTxt: { fontFamily: theme.fonts.body, fontSize: 14, color: c.ink, flex: 1 },
+  revokeSharingBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, backgroundColor: '#FCEBE9', borderRadius: 14, paddingVertical: 14,
+    borderWidth: 1.5, borderColor: c.error ?? '#dc2626',
+  },
+  revokeSharingBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.error ?? '#dc2626' },
+  revokedBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#FCEBE9', borderRadius: 12, padding: 14,
+    borderWidth: 1, borderColor: c.error ?? '#dc2626',
+  },
+  revokedBannerTxt: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, flex: 1, lineHeight: 19 },
   errorTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: '#dc2626', textAlign: 'center' },
   disclosureNote: {
     fontFamily: theme.fonts.body, fontSize: 12, color: c.muted,

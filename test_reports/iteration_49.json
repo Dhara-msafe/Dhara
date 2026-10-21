@@ -1,0 +1,52 @@
+{
+  "summary": "Guardian-link revocation + Trusted Circle re-invitation pass. Backend: re-ran the 9 new revoke/reinvite pytest tests via real HTTP against the live preview — all 9 PASS. Spot-checked revoke lifecycle manually with curl (create journey -> post location -> GET page shows location -> POST /revoke -> GET page immediately strips location and shows 'Sharing turned off by traveller') — confirmed working. Frontend: exercised the full Head Out -> Notify your guardian -> Send SMS -> Withdraw sharing flow via browser automation on guardian-share.tsx; the new 'Withdraw sharing for this link' button appears after send, calls the revoke endpoint, shows the 'guardian-revoked-banner', and disappears afterwards exactly as specified. Trusted Circle re-invitation UI is confirmed flag-gated-off (EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT=false in frontend/.env) as expected — verified no circle-invite-*/circle-perm-*/circle-revoke-*/circle-reinvite-* testids render; backend coverage for this already green. Regression screens (language onboarding, DHARA home, Alerts list, navigation) all load without red-screen errors. FOUND ONE NEW GAP (moderate) in the revoke feature itself, and ONE SEPARATE CRITICAL pre-existing-looking bug unrelated to this pass's code that blocked normal UI testing and had to be worked around.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "PATCH /api/journey/status/{token}/safe",
+        "issue": "mark_safe does not check _sharing_closed()/sharing_revoked_at before setting status='safe'. Reproduced via curl: POST /revoke then PATCH /safe on the SAME token succeeds for both calls, and the subsequent GET /journey/status/{token} page then shows 'Arrived safely' instead of 'Sharing turned off by traveller' (status=='safe' is checked before sharing_revoked_at in journey_status_page's if/elif chain). This contradicts the design doc's explicit goal that revoke means 'no further updates should leave this record' and that the guardian-facing page must never show a claim that looks like 'Arrived safely' once sharing was withdrawn without an arrival claim. Not covered by the existing 9 new tests (they test mark-safe-only and revoke-only sequences, not revoke-then-safe).",
+        "priority": "MEDIUM"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "frontend/app/women/guardian-share.tsx",
+        "issue": "The 'I have arrived safely' (testID=guardian-mark-safe) button is NOT hidden once sharing has been revoked (its render condition is `sent && journeyToken && !markedSafe`, missing a `!revoked` check), so a user can revoke sharing and then still tap mark-safe, which — paired with the backend gap above — would make the public status page silently switch from the 'Sharing turned off' banner to 'Arrived safely', a false claim the whole revoke feature was designed to prevent. Verified live: after tapping guardian-revoke-sharing, guardian-mark-safe was still visible/enabled in the DOM.",
+        "testID": "guardian-mark-safe",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {
+        "component": "src/components/LanguageOnboardModal.tsx (unrelated to this pass's diff — pre-existing, but newly observed as broken in this session)",
+        "issue": "CRITICAL, reproducible: the modal re-opens on almost every screen navigation/interaction for the SAME already-dismissed account, instead of staying dismissed. Root cause confirmed by direct inspection: tapping 'Continue in English' does NOT persist the AsyncStorage key `lang_onboarded_v1_<uid>` to localStorage (confirmed absent via `Object.keys(window.localStorage)` after clicking Continue) — manually writing that exact key via `window.localStorage.setItem(...)` is the only thing that reliably suppresses it, proving AsyncStorage.getItem() reads correctly from localStorage but the app's own AsyncStorage.setItem() write in onConfirm() is not making it to disk (no try/catch around setLanguage()+AsyncStorage.setItem() in onConfirm, so a silent exception there would skip both the write AND setVisible(false), but even when the modal DID visibly close after a tap, the flag was still never found on the next navigation). Same underlying AsyncStorage failure also reproduced for Trusted Circle contacts: adding a contact on /women/trusted-circle (confirmed saved via UI confirmation text + contact row rendered) and then navigating to /women/head-out shows 'Your trusted circle is empty' — the contact did not persist across the navigation. This forced me to use a localStorage-injection workaround (bypassing AsyncStorage entirely) to reach and test the actual guardian-share/revoke UI for this review. Raw IndexedDB writes in the same browser context work fine (tested directly), so this is not a sandbox/storage-disabled environment issue — it points to a bug in how AsyncStorage (or the app's usage of it) persists on this web build.",
+        "testID": "n/a"
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_guardian_link_revocation_and_reinvite.py",
+    "/app/test_reports/pytest/iteration_guardian_revoke_retest.xml"
+  ],
+  "action_items": [
+    "Add `if _sharing_closed(rec): return {ok:true, skipped:true}`-style guard to mark_safe (journey_router.py) OR explicitly decide/document that revoke-then-safe is allowed and fix the status-page if/elif order to prefer sharing_revoked_at once it is set (i.e. make revoke terminal, matching the stated design intent).",
+    "Hide guardian-mark-safe once `revoked` is true in guardian-share.tsx (add `&& !revoked` to its render condition), mirroring how guardian-revoke-sharing already hides once `markedSafe` is true.",
+    "HIGH PRIORITY, separate from this pass's scope but newly broken/observed: investigate why AsyncStorage.setItem() writes (lang_onboarded flag, ws_trusted_circle contacts) are not persisting on the web build in this preview — repro steps included above. This currently means a real user who adds Trusted Circle contacts and then navigates to Head Out will see 'trusted circle is empty', unable to select anyone to notify, which would materially break the Guardian Share flow for real users on web."
+  ],
+  "critical_code_review_comments": [
+    "journey_router.py::mark_safe is missing the same _sharing_closed guard that was correctly added to update_location, report_missed_checkin — looks like an oversight in an otherwise careful change (the design doc's own list of 'everywhere closed-journeys should be gated' omits mark_safe without explanation).",
+    "LanguageOnboardModal.tsx::onConfirm has no try/catch; if setLanguage() or AsyncStorage.setItem() throws, setVisible(false) is also skipped silently (only the `finally` resets `saving`), which could partially explain repeated modal re-appearance if an exception is occurring there — recommend adding explicit error logging to confirm/rule this out."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "9/9 (100%) new revoke/reinvite tests + 3/3 manual curl spot-checks", "frontend": "Guardian-share send+revoke flow fully working as specified; 1 moderate gap found (mark-safe not hidden post-revoke); Trusted Circle re-invite correctly flag-gated-off (not testable visually, as expected); regression screens (home, alerts, language onboarding) load without crashes but the onboarding modal has a persistence bug"},
+  "seed_data_creation": "Created several synthetic 'QA ...' journeys via the owner test account during manual curl and UI testing (self-expire in 24h per _TTL_HOURS, no cleanup needed). Added one local-only Trusted Circle contact 'QA Guardian Contact' / 9123456780 to the owner account via the UI (device-local, not backend-persisted).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The two bugs reported here (mark-safe not gated post-revoke; AsyncStorage persistence failure for lang_onboarded + trusted-circle) are independent of each other and of the original revoke/reinvite backend tests, which remain fully green. The AsyncStorage issue is the bigger risk to user experience and should be prioritized — use the localStorage-injection workaround documented in this report (`localStorage.setItem('ws_trusted_circle', JSON.stringify([...]))` and `localStorage.setItem('lang_onboarded_v1_'+uid, '1')`) to bypass it for any further UI testing on this build until fixed.",
+  "rca_of_issue": "mark_safe gap: journey_status_page's if/elif chain checks `status=='safe'` before `sharing_revoked_at`, and mark_safe (unlike update_location/report_missed_checkin) was never updated to check `_sharing_closed()`, so calling revoke then safe on the same token lets 'safe' silently win and overwrite the guardian-facing banner, defeating the stated purpose of revoke. AsyncStorage gap: AsyncStorage.getItem() on this web build correctly reads from browser localStorage (proven: manually-set keys are read back correctly), but the app's own AsyncStorage.setItem() calls for `lang_onboarded_v1_<uid>` and `ws_trusted_circle` do not result in a readable localStorage entry afterward, and raw IndexedDB writes in the same page work fine, isolating the problem to the AsyncStorage library's write path or its usage in this app bundle, not the browser/sandbox."
+}
