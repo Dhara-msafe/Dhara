@@ -320,7 +320,12 @@ def _status_html(rec: dict, label: str, colour: str, icon: str) -> str:
       <script>
         (function() {{
           var map = L.map('map', {{ zoomControl: true, attributionControl: true }}).setView([{lat}, {lng}], 15);
-          L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+          // P1 follow-up: OpenStreetMap's tile usage policy asks consumers
+          // NOT to use the "{{s}}." subdomain-sharding pattern (a/b/c.tile...) —
+          // that pattern exists only for legacy HTTP/1.1 connection-limit
+          // workarounds and defeats OSM's per-host request accounting. We
+          // request the single canonical host below instead.
+          L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
             maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
           }}).addTo(map);
           L.marker([{lat}, {lng}]).addTo(map).bindPopup('Last known location');

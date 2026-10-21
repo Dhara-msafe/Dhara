@@ -28,11 +28,6 @@
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.msafesolutions.legalaid",
       "googleServicesFile": "./google-services.json",
-      "config": {
-        "googleMaps": {
-          "apiKey": "PLACEHOLDER_REPLACE_WITH_REAL_RESTRICTED_ANDROID_KEY"
-        }
-      },
       "permissions": [
         "RECORD_AUDIO",
         "android.permission.INTERNET",

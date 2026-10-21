@@ -139,6 +139,12 @@ class TestGuardianPageMapRendering:
         assert "19.076" in html and "72.8777" in html
         assert "L.marker" in html and "L.circle" in html
         assert "maps.googleapis.com" not in html
+        # P1 follow-up: OSM's tile usage policy asks consumers not to use
+        # the "{s}." subdomain-sharding pattern (a/b/c.tile.openstreetmap.org)
+        # — confirm the single canonical host is requested instead.
+        assert "https://tile.openstreetmap.org/" in html
+        assert "{s}.tile.openstreetmap.org" not in html
+        assert "a.tile.openstreetmap.org" not in html
 
     def test_guardian_page_no_map_block_when_no_location_yet(self, owner_token):
         headers_o = {"Authorization": f"Bearer {owner_token}"}
