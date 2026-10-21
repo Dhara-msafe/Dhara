@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
@@ -57,6 +57,15 @@ export default function CodePhrase() {
 
         <Text style={styles.note}>Choose a normal-sounding sentence. When you type it in Ask DHARA, it can quietly start the Evidence Recorder and prepare your Silent Alert — without anyone noticing. It is stored only on this phone, encrypted.</Text>
 
+        {Platform.OS === 'web' && (
+          <View style={styles.webNotice}>
+            <Ionicons name="phone-portrait-outline" size={16} color={c.muted} />
+            <Text style={styles.webNoticeTxt}>
+              Secure on-device storage for the code phrase needs the DHARA mobile app — it cannot be saved from this web preview.
+            </Text>
+          </View>
+        )}
+
         <TextInput value={phrase} onChangeText={setPhrase} placeholder="Type your code phrase" placeholderTextColor={c.muted} style={styles.input} multiline />
         <Pressable style={styles.saveBtn} onPress={save}>
           <Ionicons name={saved ? 'checkmark-circle' : 'lock-closed-outline'} size={18} color="#fff" />
@@ -89,6 +98,8 @@ export default function CodePhrase() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
   note: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, lineHeight: 21, marginBottom: 18 },
+  webNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 12, padding: 12, marginBottom: 14 },
+  webNoticeTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 17 },
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 16, borderWidth: 1 },
   statusArmed: { backgroundColor: '#f0faf4', borderColor: '#b6e8c8' },
   statusOff:   { backgroundColor: c.surface, borderColor: c.lines },

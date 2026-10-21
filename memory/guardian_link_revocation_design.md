@@ -335,3 +335,44 @@ never be described in-app as selectively revocable per recipient, since
 that is not true of the current architecture and would mislead a user
 about what revoking actually does. No UI copy in this app claims otherwise
 today; this is recorded here to guide future copy/feature decisions.
+
+
+---
+
+## 7g. Third pass — ownership-safe quarantine, fail-closed identity, codePhraseStore fix
+
+The migration strategy in §7b was revised again after further review: no
+longer "copy legacy data to whoever reads it first" (rejected as unsafe
+ownership-guessing) but **quarantine-only** — legacy flat-key data moves,
+once, into a private `*_legacy_unclaimed_v1` key that no `get*()` function
+ever reads and no screen ever displays; preserved, not deleted, not
+assigned to anyone. Live-verified: neither the first account to read nor
+any other account auto-receives it.
+
+Identity capture was hardened: `getActiveUserIdSync()` (a synchronous,
+in-memory cache in `auth.tsx`, updated the instant `persist()`/`logout()`
+run, before their own AsyncStorage I/O) replaced the earlier async
+AsyncStorage re-read — closing a theoretical race where a save initiated
+as one account could land under a different account's key if a fast
+switch happened mid-write. Missing identity now fails closed with **no
+shared "guest" bucket at all** (previously there was one): reads return
+empty, writes are silently skipped.
+
+`codePhraseStore.ts` was brought in line with the same pattern and a real
+bug was found and fixed: its write path (`storePhrase`/`clearPhrase`) was
+missing the try/catch its own read path already had, so saving on web
+(where `expo-secure-store` has no implementation at all) crashed the
+screen with an uncaught error. Fixed by mirroring the existing defensive
+pattern, plus a new inline notice telling web-preview users this specific
+feature needs the mobile app. **This feature is fundamentally untestable
+for real persistence on web** — even same-account, same-session reads
+return empty after any reload (`window.ExpoSecureStore === undefined`);
+only a native build can verify actual cross-account isolation for the
+code phrase.
+
+Full frontend test matrix (9 scenarios × up to 4 preferences) executed by
+`testing_agent` — 8/9 fully pass with live browser + localStorage
+ground-truth evidence; the 9th (code-phrase) was blocked by the crash
+above, now fixed and manually re-verified (crash gone, web notice shows).
+Native/device behaviour remains **NOT RUN** — no physical device access in
+this sandbox; do not assume it matches the browser.

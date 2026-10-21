@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE } from '../apiBase';
 import { getStoredPhrase, storePhrase } from './codePhraseStore';
-import { getActiveUserId } from '../auth';
+import { getActiveUserIdSync, whenAuthHydrated } from '../auth';
 
 export type Helpline = {
   service_id: string; name: string; number: string; channel: string;
@@ -46,51 +46,91 @@ export async function safetyRoute(body: { text?: string; lang: string; state?: s
 // DEVICE regardless of which account was signed in. On a shared device,
 // Account B could see Account A's saved Trusted Circle contacts (and
 // safety-plan answers / check-in toggle / evidence preference) after
-// switching accounts, because logout() never clears them and nothing
-// scoped them by user. _scopedKey() namespaces every read/write by the
-// CURRENTLY signed-in account id (falls back to a shared 'guest' bucket
-// only when nobody is signed in at all — an inherent limit of unauthenticated
-// local storage, not something fixable without requiring login).
+// switching accounts, because logout() never cleared them and nothing
+// scoped them by user.
 //
-// _migrateLegacyFlatKeyOnce() preserves whatever was already saved under
-// the old flat key — copied, once, to whichever account happens to read it
-// FIRST after this ships (exactly matching the old single-shared-list
-// behaviour for that one account), guarded by its own marker key so it
-// can never run a second time and leak into a later, different account.
+// Fix, in two independent parts:
+//
+// 1) _identityKeyOrNull() namespaces every read/write by the account id
+//    captured SYNCHRONOUSLY via getActiveUserIdSync() (see auth.tsx) — no
+//    async re-read of storage mid-operation, so a save initiated as
+//    Account A can never land under Account B's key just because an
+//    account switch happened while the write was in flight. When nobody
+//    is signed in (sync cache is null, even after hydration), this
+//    returns null: callers FAIL CLOSED (empty read, write silently
+//    skipped) rather than falling back to any shared/guest bucket — a
+//    shared bucket is exactly the same class of bug this fix closes, just
+//    with a smaller blast radius (anonymous visitors instead of named
+//    accounts), so it is refused outright rather than reintroduced.
+//
+// 2) _quarantineLegacyOnce() handles the pre-existing flat-key data left
+//    over from before this fix shipped. Its ownership cannot be
+//    determined — the old key recorded no owner at all — so it is NEVER
+//    copied into any account's live, readable storage automatically.
+//    Instead it is moved, once (marker-guarded, idempotent, safe to
+//    interrupt/retry), into a private "*_legacy_unclaimed_v1" key that no
+//    get*() function ever reads and no screen ever displays or grants
+//    permissions from. The data is preserved (not deleted — satisfies
+//    "do not lose existing data") but inert until a possible future
+//    explicit "recover my old contacts" flow is built that requires the
+//    user to affirmatively confirm ownership before anything is restored.
 const CIRCLE_KEY  = 'ws_trusted_circle';
 const PLAN_KEY    = 'ws_safety_plan';
 const CHECKIN_KEY = 'ws_checkin_enabled';
 
-async function _scopedKey(base: string): Promise<string> {
-  const uid = await getActiveUserId();
-  return `${base}_${uid || 'guest'}`;
+async function _identityKeyOrNull(storeBase: string): Promise<string | null> {
+  await whenAuthHydrated();
+  const uid = getActiveUserIdSync();
+  return uid ? `${storeBase}_${uid}` : null;
 }
 
-async function _migrateLegacyFlatKeyOnce(base: string): Promise<void> {
-  const markerKey = `${base}_migrated_v1`;
+async function _quarantineLegacyOnce(storeBase: string): Promise<void> {
+  const markerKey      = `${storeBase}_legacy_quarantined_v1`;
+  const quarantineKey  = `${storeBase}_legacy_unclaimed_v1`;
   try {
-    if (await AsyncStorage.getItem(markerKey)) return;
-    const legacy = await AsyncStorage.getItem(base);
+    if (await AsyncStorage.getItem(markerKey)) return;   // already handled — never repeat, never re-quarantine
+    const legacy = await AsyncStorage.getItem(storeBase);
     if (legacy != null) {
-      const scoped = await _scopedKey(base);
-      const existing = await AsyncStorage.getItem(scoped);
-      if (existing == null) await AsyncStorage.setItem(scoped, legacy);
+      // Preserve under the private key only if nothing is already parked
+      // there (idempotent against an interrupted/retried run), THEN clear
+      // the old flat slot so no other code path can read it either.
+      const alreadyParked = await AsyncStorage.getItem(quarantineKey);
+      if (alreadyParked == null) await AsyncStorage.setItem(quarantineKey, legacy);
+      await AsyncStorage.removeItem(storeBase);
     }
     await AsyncStorage.setItem(markerKey, '1');
   } catch {
-    // best-effort only — migration must never block normal reads/writes
+    // Best-effort only. If this throws partway (e.g. app killed mid-write),
+    // the marker is simply not set yet — next call retries from scratch,
+    // which is safe because every step above is itself idempotent.
+  }
+}
+
+/** Defensive JSON parse for on-device data: corrupt/partial/unexpected
+ * content must never crash a screen — treat it as "no saved data" rather
+ * than throwing. */
+function _safeParse<T>(raw: string | null, fallback: T): T {
+  if (raw == null) return fallback;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed ?? fallback;
+  } catch {
+    return fallback;
   }
 }
 
 export type Contact = { id: string; name: string; phone: string; email?: string; notify?: boolean };
 
 export async function getCircle(): Promise<Contact[]> {
-  await _migrateLegacyFlatKeyOnce(CIRCLE_KEY);
-  const v = await AsyncStorage.getItem(await _scopedKey(CIRCLE_KEY));
-  return v ? JSON.parse(v) : [];
+  await _quarantineLegacyOnce(CIRCLE_KEY);
+  const key = await _identityKeyOrNull(CIRCLE_KEY);
+  if (!key) return [];
+  return _safeParse<Contact[]>(await AsyncStorage.getItem(key), []);
 }
 export async function saveCircle(list: Contact[]): Promise<void> {
-  await AsyncStorage.setItem(await _scopedKey(CIRCLE_KEY), JSON.stringify(list.slice(0, 3)));
+  const key = await _identityKeyOrNull(CIRCLE_KEY);
+  if (!key) return;   // fail closed — refuse to persist without a known identity
+  await AsyncStorage.setItem(key, JSON.stringify(list.slice(0, 3)));
 }
 /** @deprecated use getStoredPhrase() from codePhraseStore directly. */
 export async function getCodePhrase(): Promise<string> {
@@ -106,27 +146,39 @@ const SILENT_EVIDENCE_KEY = 'ws_silent_alert_evidence_pref';
 /** Returns whether "Also start Evidence Recording" toggle is ON. */
 export async function getSilentAlertEvidencePref(): Promise<boolean> {
   try {
-    await _migrateLegacyFlatKeyOnce(SILENT_EVIDENCE_KEY);
-    return (await AsyncStorage.getItem(await _scopedKey(SILENT_EVIDENCE_KEY))) === 'true';
+    await _quarantineLegacyOnce(SILENT_EVIDENCE_KEY);
+    const key = await _identityKeyOrNull(SILENT_EVIDENCE_KEY);
+    if (!key) return false;
+    return (await AsyncStorage.getItem(key)) === 'true';
   } catch { return false; }
 }
 /** Persist the "Also start Evidence Recording" toggle preference. */
 export async function setSilentAlertEvidencePref(enabled: boolean): Promise<void> {
-  try { await AsyncStorage.setItem(await _scopedKey(SILENT_EVIDENCE_KEY), enabled ? 'true' : 'false'); }
-  catch {}
+  try {
+    const key = await _identityKeyOrNull(SILENT_EVIDENCE_KEY);
+    if (!key) return;
+    await AsyncStorage.setItem(key, enabled ? 'true' : 'false');
+  } catch {}
 }
 export async function getPlan(): Promise<Record<string, string>> {
-  await _migrateLegacyFlatKeyOnce(PLAN_KEY);
-  const v = await AsyncStorage.getItem(await _scopedKey(PLAN_KEY));
-  return v ? JSON.parse(v) : {};
+  await _quarantineLegacyOnce(PLAN_KEY);
+  const key = await _identityKeyOrNull(PLAN_KEY);
+  if (!key) return {};
+  return _safeParse<Record<string, string>>(await AsyncStorage.getItem(key), {});
 }
 export async function savePlan(ans: Record<string, string>): Promise<void> {
-  await AsyncStorage.setItem(await _scopedKey(PLAN_KEY), JSON.stringify(ans));
+  const key = await _identityKeyOrNull(PLAN_KEY);
+  if (!key) return;
+  await AsyncStorage.setItem(key, JSON.stringify(ans));
 }
 export async function getCheckin(): Promise<boolean> {
-  await _migrateLegacyFlatKeyOnce(CHECKIN_KEY);
-  return (await AsyncStorage.getItem(await _scopedKey(CHECKIN_KEY))) === '1';
+  await _quarantineLegacyOnce(CHECKIN_KEY);
+  const key = await _identityKeyOrNull(CHECKIN_KEY);
+  if (!key) return false;
+  return (await AsyncStorage.getItem(key)) === '1';
 }
 export async function setCheckin(v: boolean): Promise<void> {
-  await AsyncStorage.setItem(await _scopedKey(CHECKIN_KEY), v ? '1' : '0');
+  const key = await _identityKeyOrNull(CHECKIN_KEY);
+  if (!key) return;
+  await AsyncStorage.setItem(key, v ? '1' : '0');
 }

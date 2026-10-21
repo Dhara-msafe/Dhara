@@ -92,6 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const data = await r.json();
                 await AsyncStorage.setItem(TOKEN_KEY, data.token);
                 await AsyncStorage.setItem(USER_KEY, JSON.stringify(data.user));
+                _setActiveUserIdCache(data.user);
                 setToken(data.token);
                 setUser(data.user);
               }
@@ -100,6 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             window.history.replaceState(window.history.state, '', window.location.pathname);
           }
           setLoading(false);
+          _resolveHydration();
           return;
         }
       }
@@ -113,7 +115,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         AsyncStorage.getItem(TTS_VOICE_KEY),
       ]);
       if (t) setToken(t);
-      if (u) setUser(JSON.parse(u));
+      let hydratedUser: User | null = null;
+      if (u) { hydratedUser = JSON.parse(u); setUser(hydratedUser); }
+      _setActiveUserIdCache(hydratedUser);
       if (l) setLanguageState(JSON.parse(l));
       if (a !== null) setAutoSpeakState(a === '1');
       if (v !== null) {
@@ -124,10 +128,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setTtsVoiceModeState(vm);
       }
       setLoading(false);
+      _resolveHydration();
     })();
   }, []);
 
   const persist = async (t: string, u: User) => {
+    // Update the synchronous identity cache FIRST, before any async
+    // AsyncStorage I/O — see its own doc comment for why this ordering
+    // matters (atomic capture for any concurrent on-device-storage read).
+    _setActiveUserIdCache(u);
     await AsyncStorage.setItem(TOKEN_KEY, t);
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(u));
     setToken(t);
@@ -210,6 +219,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    // Update the synchronous identity cache FIRST (see its doc comment) —
+    // any on-device storage read/write that starts AFTER this line sees
+    // "nobody signed in" immediately, even before the AsyncStorage
+    // multiRemove below actually finishes.
+    _setActiveUserIdCache(null);
     // P0-Fix1e: clear FIR session data on logout
     await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY, 'fir_draft_state', 'gk_fir_session']);
     setToken(null);
@@ -361,13 +375,54 @@ export function logClientError(
 export const API_BASE = API;
 
 /**
- * Reads the CURRENTLY signed-in account's id straight from the same
- * AsyncStorage key (`gk_user`) that `persist()`/`logout()` above already
- * write/remove on every login, refresh, and sign-out — the single source
- * of truth for "who is active right now", usable from plain (non-hook)
- * modules like src/women/api.ts to namespace on-device data per account.
- * Returns null if nobody is signed in (not even a guest session).
+ * Synchronous, in-memory mirror of "who is signed in right now" — updated
+ * the INSTANT persist()/logout() run (before their own AsyncStorage I/O),
+ * so any code that reads it captures the exact identity active at the
+ * moment it was called, with no async gap during which a concurrent
+ * login/logout could change the answer mid-read. This is what
+ * src/women/api.ts uses to namespace on-device data per account: reading
+ * a plain in-memory variable is atomic in JS's single-threaded model
+ * (no other code runs between "the function starts" and "it reads this
+ * variable" unless THAT function itself awaits first) — the previous
+ * design (re-reading AsyncStorage's USER_KEY async, on every call) had a
+ * real race where a save initiated as Account A could finish writing
+ * under Account B's key if an account switch landed in the gap.
  */
+let _activeUserIdCache: string | null = null;
+let _hydrationResolve: (() => void) | null = null;
+let _hydrationDone = false;
+const _hydrationPromise: Promise<void> = new Promise((resolve) => { _hydrationResolve = resolve; });
+
+function _setActiveUserIdCache(u: User | null) {
+  _activeUserIdCache = u?.id ?? null;
+}
+function _resolveHydration() {
+  if (_hydrationDone) return;
+  _hydrationDone = true;
+  _hydrationResolve?.();
+  _hydrationResolve = null;
+}
+
+/** Synchronous read of the active account id — null if nobody is signed in
+ * (not even a guest session). Safe to call before hydration resolves (will
+ * correctly return null, matching "missing identity" semantics); callers
+ * that need to wait for the real persisted session first should await
+ * whenAuthHydrated() before calling this. */
+export function getActiveUserIdSync(): string | null {
+  return _activeUserIdCache;
+}
+/** Resolves once the initial session-restore effect has run (or immediately
+ * if it already has). Lets non-component modules avoid a brief false
+ * "nobody is signed in" read on cold app start, before AsyncStorage's
+ * persisted token/user has had a chance to load into memory. */
+export function whenAuthHydrated(): Promise<void> {
+  return _hydrationPromise;
+}
+
+/** @deprecated kept for any other remaining caller; prefer
+ * getActiveUserIdSync() + whenAuthHydrated() for new code — this async
+ * version re-reads AsyncStorage on every call and does not capture
+ * identity atomically relative to a concurrent login/logout. */
 export async function getActiveUserId(): Promise<string | null> {
   try {
     const raw = await AsyncStorage.getItem(USER_KEY);
