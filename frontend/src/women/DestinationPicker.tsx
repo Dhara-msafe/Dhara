@@ -1,14 +1,19 @@
 /**
  * DestinationPicker — GO1A reusable component
  *
- * Lets the user type a destination label and choose a planned arrival-area
- * radius (100 m / 200 m / 300 m / custom).  Saved places are loaded from the
- * backend (if the user is authenticated) and displayed as quick-select chips.
+ * Lets the user search for a real address (OpenStreetMap Nominatim —
+ * free, no API key; architected so Google Places can be swapped in later
+ * behind the same /api/geocode/search backend contract), drop/drag a pin
+ * on the map, or type a manual label, and choose a planned arrival-area
+ * radius (100 m / 200 m / 300 m / custom). Saved places are loaded from
+ * the backend (if the user is authenticated) and shown as quick-select chips.
  *
  * IMPORTANT LIMITATIONS (displayed to user):
  * - Radius selection is for planning only.
  * - No live GPS observations are made by this component.
  * - No geofence monitoring is active.
+ * - Address search only runs when the user types/searches — it never
+ *   reads device location and is independent of any GPS/tracking flag.
  *
  * Props:
  *   value         Current destination state
@@ -16,7 +21,7 @@
  *   authToken     Bearer token for saved-places API calls; omit for guest
  *   testID        Root testID for Playwright / native automation
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet,
   ActivityIndicator, Alert, Modal, KeyboardAvoidingView, Platform,
@@ -34,9 +39,9 @@ export interface DestinationValue {
   radiusMeters: number;
   savedPlaceId?: string;
   /**
-   * GO1A map pilot: set only by dragging/tapping the DestinationMapPicker
-   * pin, or by selecting a saved place that already has coordinates.
-   * Never populated from device GPS or any geocoding/search API.
+   * Set by: an address-search selection, dragging/tapping the map pin, or
+   * selecting a saved place that already has coordinates. Never populated
+   * from device GPS — this component never reads live location.
    */
   latitude?: number | null;
   longitude?: number | null;
@@ -49,6 +54,12 @@ export interface SavedPlace {
   longitude: number | null;
   radius_meters: number;
   radius_label: string;
+}
+
+export interface AddressSuggestion {
+  label: string;
+  latitude: number;
+  longitude: number;
 }
 
 interface Props {
@@ -79,6 +90,24 @@ const RADIUS_MAX = 2000;
 
 function isPreset(m: number) {
   return RADIUS_PRESETS.some(p => p.meters === m);
+}
+
+const SEARCH_MIN_CHARS = 3;
+const SEARCH_DEBOUNCE_MS = 450;
+
+// ── Address search (OpenStreetMap Nominatim, proxied via our backend) ───────
+
+async function fetchAddressSuggestions(base: string, query: string): Promise<AddressSuggestion[]> {
+  const r = await fetch(`${base}/api/geocode/search?q=${encodeURIComponent(query)}&limit=6`);
+  if (!r.ok) return [];
+  const j = await r.json();
+  return j.suggestions ?? [];
+}
+
+/** Shorter, cleaner label for a selected address (first 2 comma segments). */
+function shortAddressLabel(full: string): string {
+  const parts = full.split(',').map(s => s.trim()).filter(Boolean);
+  return parts.slice(0, 2).join(', ') || full;
 }
 
 // ── Saved-place API helpers (no external SDK needed) ─────────────────────────
@@ -294,6 +323,16 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
   const [editTarget, setEditTarget] = useState<SavedPlace | null>(null);
   const hasAuth = !!authToken;
 
+  // Address search (GO1A — real search via OpenStreetMap Nominatim)
+  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchError, setSearchError] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Bumped only on an explicit "jump" (search pick / saved place pick) so the
+  // map recentres — NOT on every drag, which should stay within the current view.
+  const [mapRecenterKey, setMapRecenterKey] = useState(0);
+
   // Load saved places once on mount (or when auth becomes available)
   useEffect(() => {
     if (!hasAuth) return;
@@ -303,6 +342,53 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
       .catch(() => {})
       .finally(() => setLoadingPlaces(false));
   }, [hasAuth, authToken, base]);
+
+  // Clear any pending debounce timer on unmount
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+
+  const runSearch = useCallback((query: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const trimmed = query.trim();
+    if (trimmed.length < SEARCH_MIN_CHARS) {
+      setSuggestions([]);
+      setSearching(false);
+      setSearchError(false);
+      return;
+    }
+    setSearching(true);
+    setSearchError(false);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const results = await fetchAddressSuggestions(base, trimmed);
+        setSuggestions(results);
+        setSearchError(false);
+      } catch {
+        setSuggestions([]);
+        setSearchError(true);
+      } finally {
+        setSearching(false);
+      }
+    }, SEARCH_DEBOUNCE_MS);
+  }, [base]);
+
+  const handleLabelChange = useCallback((text: string) => {
+    onChange({ ...value, label: text, savedPlaceId: undefined });
+    setShowSuggestions(true);
+    runSearch(text);
+  }, [value, onChange, runSearch]);
+
+  const selectSuggestion = useCallback((s: AddressSuggestion) => {
+    onChange({
+      ...value,
+      label: shortAddressLabel(s.label),
+      savedPlaceId: undefined,
+      latitude: s.latitude,
+      longitude: s.longitude,
+    });
+    setSuggestions([]);
+    setShowSuggestions(false);
+    setMapRecenterKey(k => k + 1);
+  }, [value, onChange]);
 
   const selectPreset = useCallback((m: number) => {
     onChange({ ...value, radiusMeters: m });
@@ -316,6 +402,8 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
       latitude: p.latitude,
       longitude: p.longitude,
     });
+    setShowSuggestions(false);
+    setMapRecenterKey(k => k + 1);
   }, [onChange]);
 
   const movePin = useCallback((lat: number, lng: number) => {
@@ -327,7 +415,7 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
     setSaving(true);
     try {
       const created = await createSavedPlace(base, authToken!, {
-        label: value.label.trim(),
+        label: value.label.trim().slice(0, 80),
         radius_meters: value.radiusMeters,
         latitude: value.latitude ?? undefined,
         longitude: value.longitude ?? undefined,
@@ -354,7 +442,13 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
       setPlaces(prev => prev.map(p => p.place_id === updated.place_id ? updated : p));
       // If this place is selected, update the picker value too
       if (value.savedPlaceId === updated.place_id) {
-        onChange({ label: updated.label, radiusMeters: updated.radius_meters, savedPlaceId: updated.place_id });
+        onChange({
+          label: updated.label,
+          radiusMeters: updated.radius_meters,
+          savedPlaceId: updated.place_id,
+          latitude: updated.latitude,
+          longitude: updated.longitude,
+        });
       }
     }
     setEditTarget(null);
@@ -389,22 +483,25 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
 
   return (
     <View testID={testID ?? 'destination-picker'}>
-      {/* ── Destination input ──────────────────────────────────────────── */}
+      {/* ── Destination search / input ───────────────────────────────── */}
       <Text style={styles.fieldLabel}>Where are you going?</Text>
       <View style={styles.inputRow}>
         <TextInput
           testID="dp-destination-input"
           value={value.label}
-          onChangeText={text => onChange({ ...value, label: text, savedPlaceId: undefined })}
-          placeholder="e.g. College library, bus stop, friend's house…"
+          onChangeText={handleLabelChange}
+          onFocus={() => setShowSuggestions(suggestions.length > 0 || value.label.trim().length >= SEARCH_MIN_CHARS)}
+          onBlur={() => { setTimeout(() => setShowSuggestions(false), 150); }}
+          placeholder="Search an address, or type a label (e.g. bus stop)…"
           placeholderTextColor={c.muted}
           style={[styles.input, { flex: 1 }]}
           returnKeyType="done"
-          maxLength={80}
-          accessibilityLabel="Destination name"
-          accessibilityHint="Enter where you are going"
+          maxLength={120}
+          accessibilityLabel="Destination address or name"
+          accessibilityHint="Search for an address or type where you are going"
         />
-        {hasAuth && value.label.trim().length > 0 && !alreadySaved && (
+        {searching && <ActivityIndicator size="small" color={c.muted} style={styles.searchSpinner} />}
+        {hasAuth && value.label.trim().length > 0 && !alreadySaved && !searching && (
           <Pressable
             onPress={saveCurrentAsPlace}
             disabled={saving}
@@ -421,6 +518,29 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
         )}
       </View>
 
+      {/* ── Address search suggestions (OpenStreetMap Nominatim) ─────────── */}
+      {showSuggestions && (suggestions.length > 0 || searchError) && (
+        <View style={styles.suggestionsBox} testID="dp-suggestions">
+          {searchError ? (
+            <Text style={styles.suggestionEmptyTxt}>Address search is temporarily unavailable. Try again shortly.</Text>
+          ) : (
+            suggestions.map((s, i) => (
+              <Pressable
+                key={`${s.latitude},${s.longitude},${i}`}
+                style={styles.suggestionRow}
+                onPress={() => selectSuggestion(s)}
+                accessibilityRole="button"
+                accessibilityLabel={`Select address ${s.label}`}
+                testID={`dp-suggestion-${i}`}
+              >
+                <Ionicons name="location-outline" size={16} color={c.muted} />
+                <Text style={styles.suggestionTxt} numberOfLines={2}>{s.label}</Text>
+              </Pressable>
+            ))
+          )}
+        </View>
+      )}
+
       {/* ── Map pin (GO1A pilot — web: OSM/Leaflet; native: placeholder) ── */}
       <DestinationMapPicker
         testID="dp-map-picker"
@@ -428,7 +548,7 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
         longitude={value.longitude ?? null}
         radiusMeters={value.radiusMeters}
         onPositionChange={movePin}
-        recenterKey={value.savedPlaceId ?? 'manual'}
+        recenterKey={mapRecenterKey}
       />
 
       {/* ── Saved places quick-select ─────────────────────────────────── */}
@@ -522,9 +642,9 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
           {gpsForegroundEnabled
             // GPS feature is on for this journey: say so accurately — foreground-only,
             // not yet running, never background, never an automatic alert.
-            ? 'Planned arrival area only. Radius selection does not activate geofence monitoring. If you start this journey, DHARA will share your location only while this app is open on your screen — never in the background, and no one is alerted automatically.'
+            ? 'Planned arrival area only. Radius selection does not activate geofence monitoring. If you start this journey, DHARA will share your location only while this app is open on your screen — never in the background, and no one is alerted automatically. Address suggestions come from OpenStreetMap search and are only looked up when you type — never from your device location.'
             // Default (feature off): no GPS capability exists for this journey at all.
-            : 'Planned arrival area only. Radius selection does not activate geofence monitoring or any location tracking.'}
+            : 'Planned arrival area only. Radius selection does not activate geofence monitoring or any location tracking. Address suggestions come from OpenStreetMap search and are only looked up when you type — never from your device location.'}
         </Text>
       </View>
 
@@ -559,6 +679,17 @@ const styles = StyleSheet.create({
     width: 44, height: 44, borderRadius: 12, backgroundColor: c.navySoft,
     alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.navy,
   },
+  searchSpinner: { width: 24, alignItems: 'center', justifyContent: 'center' },
+  suggestionsBox: {
+    borderWidth: 1, borderColor: c.lines, borderRadius: 12, backgroundColor: c.surface,
+    marginTop: -6, marginBottom: 12, overflow: 'hidden',
+  },
+  suggestionRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.lines,
+  },
+  suggestionTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, lineHeight: 18 },
+  suggestionEmptyTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, padding: 12, fontStyle: 'italic' },
   savedSection: { marginBottom: 16 },
   savedHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
   savedTitle: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
