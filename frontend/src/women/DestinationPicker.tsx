@@ -12,8 +12,9 @@
  * - Radius selection is for planning only.
  * - No live GPS observations are made by this component.
  * - No geofence monitoring is active.
- * - Address search only runs when the user types/searches — it never
- *   reads device location and is independent of any GPS/tracking flag.
+ * - Address search only runs on an explicit tap of the Search button (or the
+ *   keyboard's search key) — never automatically while typing, and never
+ *   reads device location. Independent of any GPS/tracking flag.
  *
  * Props:
  *   value         Current destination state
@@ -24,7 +25,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet,
-  ActivityIndicator, Alert, Modal, KeyboardAvoidingView, Platform,
+  ActivityIndicator, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
@@ -93,7 +94,6 @@ function isPreset(m: number) {
 }
 
 const SEARCH_MIN_CHARS = 3;
-const SEARCH_DEBOUNCE_MS = 450;
 
 // ── Address search (OpenStreetMap Nominatim, proxied via our backend) ───────
 
@@ -274,6 +274,7 @@ function EditPlaceModal({
                 onPress={() => setRadius(p.meters)}
                 accessibilityRole="radio"
                 accessibilityState={{ checked: radius === p.meters }}
+                aria-checked={radius === p.meters}
                 accessibilityLabel={p.label}
                 testID={`edit-radius-${p.meters}`}
               >
@@ -312,6 +313,72 @@ function EditPlaceModal({
   );
 }
 
+// ── Confirm-delete modal (replaces Alert.alert, which is a no-op on web) ────
+
+function ConfirmDeleteModal({
+  visible, place, onConfirm, onCancel,
+}: { visible: boolean; place: SavedPlace | null; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <View style={mStyles.overlay}>
+        <View style={mStyles.box} testID="dp-delete-confirm-modal">
+          <Text style={mStyles.title}>Delete saved place</Text>
+          <Text style={mStyles.hint}>
+            Remove &ldquo;{place?.label ?? ''}&rdquo; from your saved places? This cannot be undone.
+          </Text>
+          <View style={mStyles.row}>
+            <Pressable
+              style={[mStyles.btn, mStyles.btnCancel]}
+              onPress={onCancel}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel delete"
+              testID="dp-delete-cancel"
+            >
+              <Text style={mStyles.btnCancelTxt}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              style={[mStyles.btn, mStyles.btnDanger]}
+              onPress={onConfirm}
+              accessibilityRole="button"
+              accessibilityLabel="Confirm delete"
+              testID="dp-delete-confirm"
+            >
+              <Text style={mStyles.btnSaveTxt}>Delete</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ── Info / error modal (replaces Alert.alert for save failures, which is a
+// no-op on react-native-web — users were previously left with no feedback) ──
+
+function InfoModal({
+  visible, title, message, onClose,
+}: { visible: boolean; title: string; message: string; onClose: () => void }) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={mStyles.overlay}>
+        <View style={mStyles.box} testID="dp-info-modal">
+          <Text style={mStyles.title}>{title}</Text>
+          <Text style={mStyles.hint}>{message}</Text>
+          <Pressable
+            style={[mStyles.btn, mStyles.btnSave]}
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+            testID="dp-info-close"
+          >
+            <Text style={mStyles.btnSaveTxt}>OK</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function DestinationPicker({ value, onChange, authToken, testID, apiBase, gpsForegroundEnabled }: Props) {
@@ -323,15 +390,21 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
   const [editTarget, setEditTarget] = useState<SavedPlace | null>(null);
   const hasAuth = !!authToken;
 
-  // Address search (GO1A — real search via OpenStreetMap Nominatim)
+  // Address search (GO1A — real search via OpenStreetMap Nominatim).
+  // Batch 2: search only ever runs on an EXPLICIT user action (Search button
+  // press, or the keyboard's search/done key) — never automatically while
+  // typing. This avoids sending a request per keystroke to the public
+  // Nominatim endpoint.
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [searching, setSearching] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchError, setSearchError] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchReqRef = useRef(0);
   // Bumped only on an explicit "jump" (search pick / saved place pick) so the
   // map recentres — NOT on every drag, which should stay within the current view.
   const [mapRecenterKey, setMapRecenterKey] = useState(0);
+  const [deleteTarget, setDeleteTarget] = useState<SavedPlace | null>(null);
+  const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
 
   // Load saved places once on mount (or when auth becomes available)
   useEffect(() => {
@@ -343,39 +416,38 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
       .finally(() => setLoadingPlaces(false));
   }, [hasAuth, authToken, base]);
 
-  // Clear any pending debounce timer on unmount
-  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
-
-  const runSearch = useCallback((query: string) => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    const trimmed = query.trim();
+  const submitSearch = useCallback(async () => {
+    const trimmed = value.label.trim();
+    setShowSuggestions(true);
     if (trimmed.length < SEARCH_MIN_CHARS) {
       setSuggestions([]);
-      setSearching(false);
       setSearchError(false);
       return;
     }
+    const reqId = ++searchReqRef.current;
     setSearching(true);
     setSearchError(false);
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const results = await fetchAddressSuggestions(base, trimmed);
-        setSuggestions(results);
-        setSearchError(false);
-      } catch {
-        setSuggestions([]);
-        setSearchError(true);
-      } finally {
-        setSearching(false);
-      }
-    }, SEARCH_DEBOUNCE_MS);
-  }, [base]);
+    try {
+      const results = await fetchAddressSuggestions(base, trimmed);
+      if (searchReqRef.current !== reqId) return; // superseded by a newer search
+      setSuggestions(results);
+      setSearchError(false);
+    } catch {
+      if (searchReqRef.current !== reqId) return;
+      setSuggestions([]);
+      setSearchError(true);
+    } finally {
+      if (searchReqRef.current === reqId) setSearching(false);
+    }
+  }, [base, value.label]);
 
   const handleLabelChange = useCallback((text: string) => {
     onChange({ ...value, label: text, savedPlaceId: undefined });
-    setShowSuggestions(true);
-    runSearch(text);
-  }, [value, onChange, runSearch]);
+    // Typing alone never triggers a search — stale results no longer apply.
+    setSuggestions([]);
+    setShowSuggestions(false);
+    setSearchError(false);
+  }, [value, onChange]);
 
   const selectSuggestion = useCallback((s: AddressSuggestion) => {
     onChange({
@@ -424,10 +496,13 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
         setPlaces(prev => [created, ...prev]);
         onChange({ ...value, savedPlaceId: created.place_id });
       } else {
-        Alert.alert('Could not save', 'You may have reached the 10 saved places limit, or the destination name was not valid.');
+        setErrorModal({
+          title: 'Could not save',
+          message: 'You may have reached the 10 saved places limit, or the destination name was not valid.',
+        });
       }
     } catch {
-      Alert.alert('Could not save', 'Check your connection and try again.');
+      setErrorModal({ title: 'Could not save', message: 'Check your connection and try again.' });
     } finally {
       setSaving(false);
     }
@@ -454,28 +529,27 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
     setEditTarget(null);
   }, [editTarget, authToken, base, value, onChange]);
 
+  // Batch 2: Alert.alert is a no-op on react-native-web — delete confirmation
+  // now uses an in-app Modal (ConfirmDeleteModal) instead. handleDelete just
+  // opens it; confirmDelete performs the actual deletion.
   const handleDelete = useCallback((place: SavedPlace) => {
-    Alert.alert(
-      'Delete saved place',
-      `Remove "${place.label}" from your saved places?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            const ok = await deleteSavedPlace(base, authToken!, place.place_id).catch(() => false);
-            if (ok) {
-              setPlaces(prev => prev.filter(p => p.place_id !== place.place_id));
-              if (value.savedPlaceId === place.place_id) {
-                onChange({ ...value, savedPlaceId: undefined });
-              }
-            }
-          },
-        },
-      ],
-    );
-  }, [authToken, base, value, onChange]);
+    setDeleteTarget(place);
+  }, []);
+
+  const confirmDelete = useCallback(async () => {
+    const target = deleteTarget;
+    if (!target) return;
+    setDeleteTarget(null);
+    const ok = await deleteSavedPlace(base, authToken!, target.place_id).catch(() => false);
+    if (ok) {
+      setPlaces(prev => prev.filter(p => p.place_id !== target.place_id));
+      if (value.savedPlaceId === target.place_id) {
+        onChange({ ...value, savedPlaceId: undefined });
+      }
+    } else {
+      setErrorModal({ title: 'Could not delete', message: 'Check your connection and try again.' });
+    }
+  }, [deleteTarget, authToken, base, value, onChange]);
 
   const alreadySaved = !!value.savedPlaceId || places.some(
     p => p.label.toLowerCase() === value.label.trim().toLowerCase()
@@ -490,17 +564,32 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
           testID="dp-destination-input"
           value={value.label}
           onChangeText={handleLabelChange}
-          onFocus={() => setShowSuggestions(suggestions.length > 0 || value.label.trim().length >= SEARCH_MIN_CHARS)}
+          onFocus={() => setShowSuggestions(suggestions.length > 0 || searchError)}
           onBlur={() => { setTimeout(() => setShowSuggestions(false), 150); }}
+          onSubmitEditing={submitSearch}
           placeholder="Search an address, or type a label (e.g. bus stop)…"
           placeholderTextColor={c.muted}
           style={[styles.input, { flex: 1 }]}
-          returnKeyType="done"
+          returnKeyType="search"
           maxLength={120}
           accessibilityLabel="Destination address or name"
-          accessibilityHint="Search for an address or type where you are going"
+          accessibilityHint="Type an address or label, then tap Search to look it up"
         />
-        {searching && <ActivityIndicator size="small" color={c.muted} style={styles.searchSpinner} />}
+        {/* Batch 2: address search now only runs on this explicit tap (or the
+            keyboard's Search key) — never automatically while typing. */}
+        <Pressable
+          onPress={submitSearch}
+          disabled={value.label.trim().length < SEARCH_MIN_CHARS}
+          style={[styles.searchBtn, value.label.trim().length < SEARCH_MIN_CHARS && styles.searchBtnDisabled]}
+          accessibilityRole="button"
+          accessibilityLabel="Search for this address"
+          testID="dp-search-button"
+        >
+          {searching
+            ? <ActivityIndicator size="small" color={c.navy} />
+            : <Ionicons name="search" size={18} color={c.navy} />
+          }
+        </Pressable>
         {hasAuth && value.label.trim().length > 0 && !alreadySaved && !searching && (
           <Pressable
             onPress={saveCurrentAsPlace}
@@ -614,6 +703,7 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
             onPress={() => selectPreset(p.meters)}
             accessibilityRole="radio"
             accessibilityState={{ checked: value.radiusMeters === p.meters }}
+            aria-checked={value.radiusMeters === p.meters}
             accessibilityLabel={`${p.label} arrival area`}
             testID={`dp-radius-${p.meters}`}
           >
@@ -642,9 +732,9 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
           {gpsForegroundEnabled
             // GPS feature is on for this journey: say so accurately — foreground-only,
             // not yet running, never background, never an automatic alert.
-            ? 'Planned arrival area only. Radius selection does not activate geofence monitoring. If you start this journey, DHARA will share your location only while this app is open on your screen — never in the background, and no one is alerted automatically. Address suggestions come from OpenStreetMap search and are only looked up when you type — never from your device location.'
+            ? 'Planned arrival area only. Radius selection does not activate geofence monitoring. If you start this journey, DHARA will share your location only while this app is open on your screen — never in the background, and no one is alerted automatically. Address suggestions come from OpenStreetMap search and only run when you tap Search — never from your device location.'
             // Default (feature off): no GPS capability exists for this journey at all.
-            : 'Planned arrival area only. Radius selection does not activate geofence monitoring or any location tracking. Address suggestions come from OpenStreetMap search and are only looked up when you type — never from your device location.'}
+            : 'Planned arrival area only. Radius selection does not activate geofence monitoring or any location tracking. Address suggestions come from OpenStreetMap search and only run when you tap Search — never from your device location.'}
         </Text>
       </View>
 
@@ -654,6 +744,18 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
         initial={isPreset(value.radiusMeters) ? 100 : value.radiusMeters}
         onSave={m => { onChange({ ...value, radiusMeters: m }); setCustomVisible(false); }}
         onCancel={() => setCustomVisible(false)}
+      />
+      <ConfirmDeleteModal
+        visible={!!deleteTarget}
+        place={deleteTarget}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
+      <InfoModal
+        visible={!!errorModal}
+        title={errorModal?.title ?? ''}
+        message={errorModal?.message ?? ''}
+        onClose={() => setErrorModal(null)}
       />
       <EditPlaceModal
         visible={!!editTarget}
@@ -679,6 +781,11 @@ const styles = StyleSheet.create({
     width: 44, height: 44, borderRadius: 12, backgroundColor: c.navySoft,
     alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.navy,
   },
+  searchBtn: {
+    width: 44, height: 44, borderRadius: 12, backgroundColor: c.navySoft,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.navy,
+  },
+  searchBtnDisabled: { opacity: 0.4 },
   searchSpinner: { width: 24, alignItems: 'center', justifyContent: 'center' },
   suggestionsBox: {
     borderWidth: 1, borderColor: c.lines, borderRadius: 12, backgroundColor: c.surface,
@@ -734,6 +841,7 @@ const mStyles = StyleSheet.create({
   btn: { flex: 1, borderRadius: 10, padding: 12, alignItems: 'center' },
   btnCancel: { borderWidth: 1, borderColor: c.lines },
   btnSave: { backgroundColor: c.navy },
+  btnDanger: { backgroundColor: c.emergencyRed },
   btnCancelTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.muted },
   btnSaveTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: '#fff' },
   chipRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Linking } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Linking, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +19,11 @@ const DESTINATION_PICKER_ENABLED = process.env.EXPO_PUBLIC_DESTINATION_PICKER ==
 // GO1B: Live GPS tracking — default OFF; guardian status page shows last known area
 const GO1B_GPS_ENABLED = process.env.EXPO_PUBLIC_GO1B_GPS === 'true';
 const TRUSTED_CIRCLE_RECIPIENT = process.env.EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT === 'true';
+// Pilot simulation environment: when ON, "Prepare alert" shows an in-app
+// "Simulated — nothing sent" preview instead of opening the device's real
+// SMS composer. Default ON for this isolated pilot. Set to "false" to
+// restore the original production sms: intent behaviour everywhere.
+const ALERT_SIMULATION_MODE = process.env.EXPO_PUBLIC_ALERT_SIMULATION_MODE !== 'false';
 
 const DURATIONS = [
   { label: '30 min', mins: 30 },
@@ -68,6 +73,9 @@ export default function HeadOut() {
   const [recipients, setRecipients] = useState<InviteLink[]>([]);
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Pilot simulation preview for "Prepare alert" (Batch 2) — holds the
+  // message body + recipient names shown in the preview Modal; never sent.
+  const [simPreview, setSimPreview] = useState<{ body: string; recipients: string[] } | null>(null);
 
   // Load persisted session + circle on mount
   useEffect(() => {
@@ -183,6 +191,14 @@ export default function HeadOut() {
   const prepareAlertSMS = useCallback(() => {
     const notifyContacts = circle.filter(ct => ct.notify !== false);
     const body = `I was heading to ${session?.destination ?? 'a location'} and my check-in timer has expired. Please check on me.`;
+    if (ALERT_SIMULATION_MODE) {
+      // Pilot simulation: never open a real sms: intent — show an in-app
+      // preview only, so no real alert can leave this device during the
+      // pilot. Production behaviour (below) is preserved when this flag
+      // is explicitly turned off.
+      setSimPreview({ body, recipients: notifyContacts.map(ct => ct.name) });
+      return;
+    }
     if (notifyContacts.length > 0) {
       const phones = notifyContacts.map(ct => ct.phone).join(',');
       Linking.openURL(`sms:${phones}?body=${encodeURIComponent(body)}`).catch(() =>
@@ -407,6 +423,43 @@ export default function HeadOut() {
           </Text>
         </>
       )}
+
+      {/* Pilot simulation preview — replaces the real sms: intent while
+          ALERT_SIMULATION_MODE is on. Clearly labelled, nothing is sent. */}
+      <Modal
+        visible={!!simPreview}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSimPreview(null)}
+      >
+        <View style={styles.simOverlay}>
+          <View style={styles.simBox} testID="headout-sim-preview-modal">
+            <View style={styles.simBadge}>
+              <Ionicons name="flask-outline" size={14} color={c.navy} />
+              <Text style={styles.simBadgeTxt}>Simulated — nothing sent</Text>
+            </View>
+            <Text style={styles.simTitle}>Pilot preview of your alert</Text>
+            <Text style={styles.simHint}>
+              This is a pilot simulation. No SMS, call, or notification has been sent to anyone.
+            </Text>
+            <Text style={styles.simLabel}>Would be sent to:</Text>
+            <Text style={styles.simValue}>
+              {simPreview && simPreview.recipients.length > 0 ? simPreview.recipients.join(', ') : 'No trusted circle contacts set up'}
+            </Text>
+            <Text style={styles.simLabel}>Message:</Text>
+            <Text style={styles.simValue}>{simPreview?.body}</Text>
+            <Pressable
+              style={[styles.button, { marginTop: 8 }]}
+              onPress={() => setSimPreview(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Close simulated alert preview"
+              testID="headout-sim-preview-close"
+            >
+              <Text style={styles.buttonText}>Close</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -475,4 +528,15 @@ const styles = StyleSheet.create({
   },
   gpsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   gpsLabel: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, flex: 1, textAlign: 'center' },
+  simOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  simBox: { backgroundColor: '#fff', borderRadius: 18, padding: 22, width: '100%', maxWidth: 400, gap: 6 },
+  simBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
+    backgroundColor: c.navySoft, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, marginBottom: 6,
+  },
+  simBadgeTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.navy },
+  simTitle: { fontFamily: theme.fonts.displayBold, fontSize: 18, color: c.ink },
+  simHint: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 19, marginBottom: 6 },
+  simLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.muted, marginTop: 6, textTransform: 'uppercase', letterSpacing: 0.4 },
+  simValue: { fontFamily: theme.fonts.body, fontSize: 14, color: c.ink, lineHeight: 20 },
 });
