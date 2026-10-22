@@ -42,6 +42,7 @@ from corpus import (
     is_non_indian_jurisdiction,
     is_non_legal_advice,
     public_citation,
+    with_historical_notice,
     sanitize_model_output,
     REFUSAL_NO_CORPUS,
     REFUSAL_NON_INDIAN,
@@ -617,14 +618,18 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
     # (b3b) P1 grounding-safety fix for the BNS 199 / IPC 166A contradiction:
     # when an EXPLICIT statute reference is active for this turn (this turn's
     # own citation, or one carried forward via _v2_state.active_statute_ref)
-    # but the exact MongoDB lookup found NOTHING (db_hits empty), the Python-
-    # corpus fuzzy hits in `retrieved` cannot be trusted to answer this
-    # specific-section question either. The (b3) guard above only filters
-    # `retrieved` when db_hits DID find an exact match — with db_hits empty,
-    # an irrelevant fuzzy hit (sharing generic words with the query, e.g. a
-    # completely unrelated section) was slipping through as "grounding",
-    # letting the LLM blend in that unrelated section's facts/punishment
-    # instead of honestly saying it has no verified text for this section.
+    # but the exact MongoDB lookup found NOTHING (db_hits empty), a Python-
+    # corpus hit that is NOT itself about that exact section (sharing only
+    # generic words with the query, e.g. a completely unrelated section)
+    # cannot be trusted to answer this specific-section question — drop it.
+    #
+    # P1 follow-up (citation-guard parity fix): this must NOT also drop a
+    # Python-corpus hit whose OWN section number IS the cited one — e.g.
+    # corpus_ipc.py's hand-curated "ipc_34" entry answering "what does IPC
+    # Section 34 say" is an exact, deliberate match, not fuzzy noise, and
+    # was being wrongly wiped here before Layer S ever got a chance to
+    # apply its historical-still-applicable framing. Reuses the SAME
+    # own-section-number parsing as guard (b3) just above.
     # Reuses the SAME active-reference signal as (b3)/P0-D — no new engine.
     _active_ref_now = _v2_state.active_statute_ref if _v2_state else None
     if not _active_ref_now:
@@ -632,11 +637,21 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
         if _this_turn_act and _this_turn_sec:
             _active_ref_now = {"act": _this_turn_act, "section": _this_turn_sec}
     if _active_ref_now and not db_hits and retrieved and not early_refusal:
-        logger.info(
-            "[grounding_guard] dropping %d unverified fuzzy hit(s) for %s %s — exact lookup found no record",
-            len(retrieved), _active_ref_now.get("act"), _active_ref_now.get("section"),
-        )
-        retrieved = []
+        def _own_section_number_b3b(entry: dict) -> Optional[str]:
+            m = re.search(r"(\d+[A-Za-z]{0,3})$", entry.get("short_label", "") or "")
+            if m:
+                return m.group(1).upper()
+            km = re.search(r"_(\d+[A-Za-z]{0,3})$", (entry.get("key") or ""))
+            return km.group(1).upper() if km else None
+        _ref_sec_b3b = (_active_ref_now.get("section") or "").upper()
+        _before_b3b = len(retrieved)
+        retrieved = [it for it in retrieved if _own_section_number_b3b(it) == _ref_sec_b3b]
+        if _before_b3b > len(retrieved):
+            logger.info(
+                "[grounding_guard] dropping %d unverified fuzzy hit(s) for %s %s — "
+                "not an exact match for the active reference's own section",
+                _before_b3b - len(retrieved), _active_ref_now.get("act"), _active_ref_now.get("section"),
+            )
 
     # Orphan-invalidation check — sections in judicial_invalidations but NOT
     # in legal_sections (e.g. IPC §377: IPC replaced by BNS, absent from corpus
@@ -1061,7 +1076,9 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
         # blocked by the output guard) — see the post-processing block below.
         _citation_payloads: list[dict] = []
         for it in retrieved:
-            _citation_payloads.append({"type": "citation", "citation": public_citation(it)})
+            _citation_payloads.append(
+                {"type": "citation", "citation": with_historical_notice(public_citation(it), it)}
+            )
 
         # Emit MongoDB-corpus citations.  G1/G2 safety warnings are prepended to
         # official_text so they appear at the top of the citation card in the UI.

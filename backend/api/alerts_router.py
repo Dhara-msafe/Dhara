@@ -46,6 +46,42 @@ _TITLES = {
     "sharing_ended":         "Location sharing has ended",
 }
 
+# Maps each alert type to the specific granted permission (on
+# trusted_circle_links.permissions) required before an alert of that type
+# may be created for — or shown to — a given recipient. This is in addition
+# to the link being status=="accepted": a recipient can be accepted overall
+# but have a NARROWER per-type grant (e.g. accepted the circle but opted out
+# of emergency pings), and that narrower grant must be respected for every
+# alert type, not just location (temp_location, handled separately by
+# _sanitize_location). Fails closed: any type not listed here defaults to
+# the broadest "journey_status" permission rather than assuming consent.
+_TYPE_PERMISSION_KEY = {
+    "journey_started":      "journey_status",
+    "journey_status":       "journey_status",
+    "sharing_ended":        "journey_status",
+    "location_unavailable": "journey_status",
+    "missed_checkin":       "missed_checkin",
+    "help_requested":       "emergency_requests",
+    "arrival_confirmed":    "expected_arrival",
+    "journey_completed":    "expected_arrival",
+}
+
+
+def _type_permission_granted(alert_type: str, link: Optional[dict]) -> bool:
+    """True only when `link` is an ACCEPTED trusted-circle link whose CURRENT
+    permissions grant the specific flag this alert type requires. Re-run on
+    every read (never cached at alert-creation time) so narrowing a single
+    permission after the fact takes effect immediately — same as a full
+    revoke — on both future alert creation AND on every existing alert the
+    next time it is fetched. Fails closed: a missing link, a non-accepted
+    link, or a missing/False/non-boolean-True flag are all "not granted" —
+    this NEVER broadens access beyond what the owner's link permissions
+    currently allow, it only ever narrows."""
+    if not link or link.get("status") != "accepted":
+        return False
+    perm_key = _TYPE_PERMISSION_KEY.get(alert_type, "journey_status")
+    return (link.get("permissions") or {}).get(perm_key) is True
+
 
 def _sanitize_location(payload: dict, link: Optional[dict], journey: Optional[dict] = None) -> dict:
     """Server-side enforcement (do not rely on the frontend to hide this).
@@ -87,7 +123,7 @@ def _public_alert(a: dict, link: Optional[dict] = None, journey: Optional[dict] 
     safety_journeys record for a["journey_token"] (may be None if the
     alert has no journey_token, or the journey was deleted) — see
     _sanitize_location for why its "safe" status also strips location."""
-    revoked = (not link) or link.get("status") != "accepted"
+    revoked = not _type_permission_granted(a["type"], link)
     return {
         "id": a["id"],
         "type": a["type"],
@@ -110,11 +146,14 @@ async def create_alert_and_notify(
     idempotency_key: Optional[str] = None,
 ) -> Optional[dict]:
     """Shared helper used by journey_router.py and trusted_circle_router.py.
-    Only ever creates an alert for an ACCEPTED, non-muted link — enforced
-    here so callers can't accidentally notify someone without consent.
-    Idempotent: a repeated call with the same idempotency_key is a no-op.
+    Only ever creates an alert for an ACCEPTED link that has ALSO granted the
+    specific permission this alert `type_` requires (see
+    _TYPE_PERMISSION_KEY/_type_permission_granted) — enforced here so callers
+    can't accidentally notify someone without the relevant consent, even if
+    they're accepted into the circle overall. Idempotent: a repeated call
+    with the same idempotency_key is a no-op.
     """
-    if not link or link.get("status") != "accepted" or not link.get("invitee_user_id"):
+    if not link or not link.get("invitee_user_id") or not _type_permission_granted(type_, link):
         return None
     if idempotency_key:
         existing = await db.safety_alerts.find_one({"idempotency_key": idempotency_key})

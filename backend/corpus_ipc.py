@@ -1122,4 +1122,14 @@ CRPC_ENTRIES = [
     },
 ]
 
-IPC_CRPC_CORPUS = IPC_ENTRIES + CRPC_ENTRIES
+IPC_CRPC_CORPUS = [
+    dict(e, historical_still_applicable=True) for e in (IPC_ENTRIES + CRPC_ENTRIES)
+]
+# `historical_still_applicable=True` tells engine.law_status_guard.annotate_provisions
+# NOT to treat these as dead/superseded provisions, even though the IPC/CrPC
+# registry entries are INACTIVE: every entry in this file was hand-verified
+# specifically to answer "what did the old IPC/CrPC section say" correctly,
+# and that text remains the governing law for events/FIRs/trials from before
+# the 1 July 2024 cutover — it must never be swallowed by the generic
+# cannot-verify/dead-law refusal template (see law_status_guard.py for the
+# exact mechanism this flag disables).

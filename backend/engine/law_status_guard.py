@@ -135,6 +135,36 @@ def annotate_provisions(
         status_label, rec = check_provision(prov)
 
         if status_label == "INACTIVE" and rec:
+            if prov_copy.get("historical_still_applicable"):
+                # Hand-curated legacy corpus entry (corpus_ipc.py) — the old
+                # code is dead for NEW offences/events, but THIS specific
+                # text remains the governing law for matters (FIRs, pending
+                # trials) from before the cutover date, and the entry was
+                # verified specifically to answer that historical question.
+                # Deliberately do NOT set is_dead_law/status/dead_warning:
+                # those three fields are exactly what all_provisions_dead()
+                # and _is_dead() check to trigger the generic "cannot
+                # verify" refusal / "no longer enforceable" prompt guard —
+                # firing either of those here would wrongly swallow a
+                # legitimately answerable historical question with a
+                # template response. Use a distinct, non-triggering field
+                # instead so the historical framing still reaches the user
+                # (via with_historical_notice()) without being treated as
+                # a dead provision anywhere else in the pipeline.
+                prov_copy["historical_notice"] = (
+                    f"Historical note: {rec.short_name} was replaced by "
+                    f"{rec.successor_act or 'newer legislation'} for new matters. "
+                    f"This provision remains the governing law for events, FIRs, "
+                    f"and trials from before that date."
+                )
+                prov_copy["_law_status"] = rec.status
+                prov_copy["_successor_act"] = rec.successor_act
+                logger.info(
+                    "[law_status_guard] INACTIVE-but-historical act=%r status=%s (not marked dead)",
+                    rec.short_name[:60], rec.status,
+                )
+                annotated.append(prov_copy)
+                continue
             existing_warn = prov_copy.get("dead_warning") or ""
             guard_msg = (
                 f"⚠️ [LAW_STATUS_GUARD] '{rec.short_name}' is {rec.status}. "

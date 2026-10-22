@@ -2185,6 +2185,23 @@ def public_citation(item: dict) -> dict:
     }
 
 
+def with_historical_notice(citation: dict, item: dict) -> dict:
+    """If `item` was annotated by law_status_guard.annotate_provisions() as
+    INACTIVE-but-historical (historical_still_applicable=True — see that
+    function for why it is deliberately NOT marked is_dead_law), prepend the
+    historical framing to the citation's official_text so the user sees it
+    without any frontend change (reuses the same "warning prefix on the
+    text" pattern already used for DB-backed dead-law citations). Returns a
+    NEW dict; `citation` and `item` are never mutated."""
+    notice = item.get("historical_notice")
+    if not notice:
+        return citation
+    out = dict(citation)
+    out["official_text"] = f"{notice}\n\n{out.get('official_text', '')}"
+    out["historical_notice"] = notice
+    return out
+
+
 # ---------------------------------------------------------------------------
 # State / UT layer. Central law answers only half of a rent, liquor, traffic
 # compounding or stamp duty question — the rest is state law. We score the
