@@ -83,34 +83,39 @@ def _type_permission_granted(alert_type: str, link: Optional[dict]) -> bool:
     return (link.get("permissions") or {}).get(perm_key) is True
 
 
-def _sanitize_location(payload: dict, link: Optional[dict], journey: Optional[dict] = None) -> dict:
-    """Server-side enforcement (do not rely on the frontend to hide this).
-
-    Strips every location-bearing field from the alert payload unless the
-    OWNER'S CURRENT permission record on `link` explicitly grants
-    `temp_location` to this recipient on an accepted link. Fails closed:
-    a missing link, a non-accepted link, or missing/unsupported permission
-    metadata are all treated as "not permitted" — never assume sharing is
-    allowed. Scoped narrowly to the `last_location` sub-object (lat, lng,
-    accuracy, area, age_minutes, and any other nested fields it carries).
-
-    ALSO fails closed once the related journey (`journey`, the LIVE
-    safety_journeys record for the alert's journey_token) is CLOSED —
-    either status "safe" (student arrived) or the owner has explicitly
-    revoked sharing via POST .../revoke (`sharing_revoked_at` set): once
-    either happens, continued exact-location access serves no safety
-    purpose, so last_location is removed regardless of the recipient's
-    permission grant — this is a stricter, additional gate on top of the
-    permission check, not a replacement for it.
-    """
-    sanitized = dict(payload or {})
+def _exact_location_permission_live(link: Optional[dict], journey: Optional[dict] = None) -> bool:
+    """True only when the recipient CURRENTLY holds temp_location consent on
+    an ACCEPTED link AND the related journey is still open (not yet marked
+    safe, not revoked). Re-evaluated on every call — never cached. This is
+    the single source of truth for whether exact-location-equivalent data
+    may be disclosed to this recipient right now: both the location fields
+    inside an alert payload (_sanitize_location) AND the Guardian
+    journey_token itself (_public_alert) are gated by this exact check —
+    the token is a bearer-style credential for a SEPARATE, anonymous,
+    possession-based page with no per-recipient check of its own, so it
+    must never be handed to someone who doesn't currently also qualify for
+    in-app exact location."""
     permissions = (link or {}).get("permissions") or {}
     is_accepted = bool(link) and link.get("status") == "accepted"
     temp_location_granted = is_accepted and permissions.get("temp_location") is True
     journey_is_closed = bool(journey) and (
         journey.get("status") == "safe" or bool(journey.get("sharing_revoked_at"))
     )
-    if not temp_location_granted or journey_is_closed:
+    return temp_location_granted and not journey_is_closed
+
+
+def _sanitize_location(payload: dict, link: Optional[dict], journey: Optional[dict] = None) -> dict:
+    """Server-side enforcement (do not rely on the frontend to hide this).
+
+    Strips every location-bearing field from the alert payload unless
+    _exact_location_permission_live(link, journey) is True. Fails closed:
+    a missing link, a non-accepted link, or missing/unsupported permission
+    metadata are all treated as "not permitted" — never assume sharing is
+    allowed. Scoped narrowly to the `last_location` sub-object (lat, lng,
+    accuracy, area, age_minutes, and any other nested fields it carries).
+    """
+    sanitized = dict(payload or {})
+    if not _exact_location_permission_live(link, journey):
         sanitized.pop("last_location", None)
     return sanitized
 
@@ -124,13 +129,27 @@ def _public_alert(a: dict, link: Optional[dict] = None, journey: Optional[dict] 
     alert has no journey_token, or the journey was deleted) — see
     _sanitize_location for why its "safe" status also strips location."""
     revoked = not _type_permission_granted(a["type"], link)
+    # P0 fix (revoked-alert token exposure): journey_token is itself a
+    # bearer-style credential for the Guardian page, which is anonymous
+    # and possession-based (documented all-or-nothing design — whoever
+    # has the token sees full, unredacted location, with no per-recipient
+    # permission check of its own). Previously this field was returned
+    # UNCONDITIONALLY on every alert, including when the type-permission
+    # was denied/narrowed (revoked=True) and even when the recipient never
+    # had temp_location consent at all — letting such a recipient bypass
+    # every in-app permission check above by simply visiting the Guardian
+    # URL directly. Disclose the token ONLY when the recipient currently
+    # holds the same standing that would let them see exact location
+    # in-app anyway (not revoked for this alert type, AND currently holds
+    # live temp_location consent on an open journey).
+    token_disclosure_allowed = (not revoked) and _exact_location_permission_live(link, journey)
     return {
         "id": a["id"],
         "type": a["type"],
         "title": _TITLES.get(a["type"], "Safety alert"),
         "owner_name": a.get("owner_name"),
         "link_id": a.get("link_id"),
-        "journey_token": a.get("journey_token"),
+        "journey_token": a.get("journey_token") if token_disclosure_allowed else None,
         "payload": {} if revoked else _sanitize_location(a.get("payload", {}), link, journey),
         "state": "ACCESS_REVOKED" if revoked else a.get("state", "CREATED"),
         "created_at": a["created_at"],
