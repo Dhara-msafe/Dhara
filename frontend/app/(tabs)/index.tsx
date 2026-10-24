@@ -550,6 +550,32 @@ export default function ChatScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // P0 fix: the elapsed-time overlay timer now starts only once `recording`
+  // genuinely becomes true (after the recorder/web MediaRecorder actually
+  // started), and stops/resets the instant `recording` goes false for ANY
+  // reason — success, cancel, or a failed start. Previously the timer was
+  // kicked off synchronously in onMicPressIn, before any of the async
+  // permission/prepare/record work below even began, so a slow permission
+  // dialog or a failed start could show a running (or frozen) clock while
+  // nothing was actually being captured.
+  useEffect(() => {
+    if (recording) {
+      setHoldElapsed(0);
+      holdTimerRef.current = setInterval(() => {
+        setHoldElapsed((prev) => prev + 1);
+      }, 1000);
+    } else if (holdTimerRef.current) {
+      clearInterval(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    return () => {
+      if (holdTimerRef.current) {
+        clearInterval(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
+    };
+  }, [recording]);
+
   // Live waveform while recording — purely visual, driven by looping Animated
   // timings (no dependency on native audio-level metering, which is known to
   // be unreliable on several Android OEMs and always-undefined on web).
@@ -1357,39 +1383,46 @@ export default function ChatScreen() {
         setRecording(true);
       } else {
         // --- Native: expo-audio recorder ---
-        const { provider, fellBack } = await getConfiguredSTT(API_BASE, token);
-        setSttProviderLabel(fellBack ? `${provider.displayName} (fallback)` : provider.displayName);
-        // P0-A: Check current status first — if already granted, skip the
-        // request dialog entirely.  This prevents the Android permission
-        // dialog from briefly backgrounding the app, which triggers the
-        // AppState listener and kills the mic flow on first use.
-        let perm = await AudioModule.getRecordingPermissionsAsync();
-        if (!perm.granted) {
-          permissionPhaseRef.current = true;
-          try {
+        // P0 fix: permissionPhaseRef now stays true for the ENTIRE critical
+        // section (getConfiguredSTT -> permission check -> prepareToRecordAsync
+        // -> recorder.record()), not just around requestRecordingPermissionsAsync().
+        // A background/AppState event anywhere in this window (not only during
+        // the OS permission dialog) could previously slip through and cancel
+        // the capture mid-start. Reset in `finally` so it is always cleared
+        // regardless of which path below returns or throws.
+        permissionPhaseRef.current = true;
+        try {
+          const { provider, fellBack } = await getConfiguredSTT(API_BASE, token);
+          setSttProviderLabel(fellBack ? `${provider.displayName} (fallback)` : provider.displayName);
+          // P0-A: Check current status first — if already granted, skip the
+          // request dialog entirely.  This prevents the Android permission
+          // dialog from briefly backgrounding the app, which triggers the
+          // AppState listener and kills the mic flow on first use.
+          let perm = await AudioModule.getRecordingPermissionsAsync();
+          if (!perm.granted) {
             perm = await AudioModule.requestRecordingPermissionsAsync();
-          } finally {
-            permissionPhaseRef.current = false;
           }
-        }
-        if (!perm.granted) {
-          notify('Microphone permission', 'Please enable microphone to speak your question.');
-          return;
-        }
-        if (!isMicHeldRef.current && !lockedRef.current) return;
-        await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
-        try { await recorder.stop(); } catch {}
-        await recorder.prepareToRecordAsync();
-        if (!isMicHeldRef.current && !lockedRef.current) {
+          if (!perm.granted) {
+            notify('Microphone permission', 'Please enable microphone to speak your question.');
+            return;
+          }
+          if (!isMicHeldRef.current && !lockedRef.current) return;
+          await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
           try { await recorder.stop(); } catch {}
-          return;
+          await recorder.prepareToRecordAsync();
+          if (!isMicHeldRef.current && !lockedRef.current) {
+            try { await recorder.stop(); } catch {}
+            return;
+          }
+          const lease = claimMic('chat_mic', onPreempt);
+          if (!lease.ok) { notify('Microphone busy', MIC_BUSY_MESSAGE); return; }
+          micLeaseRef.current = lease;
+          recorder.record();
+          started = true;
+          setRecording(true);
+        } finally {
+          permissionPhaseRef.current = false;
         }
-        const lease = claimMic('chat_mic', onPreempt);
-        if (!lease.ok) { notify('Microphone busy', MIC_BUSY_MESSAGE); return; }
-        micLeaseRef.current = lease;
-        recorder.record();
-        started = true;
-        setRecording(true);
       }
     } catch (e: any) {
       notify('Recording failed', e?.message || 'Try again');
@@ -1629,12 +1662,9 @@ export default function ChatScreen() {
     setLocked(false);
     slideX.setValue(0);
     slideY.setValue(0);
-    // Start hold timer + kick off recording
-    setHoldElapsed(0);
-    holdTimerRef.current = setInterval(() => {
-      setHoldElapsed((prev) => prev + 1);
-    }, 1000);
-    // Start pulsing animation
+    // Start pulsing animation (the elapsed timer itself is now driven by the
+    // `recording`-keyed useEffect above, not started here — see that effect
+    // for why).
     Animated.loop(
       Animated.sequence([
         Animated.timing(micPulse, { toValue: 1.25, duration: 600, useNativeDriver: true }),

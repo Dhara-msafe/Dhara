@@ -400,6 +400,15 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchError, setSearchError] = useState(false);
   const searchReqRef = useRef(0);
+  // Bug fix: tapping the Search button (or a suggestion row) blurs the
+  // TextInput, which scheduled a 150ms-delayed hide. Nominatim's fair-use
+  // pacing (up to 1s) plus network latency means the fetch routinely
+  // resolves AFTER that 150ms window, so the delayed hide fired and wiped
+  // out `showSuggestions(true)` the instant real results arrived — the
+  // request succeeded server-side but the dropdown never appeared. This ref
+  // is set on `onPressIn` of anything that intentionally blurs the input
+  // (Search button, suggestion rows) so the blur-hide skips exactly once.
+  const suppressBlurHideRef = useRef(false);
   // Bumped only on an explicit "jump" (search pick / saved place pick) so the
   // map recentres — NOT on every drag, which should stay within the current view.
   const [mapRecenterKey, setMapRecenterKey] = useState(0);
@@ -565,7 +574,10 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
           value={value.label}
           onChangeText={handleLabelChange}
           onFocus={() => setShowSuggestions(suggestions.length > 0 || searchError)}
-          onBlur={() => { setTimeout(() => setShowSuggestions(false), 150); }}
+          onBlur={() => { setTimeout(() => {
+            if (suppressBlurHideRef.current) { suppressBlurHideRef.current = false; return; }
+            setShowSuggestions(false);
+          }, 150); }}
           onSubmitEditing={submitSearch}
           placeholder="Search an address, or type a label (e.g. bus stop)…"
           placeholderTextColor={c.muted}
@@ -579,6 +591,7 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
             keyboard's Search key) — never automatically while typing. */}
         <Pressable
           onPress={submitSearch}
+          onPressIn={() => { suppressBlurHideRef.current = true; }}
           disabled={value.label.trim().length < SEARCH_MIN_CHARS}
           style={[styles.searchBtn, value.label.trim().length < SEARCH_MIN_CHARS && styles.searchBtnDisabled]}
           accessibilityRole="button"
@@ -617,6 +630,7 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
               <Pressable
                 key={`${s.latitude},${s.longitude},${i}`}
                 style={styles.suggestionRow}
+                onPressIn={() => { suppressBlurHideRef.current = true; }}
                 onPress={() => selectSuggestion(s)}
                 accessibilityRole="button"
                 accessibilityLabel={`Select address ${s.label}`}

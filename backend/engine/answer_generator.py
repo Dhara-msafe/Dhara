@@ -64,6 +64,97 @@ _DEAD_STATUSES = {
 
 # ── Public builders ───────────────────────────────────────────────────────────
 
+def augment_prompt_with_numeric_fidelity_lock(prompt: str) -> str:
+    """P0 fix — a punishment/penalty's exact figures (e.g. 'six months to
+    two years', a fine amount, a day/year limit) must never be rounded,
+    estimated, or substituted from the model's own training-time memory of
+    a similarly-named law. Observed failure: asked about BNS Section 199 /
+    IPC Section 166A (verbatim SOURCES text: 'not less than six months but
+    which may extend to two years, and shall also be liable to fine'), the
+    model's own paraphrase instead said 'up to one year, or fine, or both'
+    — the ADJACENT, unrelated IPC Section 166's figures, apparently from
+    memorised training data, not from the SOURCES actually provided this
+    turn. The existing 'never quote verbatim' rule (avoids leaking a full
+    legal sentence as if DHARA wrote it) does not cover numeric fidelity —
+    paraphrasing in different WORDS is fine; inventing different NUMBERS
+    is not. Appended whenever any verified source text is present, not
+    only for the dead-law-citation case.
+    """
+    return prompt + (
+        "\n\nNUMERIC FIDELITY (mandatory):\n"
+        "Any punishment duration, fine amount, age limit, deadline, or other specific number "
+        "appearing in the SOURCES above must be repeated with the EXACT SAME FIGURES when you "
+        "mention it — you may paraphrase the sentence around it in your own words, but never "
+        "change, round, estimate, or substitute a number from memory of a similarly-named or "
+        "adjacent section. If you are not certain a number you are about to state appears "
+        "verbatim in SOURCES, omit that number rather than guess it."
+    )
+
+
+def correct_punishment_mismatch(text: str, hits: Iterable[dict]) -> str:
+    """Deterministic, code-only correction — the prompt-level NUMERIC
+    FIDELITY instruction above did not reliably stop this one specific,
+    repeatedly-observed hallucination: for BNS Section 199 / IPC Section
+    166A (verbatim punishment: 'rigorous imprisonment ... not less than
+    six months ... may extend to two years ... also liable to fine'), the
+    LLM kept substituting the ADJACENT, unrelated IPC Section 166's figure
+    ('up to one year ... fine ... or both') regardless of instruction.
+    Runs only when one of THIS turn's own verified hits is specifically
+    BNS 199 or IPC 166A, and only replaces the specific wrong-duration
+    phrase — never rewrites anything else model-authored, never invents a
+    number not already present in a verified hit's own text.
+    """
+    if not text:
+        return text
+    _is_199_or_166a = any(
+        (h.get("section_number") or "").upper() in ("199", "166A")
+        and (
+            "nyaya sanhita" in (h.get("act_name") or "").lower()
+            or "penal code" in (h.get("act_name") or "").lower()
+        )
+        for h in (hits or [])
+    )
+    if not _is_199_or_166a:
+        return text
+    _wrong_duration_re = re.compile(
+        r"up to (?:one|1)\s*year'?s?\s*(?:of\s*)?imprisonment|"
+        r"imprisonment (?:for|of) up to (?:one|1)\s*year|"
+        r"(?:one|1)\s*year(?:'s)?\s*imprisonment",
+        re.IGNORECASE,
+    )
+    if _wrong_duration_re.search(text):
+        text = _wrong_duration_re.sub(
+            "rigorous imprisonment for a term of six months to two years", text,
+        )
+    return text
+
+
+
+def augment_prompt_with_exact_dead_citation_lock(prompt: str) -> str:
+    """P0 fix — strong, explicit instruction for the one scenario the
+    generic status-guard notice above was not firm enough for: the user
+    named an EXACT (now-superseded) Act+Section by name, and the ONLY
+    verified source is that dead provision with a KNOWN successor. The
+    LLM kept defaulting to a generic "I cannot confirm this is in force,
+    consult an advocate" refusal-style answer even though a real,
+    verified citation (with its successor) was sitting right there in
+    SOURCES — which then caused the citation-guard to (correctly, by its
+    own narrow rule) treat the reply as a refusal and almost discard the
+    citation. This instruction removes the ambiguity: the model must
+    state the provision's content and successor plainly, never refuse.
+    """
+    return prompt + (
+        "\n\nEXACT-SECTION LOOKUP NOTICE (mandatory):\n"
+        "The user explicitly asked about ONE specific, now-superseded section by name. "
+        "A verified source for that exact section IS available above (marked DEAD LAW, with "
+        "its successor). Do NOT say you 'cannot confirm' this or that there is 'no verified "
+        "source' — there is one. Instead: (1) state plainly what that section covered/the "
+        "punishment it carried, clearly labelled as the now-replaced provision; (2) name its "
+        "successor act/section from SOURCES; (3) note this old text no longer applies to new "
+        "matters, only to events/FIRs/trials from before the cutover."
+    )
+
+
 def build_cannot_verify_response(
     lq: Optional[LegalQuery],
     language: str = "en",

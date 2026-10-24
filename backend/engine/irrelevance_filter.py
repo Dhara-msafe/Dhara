@@ -76,17 +76,27 @@ def _apply_guards(
     # event_date=None means the query is about current law → also applies.
     event_date = lq.event_date or ""
     is_post_july_2024 = (not event_date) or (event_date >= "2024-07-01")
+    # P0 fix: historical_still_applicable must only exempt a provision from
+    # SUPERSEDED when THIS query's own event is genuinely pre-cutover. An
+    # explicit event_date before 2024-07-01 is required — a current-law
+    # question (no event_date at all) or a post-cutover event must never be
+    # exempted just because the matched text happens to be a hand-curated
+    # historical corpus_ipc.py entry. Without this, the historical framing
+    # could be unconditionally applied to a brand-new incident, presenting
+    # dead IPC/CrPC law as if it were still in force today.
+    _is_genuinely_historical_event = bool(event_date) and event_date < "2024-07-01"
     if is_post_july_2024 and any(frag in act_text for frag in _LEGACY_CRIMINAL_ACTS):
         # Check if the provision itself carries a dead_law or no_current_text flag
         # (the corpus already marks these). Promote SUPERSEDED only if NOT already
         # flagged — and NEVER for a corpus_ipc.py entry tagged
-        # historical_still_applicable=True: that flag means this specific text was
-        # hand-verified to answer a historical IPC/CrPC question correctly (pre-
-        # cutover events/FIRs/trials), and must reach Layer S (law_status_guard)
-        # un-rejected so it gets the historical-notice treatment there, not be
-        # silently dropped here before Layer S ever sees it.
+        # historical_still_applicable=True ON A GENUINELY HISTORICAL QUERY: that
+        # flag means this specific text was hand-verified to answer a historical
+        # IPC/CrPC question correctly (pre-cutover events/FIRs/trials), and must
+        # reach Layer S (law_status_guard) un-rejected so it gets the
+        # historical-notice treatment there, not be silently dropped here before
+        # Layer S ever sees it.
         if not provision.get("is_dead_law") and not provision.get("no_current_text") \
-                and not provision.get("historical_still_applicable"):
+                and not (provision.get("historical_still_applicable") and _is_genuinely_historical_event):
             return ApplicabilityScore(
                 provision=str(provision.get("short_label", "")),
                 act=str(provision.get("act_name", "")),

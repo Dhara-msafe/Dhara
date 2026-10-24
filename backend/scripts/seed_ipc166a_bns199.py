@@ -97,7 +97,11 @@ DOCS = [
 
 async def main():
     client = AsyncIOMotorClient(os.environ["MONGO_URL"])
-    db = client[os.environ.get("DB_NAME", "test_database")]
+    # Bug fix: the chat engine's exact-statute lookup (corpus_db.py) reads
+    # from CORPUS_DB_NAME (the dedicated legal corpus database), never from
+    # the app's own DB_NAME. Seeding into DB_NAME silently created records
+    # the retrieval pipeline could never see.
+    db = client[os.environ["CORPUS_DB_NAME"]]
     for doc in DOCS:
         filt = {"act_name": doc["act_name"], "section_number": doc["section_number"]}
         existing = await db.legal_sections.find_one(filt)

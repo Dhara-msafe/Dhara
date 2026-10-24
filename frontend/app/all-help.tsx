@@ -94,6 +94,23 @@ export default function AllHelp() {
           <View style={styles.noResults}>
             <Ionicons name="search-outline" size={28} color={c.muted} />
             <Text style={styles.noResultsTxt}>No results for &quot;{query.trim()}&quot; — try a different word, or browse categories below.</Text>
+            {/* Bug fix: typing a specific legal reference (e.g. "IPC 166A",
+                "BNS Section 103") into this general feature search never
+                matched anything here — this screen only filters the static
+                feature-card titles, it never searched the legal corpus. Hand
+                the query to DHARA's chat (same pre-fill-not-autosend pattern
+                used by the Home screen's quick-ask bar) so an exact-section
+                question still reaches the verified legal engine. */}
+            <Pressable
+              style={styles.askDharaBtn}
+              onPress={() => router.push({ pathname: '/(tabs)', params: { draft: query.trim(), entry: Date.now().toString() } } as any)}
+              accessibilityRole="button"
+              accessibilityLabel={`Ask DHARA about ${query.trim()}`}
+              testID="all-help-ask-dhara"
+            >
+              <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
+              <Text style={styles.askDharaTxt}>Ask DHARA: &quot;{query.trim()}&quot;</Text>
+            </Pressable>
           </View>
         )}
 
@@ -156,4 +173,6 @@ const styles = StyleSheet.create({
   newTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 9, color: c.darkGold, letterSpacing: 0.5 },
   noResults: { alignItems: 'center', gap: 10, paddingVertical: 24 },
   noResultsTxt: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, textAlign: 'center', paddingHorizontal: 20 },
+  askDharaBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.navy, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 12, marginTop: 4 },
+  askDharaTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: '#fff' },
 });

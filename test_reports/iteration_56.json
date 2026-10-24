@@ -1,0 +1,38 @@
+{
+  "summary": "3rd backend-only retest of the IPC 166A / BNS 199 citation chain. 5/6 tests now pass (up from 4/6). The 'sticky dead_with_successor marker on active_statute_ref' fix DID work for its intended purpose (citation_guard now logs 'refusal_text_detected_but_kept | reason=explicit_exact_dead_citation_with_successor' instead of suppressing on turn 2 — confirmed in backend logs). The successor-section-number fix also works: single-turn 'IPC Section 166A' now mentions '199' and shows a dead-law warning (test_ipc_166a_has_dead_law_warning_and_successor PASSED). HOWEVER test_multiturn_ipc166a_then_bns_equivalent STILL FAILS — but for a DIFFERENT, earlier-pipeline reason than previously diagnosed: an upstream guard (P0-D 'Citation Truth Guard', chat_router.py lines ~846-863) strips all 3 of turn 2's legitimately-retrieved BNS Section 199 db_hits BEFORE they ever reach the Layer M / citation-payload-building code the 3rd fix touched. Backend log proof: '[citation_truth_guard] dropped 3 unsupported same-Act citation(s) for active ref Indian Penal Code 166A' at 03:36:04, immediately followed by 'citation_guard | refusal_text_detected_but_kept | ... count=0' at 03:36:05 — the exemption correctly fires but there is nothing left to keep (0 citation payloads), and the LLM, given an EMPTY corpus_context, invents its own generic refusal text with zero citations. Sanity checks still pass with no regression: bare BNS 199 query correct, IPC Section 34 generic non-crash refusal unchanged.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/chat/stream (message='what is the BNS equivalent?' as turn 2 after 'IPC Section 166A', same session)",
+        "issue": "P0-D Citation Truth Guard (chat_router.py ~lines 846-863, function _p0d_hit_supports_active_ref) runs BEFORE Layer M and the citation-payload builder. It only keeps a db_hit if h.act_name==active_ref.act AND h.section_number==active_ref.section (i.e. literally IPC+166A). It has NOT been updated to know about the new sticky `dead_with_successor`/`successor_act_label` marker, so when the active ref is a dead law with a known successor and turn 2's retrieval legitimately finds the SUCCESSOR record (BNS Section 199, via db=3 anchored hits per logs), all 3 are dropped as 'unsupported' because they don't match the OLD (dead) act+section. This empties db_hits/retrieved to zero, so corpus_context sent to the LLM is empty, the LLM free-invents a generic refusal, and _citation_payloads ends up with 0 entries — so even though the later citation_guard correctly refrains from suppressing (logs 'refusal_text_detected_but_kept...count=0'), there is nothing to show.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_bugs_review_jan2026.py",
+    "/app/test_reports/pytest/pytest_results_jan2026_r3.xml"
+  ],
+  "action_items": [
+    "Update the P0-D Citation Truth Guard's _p0d_hit_supports_active_ref() (chat_router.py ~846-863) to ALSO accept a db_hit whose act_name+section_number match the active ref's KNOWN successor (active_statute_ref.get('successor_act_label'), or better, store a structured successor act+section pair instead of/alongside the free-text label when the sticky dead_with_successor marker is first set) — not only the original dead act+section. This is the actual remaining blocker; the Layer M/citation_guard sticky fix from this iteration is working correctly but never gets data to act on because this earlier guard already zeroed it out.",
+    "Consider storing successor_act as a structured {act, section} pair (not just a label string) on active_statute_ref when dead_with_successor is set, so the P0-D guard fix above can do an exact act+section comparison rather than fuzzy text matching.",
+    "No action needed: single-turn IPC 166A (citation chip + successor section 199 + dead-law warning) and both sanity checks (bare BNS 199, IPC Section 34) all confirmed passing with no regression."
+  ],
+  "critical_code_review_comments": [
+    "There are now THREE separate places in chat_router.py that each independently gate on 'does this hit match the active_statute_ref's act+section': (1) P0-D Citation Truth Guard ~846-863, (2) the b3b guard ~653-699, (3) _explicit_exact_dead_citation_with_successor() ~881-909. Each was patched in isolation across 3 iterations to fix one symptom at a time (citation_guard suppression, successor section display, now this). Recommend consolidating into a single helper that is sticky-aware from the start, applied consistently everywhere a hit is checked against the active reference, to avoid a 4th iteration finding yet another guard with the same stale logic."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "5/6 (83%) on test_bugs_review_jan2026.py — up from 4/6 in the previous iteration", "frontend": "not tested this round (out of scope per request)"},
+  "seed_data_creation": "None — reused existing voicetest2026@example.com test user and existing IPC 166A/BNS 199 seed data.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "This is the 3rd iteration of the same bug chain (see iteration_54, 55, 56). Both items from iteration_55's action items are now fixed (successor section number shown; citation_guard exemption is sticky). The ONE remaining failure (test_multiturn_ipc166a_then_bns_equivalent) has a precisely identified root cause in this report: the P0-D Citation Truth Guard at chat_router.py ~846-863 runs upstream of the fix made in this iteration and discards the legitimate BNS 199 hits before they reach it. Fix that guard's accept-criteria to also allow successor-act+section hits when active_statute_ref.dead_with_successor is True, then re-run test_bugs_review_jan2026.py.",
+  "rca_of_issue": "Turn 1 ('IPC Section 166A'): retrieval returns 1 anchored db_hit for IPC 166A itself, which trivially satisfies P0-D's act+section check (it IS the active ref), so it survives; Layer M then sets active_statute_ref['dead_with_successor']=True (sticky) and the answer is built correctly with citation + successor section 199. Turn 2 ('what is the BNS equivalent?', same session): active_statute_ref is still {act: 'Indian Penal Code', section: '166A', dead_with_successor: True} (correctly carried forward — the sticky fix works). Retrieval for this fuzzy follow-up legitimately returns 3 anchored BNS Section 199 db_hits (confirmed in logs: db=3, db_hits_anchored=[True,True,True]). BUT the P0-D Citation Truth Guard (lines 846-863), which runs earlier in the pipeline than the sticky-exemption check, compares each hit's act_name/section_number against the active ref's own (dead) act='Indian Penal Code'/section='166A' — none of the 3 BNS hits match that, so all 3 are dropped ('[citation_truth_guard] dropped 3 unsupported same-Act citation(s) for active ref Indian Penal Code 166A'). With db_hits now empty, corpus_context is empty, the LLM is given no grounding and invents a generic 'I cannot confirm...' refusal, and _citation_payloads has 0 entries. The later citation_guard correctly identifies this turn as exempt from suppression (dead_with_successor sticky flag is True) and logs 'refusal_text_detected_but_kept ... count=0' — but 0 citations were ever built, so the exemption has nothing to preserve. The bug has moved one layer earlier in the pipeline across these 3 iterations, not been fully resolved."
+}

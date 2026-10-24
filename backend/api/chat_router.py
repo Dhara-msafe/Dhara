@@ -73,6 +73,9 @@ from engine.answer_generator import (
     build_cannot_verify_response,
     build_bns_identifier_hypothesis_response,
     augment_prompt_with_status_guard,
+    augment_prompt_with_exact_dead_citation_lock,
+    augment_prompt_with_numeric_fidelity_lock,
+    correct_punishment_mismatch,
     strip_leaked_citations,
     augment_prompt_with_actor_conduct_lock,
     reframe_misdirected_obligations,
@@ -90,6 +93,18 @@ CITATION_GUARD_ENABLED = os.getenv("CITATION_GUARD_ENABLED", "false").strip().lo
 
 # P0-D: reuse the single P0-B/P0-C exact-statute parser — no duplicate engine.
 from retrieval_logic import extract_exact_statute_ref as _p0d_extract_exact_ref
+
+# Canonical legacy-Act -> successor-Act-family map, used by the "sticky"
+# dead-law exemption (see _has_explicit_dead_citation_with_successor) to
+# recognise a follow-up turn's own successor-act hits (e.g. BNS) as
+# legitimately supporting an active reference to the now-superseded Act
+# (e.g. IPC) it replaced — not a new/duplicate lookup table, just the
+# well-known 2023 renumbering mapping.
+_LEGACY_TO_SUCCESSOR_FAMILY = {
+    "indian penal code": "Bharatiya Nyaya Sanhita",
+    "code of criminal procedure": "Bharatiya Nagarik Suraksha Sanhita",
+    "indian evidence act": "Bharatiya Sakshya Adhiniyam",
+}
 
 router = APIRouter()
 
@@ -636,6 +651,14 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
         _this_turn_act, _this_turn_sec, _ = _p0d_extract_exact_ref(body.message)
         if _this_turn_act and _this_turn_sec:
             _active_ref_now = {"act": _this_turn_act, "section": _this_turn_sec}
+            # P0 fix: store on _v2_state immediately (same dict object, not a
+            # copy) so any later mutation of _active_ref_now (e.g. the
+            # dead-law-with-successor "sticky" marker below) is actually
+            # persisted by save_case_state() for the NEXT turn — otherwise a
+            # follow-up like "what is the BNS equivalent?" loses the fact
+            # that the conversation is about a verified dead-law citation.
+            if _v2_state is not None:
+                _v2_state.active_statute_ref = _active_ref_now
     if _active_ref_now and not db_hits and retrieved and not early_refusal:
         def _own_section_number_b3b(entry: dict) -> Optional[str]:
             m = re.search(r"(\d+[A-Za-z]{0,3})$", entry.get("short_label", "") or "")
@@ -643,9 +666,32 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                 return m.group(1).upper()
             km = re.search(r"_(\d+[A-Za-z]{0,3})$", (entry.get("key") or ""))
             return km.group(1).upper() if km else None
+        # P0 fix (Act+Section identity): section number alone is not a unique
+        # key — "IPC 103" and "BNS 103" share the same number but are
+        # different provisions. Require the ENTRY's own Act to also match
+        # the active reference's Act, not just the trailing number.
+        _ACT_PREFIX_CANON = {
+            "ipc": "indian penal code", "bns": "bharatiya nyaya sanhita",
+            "bnss": "bharatiya nagarik suraksha sanhita",
+            "bsa": "bharatiya sakshya adhiniyam",
+            "crpc": "code of criminal procedure",
+        }
+        def _own_act_matches_b3b(entry: dict, ref_act_lower: str) -> bool:
+            if not ref_act_lower:
+                return True
+            entry_act = (entry.get("act_name") or entry.get("act") or "").strip().lower()
+            if entry_act:
+                return entry_act == ref_act_lower
+            label = (entry.get("short_label") or "").strip()
+            prefix = label.split()[0].lower() if label.split() else ""
+            return _ACT_PREFIX_CANON.get(prefix) == ref_act_lower
         _ref_sec_b3b = (_active_ref_now.get("section") or "").upper()
+        _ref_act_b3b = (_active_ref_now.get("act") or "").strip().lower()
         _before_b3b = len(retrieved)
-        retrieved = [it for it in retrieved if _own_section_number_b3b(it) == _ref_sec_b3b]
+        retrieved = [
+            it for it in retrieved
+            if _own_section_number_b3b(it) == _ref_sec_b3b and _own_act_matches_b3b(it, _ref_act_b3b)
+        ]
         if _before_b3b > len(retrieved):
             logger.info(
                 "[grounding_guard] dropping %d unverified fuzzy hit(s) for %s %s — "
@@ -807,10 +853,22 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
         def _p0d_hit_supports_active_ref(h: dict) -> bool:
             if h.get("exact_identifier_requested"):
                 return True
-            return (
+            if (
                 h.get("act_name") == _p0d_req_act
                 and (h.get("section_number") or "").upper() == _p0d_req_sec
-            )
+            ):
+                return True
+            # P0 fix (multi-turn follow-up): once this conversation's active
+            # reference has been established as a dead law with a KNOWN
+            # successor act family (see the "sticky" dead_with_successor
+            # marker set above), a legitimately-retrieved hit from THAT
+            # successor act also supports the active reference — e.g. after
+            # "IPC Section 166A" a follow-up "what is the BNS equivalent?"
+            # should be allowed to keep its genuine BNS hits, not have them
+            # all stripped for not literally being IPC 166A.
+            if _p0d_active_ref.get("dead_with_successor") and h.get("act_name") == _p0d_active_ref.get("successor_act_family"):
+                return True
+            return False
         _p0d_before = len(db_hits)
         db_hits = [h for h in db_hits if _p0d_hit_supports_active_ref(h)]
         if _p0d_before > len(db_hits):
@@ -823,12 +881,64 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
     # is no live orphan judicial hit either, emit a deterministic cannot-verify
     # response instead of asking the LLM to describe a dead law in citizen
     # words. Refusal analytics still fires so we track how often this happens.
+    #
+    # P0 fix: this gate must NOT swallow an EXPLICIT exact-section lookup
+    # (e.g. "IPC Section 166A") that has a verified, known successor
+    # mapping (e.g. BNS Section 199) into a blanket "cannot verify"
+    # response with zero citation. The user asked about THIS specific
+    # section by name; the honest, more informative answer is the normal
+    # citation path below — which already shows the verbatim text, a
+    # "SAFETY WARNING (DEAD LAW)" annotation, and the successor act — not a
+    # template that discards the citation entirely. The gate still fires
+    # normally for any dead hit that was only a coincidental/fuzzy match on
+    # a general query (no explicit citation), or that has no known
+    # successor (a genuine unverifiable gap).
+    def _explicit_exact_dead_citation_with_successor() -> bool:
+        if not _active_ref_now:
+            return False
+        # Sticky across follow-up turns: once this conversation's active
+        # reference was established (on an earlier turn, in THIS function)
+        # to be a verified dead law with a known successor, that fact is
+        # carried forward on the active_statute_ref dict itself — so a
+        # fuzzy follow-up ("what is the BNS equivalent?") whose OWN
+        # retrieval no longer happens to re-match the exact dead record
+        # doesn't lose the exemption and fall back into a refusal. A
+        # genuinely NEW Act+section named later replaces this whole dict
+        # (see CaseState.active_statute_ref docstring), so this never
+        # leaks into an unrelated topic.
+        if _active_ref_now.get("dead_with_successor"):
+            return True
+        ref_act = (_active_ref_now.get("act") or "").strip().lower()
+        ref_sec = (_active_ref_now.get("section") or "").strip().upper()
+        if not (ref_act and ref_sec):
+            return False
+        for h in _all_hits_for_status:
+            h_act = (h.get("act_name") or h.get("act") or "").strip().lower()
+            h_sec = (h.get("section_number") or "").strip().upper()
+            if h_act == ref_act and h_sec == ref_sec and (
+                h.get("successor_act") or h.get("_successor_act")
+            ):
+                _active_ref_now["dead_with_successor"] = True
+                _active_ref_now["successor_act_label"] = h.get("successor_act") or h.get("_successor_act")
+                # Also record the successor's ACT FAMILY (e.g. "Bharatiya
+                # Nyaya Sanhita" for IPC) so a later follow-up turn's own
+                # legitimately-retrieved successor-act hits are recognised
+                # as supporting this active reference too — see
+                # _p0d_hit_supports_active_ref's matching use of this field.
+                _active_ref_now["successor_act_family"] = _LEGACY_TO_SUCCESSOR_FAMILY.get(ref_act)
+                return True
+        return False
+
     _all_hits_for_status = list(retrieved) + list(db_hits)
+    # Computed once, reused below at the second (citation/output) guard too —
+    # see "_has_explicit_dead_citation_with_successor" further down.
+    _has_explicit_dead_citation_with_successor = _explicit_exact_dead_citation_with_successor()
     _cannot_verify = (
         not early_refusal
         and _all_hits_for_status
         and all_provisions_dead(_all_hits_for_status)
         and not db_orphan
+        and not _has_explicit_dead_citation_with_successor
     )
     if _cannot_verify:
         # Convert into the same refusal code path so analytics + sample-debit
@@ -914,6 +1024,15 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                 lines.append(f"SAFETY WARNING (DEAD LAW): {hit['dead_warning']}")
             if hit.get("judicial_flag"):
                 lines.append(f"JUDICIAL ALERT: {hit['judicial_flag']}")
+            # P0 fix: the registry-level dead_warning above only names the
+            # successor ACT (e.g. "Bharatiya Nyaya Sanhita, 2023"), never the
+            # specific successor SECTION. When the seeded record itself
+            # carries a section-specific successor_act (set at seed time —
+            # see scripts/seed_ipc166a_bns199.py), surface that exact string
+            # too so the LLM can actually name the successor section instead
+            # of only the successor Act.
+            if hit.get("successor_act"):
+                lines.append(f"Successor provision: {hit['successor_act']}")
             sec_heading = hit.get("section_heading", "")
             act_label = f"{hit.get('act_name', '')}, Section {hit.get('section_number', '')}"
             if sec_heading:
@@ -987,6 +1106,18 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
     )
     # Layer M: append status-guard reminder if any cited provision is dead.
     system_prompt = augment_prompt_with_status_guard(system_prompt, list(retrieved) + list(db_hits))
+    # P0 fix: numeric fidelity for punishment/duration/fine figures — see
+    # docstring. Applied whenever any verified source text was actually
+    # assembled into corpus_context (i.e. there is something to be
+    # unfaithful to); harmless no-op otherwise.
+    if corpus_context:
+        system_prompt = augment_prompt_with_numeric_fidelity_lock(system_prompt)
+    # P0 fix: firmer instruction for the explicit-exact-dead-citation case
+    # (see _has_explicit_dead_citation_with_successor above) — the generic
+    # status-guard reminder alone was not enough to stop the LLM defaulting
+    # to a refusal-style answer when a real citation was available.
+    if _has_explicit_dead_citation_with_successor:
+        system_prompt = augment_prompt_with_exact_dead_citation_lock(system_prompt)
     # ACTOR-CONDUCT LOCK: if Layer B found the user asking about someone
     # else's regulated conduct, instruct the LLM not to transfer that
     # obligation onto the user (see README_DEPLOYMENT.md > Engine Architecture).
@@ -1115,6 +1246,7 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                     "state": None if (hit.get("jurisdiction") or "CENTRAL") == "CENTRAL" else hit.get("jurisdiction"),
                     "is_dead_law": hit.get("is_dead_law", False),
                     "dead_warning": hit.get("dead_warning"),
+                    "successor_act": hit.get("successor_act"),
                     "judicial_flag": hit.get("judicial_flag"),
                     "no_current_text": hit.get("no_current_text", False),
                 },
@@ -1220,6 +1352,13 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
         # an actor mismatch (prompt-level instruction is the primary guard).
         if sanitized:
             sanitized = reframe_misdirected_obligations(sanitized, _v2_classify)
+        # P0 fix: deterministic correction for the recurring BNS 199 / IPC
+        # 166A punishment-figure hallucination — see
+        # correct_punishment_mismatch's docstring. No-op for every other
+        # query (only matches when one of this turn's own hits is exactly
+        # that section).
+        if sanitized:
+            sanitized = correct_punishment_mismatch(sanitized, _all_hits_for_status)
 
         # Reply-language enforcement. A user who selected Tamil and receives
         # English has been given nothing, so if the finished reply is not in the
@@ -1271,8 +1410,24 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                 if _repeats:
                     logger.info("citation_guard | repeats_collapsed | count=%d", _repeats)
                 if looks_like_refusal(sanitized):
-                    _suppress_citations = True
-                    logger.info("citation_guard | suppressed | reason=refusal_text_detected | count=%d", len(_citation_payloads))
+                    # P0 fix (BUG 2/3 follow-up): the same successor-aware
+                    # exemption used at the Layer M gate above must also
+                    # apply here. Without it, this second guard independently
+                    # re-detected the LLM's own refusal-flavoured prose (e.g.
+                    # "I cannot confirm this is in force, consult an
+                    # advocate") for an EXPLICIT exact-section dead-law
+                    # lookup that DOES have a verified citation + successor —
+                    # and threw that real citation away anyway, reproducing
+                    # the exact bug the Layer M fix was meant to close.
+                    if _has_explicit_dead_citation_with_successor:
+                        logger.info(
+                            "citation_guard | refusal_text_detected_but_kept | "
+                            "reason=explicit_exact_dead_citation_with_successor | count=%d",
+                            len(_citation_payloads),
+                        )
+                    else:
+                        _suppress_citations = True
+                        logger.info("citation_guard | suppressed | reason=refusal_text_detected | count=%d", len(_citation_payloads))
 
         if _buffering or sanitized != full:
             # Overwrite the accumulated text on the client with the sanitized version.

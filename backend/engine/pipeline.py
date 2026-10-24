@@ -150,8 +150,18 @@ async def run_pre_retrieval(
             lq.original_query = prior_lq.original_query
             lq.normalized_query = prior_lq.normalized_query
     elif turn_type == "TOPIC_CHANGE":
-        # Fresh state for a genuinely different topic
+        # Fresh state for a genuinely different topic — BUT preserve the
+        # active_statute_ref unless THIS turn names an explicit new one
+        # (handled separately below). Turn classification is itself
+        # LLM-driven on free-text candidate_issues labels, which vary
+        # run-to-run even for identical input; a follow-up genuinely about
+        # the same cited section (e.g. "what is the BNS equivalent?" right
+        # after "IPC Section 166A") must not lose that citation context just
+        # because classify_turn's noisy label-overlap check happened to call
+        # it a topic change this time.
+        _preserved_active_ref = existing_state.active_statute_ref if existing_state else None
         existing_state = CaseState(session_id=session.get("id", "") if session else "")
+        existing_state.active_statute_ref = _preserved_active_ref
     # CONTINUATION / NEW_SUBQUESTION / NEW_QUERY: keep prior state, use new lq directly
 
     # ── Layer B: Conduct Classifier ───────────────────────────────────────────
