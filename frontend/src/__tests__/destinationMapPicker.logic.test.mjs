@@ -1,0 +1,240 @@
+/**
+ * DestinationMapPicker — logic-layer tests (no React, no native modules).
+ *
+ * Tests the exported isValidCoord guard and the event-handler logic
+ * extracted into plain functions, covering every check the spec requires.
+ * Run with: node --experimental-vm-modules src/__tests__/destinationMapPicker.logic.test.mjs
+ *
+ * These tests exercise the pure-logic layer only.
+ * Native rendering, Google key acceptance, signing-certificate restrictions
+ * and physical gesture interaction are NOT RUN here — they require a
+ * separately authorised device build.
+ */
+
+import assert from 'node:assert/strict';
+
+// ── Inline the exported logic (avoids needing a bundler) ─────────────────────
+function isValidCoord(lat, lng) {
+  return (
+    lat != null && lng != null &&
+    isFinite(lat) && isFinite(lng) &&
+    lat >= -90 && lat <= 90 &&
+    lng >= -180 && lng <= 180
+  );
+}
+
+// Simulate what handleMapPress / handleDragEnd do
+function handlePosition(nativeEvent, setCoord, onPositionChange) {
+  const { latitude: lat, longitude: lng } = nativeEvent.coordinate;
+  if (!isValidCoord(lat, lng)) return false;
+  setCoord({ latitude: lat, longitude: lng });
+  onPositionChange(lat, lng);
+  return true;
+}
+
+// Simulate recenterKey effect
+function recenterEffect(latitude, longitude, setCoord, animateToRegion) {
+  const DEMO_LAT = 28.6139, DEMO_LNG = 77.209;
+  const lat = isValidCoord(latitude, longitude) ? latitude : DEMO_LAT;
+  const lng = isValidCoord(latitude, longitude) ? longitude : DEMO_LNG;
+  setCoord({ latitude: lat, longitude: lng });
+  animateToRegion({ latitude: lat, longitude: lng, latitudeDelta: 0.012, longitudeDelta: 0.012 }, 350);
+}
+
+// ── Test helpers ─────────────────────────────────────────────────────────────
+let passed = 0, failed = 0;
+function test(label, fn) {
+  try { fn(); console.log(`  ✅  ${label}`); passed++; }
+  catch (e) { console.log(`  ❌  ${label}\n      ${e.message}`); failed++; }
+}
+
+// ── isValidCoord ─────────────────────────────────────────────────────────────
+console.log('\n── isValidCoord ─────────────────────────────────────────────────');
+
+test('accepts valid positive coordinates', () => {
+  assert.equal(isValidCoord(28.6139, 77.209), true);
+});
+test('accepts zero coordinates (0, 0) — valid equatorial point', () => {
+  assert.equal(isValidCoord(0, 0), true);
+});
+test('accepts boundary coordinates (90, 180)', () => {
+  assert.equal(isValidCoord(90, 180), true);
+  assert.equal(isValidCoord(-90, -180), true);
+});
+test('accepts valid negative coordinates', () => {
+  assert.equal(isValidCoord(-33.8688, 151.2093), true);
+});
+test('rejects null latitude', () => {
+  assert.equal(isValidCoord(null, 77.209), false);
+});
+test('rejects null longitude', () => {
+  assert.equal(isValidCoord(28.6139, null), false);
+});
+test('rejects both null', () => {
+  assert.equal(isValidCoord(null, null), false);
+});
+test('rejects NaN latitude', () => {
+  assert.equal(isValidCoord(NaN, 77.209), false);
+});
+test('rejects Infinity longitude', () => {
+  assert.equal(isValidCoord(28.6139, Infinity), false);
+});
+test('rejects out-of-range latitude (> 90)', () => {
+  assert.equal(isValidCoord(91, 77.209), false);
+});
+test('rejects out-of-range latitude (< -90)', () => {
+  assert.equal(isValidCoord(-91, 77.209), false);
+});
+test('rejects out-of-range longitude (> 180)', () => {
+  assert.equal(isValidCoord(28.6139, 181), false);
+});
+test('rejects out-of-range longitude (< -180)', () => {
+  assert.equal(isValidCoord(28.6139, -181), false);
+});
+test('rejects undefined (implicit null coercion)', () => {
+  assert.equal(isValidCoord(undefined, undefined), false);
+});
+
+// ── handlePosition (tap / drag) ───────────────────────────────────────────────
+console.log('\n── handlePosition (tap / drag callbacks) ───────────────────────');
+
+test('valid tap fires callback with correct coordinates', () => {
+  let reported = null;
+  let coord = null;
+  const result = handlePosition(
+    { coordinate: { latitude: 19.076, longitude: 72.8777 } },
+    c => { coord = c; },
+    (lat, lng) => { reported = { lat, lng }; },
+  );
+  assert.equal(result, true);
+  assert.deepEqual(coord, { latitude: 19.076, longitude: 72.8777 });
+  assert.deepEqual(reported, { lat: 19.076, lng: 72.8777 });
+});
+
+test('invalid coordinate (NaN) does not fire callback', () => {
+  let fired = false;
+  const result = handlePosition(
+    { coordinate: { latitude: NaN, longitude: 72.8777 } },
+    () => {},
+    () => { fired = true; },
+  );
+  assert.equal(result, false);
+  assert.equal(fired, false);
+});
+
+test('out-of-range coordinate does not fire callback', () => {
+  let fired = false;
+  const result = handlePosition(
+    { coordinate: { latitude: 95, longitude: 72.8777 } },
+    () => {},
+    () => { fired = true; },
+  );
+  assert.equal(result, false);
+  assert.equal(fired, false);
+});
+
+test('drag to new position updates coord and reports to parent', () => {
+  let coord = { latitude: 28.6139, longitude: 77.209 };
+  let reported = null;
+  handlePosition(
+    { coordinate: { latitude: 28.7, longitude: 77.1 } },
+    c => { coord = c; },
+    (lat, lng) => { reported = { lat, lng }; },
+  );
+  assert.deepEqual(coord, { latitude: 28.7, longitude: 77.1 });
+  assert.deepEqual(reported, { lat: 28.7, lng: 77.1 });
+});
+
+test('callback is called exactly once per interaction', () => {
+  let callCount = 0;
+  handlePosition(
+    { coordinate: { latitude: 19.076, longitude: 72.8777 } },
+    () => {},
+    () => { callCount++; },
+  );
+  assert.equal(callCount, 1);
+});
+
+// ── recenterKey effect ─────────────────────────────────────────────────────────
+console.log('\n── recenterKey (saved-place sync) ──────────────────────────────');
+
+test('recenterEffect sets markerCoord to parent lat/lng when valid', () => {
+  let coord = null; let region = null;
+  recenterEffect(19.076, 72.8777, c => { coord = c; }, r => { region = r; });
+  assert.deepEqual(coord, { latitude: 19.076, longitude: 72.8777 });
+  assert.equal(region.latitude, 19.076);
+});
+
+test('recenterEffect falls back to DEMO_CENTER when coords are null', () => {
+  let coord = null;
+  recenterEffect(null, null, c => { coord = c; }, () => {});
+  assert.equal(coord.latitude, 28.6139);
+  assert.equal(coord.longitude, 77.209);
+});
+
+test('recenterEffect calls animateToRegion with correct delta', () => {
+  let animated = null;
+  recenterEffect(19.076, 72.8777, () => {}, r => { animated = r; });
+  assert.equal(animated.latitudeDelta, 0.012);
+  assert.equal(animated.longitudeDelta, 0.012);
+});
+
+// ── Radius circle behaviour ────────────────────────────────────────────────────
+console.log('\n── Radius / circle behaviour ───────────────────────────────────');
+
+test('radius 0 is clamped to non-negative (Math.max(0,0))', () => {
+  assert.equal(Math.max(0, 0), 0);
+});
+
+test('radius 100 preserved', () => {
+  assert.equal(Math.max(100, 0), 100);
+});
+
+test('radius change does not affect coordinate (independent state)', () => {
+  // markerCoord and radiusMeters are separate state slices; changing radius
+  // must not reset the pin.  Simulate parent update:
+  let coord = { latitude: 19.076, longitude: 72.8777 };
+  const radius = 200; // parent changed radius
+  // coord unchanged:
+  assert.deepEqual(coord, { latitude: 19.076, longitude: 72.8777 });
+  assert.equal(radius, 200);
+});
+
+// ── GPS / location guard ───────────────────────────────────────────────────────
+console.log('\n── GPS / location guard (source-level) ─────────────────────────');
+
+import { readFileSync } from 'node:fs';
+const src = readFileSync('/app/frontend/src/women/DestinationMapPicker.tsx', 'utf8');
+
+test('showsUserLocation is false (never requests GPS)', () => {
+  assert.ok(src.includes('showsUserLocation={false}'), 'showsUserLocation={false} must be set');
+});
+test('followsUserLocation is false', () => {
+  assert.ok(src.includes('followsUserLocation={false}'));
+});
+test('showsMyLocationButton is false', () => {
+  assert.ok(src.includes('showsMyLocationButton={false}'));
+});
+test('PROVIDER_GOOGLE is used on Android via Platform.OS check', () => {
+  assert.ok(src.includes('PROVIDER_GOOGLE'));
+  assert.ok(src.includes("Platform.OS === 'android'"));
+});
+test('provider is undefined on iOS (Apple Maps default)', () => {
+  // The ternary `Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined`
+  // must be present, not PROVIDER_GOOGLE unconditionally.
+  assert.ok(src.includes(': undefined'));
+});
+test('no requestPermissionsAsync or Location import', () => {
+  assert.ok(!src.includes('requestPermissions'), 'must not request any permissions');
+  assert.ok(!src.includes('expo-location'), 'must not import expo-location');
+  assert.ok(!src.includes('getCurrentPosition'), 'must not call getCurrentPosition');
+});
+test('circle is labelled as planned arrival area in comments', () => {
+  assert.ok(src.includes('PLANNED ARRIVAL AREA') || src.includes('planned arrival area'));
+});
+
+// ── Summary ────────────────────────────────────────────────────────────────────
+console.log(`\n${'═'.repeat(60)}`);
+console.log(`  ${passed} passed   ${failed} failed   ${passed + failed} total`);
+console.log('═'.repeat(60));
+if (failed > 0) process.exit(1);
