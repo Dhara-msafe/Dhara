@@ -20,6 +20,7 @@ import os
 import secrets
 import string
 from datetime import datetime, timezone, timedelta
+from enum import Enum
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -66,6 +67,80 @@ def _sharing_closed(rec: dict) -> bool:
     per-recipient-token design that would be required to change this.
     """
     return rec.get("status") == "safe" or bool(rec.get("sharing_revoked_at"))
+
+
+# ── Gate B access level ────────────────────────────────────────────────────────
+
+class GuardianAccessLevel(str, Enum):
+    """What an authorized Guardian viewer may see (PR-1B full / Gate B).
+
+    DENY:
+        The requesting user is not an accepted recipient for this journey.
+        The endpoint raises HTTP 403. Never returned in a successful response.
+
+    HISTORICAL_ONLY:
+        Gate A passed (accepted trusted_circle_link matched).
+        Returns: traveller display name, destination, started_at,
+                 expected_checkin_at, status, safe_at.
+        No live location, area name, or exact coordinates at this level.
+
+    HISTORICAL_WITH_APPROVED_CORRESPONDENCE:
+        Superset of HISTORICAL_ONLY — adds last-known area name (not
+        coordinates) and an in-app messaging channel with the traveller.
+        NOT YET ACTIVATED in this batch; defined for forward-compatibility.
+    """
+    DENY = "DENY"
+    HISTORICAL_ONLY = "HISTORICAL_ONLY"
+    HISTORICAL_WITH_APPROVED_CORRESPONDENCE = "HISTORICAL_WITH_APPROVED_CORRESPONDENCE"
+
+
+async def _guardian_access_check(
+    token: str,
+    user: dict,
+) -> "tuple[dict, GuardianAccessLevel]":
+    """Gate A + token hardening for the authenticated Guardian endpoint.
+
+    Raises HTTPException on every failure:
+      404 — journey not found in DB
+      410 — journey record past its expires_at (token hardening)
+      403 — requesting user is not an accepted recipient for this journey
+
+    On success returns (journey_record, GuardianAccessLevel.HISTORICAL_ONLY).
+    HISTORICAL_WITH_APPROVED_CORRESPONDENCE requires an explicit per-journey
+    upgrade (deferred to a later batch).
+    """
+    rec = await db.safety_journeys.find_one({"token": token})
+    if not rec:
+        raise HTTPException(404, "Journey not found")
+
+    # Token hardening: past expires_at → 410 Gone
+    expires_at = rec.get("expires_at")
+    if expires_at:
+        try:
+            if datetime.now(timezone.utc) > datetime.fromisoformat(expires_at):
+                raise HTTPException(410, "Journey link has expired")
+        except HTTPException:
+            raise
+        except Exception:
+            pass   # malformed date — proceed rather than block
+
+    # Gate A: is the requesting user an accepted recipient?
+    link_ids = rec.get("recipient_link_ids") or []
+    if not link_ids:
+        raise HTTPException(403, "Access denied")
+
+    link = await db.trusted_circle_links.find_one(
+        {
+            "id":               {"$in": link_ids},
+            "invitee_user_id":  user["id"],
+            "status":           "accepted",
+        }
+    )
+    if not link:
+        raise HTTPException(403, "Access denied")
+
+    # Gate B: all accepted recipients start at HISTORICAL_ONLY
+    return rec, GuardianAccessLevel.HISTORICAL_ONLY
 
 
 async def _notify_linked_recipients(user: dict, rec: dict, type_: str, extra_payload: Optional[dict] = None) -> None:
@@ -383,6 +458,50 @@ async def update_location(token: str, body: LocationIn, user: dict = Depends(cur
     return {"ok": True, "updated_at": location_doc["updated_at"]}
 
 
+@router.get("/journey/{token}/guardian", status_code=200)
+async def get_guardian_view(token: str, user: dict = Depends(current_user)):
+    """Sign-in-gated Guardian endpoint (PR-1B full).
+
+    Returns journey metadata to an authenticated, authorized recipient.
+
+    Gate A: checks that the requesting user has an accepted trusted_circle_link
+            whose id is listed in journey.recipient_link_ids.
+            HTTP 403 if no match.
+
+    Token hardening:
+        HTTP 410 if the journey is past its expires_at (24-hour window).
+        HTTP 403 if the user is not a recipient.
+
+    Gate B (HISTORICAL_ONLY): returns traveller display name, destination,
+        timestamps, status. No live location, area, or coordinates.
+
+    Closed journeys (status=safe or sharing_revoked_at set) return a minimal
+    response — just the closed state and when it closed — no full data dump.
+    """
+    rec, access_level = await _guardian_access_check(token, user)
+
+    # Closed journey: return minimal closed-state response only
+    if _sharing_closed(rec):
+        closed_at = rec.get("safe_at") or rec.get("sharing_revoked_at")
+        return {
+            "access_level": access_level,
+            "status":        rec.get("status"),
+            "closed_at":     closed_at,
+            "traveller_display": rec.get("user_display"),
+        }
+
+    # Active journey: full HISTORICAL_ONLY view
+    return {
+        "access_level":        access_level,
+        "traveller_display":   rec.get("user_display"),
+        "destination":         rec.get("destination"),
+        "started_at":          rec.get("started_at"),
+        "expected_checkin_at": rec.get("expected_checkin_at"),
+        "status":              rec.get("status"),
+        "safe_at":             rec.get("safe_at"),
+    }
+
+
 @router.get("/journey/status/{token}", response_class=HTMLResponse, include_in_schema=False)
 async def journey_status_page(token: str):
     """Public HTML status page — PR-1B1 static privacy notice.
@@ -427,6 +546,11 @@ async def journey_status_page(token: str):
 def _private_html() -> str:
     """PR-1B1: Static generic privacy notice served for every Guardian URL.
 
+    PR-1B full: Client-side JavaScript reads the token from
+    window.location.pathname and builds the dhara://guardian/{token}
+    deep-link at runtime — the token is NEVER echoed in the server-rendered
+    HTML (preserves the test_r11 no-echo contract).
+
     Discloses nothing: no name, no destination, no status, no timestamps, no
     location, and no auto-refresh. The page is identical for valid, expired,
     revoked, and completely unknown tokens — no existence confirmation of any
@@ -449,7 +573,11 @@ def _private_html() -> str:
         "          box-shadow:0 1px 6px rgba(0,0,0,.08)}\n"
         "    .icon{font-size:40px;margin-bottom:16px}\n"
         "    h1{font-size:18px;font-weight:700;color:#111;margin-bottom:12px;line-height:1.4}\n"
-        "    p{font-size:15px;color:#555;line-height:1.5;margin-bottom:0}\n"
+        "    p{font-size:15px;color:#555;line-height:1.5;margin-bottom:12px}\n"
+        "    #open-btn{display:none;margin-top:8px;padding:14px 28px;\n"
+        "             background:#1A3F74;color:#fff;font-size:15px;font-weight:600;\n"
+        "             border-radius:12px;text-decoration:none;letter-spacing:.2px}\n"
+        "    #open-btn:active{opacity:.8}\n"
         "    .footer{font-size:12px;color:#aaa;margin-top:24px}\n"
         "  </style>\n"
         "</head>\n"
@@ -458,8 +586,19 @@ def _private_html() -> str:
         '    <div class="icon">&#128274;</div>\n'
         "    <h1>Journey details are private.</h1>\n"
         "    <p>Open DHARA and sign in to view information shared with you.</p>\n"
+        '    <a id="open-btn" href="#">Open in DHARA app \u2192</a>\n'
         '    <div class="footer">DHARA legal aid app</div>\n'
         "  </div>\n"
+        "  <script>\n"
+        "    (function(){\n"
+        "      var parts=window.location.pathname.split('/');\n"
+        "      var tok=parts[parts.length-1]||'';\n"
+        "      if(!tok)return;\n"
+        "      var btn=document.getElementById('open-btn');\n"
+        "      btn.href='dhara://guardian/'+encodeURIComponent(tok);\n"
+        "      btn.style.display='inline-block';\n"
+        "    })();\n"
+        "  </script>\n"
         "</body>\n"
         "</html>"
     )
