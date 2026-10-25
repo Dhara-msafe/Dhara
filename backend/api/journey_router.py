@@ -181,11 +181,25 @@ async def mark_safe(token: str, user: dict = Depends(current_user)):
     if rec["user_id"] != user["id"]:
         raise HTTPException(403, "Not your journey")
     if rec["status"] == "safe":
+        # PR-2A: clean any legacy location that predates this patch.
+        # No notification — the completion alert was already sent on the
+        # first safe call; this is idempotent cleanup only.
+        await db.safety_journeys.update_one(
+            {"token": token},
+            {"$set": {"location_log": []}, "$unset": {"last_location": ""}},
+        )
         return {"ok": True, "already_safe": True}
     now = datetime.now(timezone.utc)
     await db.safety_journeys.update_one(
         {"token": token},
-        {"$set": {"status": "safe", "safe_at": now.isoformat()}},
+        {
+            "$set": {
+                "status":       "safe",
+                "safe_at":      now.isoformat(),
+                "location_log": [],           # PR-2A: clear log atomically with status
+            },
+            "$unset": {"last_location": ""},  # PR-2A: remove last_location atomically
+        },
     )
     rec["status"] = "safe"
     rec["safe_at"] = now.isoformat()
@@ -218,11 +232,22 @@ async def revoke_sharing(token: str, user: dict = Depends(current_user)):
     if rec["user_id"] != user["id"]:
         raise HTTPException(403, "Not your journey")
     if _sharing_closed(rec):
+        # PR-2A: clean any legacy location without re-firing the notification.
+        await db.safety_journeys.update_one(
+            {"token": token},
+            {"$set": {"location_log": []}, "$unset": {"last_location": ""}},
+        )
         return {"ok": True, "already_closed": True}
     now = datetime.now(timezone.utc)
     await db.safety_journeys.update_one(
         {"token": token},
-        {"$set": {"sharing_revoked_at": now.isoformat()}},
+        {
+            "$set": {
+                "sharing_revoked_at": now.isoformat(),
+                "location_log":       [],          # PR-2A: clear log atomically
+            },
+            "$unset": {"last_location": ""},        # PR-2A: remove last_location atomically
+        },
     )
     rec["sharing_revoked_at"] = now.isoformat()
     # Reuses the pre-existing (previously-unwired) "sharing_ended" alert
@@ -313,10 +338,18 @@ async def update_location(token: str, body: LocationIn, user: dict = Depends(cur
         "area":       body.area.strip() or "Unknown area",
         "updated_at": now.isoformat(),
     }
+    # PR-2A atomic closure guard: filter conditions mirror _sharing_closed() so
+    # that if safe/revoke completes between the read-time check above and this
+    # write, the update is a no-op and cannot restore location that was just
+    # removed. The read-time check handles the common case; this guards the race.
     await db.safety_journeys.update_one(
-        {"token": token},
+        {
+            "token":              token,
+            "status":             {"$ne": "safe"},  # not already marked safe
+            "sharing_revoked_at": None,             # sharing not revoked
+        },
         {"$set":  {"last_location": location_doc},
-         "$push": {"location_log": {"$each": [location_doc], "$slice": -20}}},  # keep last 20
+         "$push": {"location_log": {"$each": [location_doc], "$slice": -20}}},
     )
     return {"ok": True, "updated_at": location_doc["updated_at"]}
 

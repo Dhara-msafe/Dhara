@@ -136,7 +136,14 @@ class TestMarkSafe:
              patch.object(jr_module, "_notify_linked_recipients", new=AsyncMock()) as mock_notify:
             result = await jr_module.mark_safe("OWNERTOKEN", user=_OWNER)
         assert result.get("already_safe") is True
-        db.safety_journeys.update_one.assert_not_called()
+        # PR-2A: the idempotent path now issues one cleanup write (no-op if
+        # location already absent) but must NOT re-fire the completion alert.
+        db.safety_journeys.update_one.assert_called_once()
+        update_doc = db.safety_journeys.update_one.call_args[0][1]
+        assert update_doc.get("$unset", {}).get("last_location") == "", \
+            "Idempotent safe must carry $unset last_location"
+        assert update_doc.get("$set", {}).get("location_log") == [], \
+            "Idempotent safe must carry $set location_log:[]"
         mock_notify.assert_not_called()
 
 
