@@ -31,6 +31,7 @@ import { Platform, StyleSheet, Text, View } from 'react-native';
 import MapView, { Circle, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import type { Region } from 'react-native-maps';
 import { theme } from '@/src/theme';
+import { isValidCoord, isValidRadius } from '@/src/utils/mapValidation';
 
 const c = theme.colors;
 
@@ -42,25 +43,6 @@ const DEMO_LNG = 77.2090;
 // Degrees of lat/lng span visible around the pin on initial load (≈ 1.3 km).
 // Matches the approximate zoom-15 view in the web Leaflet picker.
 const DELTA = 0.012;
-
-// ── Coordinate validation ─────────────────────────────────────────────────────
-
-/** Returns true for any finite, in-range coordinate pair including (0, 0). */
-export function isValidCoord(
-  lat: number | null | undefined,
-  lng: number | null | undefined,
-): boolean {
-  return (
-    lat != null &&
-    lng != null &&
-    isFinite(lat) &&
-    isFinite(lng) &&
-    lat >= -90 &&
-    lat <= 90 &&
-    lng >= -180 &&
-    lng <= 180
-  );
-}
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -179,15 +161,18 @@ export function DestinationMapPicker({
           description="Planned arrival area — drag or tap map to adjust"
           pinColor="#1A3F74"
         />
-        {/* Radius circle: PLANNED ARRIVAL AREA, not active geofencing */}
-        <Circle
-          testID="destination-map-picker-circle"
-          center={markerCoord}
-          radius={Math.max(radiusMeters, 0)}
-          fillColor="rgba(26,63,116,0.12)"
-          strokeColor="rgba(26,63,116,0.55)"
-          strokeWidth={1.5}
-        />
+        {/* Radius circle: PLANNED ARRIVAL AREA, not active geofencing.
+            Only rendered when radiusMeters is finite and within 50–2000 m. */}
+        {isValidRadius(radiusMeters) && (
+          <Circle
+            testID="destination-map-picker-circle"
+            center={markerCoord}
+            radius={radiusMeters}
+            fillColor="rgba(26,63,116,0.12)"
+            strokeColor="rgba(26,63,116,0.55)"
+            strokeWidth={1.5}
+          />
+        )}
       </MapView>
 
       <Text style={styles.hint} testID="destination-map-picker-hint">

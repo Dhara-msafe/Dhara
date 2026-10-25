@@ -1,9 +1,9 @@
 /**
  * DestinationMapPicker — logic-layer tests (no React, no native modules).
  *
- * Tests the exported isValidCoord guard and the event-handler logic
+ * Tests the shared mapValidation helpers and the event-handler logic
  * extracted into plain functions, covering every check the spec requires.
- * Run with: node --experimental-vm-modules src/__tests__/destinationMapPicker.logic.test.mjs
+ * Run with: node --experimental-strip-types src/__tests__/destinationMapPicker.logic.test.mjs
  *
  * These tests exercise the pure-logic layer only.
  * Native rendering, Google key acceptance, signing-certificate restrictions
@@ -12,16 +12,8 @@
  */
 
 import assert from 'node:assert/strict';
-
-// ── Inline the exported logic (avoids needing a bundler) ─────────────────────
-function isValidCoord(lat, lng) {
-  return (
-    lat != null && lng != null &&
-    isFinite(lat) && isFinite(lng) &&
-    lat >= -90 && lat <= 90 &&
-    lng >= -180 && lng <= 180
-  );
-}
+import { readFileSync } from 'node:fs';
+import { isValidCoord, isValidRadius } from '../utils/mapValidation.ts';
 
 // Simulate what handleMapPress / handleDragEnd do
 function handlePosition(nativeEvent, setCoord, onPositionChange) {
@@ -179,15 +171,38 @@ test('recenterEffect calls animateToRegion with correct delta', () => {
   assert.equal(animated.longitudeDelta, 0.012);
 });
 
-// ── Radius circle behaviour ────────────────────────────────────────────────────
-console.log('\n── Radius / circle behaviour ───────────────────────────────────');
+// ── isValidRadius ──────────────────────────────────────────────────────────────
+console.log('\n── isValidRadius (circle guard) ────────────────────────────────');
 
-test('radius 0 is clamped to non-negative (Math.max(0,0))', () => {
-  assert.equal(Math.max(0, 0), 0);
+test('accepts lower boundary (50 m)', () => {
+  assert.equal(isValidRadius(50), true);
 });
-
-test('radius 100 preserved', () => {
-  assert.equal(Math.max(100, 0), 100);
+test('accepts upper boundary (2000 m)', () => {
+  assert.equal(isValidRadius(2000), true);
+});
+test('accepts mid-range value (500 m)', () => {
+  assert.equal(isValidRadius(500), true);
+});
+test('rejects zero — no circle at zero radius', () => {
+  assert.equal(isValidRadius(0), false);
+});
+test('rejects negative radius', () => {
+  assert.equal(isValidRadius(-100), false);
+});
+test('rejects NaN radius — would crash native Circle', () => {
+  assert.equal(isValidRadius(NaN), false);
+});
+test('rejects Infinity radius — would crash native Circle', () => {
+  assert.equal(isValidRadius(Infinity), false);
+});
+test('rejects -Infinity radius', () => {
+  assert.equal(isValidRadius(-Infinity), false);
+});
+test('rejects radius below 50 m (49)', () => {
+  assert.equal(isValidRadius(49), false);
+});
+test('rejects radius above 2000 m (2001)', () => {
+  assert.equal(isValidRadius(2001), false);
 });
 
 test('radius change does not affect coordinate (independent state)', () => {
@@ -203,7 +218,6 @@ test('radius change does not affect coordinate (independent state)', () => {
 // ── GPS / location guard ───────────────────────────────────────────────────────
 console.log('\n── GPS / location guard (source-level) ─────────────────────────');
 
-import { readFileSync } from 'node:fs';
 const src = readFileSync('/app/frontend/src/women/DestinationMapPicker.tsx', 'utf8');
 
 test('showsUserLocation is false (never requests GPS)', () => {
@@ -231,6 +245,12 @@ test('no requestPermissionsAsync or Location import', () => {
 });
 test('circle is labelled as planned arrival area in comments', () => {
   assert.ok(src.includes('PLANNED ARRIVAL AREA') || src.includes('planned arrival area'));
+});
+test('circle is guarded by isValidRadius (no invalid props reach native Circle)', () => {
+  assert.ok(src.includes('isValidRadius(radiusMeters)'), 'isValidRadius guard must wrap <Circle>');
+});
+test('isValidCoord and isValidRadius are imported from mapValidation helper', () => {
+  assert.ok(src.includes('from \'@/src/utils/mapValidation\''), 'helpers must come from shared file');
 });
 
 // ── Summary ────────────────────────────────────────────────────────────────────

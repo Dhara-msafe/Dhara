@@ -639,6 +639,24 @@ export default function ChatScreen() {
       if (!q || streaming || !token) return;
       if (user?.is_guest && guestQuota.limitReached) return;
 
+      // D1-V: Foreground voice-phrase => screen-privacy activation.
+      // If the typed text matches the stored hide-screen phrase, silently
+      // activate discreet mode and swallow the message so it never reaches
+      // the LLM, analytics, backend, or chat history.
+      if (process.env.EXPO_PUBLIC_SAFE_WORD_V1 === 'true') {
+        try {
+          const d1Scope = user?.id || 'device';
+          const hidePhrase = await AsyncStorage.getItem(`ws_hide_screen_v1_${d1Scope}`);
+          if (hidePhrase && q.trim().toLowerCase() === hidePhrase.trim().toLowerCase()) {
+            await AsyncStorage.setItem(`ws_discreet_active_v1_${d1Scope}`, 'true');
+            setInput('');
+            return; // DO NOT send to LLM, analytics, or chat history
+          }
+        } catch {
+          // Any error in the D1-V intercept must not block normal chat.
+        }
+      }
+
       // ── Phase 1: Code-phrase safety intercept ────────────────────────────
       // This MUST run before trackEvent / setMessages so the phrase is never
       // sent to analytics, the backend, or rendered in the chat history.
