@@ -12,6 +12,8 @@ import { useAuth } from '@/src/auth';
 import { useJourneyGPS } from '@/src/hooks/useJourneyGPS';
 import { API_BASE } from '@/src/apiBase';
 import { listAcceptedRecipients, type InviteLink } from '@/src/trustedCircle/api';
+import { getLastLocation } from '@/src/safety/locationCache';
+import { formatLocationFix } from '@/src/safety/locationPresentation';
 
 const c = theme.colors;
 const GUARDIAN_SHARE_ENABLED   = process.env.EXPO_PUBLIC_GUARDIAN_SHARE === 'true';
@@ -56,7 +58,7 @@ function formatCountdown(secs: number): string {
 export default function HeadOut() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { token: authToken } = useAuth();
+  const { token: authToken, user } = useAuth() as any;
 
   const [destination, setDestination] = useState('');
   // GO1A: DestinationPicker state (used when DESTINATION_PICKER_ENABLED)
@@ -188,9 +190,30 @@ export default function HeadOut() {
   // GO1B: GPS tracking — active only while session is running and flag is on
   const gps = useJourneyGPS(journeyToken, GO1B_GPS_ENABLED && !!session && !expired);
 
-  const prepareAlertSMS = useCallback(() => {
+  const prepareAlertSMS = useCallback(async () => {
     const notifyContacts = circle.filter(ct => ct.notify !== false);
-    const body = `I was heading to ${session?.destination ?? 'a location'} and my check-in timer has expired. Please check on me.`;
+    let body = `I was heading to ${session?.destination ?? 'a location'} and my check-in timer has expired. Please check on me.`;
+
+    // F3: append Plus Code only for GPS or server-sourced location.
+    // Demo fallback is intentionally omitted — a fabricated coordinate in an
+    // emergency SMS could misdirect first responders.
+    try {
+      const uid: string = (user as any)?.id ?? 'anon';
+      const cached = await getLastLocation(uid);
+      if (cached.source !== 'demo' && cached.plusCode) {
+        const { age } = formatLocationFix(
+          {
+            latitude:   cached.lat,
+            longitude:  cached.lng,
+            accuracyM:  cached.accuracyM,
+            capturedAt: cached.capturedAt,
+          },
+          new Date(),
+        );
+        body += `\nPlus Code: ${cached.plusCode} · ${age}`;
+      }
+    } catch {}
+
     if (ALERT_SIMULATION_MODE) {
       // Pilot simulation: never open a real sms: intent — show an in-app
       // preview only, so no real alert can leave this device during the
@@ -207,7 +230,7 @@ export default function HeadOut() {
     } else {
       Linking.openURL(`sms:&body=${encodeURIComponent(body)}`).catch(() => {});
     }
-  }, [circle, session]);
+  }, [circle, session, user]);
 
   if (loading) return null;
 
