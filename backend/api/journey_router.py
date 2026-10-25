@@ -97,17 +97,19 @@ class GuardianAccessLevel(str, Enum):
 async def _guardian_access_check(
     token: str,
     user: dict,
-) -> "tuple[dict, GuardianAccessLevel]":
-    """Gate A + token hardening for the authenticated Guardian endpoint.
+) -> "tuple[dict, GuardianAccessLevel, dict]":
+    """Gate A + journey_status permission check + token hardening.
 
     Raises HTTPException on every failure:
       404 — journey not found in DB
       410 — journey record past its expires_at (token hardening)
-      403 — requesting user is not an accepted recipient for this journey
+      403 — requesting user is not an accepted recipient for this journey,
+             OR the accepted link does not carry journey_status=True.
+             Missing permission dict treated as denied — no silent default.
 
-    On success returns (journey_record, GuardianAccessLevel.HISTORICAL_ONLY).
-    HISTORICAL_WITH_APPROVED_CORRESPONDENCE requires an explicit per-journey
-    upgrade (deferred to a later batch).
+    On success returns (journey_record, GuardianAccessLevel.HISTORICAL_ONLY, link).
+    Caller receives the link record to evaluate further permission flags
+    (e.g. temp_location for destination gating).
     """
     rec = await db.safety_journeys.find_one({"token": token})
     if not rec:
@@ -139,8 +141,15 @@ async def _guardian_access_check(
     if not link:
         raise HTTPException(403, "Access denied")
 
-    # Gate B: all accepted recipients start at HISTORICAL_ONLY
-    return rec, GuardianAccessLevel.HISTORICAL_ONLY
+    # Permission check (application-level, on the record returned by the DB
+    # query above): journey_status must be explicitly True.
+    # A missing permissions dict or a False value denies — no silent default,
+    # no legacy grant.
+    if not link.get("permissions", {}).get("journey_status", False):
+        raise HTTPException(403, "Journey status permission not granted")
+
+    # Gate B: all accepted, permitted recipients start at HISTORICAL_ONLY
+    return rec, GuardianAccessLevel.HISTORICAL_ONLY, link
 
 
 async def _notify_linked_recipients(user: dict, rec: dict, type_: str, extra_payload: Optional[dict] = None) -> None:
@@ -478,28 +487,43 @@ async def get_guardian_view(token: str, user: dict = Depends(current_user)):
     Closed journeys (status=safe or sharing_revoked_at set) return a minimal
     response — just the closed state and when it closed — no full data dump.
     """
-    rec, access_level = await _guardian_access_check(token, user)
+    rec, access_level, link = await _guardian_access_check(token, user)
 
-    # Closed journey: return minimal closed-state response only
+    # Destination is location data: disclose only when temp_location is True.
+    # This is an application-level check on the link record returned by the DB.
+    # Omit the key entirely when permission is absent — no placeholder value.
+    show_destination: bool = bool(
+        link.get("permissions", {}).get("temp_location", False)
+    )
+
+    # Closed journey: identity, selection, journey_status and expiry checks
+    # are already enforced above.  Destination gating still applies.
     if _sharing_closed(rec):
         closed_at = rec.get("safe_at") or rec.get("sharing_revoked_at")
-        return {
-            "access_level": access_level,
-            "status":        rec.get("status"),
-            "closed_at":     closed_at,
+        body: dict = {
+            "access_level":      access_level,
+            "status":            rec.get("status"),
+            "closed_at":         closed_at,
             "traveller_display": rec.get("user_display"),
         }
+        if show_destination:
+            body["destination"] = rec.get("destination")
+        return body
 
-    # Active journey: full HISTORICAL_ONLY view
-    return {
+    # Active journey: HISTORICAL_ONLY view.
+    # Coordinates, area, accuracy and location history remain unavailable
+    # at this level regardless of permission (batch scope).
+    body = {
         "access_level":        access_level,
         "traveller_display":   rec.get("user_display"),
-        "destination":         rec.get("destination"),
         "started_at":          rec.get("started_at"),
         "expected_checkin_at": rec.get("expected_checkin_at"),
         "status":              rec.get("status"),
         "safe_at":             rec.get("safe_at"),
     }
+    if show_destination:
+        body["destination"] = rec.get("destination")
+    return body
 
 
 @router.get("/journey/status/{token}", response_class=HTMLResponse, include_in_schema=False)

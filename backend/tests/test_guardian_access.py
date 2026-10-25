@@ -64,15 +64,18 @@ def _journey(status: str = "in_progress", revoked: bool = False,
         "last_location":       None,
     }
 
-def _link(status: str = "accepted", invitee_id: str = RECIPIENT_ID) -> dict:
+def _link(status: str = "accepted", invitee_id: str = RECIPIENT_ID,
+          journey_status: bool = True, temp_location: bool = False) -> dict:
     return {
         "id":               LINK_ID,
         "owner_id":         OWNER_ID,
         "invitee_user_id":  invitee_id,
         "status":           status,
         "permissions": {
-            "journey_status": True, "expected_arrival": True,
-            "missed_checkin": True, "temp_location": False,
+            "journey_status":    journey_status,
+            "expected_arrival":  True,
+            "missed_checkin":    True,
+            "temp_location":     temp_location,
             "emergency_requests": True,
         },
     }
@@ -169,10 +172,10 @@ async def test_th2_unknown_token_raises_404():
 # ════════════════════════════════════════════════════════════════════════════════
 
 @pytest.mark.asyncio
-async def test_gb1_active_journey_includes_destination():
-    """Active journey response includes destination for HISTORICAL_ONLY."""
-    result = await _call(_journey(), _link())
-    assert result.get("destination") == DEST
+async def test_gb1_destination_absent_without_location_permission():
+    """Destination key must not appear when temp_location=False (default)."""
+    result = await _call(_journey(), _link(temp_location=False))
+    assert "destination" not in result, "destination present without temp_location permission"
 
 
 @pytest.mark.asyncio
@@ -274,3 +277,122 @@ def test_enum_values_are_strings():
     """GuardianAccessLevel inherits from str — safe to embed in JSON."""
     for member in GuardianAccessLevel:
         assert isinstance(member.value, str)
+
+# ════════════════════════════════════════════════════════════════════════════════
+# Focused permission-correctness tests (authorization correction batch)
+#
+# DB-query modeling note: all tests use AsyncMock(return_value=X) for
+# db.trusted_circle_links.find_one.  The mock bypasses real MongoDB query
+# filtering.  Passing None models the expected DB return value when the query
+# would find no matching document (e.g. status≠accepted, link not in journey).
+# It does NOT verify that the MongoDB query itself filters those fields; the
+# query predicate is visible in _guardian_access_check but is not exercised by
+# these mocks.  Application-level checks (journey_status flag, temp_location
+# flag) occur AFTER the mock returns and ARE verified by these tests.
+# ════════════════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_perm1_status_permission_granted_allows_view():
+    """Accepted, selected recipient with journey_status=True sees metadata."""
+    result = await _call(_journey(), _link(journey_status=True))
+    assert result.get("traveller_display") == TRAVELLER
+    assert result.get("status") == "in_progress"
+    assert result.get("access_level") == GuardianAccessLevel.HISTORICAL_ONLY
+
+
+@pytest.mark.asyncio
+async def test_perm2_false_status_permission_denies_metadata():
+    """journey_status=False must deny; application-level check, not DB filter."""
+    from fastapi import HTTPException
+    with pytest.raises(HTTPException) as exc:
+        await _call(_journey(), _link(journey_status=False))
+    assert exc.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_perm2b_missing_permissions_key_denies():
+    """Missing permissions dict entirely must deny — no silent default grant."""
+    from fastapi import HTTPException
+    link = _link()
+    del link["permissions"]
+    with pytest.raises(HTTPException) as exc:
+        await _call(_journey(), link)
+    assert exc.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_perm3_status_allowed_location_denied_omits_destination():
+    """journey_status=True, temp_location=False → destination key absent."""
+    result = await _call(_journey(), _link(journey_status=True, temp_location=False))
+    assert "destination" not in result, "destination must not appear without temp_location"
+    # Other permitted metadata still present
+    assert result.get("traveller_display") == TRAVELLER
+    assert result.get("status") == "in_progress"
+
+
+@pytest.mark.asyncio
+async def test_perm3b_location_permitted_includes_destination():
+    """journey_status=True, temp_location=True → destination present."""
+    result = await _call(_journey(), _link(journey_status=True, temp_location=True))
+    assert result.get("destination") == DEST
+
+
+@pytest.mark.asyncio
+async def test_perm4_not_selected_for_journey_denied():
+    """Accepted contact whose link ID is not in journey.recipient_link_ids is denied.
+
+    Mock models DB returning None (no row matched because the link's id is not
+    in recipient_link_ids).  MongoDB filtering behavior is NOT verified here.
+    """
+    from fastapi import HTTPException
+    with pytest.raises(HTTPException) as exc:
+        await _call(_journey(), None)   # DB returns None → 403
+    assert exc.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_perm5_revoked_relationship_denied():
+    """Revoked/declined link must deny.
+
+    Mock models DB returning None because the query filters status='accepted'.
+    MongoDB filtering behavior is NOT verified; the application-level check on
+    the returned None is what raises 403.
+    """
+    from fastapi import HTTPException
+    with pytest.raises(HTTPException) as exc:
+        await _call(_journey(), None)   # models: DB finds no accepted link
+    assert exc.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_perm6_permission_withdrawal_affects_next_read():
+    """Permission withdrawal is evaluated on every call, not cached."""
+    # First read: journey_status=True → allowed
+    result = await _call(_journey(), _link(journey_status=True))
+    assert result.get("traveller_display") == TRAVELLER
+
+    # Second read: journey_status removed → denied
+    from fastapi import HTTPException
+    with pytest.raises(HTTPException) as exc:
+        await _call(_journey(), _link(journey_status=False))
+    assert exc.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_perm7_closed_journey_requires_status_permission():
+    """Closed (safe) journey must not bypass journey_status permission check."""
+    from fastapi import HTTPException
+    with pytest.raises(HTTPException) as exc:
+        await _call(_journey(status="safe"), _link(journey_status=False))
+    assert exc.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_perm7b_closed_journey_location_denied_omits_destination():
+    """Closed journey with journey_status=True, temp_location=False → no destination."""
+    result = await _call(_journey(status="safe"), _link(journey_status=True, temp_location=False))
+    assert "destination" not in result
+    assert result.get("status") == "safe"
+    assert result.get("traveller_display") == TRAVELLER
+
