@@ -1574,86 +1574,27 @@ def _script_check(text: str, language: str | None) -> dict:
 
 
 async def whisper_transcribe(audio: UploadFile, language: Optional[str]) -> dict:
-    """Core Whisper cloud transcription — shared by the authenticated
-    /voice/transcribe route and the public, token-scoped intake transcribe
-    route. Callers are responsible for their own auth/metering before
-    calling this (see meter_llm_use call sites).
-
-    `language` is an optional ISO 639-1 hint (e.g. "hi", "ta", "en") that
-    dramatically improves accuracy for Indian languages compared to
-    Whisper's auto-detect. Falls back to auto-detect if not provided OR if
-    the Emergent Whisper proxy rejects the specific language code (silently
-    retries without the hint so the user never experiences a silent mic
-    failure).
-    """
-    # Whisper supports these ISO 639-1 language codes in principle. The
-    # actual Emergent proxy currently rejects some of them (bn/te/gu/ml/pa/
-    # or/as/sa/sd) with a 400 unsupported_language error. We keep the full
-    # set here as an OPTIMISTIC hint list and let the retry-without-hint
-    # fallback below rescue any rejection — this is safer than a hardcoded
-    # narrow list that would silently ignore a valid hint if Emergent adds
-    # support later.
-    WHISPER_HINT_SET = {
-        "en", "hi", "bn", "ta", "te", "mr", "gu", "kn", "ml", "pa",
-        "or", "as", "ur", "sa", "sd", "ne",
-        # Visitor-mode tourist languages
-        "fr", "de", "es", "pt", "it", "ja", "ko", "zh", "ar", "ru",
-    }
-    # Screens send either bare ISO codes ("mr") or BCP-47 tags ("mr-IN" from the
-    # FIR assistant). Whisper and the script check only understand the bare
-    # code; an unrecognised tag silently drops the hint and Whisper falls back
-    # to auto-detect, which can return text in an unrelated language.
-    if language:
-        language = re.split(r"[-_]", language.strip())[0].lower() or None
+    """FastAPI-facing wrapper; delegates core logic to ``stt_engine``."""
+    from engine.stt_engine import transcribe_with_retry
     try:
         data = await audio.read()
         oc = openai_client()
-        base_kwargs: dict = {
-            "model": "whisper-1",
-            "file": (audio.filename or "audio.m4a", data, audio.content_type or "audio/m4a"),
-        }
-        lang_hint = None
-        if language and language.lower() in WHISPER_HINT_SET:
-            lang_hint = language.lower()
-
-        # First attempt: with the language hint if we have one.
-        try:
-            kwargs = {**base_kwargs, **({"language": lang_hint} if lang_hint else {})}
-            result = await oc.audio.transcriptions.create(**kwargs)
-            return {"text": result.text, **_script_check(result.text, language)}
-        except Exception as first_err:
-            # If we sent a language hint and the proxy rejected it as
-            # unsupported, silently retry without the hint so the user still
-            # gets a transcript. Any other error re-raises.
-            err_msg = str(first_err).lower()
-            if lang_hint and (
-                "unsupported_language" in err_msg
-                or "unsupported language" in err_msg
-                or "invalid_language" in err_msg
-                or "invalid language" in err_msg
-                or ("400" in err_msg and "language" in err_msg)
-                or ("422" in err_msg and "language" in err_msg)
-                or ("language" in err_msg and ("not supported" in err_msg or "not valid" in err_msg))
-            ):
-                logger.info(
-                    "Whisper rejected language hint '%s' — retrying without hint",
-                    lang_hint,
-                )
-                result = await oc.audio.transcriptions.create(**base_kwargs)
-                return {"text": result.text, **_script_check(result.text, language)}
-            raise
+        return await transcribe_with_retry(
+            audio_bytes=data,
+            filename=audio.filename or "audio.m4a",
+            content_type=audio.content_type or "audio/m4a",
+            language=language,
+            openai_client=oc,
+            script_check_fn=_script_check,
+        )
     except Exception as e:
-        # A very short hold-and-release (or a race where the recorder captures
-        # almost no audio) makes Whisper reject the clip with "audio_too_short" --
-        # this is a routine, expected user action, not a server failure. Surfacing
-        # OpenAI's raw JSON error text through a 500 (as the generic branch below
-        # would) looks like a crash to the user; return a clean, actionable 400
-        # instead so the app can show "hold longer and try again" rather than a
-        # technical error blob.
         err_msg = str(e).lower()
         if "audio_too_short" in err_msg or "too short" in err_msg:
             logger.info("Whisper rejected clip as too short")
-            raise HTTPException(400, "Recording was too short. Please hold the mic button and speak for at least a second.")
+            raise HTTPException(
+                400,
+                "Recording was too short. Please hold the mic button and speak for at least a second.",
+            )
         logger.exception("transcribe failed")
         raise HTTPException(500, f"Transcription failed: {e}")
 

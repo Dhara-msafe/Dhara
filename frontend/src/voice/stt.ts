@@ -9,7 +9,7 @@
  * dead-code removal to keep the install guard happy.
  */
 
-import { Platform } from 'react-native';
+import type { Platform as PlatformType } from 'react-native';
 
 export type STTResult = {
   text: string;
@@ -120,27 +120,41 @@ export type WhisperTranscribeResult = {
   detectedScript: string | null;
 };
 
+/**
+ * Default blob reader used in production.
+ * On web: browser fetch reads the object-URL into a Blob.
+ * On native: expo/fetch reads the file:// URI into a Blob — the only form
+ * that works with the native FormData multipart serialiser (expo SDK 52+).
+ *
+ * Exported separately so tests can inject a mock without touching the
+ * main function signature or altering any production call site.
+ */
+export async function defaultBlobReader(uri: string): Promise<Blob> {
+  // Lazy Platform import so stt.ts is importable in Node test environments
+  // (where react-native cannot be parsed). Tests inject _blobReader directly
+  // so this function is never called during local test runs.
+  const { Platform } = await import('react-native');
+  if (Platform.OS === 'web') {
+    return (await fetch(uri)).blob();
+  }
+  const { fetch: expoFetch } = await import('expo/fetch');
+  return (await expoFetch(uri)).blob();
+}
+
 export async function whisperTranscribeFile(
   apiBase: string,
   token: string,
   uri: string,
-  languageHint?: string
+  languageHint?: string,
+  /** Injectable for tests — production callers omit this. */
+  _blobReader: (uri: string) => Promise<Blob> = defaultBlobReader,
 ): Promise<WhisperTranscribeResult> {
+  if (!uri) throw new Error('__transcribe_failed__');
+
+  const fileBlob = await _blobReader(uri);
   const form = new FormData();
-  if (Platform.OS === 'web') {
-    const blob = await (await fetch(uri)).blob();
-    const extension = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm';
-    form.append('audio', blob, `audio.${extension}`);
-  } else {
-    // On native, use expo/fetch to read the file:// URI into a real Blob.
-    // The old { uri, name, type } shorthand throws
-    // "Unsupported FormDataPart implementation" on real Android devices that
-    // use expo's native fetch implementation.
-    const { fetch: expoFetch } = await import('expo/fetch');
-    const fileBlob = await (await expoFetch(uri)).blob();
-    // @ts-ignore — RN FormData accepts (Blob, filename)
-    form.append('audio', fileBlob, 'audio.m4a');
-  }
+  // @ts-ignore — RN FormData accepts (Blob, filename)
+  form.append('audio', fileBlob, 'audio.m4a');
   if (languageHint) form.append('language', languageHint);
 
   // Network errors (no connection, DNS failure, timeout) must surface as a
