@@ -496,19 +496,17 @@ async def get_guardian_view(token: str, user: dict = Depends(current_user)):
         link.get("permissions", {}).get("temp_location", False)
     )
 
-    # Closed journey: identity, selection, journey_status and expiry checks
-    # are already enforced above.  Destination gating still applies.
+    # Closed journey: destination and all location data withheld unconditionally.
+    # temp_location does NOT restore disclosure after safe or sharing-revoked.
+    # identity, selection, journey_status and expiry are already enforced above.
     if _sharing_closed(rec):
         closed_at = rec.get("safe_at") or rec.get("sharing_revoked_at")
-        body: dict = {
+        return {
             "access_level":      access_level,
             "status":            rec.get("status"),
             "closed_at":         closed_at,
             "traveller_display": rec.get("user_display"),
         }
-        if show_destination:
-            body["destination"] = rec.get("destination")
-        return body
 
     # Active journey: HISTORICAL_ONLY view.
     # Coordinates, area, accuracy and location history remain unavailable

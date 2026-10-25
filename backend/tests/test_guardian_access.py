@@ -396,3 +396,65 @@ async def test_perm7b_closed_journey_location_denied_omits_destination():
     assert result.get("status") == "safe"
     assert result.get("traveller_display") == TRAVELLER
 
+
+# ════════════════════════════════════════════════════════════════════════════════
+# Closed-journey destination suppression with temp_location=True
+# Authorization correction: temp_location must not restore destination after
+# safe or sharing-revoked.  Synthetic DEST address is present in the stored
+# record to confirm the value is suppressed, not merely absent from the DB row.
+# ════════════════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_dest1_safe_journey_no_destination_with_location_permission():
+    """Safe journey must not return destination even when temp_location=True.
+
+    DEST is explicitly set in the stored record; absence in the response
+    confirms suppression, not a missing DB field.
+    """
+    result = await _call(
+        _journey(status="safe"),
+        _link(journey_status=True, temp_location=True),
+    )
+    assert "destination" not in result, \
+        f"destination must not appear in safe response; got: {result}"
+    assert result.get("status") == "safe"
+    assert result.get("traveller_display") == TRAVELLER
+
+
+@pytest.mark.asyncio
+async def test_dest2_revoked_journey_no_destination_with_location_permission():
+    """Sharing-revoked journey must not return destination even when temp_location=True."""
+    result = await _call(
+        _journey(revoked=True),
+        _link(journey_status=True, temp_location=True),
+    )
+    assert "destination" not in result, \
+        f"destination must not appear in revoked response; got: {result}"
+    assert result.get("closed_at") is not None
+
+
+@pytest.mark.asyncio
+async def test_dest3_active_journey_destination_present_when_permitted():
+    """Active journey with journey_status=True and temp_location=True returns destination.
+
+    Confirms the fix does not remove destination from the active path.
+    """
+    result = await _call(
+        _journey(status="in_progress"),
+        _link(journey_status=True, temp_location=True),
+    )
+    assert result.get("destination") == DEST
+    assert result.get("status") == "in_progress"
+
+
+@pytest.mark.asyncio
+async def test_dest4_active_journey_no_destination_without_location_permission():
+    """Active journey with temp_location=False must not include destination key."""
+    result = await _call(
+        _journey(status="in_progress"),
+        _link(journey_status=True, temp_location=False),
+    )
+    assert "destination" not in result
+    assert result.get("traveller_display") == TRAVELLER
+
