@@ -1,12 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { theme } from '@/src/theme';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
+import { useAuth } from '@/src/auth';
 import { getPlan, savePlan } from '@/src/women/api';
+import { getLastLocation, type CachedLocation } from '@/src/safety/locationCache';
+import { formatLocationFix } from '@/src/safety/locationPresentation';
 
-// ─── Failsafe setup checklist data ─────────────────────────────────────────
+// ─── Failsafe setup checklist data ──────────────────────────────────────────────
 const FAILSAFE_ITEMS = [
   {
     icon: 'person-outline' as const,
@@ -54,14 +58,42 @@ const QUESTIONS = [
   'What will you take with you if you must leave suddenly?',
   'How will you keep some money within reach?',
   'What is a safe word to tell children it is time to go?',
-  'Which helpline will you call first — 112, 181 or 1930?',
+  'Which helpline will you call first \u2014 112, 181 or 1930?',
 ];
+
+// ─── Plus Code age label helper ──────────────────────────────────────────────────
+function _ageLabel(loc: CachedLocation): string {
+  if (loc.source === 'demo') return 'Preview location · enable GPS for your real fix';
+  const { age } = formatLocationFix(
+    { latitude: loc.lat, longitude: loc.lng, accuracyM: loc.accuracyM, capturedAt: loc.capturedAt },
+    new Date(),
+  );
+  const srcLabel = loc.source === 'server' ? 'from journey record' : 'GPS fix';
+  return `Updated ${age} · ${srcLabel}`;
+}
 
 export default function SafetyPlan() {
   const router = useRouter();
   const [ans, setAns] = useState<Record<string, string>>({});
   const [done, setDone] = useState(false);
   const [checklistOpen, setChecklistOpen] = useState(false);
+
+  // ── F0-B: Plus Code emergency card ─────────────────────────────────────────────────
+  const { user } = useAuth() as any;   // cast: user field confirmed in auth context
+  const [cachedLoc, setCachedLoc] = useState<CachedLocation | null>(null);
+  const [plusCodeCopied, setPlusCodeCopied] = useState(false);
+
+  useEffect(() => {
+    const uid: string = user?.id ?? 'anon';
+    getLastLocation(uid).then(setCachedLoc).catch(() => {});
+  }, [user?.id]);
+
+  const handleCopyPlusCode = useCallback(async () => {
+    if (!cachedLoc?.plusCode) return;
+    await Clipboard.setStringAsync(cachedLoc.plusCode).catch(() => {});
+    setPlusCodeCopied(true);
+    setTimeout(() => setPlusCodeCopied(false), 2000);
+  }, [cachedLoc]);
 
   useEffect(() => { getPlan().then(setAns); }, []);
 
@@ -73,6 +105,53 @@ export default function SafetyPlan() {
     <View style={styles.root}>
       <ScreenHeader title="My safety plan" subtitle="Private · stored only on this phone" />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
+
+        {/* ── F0-B: Plus Code emergency card ── */}
+        {cachedLoc && (
+          <Pressable
+            style={styles.plusCodeCard}
+            onPress={handleCopyPlusCode}
+            accessibilityRole="button"
+            accessibilityLabel={`Emergency Plus Code: ${cachedLoc.plusCode}. Tap to copy.`}
+            accessibilityHint="Copies the Plus Code to your clipboard"
+          >
+            <View style={styles.plusCodeTopRow}>
+              <View style={styles.plusCodeIconWrap}>
+                <Ionicons name="location" size={18} color={c.navy} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={styles.plusCodeLabelRow}>
+                  <Text style={styles.plusCodeLabel}>Emergency Plus Code</Text>
+                  {cachedLoc.source === 'demo' && (
+                    <View style={styles.demoBadge}>
+                      <Text style={styles.demoBadgeTxt}>Demo</Text>
+                    </View>
+                  )}
+                  <View style={styles.offlineBadge}>
+                    <Ionicons name="cloud-offline-outline" size={10} color="#6b7280" />
+                    <Text style={styles.offlineBadgeTxt}>Works offline</Text>
+                  </View>
+                </View>
+                <Text style={styles.plusCodeValue} selectable={false}>
+                  {cachedLoc.plusCode || '—'}
+                </Text>
+                <Text style={styles.plusCodeAge}>{_ageLabel(cachedLoc)}</Text>
+              </View>
+              <View style={styles.plusCodeCopyBtn}>
+                <Ionicons
+                  name={plusCodeCopied ? 'checkmark-circle' : 'copy-outline'}
+                  size={22}
+                  color={plusCodeCopied ? c.verifiedGreen : c.navy}
+                />
+              </View>
+            </View>
+            <Text style={styles.plusCodeHint}>
+              {plusCodeCopied
+                ? '✓ Copied to clipboard!'
+                : 'Share this code with emergency services — works without signal'}
+            </Text>
+          </Pressable>
+        )}
 
         {/* ── Failsafe setup checklist ── */}
         <Pressable
@@ -134,7 +213,100 @@ export default function SafetyPlan() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
-  // ── Failsafe checklist ──────────────────────────────────────────────────
+
+  // ── F0-B: Plus Code card ──────────────────────────────────────────────────────────────
+  plusCodeCard: {
+    backgroundColor: c.navySoft,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: c.navy + '33',   // 20 % opacity navy border
+    padding: 16,
+    marginBottom: 12,
+    gap: 8,
+  },
+  plusCodeTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  plusCodeIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: c.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    marginTop: 2,
+  },
+  plusCodeLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+    marginBottom: 4,
+  },
+  plusCodeLabel: {
+    fontFamily: theme.fonts.bodySemiBold,
+    fontSize: 12,
+    color: c.navy,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  demoBadge: {
+    backgroundColor: c.gold + '33',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  demoBadgeTxt: {
+    fontFamily: theme.fonts.bodyBold,
+    fontSize: 10,
+    color: c.darkGold ?? c.navy,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  offlineBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  offlineBadgeTxt: {
+    fontFamily: theme.fonts.body,
+    fontSize: 10,
+    color: '#6b7280',
+  },
+  plusCodeValue: {
+    fontFamily: theme.fonts.displayBold,
+    fontSize: 22,
+    color: c.navy,
+    letterSpacing: 1,
+    lineHeight: 28,
+    marginBottom: 2,
+  },
+  plusCodeAge: {
+    fontFamily: theme.fonts.body,
+    fontSize: 11,
+    color: c.muted,
+    lineHeight: 15,
+  },
+  plusCodeCopyBtn: {
+    paddingTop: 4,
+    flexShrink: 0,
+  },
+  plusCodeHint: {
+    fontFamily: theme.fonts.body,
+    fontSize: 12,
+    color: c.navy,
+    lineHeight: 17,
+    opacity: 0.75,
+  },
+
+  // ── Failsafe checklist ────────────────────────────────────────────────────────────────
   checklistHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -203,7 +375,8 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontStyle: 'italic',
   },
-  // ── Safety plan questions ───────────────────────────────────────────────
+
+  // ── Safety plan questions ───────────────────────────────────────────────────────
   progress: { marginBottom: 18, marginTop: 4 },
   progressTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.muted, marginBottom: 8 },
   track: { height: 8, borderRadius: 4, backgroundColor: c.surfaceTertiary, overflow: 'hidden' },
