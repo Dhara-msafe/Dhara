@@ -48,7 +48,8 @@ import { addBookmark } from '@/src/bookmarks';
 import { t } from '@/src/i18n';
 import { MarqueeBanner } from '@/src/components/MarqueeBanner';
 import { verifiedLabel, isStale, STALE_WARNING_TEXT } from '@/src/citationStaleness';
-// ── Phase 1: Code-phrase safety intercept ────────────────────────────────────
+// ── Phase 1 + D1-V: Code-phrase and discreet-screen intercepts ───────────────
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStoredPhrase } from '@/src/women/codePhraseStore';
 import { isCodePhraseMatch } from '@/src/women/codePhraseMatcher';
 import { triggerSafetySequence } from '@/src/women/safetyTriggerCoordinator';

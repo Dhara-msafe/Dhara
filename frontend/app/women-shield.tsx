@@ -45,6 +45,9 @@ export default function WomenShield() {
   const router = useRouter();
   const { language, user } = useAuth();
   const lang = language.code;
+  // D1 — prefsLoading=true until AsyncStorage resolves; prevents sensitive-content
+  // flash on mount and ensures cross-account state is wiped before new pref loads.
+  const [prefsLoading, setPrefsLoading] = useState(true);
   const [discreet, setDiscreet] = useState(false);
   const [checkin, setCheckin] = useState(true);
   const [helplines, setHelplines] = useState<Helpline[]>([]);
@@ -95,6 +98,29 @@ export default function WomenShield() {
   );
 
   const onCheckin = async (v: boolean) => { setCheckin(v); await persistCheckin(v); };
+
+  // D1 — account-scoped discreet preference.
+  // Key is per-user so logout/account-switch wipes the value automatically.
+  // Guests (no user.id) get session-only behaviour — pref resets on mount.
+  useEffect(() => {
+    let alive = true;
+    setPrefsLoading(true);
+    setDiscreet(false); // safe default; cleared immediately before new pref loads
+    const key = user?.id ? `ws_discreet_${user.id}` : null;
+    (async () => {
+      const saved = key ? await AsyncStorage.getItem(key).catch(() => null) : null;
+      if (alive) { setDiscreet(saved === '1'); setPrefsLoading(false); }
+    })();
+    return () => { alive = false; };
+  }, [user?.id]);
+
+  const handleDiscreet = async (v: boolean) => {
+    setDiscreet(v);
+    const key = user?.id ? `ws_discreet_${user.id}` : null;
+    if (key) await AsyncStorage.setItem(key, v ? '1' : '0').catch(() => {});
+    // Masking does NOT touch any active recording, journey, Head Out timer or
+    // SOS session. Those lifecycle owners are fully independent of this flag.
+  };
 
   const openScenario = async (scenarioKey: string) => {
     await safetyRoute({ scenario_key: scenarioKey, lang });
@@ -151,9 +177,34 @@ export default function WomenShield() {
               <Text style={styles.discreetTitle}>{discreet ? tr('ws.discreet', lang) : tr('ws.discreet.off', lang)}</Text>
               <Text style={styles.discreetSub}>{tr('ws.discreet.sub', lang)}</Text>
             </View>
-            <Switch value={discreet} onValueChange={setDiscreet} trackColor={{ true: c.gold, false: '#334' }} thumbColor="#fff" />
+            <Switch value={discreet} onValueChange={handleDiscreet} trackColor={{ true: c.gold, false: '#334' }} thumbColor="#fff" />
           </View>
         </View>
+
+        {/* D1 — neutral cover while prefs loading or discreet is active.
+            Sensitive headings, contacts, tools and evidence are absent from
+            the render tree (not merely hidden) when discreet=true.           */}
+        {(!prefsLoading && discreet) && (
+          <View testID="ws-discreet-cover" style={styles.discreetCover}>
+            <Ionicons name="lock-closed" size={44} color={c.muted} style={{ marginBottom: 14 }} />
+            <Text style={styles.discreetCoverTitle}>Sensitive screen hidden.</Text>
+            <Text style={styles.discreetCoverNote}>
+              {'This hides this screen. It does not change phone notifications or erase browsing history.'}
+            </Text>
+            <Pressable
+              style={styles.revealBtn}
+              onPress={() => handleDiscreet(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Show sensitive content again"
+              testID="ws-show-again"
+            >
+              <Text style={styles.revealBtnTxt}>Show again</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Sensitive content — removed from the tree while discreet is on */}
+        {(!prefsLoading && !discreet) && <>
 
         {/* Know your rights */}
         <View style={styles.section}>
@@ -248,6 +299,7 @@ export default function WomenShield() {
             </Pressable>
           </View>
         </View>
+        </>}
       </ScrollView>
     </View>
   );
@@ -315,4 +367,11 @@ const styles = StyleSheet.create({
   planSub: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, marginTop: 4, lineHeight: 18 },
   planBtn: { backgroundColor: c.navy, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 22 },
   planBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 15 },
+
+  // D1 — discreet cover styles
+  discreetCover: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 36, paddingVertical: 60 },
+  discreetCoverTitle: { fontFamily: theme.fonts.displayBold, fontSize: 22, color: c.ink, textAlign: 'center', marginBottom: 12 },
+  discreetCoverNote: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, textAlign: 'center', lineHeight: 21, marginBottom: 32 },
+  revealBtn: { backgroundColor: c.navy, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 36 },
+  revealBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 16 },
 });
