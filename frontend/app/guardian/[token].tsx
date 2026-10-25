@@ -1,14 +1,16 @@
 /**
- * Guardian screen — PR-1B full
- * ─────────────────────────────
+ * Guardian screen — PR-1B full + Gate B area expansion
+ * ──────────────────────────────────────────────────────
  * Opens via the dhara://guardian/{token} deep link or direct navigation.
  *
  * Auth gate: viewer must be signed in to see any journey data.
  * Gate A:    viewer must be an accepted trusted_circle_link recipient for
  *            the specific journey identified by this token.
- * Gate B:    accepted recipients receive HISTORICAL_ONLY access —
- *            traveller name, destination, timestamps, status.
- *            No live coordinates or area name at this level.
+ * Gate B — HISTORICAL_ONLY (temp_location=false):
+ *            traveller name, timestamps, status. No destination or area.
+ * Gate B — HISTORICAL_WITH_APPROVED_CORRESPONDENCE (temp_location=true):
+ *            Adds destination label and last-known area name.
+ *            No live coordinates, accuracy or timestamp.
  *
  * Token hardening:
  *  - 410 → expired link
@@ -41,7 +43,8 @@ type GuardianData =
       kind: 'active';
       access_level: string;
       traveller_display: string;
-      destination: string;
+      destination?: string;   // present only when temp_location permission granted
+      area?: string;          // last-known area name; present at HISTORICAL_WITH_APPROVED_CORRESPONDENCE
       started_at: string;
       expected_checkin_at: string;
       status: 'in_progress';
@@ -237,7 +240,7 @@ export default function GuardianScreen() {
           );
         }
 
-        // Active journey — HISTORICAL_ONLY
+        // Active journey — access level determined by backend Gate B
         return (
           <View testID="guardian-active-card" style={styles.journeyCard}>
             <View style={styles.cardHeaderRow}>
@@ -250,12 +253,25 @@ export default function GuardianScreen() {
               <Text style={styles.fieldValue}>{data.traveller_display || '—'}</Text>
             </View>
 
-            <View style={styles.divider} />
+            {data.destination != null && (
+              <>
+                <View style={styles.divider} />
+                <View style={styles.fieldRow}>
+                  <Text style={styles.fieldLabel}>Destination</Text>
+                  <Text style={styles.fieldValue}>{data.destination || '—'}</Text>
+                </View>
+              </>
+            )}
 
-            <View style={styles.fieldRow}>
-              <Text style={styles.fieldLabel}>Destination</Text>
-              <Text style={styles.fieldValue}>{data.destination || '—'}</Text>
-            </View>
+            {data.area != null && (
+              <>
+                <View style={styles.divider} />
+                <View style={styles.fieldRow}>
+                  <Text style={styles.fieldLabel}>Last known area</Text>
+                  <Text style={styles.fieldValue}>{data.area}</Text>
+                </View>
+              </>
+            )}
 
             <View style={styles.divider} />
 

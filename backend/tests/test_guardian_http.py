@@ -460,3 +460,72 @@ async def test_http13_expired_journey_410_no_sensitive_data():
     assert "Priya"       not in r.text
     assert _DEST         not in r.text
     assert str(_LAT)     not in r.text
+
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 6.  Gate B — HISTORICAL_WITH_APPROVED_CORRESPONDENCE level (Phase 2 expansion)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.asyncio
+async def test_http14_temp_location_true_upgrades_access_level():
+    """
+    Active journey with temp_location=True:
+      • access_level must be HISTORICAL_WITH_APPROVED_CORRESPONDENCE (Gate B upgrade).
+      • destination must be present.
+      • area from last_location must be present.
+    """
+    r = await _get(
+        f"Bearer {_jwt(_RECIP_ID)}",
+        _journey(),
+        links_store=[_link(journey_status=True, temp_location=True)],
+        users_store={_RECIP_ID: _user(_RECIP_ID)},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body.get("access_level") == "HISTORICAL_WITH_APPROVED_CORRESPONDENCE"
+    assert body.get("destination") == _DEST
+    assert body.get("area") == "CST"        # from _journey()'s last_location.area
+
+
+@pytest.mark.asyncio
+async def test_http15_temp_location_false_stays_historical_only():
+    """
+    Active journey with temp_location=False:
+      • access_level must remain HISTORICAL_ONLY.
+      • destination and area must both be absent.
+    """
+    r = await _get(
+        f"Bearer {_jwt(_RECIP_ID)}",
+        _journey(),
+        links_store=[_link(journey_status=True, temp_location=False)],
+        users_store={_RECIP_ID: _user(_RECIP_ID)},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body.get("access_level") == "HISTORICAL_ONLY"
+    assert "destination" not in body
+    assert "area"        not in body
+
+
+@pytest.mark.asyncio
+async def test_http16_temp_location_true_area_absent_when_no_last_location():
+    """
+    Active journey with temp_location=True but journey has no last_location:
+      • access_level upgraded to HISTORICAL_WITH_APPROVED_CORRESPONDENCE.
+      • destination present.
+      • area key absent (nothing to disclose).
+    """
+    j = _journey()
+    j.pop("last_location", None)    # simulate device that hasn't sent a location yet
+    r = await _get(
+        f"Bearer {_jwt(_RECIP_ID)}",
+        j,
+        links_store=[_link(journey_status=True, temp_location=True)],
+        users_store={_RECIP_ID: _user(_RECIP_ID)},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body.get("access_level") == "HISTORICAL_WITH_APPROVED_CORRESPONDENCE"
+    assert "destination" in body
+    assert "area"        not in body

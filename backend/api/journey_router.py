@@ -508,9 +508,12 @@ async def get_guardian_view(token: str, user: dict = Depends(current_user)):
             "traveller_display": rec.get("user_display"),
         }
 
-    # Active journey: HISTORICAL_ONLY view.
-    # Coordinates, area, accuracy and location history remain unavailable
-    # at this level regardless of permission (batch scope).
+    # Active journey: gate level determined by temp_location permission.
+    # Gate B upgrade: temp_location=True → HISTORICAL_WITH_APPROVED_CORRESPONDENCE.
+    # Returns area name (no coordinates/accuracy/timestamp) alongside destination.
+    if show_destination:
+        access_level = GuardianAccessLevel.HISTORICAL_WITH_APPROVED_CORRESPONDENCE
+
     body = {
         "access_level":        access_level,
         "traveller_display":   rec.get("user_display"),
@@ -521,6 +524,10 @@ async def get_guardian_view(token: str, user: dict = Depends(current_user)):
     }
     if show_destination:
         body["destination"] = rec.get("destination")
+        # Area name only — no coordinates, accuracy or timestamp disclosed.
+        last_loc = rec.get("last_location")
+        if last_loc and last_loc.get("area"):
+            body["area"] = last_loc["area"]
     return body
 
 
@@ -556,7 +563,16 @@ async def journey_status_page(token: str):
     later batch (PR-1B full) which will bind the signed-in viewer to a selected,
     accepted recipient link with current permissions.
     """
-    return HTMLResponse(content=_private_html())
+    # Phase 1 hardening — S3-H1 / S4-H1,2,3,4 (see token_url_exposure_report.md)
+    return HTMLResponse(
+        content=_private_html(),
+        headers={
+            "Referrer-Policy":        "no-referrer",
+            "Cache-Control":          "no-store, no-cache, max-age=0, must-revalidate",
+            "X-Content-Type-Options": "nosniff",
+            "X-Frame-Options":        "DENY",
+        },
+    )
 
 
 # ── HTML templates ─────────────────────────────────────────────────────────────
@@ -584,6 +600,7 @@ def _private_html() -> str:
         "<head>\n"
         '  <meta charset="UTF-8"/>\n'
         '  <meta name="viewport" content="width=device-width,initial-scale=1"/>\n'
+        '  <meta name="referrer" content="no-referrer"/>\n'
         "  <title>DHARA</title>\n"
         "  <style>\n"
         "    *{box-sizing:border-box;margin:0;padding:0}\n"
