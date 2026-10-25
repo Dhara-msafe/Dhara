@@ -387,7 +387,12 @@ async def journey_status_page(token: str):
 
 def _status_html(rec: dict, label: str, colour: str, icon: str) -> str:
     name   = _escape(rec.get("user_display", "User"))
-    dest   = _escape(rec.get("destination", "—"))
+    # PR-1A destination redaction: the destination field may contain an
+    # address, place name or coordinates. It is withheld from the anonymous
+    # HTML page on the same basis as location coordinates — a journey token
+    # does not establish recipient authorization.  The stored journey record
+    # is unchanged; only this rendering is suppressed.
+    dest   = "Destination on file"
     start  = _fmt_dt(rec.get("started_at"))
     checkin = _fmt_dt(rec.get("expected_checkin_at"))
     safe_at = _fmt_dt(rec.get("safe_at")) if rec.get("safe_at") else ""
