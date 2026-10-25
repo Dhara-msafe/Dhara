@@ -1659,6 +1659,13 @@ async def _startup():
     # scheduled run internally; costs nothing at boot.
     asyncio.create_task(run_push_jobs_loop(db, corpus_db))
 
+    # F1 — Missed check-in deadline worker (scans every 2 min; 5-min grace period)
+    try:
+        from api.deadline_worker import start as _deadline_start
+        _deadline_start(db)
+    except Exception as e:
+        logger.warning(f"[startup] deadline worker start warning: {e}")
+
     # ============================================================
     # DPDP Act Compliance: Automatic Retention Purge
     # ============================================================
@@ -1691,6 +1698,12 @@ async def _startup():
 
 @app.on_event("shutdown")
 async def _shutdown():
+    # F1 — Deadline worker clean shutdown (cancel asyncio task before closing DB)
+    try:
+        from api.deadline_worker import stop as _deadline_stop
+        await _deadline_stop()
+    except Exception as e:
+        logger.warning(f"[shutdown] deadline worker stop warning: {e}")
     # MongoDB connection lives in dependencies.py; close its client
     from dependencies import _mongo_client
     _mongo_client.close()

@@ -290,6 +290,35 @@ async def report_missed_checkin(token: str, user: dict = Depends(current_user)):
     return {"ok": True}
 
 
+@router.post("/journey/status/{token}/heartbeat", status_code=200)
+async def record_heartbeat(token: str, user: dict = Depends(current_user)):
+    """Owner-only: records last_heartbeat_at without affecting the check-in deadline.
+
+    Heartbeats indicate that the traveller's device is connected and the app
+    is in the foreground.  They do NOT reset or extend expected_checkin_at —
+    the personal check-in deadline is set once at journey creation and stays
+    fixed until mark_safe or revoke_sharing closes the journey.
+
+    F1 invariant: recording a heartbeat neither satisfies nor suppresses the
+    server-side deadline worker.  The worker evaluates expected_checkin_at
+    against the current clock; last_heartbeat_at is stored for diagnostics
+    only and is never read by the deadline worker.
+    """
+    rec = await db.safety_journeys.find_one({"token": token})
+    if not rec:
+        raise HTTPException(404, "Journey not found")
+    if rec["user_id"] != user["id"]:
+        raise HTTPException(403, "Not your journey")
+    if _sharing_closed(rec):
+        raise HTTPException(409, "Journey already completed or sharing withdrawn")
+    now = datetime.now(timezone.utc)
+    await db.safety_journeys.update_one(
+        {"token": token},
+        {"$set": {"last_heartbeat_at": now.isoformat()}},
+    )
+    return {"ok": True, "heartbeat_at": now.isoformat()}
+
+
 @router.post("/journey/status/{token}/help", status_code=200)
 async def report_help_requested(token: str, user: dict = Depends(current_user)):
     """Explicit 'Need help' tap during an active journey — distinct from a
