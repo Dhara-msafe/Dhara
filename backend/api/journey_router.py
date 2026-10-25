@@ -391,62 +391,22 @@ def _status_html(rec: dict, label: str, colour: str, icon: str) -> str:
     start  = _fmt_dt(rec.get("started_at"))
     checkin = _fmt_dt(rec.get("expected_checkin_at"))
     safe_at = _fmt_dt(rec.get("safe_at")) if rec.get("safe_at") else ""
-    last_loc = rec.get("last_location")
-    loc_block = ""
-    map_block = ""
-    # P1 follow-up: once the journey is marked "safe", exact location and
-    # the map must disappear from this page — continued exact-location
-    # access after safe arrival serves no safety purpose. Non-location
-    # fields (traveller, destination, timestamps, "Arrived safely") are
-    # untouched and still render above/below this block as before.
-    # Guardian-link revocation follow-up: the SAME withholding now also
-    # applies once the owner has withdrawn sharing (_sharing_closed),
-    # even though that is a different status than "safe" — see
-    # _sharing_closed()'s docstring for why these two states share this
-    # gate but render different banners above.
-    if last_loc and not _sharing_closed(rec):
-        area      = _escape(last_loc.get("area") or "Unknown area")
-        loc_time  = _fmt_dt(last_loc.get("updated_at"))
-        acc_m     = int(last_loc.get("accuracy", 0))
-        acc_note  = f" ±{acc_m} m" if acc_m > 0 else ""
-        loc_block = f"""
+    # PR-1A — Anonymous Guardian page: location withheld unconditionally.
+    # The public HTML route carries no authentication mechanism. A journey
+    # token, a recipient_link_id query parameter, or a browser-supplied
+    # identity does not establish recipient authorization and must not
+    # unlock location data. Coordinates, area, accuracy, location
+    # timestamp, map markers, tile requests and embedded Leaflet scripts
+    # are suppressed here in all journey states (in_progress, safe,
+    # revoked). The in-app alert path (alerts_router.py) applies
+    # per-recipient permission checks separately and is unaffected.
+    loc_block = """
       <hr class="divider"/>
       <div>
-        <div class="field-label">Last known area</div>
-        <div class="field-value">📍 {area}{acc_note}</div>
-        <div style="font-size:12px;color:#888;margin-top:3px">Updated {loc_time}</div>
+        <div class="field-label">Location</div>
+        <div class="field-value" style="color:#888">Location is unavailable through this shared link.</div>
       </div>"""
-        # P1 Map Integration — explicit user decision: show an exact marker
-        # + accuracy circle on this page, accepting that this public,
-        # unauthenticated, token-in-URL page is reachable by anyone holding
-        # the SMS link (not gated by Trusted Circle permissions — see
-        # module docstring). Uses Leaflet.js + OpenStreetMap tiles: no
-        # Google Maps Platform API/key involved for this page, so this
-        # stays within the explicit "Maps SDK for Android only, no other
-        # APIs without separate authorization" constraint.
-        lat, lng = last_loc.get("lat"), last_loc.get("lng")
-        if lat is not None and lng is not None:
-            acc_m_js = max(int(last_loc.get("accuracy", 0)), 1)
-            map_block = f"""
-      <hr class="divider"/>
-      <div id="map" style="height:220px;border-radius:12px;overflow:hidden"></div>
-      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-      <script>
-        (function() {{
-          var map = L.map('map', {{ zoomControl: true, attributionControl: true }}).setView([{lat}, {lng}], 15);
-          // P1 follow-up: OpenStreetMap's tile usage policy asks consumers
-          // NOT to use the "{{s}}." subdomain-sharding pattern (a/b/c.tile...) —
-          // that pattern exists only for legacy HTTP/1.1 connection-limit
-          // workarounds and defeats OSM's per-host request accounting. We
-          // request the single canonical host below instead.
-          L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
-            maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
-          }}).addTo(map);
-          L.marker([{lat}, {lng}]).addTo(map).bindPopup('Last known location');
-          L.circle([{lat}, {lng}], {{ radius: {acc_m_js}, color: '#1A3F74', fillColor: '#1A3F74', fillOpacity: 0.15 }}).addTo(map);
-        }})();
-      </script>"""
+    map_block = ""
     status_extra = f"<p style='margin:0 0 4px;font-size:15px;color:#555;'>Arrived: {safe_at}</p>" if safe_at else ""
 
     return f"""<!DOCTYPE html>
