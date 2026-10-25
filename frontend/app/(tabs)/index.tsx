@@ -50,7 +50,7 @@ import { MarqueeBanner } from '@/src/components/MarqueeBanner';
 import { verifiedLabel, isStale, STALE_WARNING_TEXT } from '@/src/citationStaleness';
 // ── Phase 1 + D1-V: Code-phrase and discreet-screen intercepts ───────────────
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getStoredPhrase } from '@/src/women/codePhraseStore';
+import { getStoredPhrase, getHidePhrase, normalizePhrase } from '@/src/women/codePhraseStore';
 import { isCodePhraseMatch } from '@/src/women/codePhraseMatcher';
 import { triggerSafetySequence } from '@/src/women/safetyTriggerCoordinator';
 import { useEvidenceRecorder } from '@/src/women/EvidenceRecorderProvider';
@@ -640,14 +640,14 @@ export default function ChatScreen() {
       if (user?.is_guest && guestQuota.limitReached) return;
 
       // D1-V: Foreground voice-phrase => screen-privacy activation.
-      // If the typed text matches the stored hide-screen phrase, silently
-      // activate discreet mode and swallow the message so it never reaches
-      // the LLM, analytics, backend, or chat history.
+      // Reads the hide phrase from codePhraseStore (SecureStore for auth users,
+      // in-memory for guests). Uses the same normalizePhrase() as the config
+      // screen's conflict gate so matching is always consistent.
       if (process.env.EXPO_PUBLIC_SAFE_WORD_V1 === 'true') {
         try {
-          const d1Scope = user?.id || 'device';
-          const hidePhrase = await AsyncStorage.getItem(`ws_hide_screen_v1_${d1Scope}`);
-          if (hidePhrase && q.trim().toLowerCase() === hidePhrase.trim().toLowerCase()) {
+          const storedHide = await getHidePhrase();
+          if (storedHide && normalizePhrase(q) === normalizePhrase(storedHide)) {
+            const d1Scope = user?.id || 'device';
             await AsyncStorage.setItem(`ws_discreet_active_v1_${d1Scope}`, 'true');
             setInput('');
             return; // DO NOT send to LLM, analytics, or chat history

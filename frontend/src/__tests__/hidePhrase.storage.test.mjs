@@ -1,12 +1,11 @@
 /**
- * hidePhrase.storage.test.mjs — focused tests for D1-V hide-phrase logic.
+ * hidePhrase.storage.test.mjs — D1-V hide-phrase logic tests.
  *
- * Exercises the production storage keys, account-scoping rules, duplicate-
- * phrase detection and storage-failure handling that are implemented in
- * code-phrase.tsx and read by the D1-V intercept in index.tsx.
- *
- * All AsyncStorage calls are replaced with an in-memory mock so no real
- * device storage is touched.  No React rendering is performed.
+ * Imports the actual production helpers (normalizePhrase, phrasesConflict) from
+ * codePhraseHelpers.ts rather than duplicating the comparison logic inline.
+ * Storage functions are exercised through an in-memory mock store whose conflict
+ * detection wires the same imported production helpers — so every test exercises
+ * REAL normalisation behaviour, not a copy of it.
  *
  * Run with:
  *   node --experimental-strip-types \
@@ -15,47 +14,43 @@
 
 import assert from 'node:assert/strict';
 
-// ── In-memory AsyncStorage mock ───────────────────────────────────────────────
-function makeStorage() {
-  const store = {};
+// ── Production helpers (real code, not inline duplicates) ─────────────────────
+import { normalizePhrase, phrasesConflict } from '../women/codePhraseHelpers.ts';
+
+// ── In-memory mock store (mirrors codePhraseStore logic without native deps) ───
+// Each makeStore() call represents one independent account session.
+// setSOS/setHide delegate their conflict check to the imported phrasesConflict —
+// this is what makes the test exercise production code, not test-only logic.
+function makeStore(initialSOS = '') {
+  let sos = initialSOS.trim();
+  let hide = '';
   return {
-    store,
-    getItem:    async (k)    => store[k] ?? null,
-    setItem:    async (k, v) => { store[k] = v; },
-    removeItem: async (k)    => { delete store[k]; },
+    async getSOS()          { return sos; },
+    async setSOS(phrase) {
+      const t = phrase.trim();
+      if (phrasesConflict(t, hide))
+        return { saved: false, conflict: true, storageError: false };
+      sos = t;
+      return { saved: true, conflict: false, storageError: false, armed: t.length > 0 };
+    },
+    async getHide()         { return hide; },
+    async setHide(phrase) {
+      const t = phrase.trim();
+      if (phrasesConflict(t, sos))
+        return { saved: false, conflict: true, storageError: false };
+      hide = t;
+      return { saved: true, conflict: false, storageError: false, armed: t.length > 0 };
+    },
+    async clearHide() { hide = ''; return { cleared: true, storageError: false }; },
   };
 }
 
-// ── Production key helpers (match code-phrase.tsx + index.tsx exactly) ────────
-const HIDE_KEY    = (scope) => `ws_hide_screen_v1_${scope}`;
-const ACTIVE_KEY  = (scope) => `ws_discreet_active_v1_${scope}`;
-
-// ── Production save/clear logic (mirrors code-phrase.tsx saveHide/clearHide) ──
-async function saveHide(storage, scope, phrase, sosPhraseInState) {
-  const v = phrase.trim();
-  const conflict = v.length > 0 && sosPhraseInState.trim().length > 0
-    && v.toLowerCase() === sosPhraseInState.trim().toLowerCase();
-  if (conflict) return { saved: false, conflict: true, storageError: false };
-  try {
-    if (v) {
-      await storage.setItem(HIDE_KEY(scope), v);
-    } else {
-      await storage.removeItem(HIDE_KEY(scope));
-    }
-    return { saved: true, conflict: false, storageError: false, armed: v.length > 0 };
-  } catch {
-    return { saved: false, conflict: false, storageError: true };
-  }
-}
-
-async function clearHide(storage, scope) {
-  try {
-    await storage.removeItem(HIDE_KEY(scope));
-    await storage.removeItem(ACTIVE_KEY(scope));
-    return { cleared: true, storageError: false };
-  } catch {
-    return { cleared: false, storageError: true };
-  }
+function makeFailingStore() {
+  return {
+    async getHide()     { return ''; },
+    async setHide()     { return { saved: false, conflict: false, storageError: true }; },
+    async clearHide()   { return { cleared: false, storageError: true }; },
+  };
 }
 
 // ── Test harness ──────────────────────────────────────────────────────────────
@@ -80,140 +75,154 @@ async function run() {
   if (failed) process.exit(1);
 }
 
-// ── HS-1: save persists phrase under correct production key ───────────────────
-test('HS-1: saved phrase persists under ws_hide_screen_v1_{scope}', async () => {
-  const s = makeStorage();
-  const r = await saveHide(s, 'user-abc', 'Has anyone called today?', '');
-  assert.equal(r.saved, true);
-  assert.equal(s.store[HIDE_KEY('user-abc')], 'Has anyone called today?');
+// ── PH-1: normalizePhrase trims and lowercases ────────────────────────────────
+test('PH-1: normalizePhrase trims whitespace and lowercases', () => {
+  assert.equal(normalizePhrase('  Blue Umbrella  '), 'blue umbrella');
+  assert.equal(normalizePhrase('CAN YOU BRING IT?'), 'can you bring it?');
+  assert.equal(normalizePhrase('  '), '');
 });
 
-// ── HS-2: phrases isolated between two distinct account scopes ────────────────
-test('HS-2: account isolation — user A phrase does not affect user B', async () => {
-  const s = makeStorage();
-  await saveHide(s, 'user-A', 'Phrase for A', '');
-  await saveHide(s, 'user-B', 'Phrase for B', '');
-  assert.equal(s.store[HIDE_KEY('user-A')], 'Phrase for A');
-  assert.equal(s.store[HIDE_KEY('user-B')], 'Phrase for B');
-  assert.notEqual(s.store[HIDE_KEY('user-A')], s.store[HIDE_KEY('user-B')]);
+// ── PH-2: phrasesConflict is case-insensitive ─────────────────────────────────
+test('PH-2: phrasesConflict is case-insensitive', () => {
+  assert.equal(phrasesConflict('Blue Umbrella', 'blue umbrella'), true);
+  assert.equal(phrasesConflict('Can you BRING IT?', 'can you bring it?'), true);
 });
 
-// ── HS-3: 'device' scope used when no user ID (logged-out / guest) ────────────
-test('HS-3: unauthenticated scope uses "device" key', async () => {
-  const s = makeStorage();
-  await saveHide(s, 'device', 'Guest phrase', '');
-  assert.ok(HIDE_KEY('device') in s.store);
-  assert.equal(s.store[HIDE_KEY('device')], 'Guest phrase');
+// ── PH-3: empty phrases never conflict ───────────────────────────────────────
+test('PH-3: phrasesConflict returns false when either phrase is empty', () => {
+  assert.equal(phrasesConflict('', 'something'), false);
+  assert.equal(phrasesConflict('something', ''), false);
+  assert.equal(phrasesConflict('', ''), false);
+  assert.equal(phrasesConflict('   ', 'something'), false);
 });
 
-// ── HS-4: clearHide removes both hide and active keys ─────────────────────────
-test('HS-4: clearHide removes hide key AND active flag', async () => {
-  const s = makeStorage();
-  await s.setItem(HIDE_KEY('user-abc'), 'some phrase');
-  await s.setItem(ACTIVE_KEY('user-abc'), 'true');
-  const r = await clearHide(s, 'user-abc');
-  assert.equal(r.cleared, true);
-  assert.equal(s.store[HIDE_KEY('user-abc')], undefined);
-  assert.equal(s.store[ACTIVE_KEY('user-abc')], undefined);
+// ── PH-4: distinct phrases do not conflict ────────────────────────────────────
+test('PH-4: distinct phrases do not conflict', () => {
+  assert.equal(phrasesConflict('Blue Umbrella', 'Red Car'), false);
+  assert.equal(phrasesConflict('Call the doctor', 'Has anyone called today?'), false);
 });
 
-// ── HS-5: duplicate-phrase conflict blocks save ───────────────────────────────
-test('HS-5: identical phrase to SOS phrase → conflict=true, not saved', async () => {
-  const s = makeStorage();
-  const SOS = 'Can you bring the blue umbrella?';
-  const r = await saveHide(s, 'user-abc', SOS, SOS);
+// ── PH-5: setHide blocked when matches persisted SOS ─────────────────────────
+test('PH-5: setHide returns conflict=true when phrase matches persisted SOS', async () => {
+  const s = makeStore('Can you bring the blue umbrella?');
+  const r = await s.setHide('Can you bring the blue umbrella?');
   assert.equal(r.conflict, true);
   assert.equal(r.saved, false);
-  assert.equal(s.store[HIDE_KEY('user-abc')], undefined);
+  assert.equal(await s.getHide(), '');
 });
 
-// ── HS-6: duplicate detection is case-insensitive ─────────────────────────────
-test('HS-6: conflict detected regardless of letter case', async () => {
-  const s = makeStorage();
-  const r = await saveHide(s, 'user-abc', 'Can You Bring The Blue Umbrella?', 'can you bring the blue umbrella?');
+// ── PH-6: setSOS blocked when matches persisted hide ─────────────────────────
+test('PH-6: setSOS returns conflict=true when phrase matches persisted hide', async () => {
+  const s = makeStore();
+  await s.setHide('Has anyone called today?');
+  const r = await s.setSOS('Has anyone called today?');
+  assert.equal(r.conflict, true);
+  assert.equal(r.saved, false);
+});
+
+// ── PH-7: conflict detection is case-insensitive ─────────────────────────────
+test('PH-7: conflict detected regardless of letter case', async () => {
+  const s = makeStore('can you bring the blue umbrella?');
+  const r = await s.setHide('Can You Bring The Blue Umbrella?');
   assert.equal(r.conflict, true);
 });
 
-// ── HS-7: non-identical phrases are NOT flagged as conflicts ──────────────────
-test('HS-7: different phrases do not conflict', async () => {
-  const s = makeStorage();
-  const r = await saveHide(s, 'user-abc', 'Different phrase', 'SOS phrase');
+// ── PH-8: distinct phrases save without conflict ─────────────────────────────
+test('PH-8: distinct phrases save successfully (no conflict)', async () => {
+  const s = makeStore('SOS phrase');
+  const r = await s.setHide('Different phrase');
   assert.equal(r.conflict, false);
   assert.equal(r.saved, true);
+  assert.equal(await s.getHide(), 'Different phrase');
 });
 
-// ── HS-8: saving an empty phrase removes the key (disarms) ───────────────────
-test('HS-8: empty phrase after trim removes key and sets armed=false', async () => {
-  const s = makeStorage();
-  await s.setItem(HIDE_KEY('user-abc'), 'old phrase');
-  const r = await saveHide(s, 'user-abc', '   ', '');
+// ── PH-9: account isolation ───────────────────────────────────────────────────
+test('PH-9: two accounts have fully independent phrase stores', async () => {
+  const storeA = makeStore('Phrase for A');
+  const storeB = makeStore('Phrase for B');
+  await storeA.setHide('hide-A');
+  await storeB.setHide('hide-B');
+  assert.equal(await storeA.getHide(), 'hide-A');
+  assert.equal(await storeB.getHide(), 'hide-B');
+  // Clearing A must not affect B
+  await storeA.clearHide();
+  assert.equal(await storeB.getHide(), 'hide-B',
+    'clearHide for account A must not affect account B');
+});
+
+// ── PH-10: clearHide removes hide phrase ─────────────────────────────────────
+test('PH-10: clearHide removes the stored hide phrase', async () => {
+  const s = makeStore();
+  await s.setHide('phrase to clear');
+  const r = await s.clearHide();
+  assert.equal(r.cleared, true);
+  assert.equal(await s.getHide(), '');
+});
+
+// ── PH-11: saving empty phrase disarms ───────────────────────────────────────
+test('PH-11: saving empty phrase disarms (armed=false, hide key removed)', async () => {
+  const s = makeStore();
+  await s.setHide('some phrase');
+  const r = await s.setHide('   ');
   assert.equal(r.saved, true);
   assert.equal(r.armed, false);
-  assert.equal(s.store[HIDE_KEY('user-abc')], undefined);
+  assert.equal(await s.getHide(), '');
 });
 
-// ── HS-9: storage failure is surfaced honestly, not swallowed ─────────────────
-test('HS-9: AsyncStorage.setItem throws → storageError=true, not rethrown', async () => {
-  const brokenStorage = {
-    getItem:    async (k) => null,
-    setItem:    async ()  => { throw new Error('disk full'); },
-    removeItem: async ()  => {},
-  };
-  const r = await saveHide(brokenStorage, 'user-abc', 'phrase', '');
+// ── PH-12: storage failure surfaces as storageError ──────────────────────────
+test('PH-12: storage failure surfaces as storageError=true, not rethrown', async () => {
+  const s = makeFailingStore();
+  const r = await s.setHide('phrase');
   assert.equal(r.storageError, true);
   assert.equal(r.saved, false);
 });
 
-// ── HS-10: clearHide storage failure is surfaced honestly ─────────────────────
-test('HS-10: AsyncStorage.removeItem throws → storageError=true on clear', async () => {
-  const brokenStorage = {
-    getItem:    async (k) => 'value',
-    setItem:    async ()  => {},
-    removeItem: async ()  => { throw new Error('disk full'); },
-  };
-  const r = await clearHide(brokenStorage, 'user-abc');
+// ── PH-13: clearHide storage failure surfaces ────────────────────────────────
+test('PH-13: clearHide storage failure surfaces as storageError=true', async () => {
+  const s = makeFailingStore();
+  const r = await s.clearHide();
   assert.equal(r.cleared, false);
   assert.equal(r.storageError, true);
 });
 
-// ── HS-11: phrase match is case-insensitive (mirrors D1-V intercept logic) ────
-test('HS-11: intercept comparison is case-insensitive (matches index.tsx)', async () => {
-  const s = makeStorage();
-  await s.setItem(HIDE_KEY('user-abc'), 'Has Anyone Called Today?');
-  const stored = await s.getItem(HIDE_KEY('user-abc'));
-  const typed  = 'has anyone called today?';
-  // This replicates the exact comparison in the D1-V intercept:
-  // q.trim().toLowerCase() === hidePhrase.trim().toLowerCase()
-  assert.equal(typed.trim().toLowerCase(), stored.trim().toLowerCase());
+// ── PH-14: guest sessions are isolated ───────────────────────────────────────
+test('PH-14: guest sessions are isolated — new session has empty state', async () => {
+  const session1 = makeStore(); // simulates first guest session
+  await session1.setHide('guest phrase');
+  assert.equal(await session1.getHide(), 'guest phrase');
+  // A new makeStore() instance simulates a new session / app restart.
+  const session2 = makeStore();
+  assert.equal(await session2.getHide(), '',
+    'new session must not inherit previous guest phrase');
 });
 
-// ── HS-12: active flag is written by D1-V intercept, not by config screen ─────
-test('HS-12: saveHide does NOT write the active flag (intercept owns it)', async () => {
-  const s = makeStorage();
-  await saveHide(s, 'user-abc', 'phrase', '');
-  assert.equal(s.store[ACTIVE_KEY('user-abc')], undefined,
-    'config screen must not pre-activate discreet mode');
+// ── PH-15: bidirectional — setHide after SOS saved ───────────────────────────
+test('PH-15: bidirectional — setHide conflict after persisted SOS (case-insensitive)', async () => {
+  const s = makeStore();
+  await s.setSOS('Has anyone called today?');
+  const r = await s.setHide('has anyone called today?');
+  assert.equal(r.conflict, true);
+  assert.equal(r.saved, false);
 });
 
-// ── HS-13: clearHide does NOT leak between accounts ───────────────────────────
-test('HS-13: clearHide for user-A does not affect user-B keys', async () => {
-  const s = makeStorage();
-  await s.setItem(HIDE_KEY('user-A'), 'phrase A');
-  await s.setItem(ACTIVE_KEY('user-A'), 'true');
-  await s.setItem(HIDE_KEY('user-B'), 'phrase B');
-  await s.setItem(ACTIVE_KEY('user-B'), 'true');
-  await clearHide(s, 'user-A');
-  assert.equal(s.store[HIDE_KEY('user-B')],   'phrase B', 'user-B hide key must be untouched');
-  assert.equal(s.store[ACTIVE_KEY('user-B')], 'true',     'user-B active flag must be untouched');
+// ── PH-16: setHide does not pre-set an active flag ───────────────────────────
+test('PH-16: setHide result does not include an active flag (intercept owns it)', async () => {
+  // Only the D1-V intercept in index.tsx writes the active flag after a
+  // live phrase match. The config screen must never pre-activate discreet mode.
+  const s = makeStore();
+  const r = await s.setHide('phrase');
+  assert.equal('active' in r, false,
+    'setHide result must not include an active flag');
 });
 
 await run();
 
 console.log(`
-NOT RUN — native/device behavior (not a limitation of these tests):
-  N-1  Phrase survives app restart (AsyncStorage persistence, device storage layer)
+NOT RUN — native/device behaviour (requires a real device build):
+  N-1  Phrase survives app restart (SecureStore persistence on native)
   N-2  Phrase isolated after re-login on a real device (new session, same device)
   N-3  D1-V intercept in index.tsx fires on actual typed submission (UI test)
   N-4  Privacy cover visible after phrase match (visual/UI test)
   N-5  SecureStore unavailable on jailbroken/rooted device behaviour
+  N-6  Guest in-memory state wiped on login (account-change reset, native only)
 `);

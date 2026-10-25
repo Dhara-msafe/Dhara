@@ -1,8 +1,8 @@
 /**
  * codePhraseStore.ts — Item B
  *
- * Secure on-device storage for the code phrase.
- * Uses expo-secure-store (OS-protected Keychain / Keystore) so the phrase is
+ * Secure on-device storage for the SOS code phrase AND the D1-V hide phrase.
+ * Uses expo-secure-store (OS-protected Keychain / Keystore) so phrases are
  * never accessible to other apps, backup tools, or adb pulls.
  *
  * NOTE: We describe storage as "OS-protected" (Keychain on iOS, Keystore on
@@ -10,46 +10,74 @@
  * expo-secure-store documents.
  *
  * PRIVACY CONTRACT:
- *   — Phrase is NEVER logged, sent to analytics, or transmitted off-device.
- *   — Only isCodePhraseMatch() in codePhraseMatcher consumes the raw value.
- *   — Everything else works with a boolean (isPhraseArmed).
+ *   — Phrases are NEVER logged, sent to analytics, or transmitted off-device.
+ *   — Only isCodePhraseMatch() in codePhraseMatcher consumes the raw SOS value.
+ *   — The D1-V intercept in index.tsx consumes the raw hide value locally.
+ *   — Everything else works with booleans (isPhraseArmed / isHidePhraseArmed).
  *
- * ACCOUNT ISOLATION (added alongside the same fix in src/women/api.ts):
- *   This key used to be flat/device-global — one phrase shared by whoever
- *   is signed in, regardless of account, and never cleared on logout. On a
- *   shared device, Account B could read/arm/match Account A's code phrase.
- *   Every key below is now namespaced by the SYNCHRONOUSLY captured active
- *   account id (getActiveUserIdSync()) — see auth.tsx's doc comment for why
- *   a synchronous, atomically-captured identity avoids a race where a save
- *   started as A could land under B's key after a fast account switch.
- *   Missing identity FAILS CLOSED (no read, no write) — there is no shared
- *   "guest" fallback key, on purpose: that would just be a smaller-blast-
- *   radius version of the same bug.
+ * ACCOUNT ISOLATION:
+ *   All keys are namespaced by getActiveUserIdSync(). A missing identity FAILS
+ *   CLOSED (no read, no write) for the SOS phrase.  For the hide phrase,
+ *   authenticated users use SecureStore; guest / unauthenticated sessions use a
+ *   module-level in-memory variable — never written to disk, never under a
+ *   fallback "_device" key, and reset automatically when the active account
+ *   changes (including logout).
  *
- * LEGACY DATA (pre-this-fix): two older, unscoped sources may exist —
- * OLD_ASYNC_KEY (AsyncStorage, pre-dates SecureStore entirely) and the flat
- * SecureStore key this file used before account-scoping. NEITHER recorded
- * who it belonged to, so neither is ever copied into any account's live
- * key automatically. _quarantineLegacyOnce() moves whatever is found,
- * once, into a private key that no get/isArmed function ever reads and no
- * screen ever displays — preserved for a possible future explicit recovery
- * flow, never silently granted to whoever happens to sign in first.
+ * BIDIRECTIONAL CONFLICT GUARD:
+ *   setHidePhrase() reads the persisted SOS phrase via getStoredPhrase() and
+ *   rejects (conflict: true) if the incoming phrase matches after normalisation.
+ *   The reverse guard (SOS input vs persisted hide) is applied in code-phrase.tsx
+ *   before calling storePhrase(). Both directions use the same normalizePhrase()
+ *   and phrasesConflict() from codePhraseHelpers.ts so they can never disagree.
  *
- * MIGRATION SAFETY (kept from the original design, applied to quarantining):
- *   1. Write to the quarantine key.
- *   2. Read back to verify the write succeeded.
- *   3. Only delete the old value AFTER verified read-back.
- *   4. If any step fails, the old value remains untouched (recoverable).
+ * WEB LIMITATION:
+ *   expo-secure-store has no web implementation. All SecureStore calls are
+ *   wrapped so the code fails SOFT on web (silently does not persist) instead
+ *   of throwing uncaught rejections. The UI shows a capability notice on web.
+ *
+ * LEGACY DATA (pre-fix):
+ *   OLD_ASYNC_KEY (AsyncStorage, pre-dates SecureStore) and the flat
+ *   SecureStore key (pre-dates account-scoping) may exist. Neither is ever
+ *   copied into any account's live key; _quarantineLegacyOnce() moves them
+ *   once into a private quarantine key that no get/isArmed function ever reads.
  */
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { appendAuditEntry } from './privacyAuditLog';
 import { getActiveUserIdSync, whenAuthHydrated } from '../auth';
+import { normalizePhrase, phrasesConflict } from './codePhraseHelpers';
 
-const SECURE_KEY_BASE  = 'ws_code_phrase_v2';
-const OLD_ASYNC_KEY     = 'ws_code_phrase';                              // legacy AsyncStorage key (pre-SecureStore)
-const MARKER_KEY        = `${SECURE_KEY_BASE}_legacy_quarantined_v1`;    // SecureStore — "have we quarantined yet?"
-const QUARANTINE_KEY    = `${SECURE_KEY_BASE}_legacy_unclaimed_v1`;      // SecureStore — never read by get*()/isPhraseArmed()
+// Re-export pure helpers so consumers (index.tsx D1-V intercept, code-phrase.tsx
+// SOS-save guard) can use the same normalisation without a separate import path.
+export { normalizePhrase, phrasesConflict };
+
+// ── SOS phrase storage keys ────────────────────────────────────────────────────
+const SECURE_KEY_BASE = 'ws_code_phrase_v2';
+const OLD_ASYNC_KEY   = 'ws_code_phrase';                               // legacy AsyncStorage key (pre-SecureStore)
+const MARKER_KEY      = `${SECURE_KEY_BASE}_legacy_quarantined_v1`;     // SecureStore — "have we quarantined yet?"
+const QUARANTINE_KEY  = `${SECURE_KEY_BASE}_legacy_unclaimed_v1`;       // SecureStore — never read by get*()/isPhraseArmed()
+
+// ── Hide-phrase storage key builder (SecureStore, auth users only) ─────────────
+const HIDE_SECURE_KEY = (uid: string) => `ws_hide_screen_v2_${uid}`;
+
+// ── Hide-phrase in-memory state (guest / unauthenticated sessions only) ────────
+// Never written to disk. Reset automatically when the active account changes
+// (detected by comparing getActiveUserIdSync() against the last known UID).
+let _guestHidePhrase: string = '';
+let _lastKnownUid: string | null | undefined = undefined; // undefined = not yet initialised
+
+/** Wipe in-memory guest state when the active account changes (includes logout). */
+async function _resetGuestStateIfNeeded(): Promise<void> {
+  await whenAuthHydrated();
+  const uid = getActiveUserIdSync();
+  if (uid !== _lastKnownUid) {
+    _guestHidePhrase = '';
+    _lastKnownUid = uid;
+  }
+}
+
+// ── SOS phrase helpers ─────────────────────────────────────────────────────────
 
 async function _scopedKeyOrNull(): Promise<string | null> {
   await whenAuthHydrated();
@@ -106,13 +134,9 @@ export async function storePhrase(phrase: string): Promise<void> {
   const trimmed = phrase.trim();
   const key = await _scopedKeyOrNull();
   if (!key) return;   // fail closed — refuse to persist without a known identity
-  // expo-secure-store has NO web implementation (SecureStore.setValueWithKeyAsync
-  // does not exist on web) — every SecureStore call below is wrapped so this
-  // fails SOFT (silently does not persist) on web instead of throwing an
-  // uncaught rejection that crashes the screen. This is a web-preview-only
-  // limitation; on a real iOS/Android build SecureStore works normally.
-  // See <features_requiring_native_build> — code-phrase persistence cannot
-  // be validated on web/Expo Go, only on a native build.
+  // expo-secure-store has NO web implementation — every SecureStore call below is
+  // wrapped so this fails SOFT (silently does not persist) on web instead of
+  // throwing an uncaught rejection that crashes the screen.
   try {
     if (!trimmed) {
       await SecureStore.deleteItemAsync(key);
@@ -148,6 +172,112 @@ export async function isPhraseArmed(): Promise<boolean> {
     const key = await _scopedKeyOrNull();
     if (!key) return false;
     const v = await SecureStore.getItemAsync(key);
+    return !!(v && v.trim().length > 0);
+  } catch {
+    return false;
+  }
+}
+
+// ── Hide-phrase API (D1-V) ─────────────────────────────────────────────────────
+
+export type SaveHideResult = {
+  saved: boolean;
+  conflict: boolean;
+  storageError: boolean;
+  armed?: boolean;
+};
+
+/**
+ * Returns the stored hide phrase for the current account, or '' if none.
+ *   — Authenticated user  : SecureStore (ws_hide_screen_v2_<uid>)
+ *   — Guest / no identity : in-memory only (no disk write, no "_device" key)
+ *   — Web                 : always '' (capability notice shown by UI)
+ */
+export async function getHidePhrase(): Promise<string> {
+  if (Platform.OS === 'web') return '';
+  await _resetGuestStateIfNeeded();
+  const uid = getActiveUserIdSync();
+  if (!uid) return _guestHidePhrase;
+  try {
+    return (await SecureStore.getItemAsync(HIDE_SECURE_KEY(uid))) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Persist the hide phrase for the current account.
+ *
+ * Enforces a bidirectional conflict guard: if the incoming phrase matches the
+ * PERSISTED SOS phrase (via getStoredPhrase()), returns { conflict: true } and
+ * does NOT write anything.  The reverse guard (SOS input vs persisted hide) is
+ * applied by code-phrase.tsx before calling storePhrase().
+ *
+ * Guest users: stored in-memory only — never written to disk.
+ * Web: no-op (capability notice shown by UI).
+ */
+export async function setHidePhrase(phrase: string): Promise<SaveHideResult> {
+  const trimmed = phrase.trim();
+  if (Platform.OS === 'web') {
+    return { saved: false, conflict: false, storageError: false };
+  }
+  // Bidirectional guard — compare against the PERSISTED SOS phrase, not just
+  // whatever is currently held in React state on the config screen.
+  const persistedSOS = await getStoredPhrase();
+  if (phrasesConflict(trimmed, persistedSOS)) {
+    return { saved: false, conflict: true, storageError: false };
+  }
+  await _resetGuestStateIfNeeded();
+  const uid = getActiveUserIdSync();
+  if (!uid) {
+    // Guest: in-memory only, never touches disk.
+    _guestHidePhrase = trimmed;
+    return { saved: true, conflict: false, storageError: false, armed: trimmed.length > 0 };
+  }
+  try {
+    const key = HIDE_SECURE_KEY(uid);
+    if (trimmed) {
+      await SecureStore.setItemAsync(key, trimmed);
+    } else {
+      await SecureStore.deleteItemAsync(key).catch(() => {});
+    }
+    return { saved: true, conflict: false, storageError: false, armed: trimmed.length > 0 };
+  } catch {
+    return { saved: false, conflict: false, storageError: true };
+  }
+}
+
+/**
+ * Remove the stored hide phrase for the current account.
+ *
+ * NOTE: This does NOT clear the AsyncStorage discreet-active flag
+ * (ws_discreet_active_v1_<scope>). code-phrase.tsx owns that cleanup so the
+ * privacy cover lifts correctly without a circular dependency here.
+ */
+export async function clearHidePhrase(): Promise<{ cleared: boolean; storageError: boolean }> {
+  if (Platform.OS === 'web') return { cleared: true, storageError: false };
+  await _resetGuestStateIfNeeded();
+  const uid = getActiveUserIdSync();
+  if (!uid) {
+    _guestHidePhrase = '';
+    return { cleared: true, storageError: false };
+  }
+  try {
+    await SecureStore.deleteItemAsync(HIDE_SECURE_KEY(uid)).catch(() => {});
+    return { cleared: true, storageError: false };
+  } catch {
+    return { cleared: false, storageError: true };
+  }
+}
+
+/** True when a hide phrase is configured for the current account. */
+export async function isHidePhraseArmed(): Promise<boolean> {
+  if (Platform.OS === 'web') return false;
+  await _resetGuestStateIfNeeded();
+  const uid = getActiveUserIdSync();
+  if (!uid) return _guestHidePhrase.trim().length > 0;
+  try {
+    const v = await SecureStore.getItemAsync(HIDE_SECURE_KEY(uid));
     return !!(v && v.trim().length > 0);
   } catch {
     return false;

@@ -4,13 +4,24 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '@/src/theme';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
-import { getStoredPhrase, storePhrase } from '@/src/women/codePhraseStore';
+import {
+  getStoredPhrase,
+  storePhrase,
+  getHidePhrase,
+  setHidePhrase as storeHidePhrase,
+  clearHidePhrase,
+  phrasesConflict,
+} from '@/src/women/codePhraseStore';
 import { useAuth } from '@/src/auth';
 
 const c = theme.colors;
 
 // SOS phrase suggestions (emergency trigger)
-const SUGGESTIONS = ['Can you bring the blue umbrella?', 'Did you feed the cat today?', 'Is grandma\u2019s recipe ready?'];
+const SUGGESTIONS = [
+  'Can you bring the blue umbrella?',
+  'Did you feed the cat today?',
+  'Is grandma\u2019s recipe ready?',
+];
 
 // Discreet-screen phrase suggestions (privacy trigger — different from SOS)
 const HIDE_SUGGESTIONS = [
@@ -21,26 +32,37 @@ const HIDE_SUGGESTIONS = [
 
 export default function CodePhrase() {
   const { user } = useAuth();
+  // scope is used only for the AsyncStorage discreet-active flag (session flag,
+  // not sensitive). All phrase storage goes through codePhraseStore.
   const scope = user?.id || 'device';
 
   // ── SOS phrase (Phase 1 — triggers emergency sequence) ──────────────────────
   const [phrase, setPhrase] = useState('');
   const [saved, setSaved] = useState(false);
   const [armed, setArmed] = useState<boolean | null>(null);
+  /** True when the SOS input (not yet saved) conflicts with the persisted hide phrase. */
+  const [sosConflictsWithHide, setSosConflictsWithHide] = useState(false);
 
   // ── Discreet-screen phrase state ────────────────────────────────────────────
   const [hidePhrase, setHidePhrase] = useState('');
   const [hideSaved, setHideSaved] = useState(false);
   const [hideArmed, setHideArmed] = useState<boolean | null>(null);
   const [hideStorageError, setHideStorageError] = useState(false);
+  /** Set when the store's persisted-value conflict check rejects a hide save. */
+  const [hidePersistedConflict, setHidePersistedConflict] = useState(false);
 
-  /** True when both phrases are identical (ambiguous duplicate). */
+  /**
+   * Real-time UI hint: both in-state phrases are identical after normalisation.
+   * Gives immediate visual feedback while the user is still typing.
+   * The actual save path uses persisted-value checks (codePhraseStore) as the
+   * authoritative gate, so this hint never needs to be 100% accurate.
+   */
   const hideConflictsWithSOS =
     hidePhrase.trim().length > 0 &&
     phrase.trim().length > 0 &&
-    hidePhrase.trim().toLowerCase() === phrase.trim().toLowerCase();
+    phrasesConflict(hidePhrase, phrase);
 
-  // Load SOS phrase
+  // Load SOS phrase on mount
   useEffect(() => {
     getStoredPhrase().then(p => {
       setPhrase(p);
@@ -48,20 +70,31 @@ export default function CodePhrase() {
     });
   }, []);
 
-  // Load discreet-screen phrase
+  // Load hide phrase from codePhraseStore (SecureStore for auth, in-memory for guests).
+  // Depends on `scope` so we re-load when the user logs in/out/switches accounts.
   useEffect(() => {
-    AsyncStorage.getItem(`ws_hide_screen_v1_${scope}`).then(p => {
-      const v = p ?? '';
-      setHidePhrase(v);
-      setHideArmed(v.trim().length > 0);
+    getHidePhrase().then(p => {
+      setHidePhrase(p);
+      setHideArmed(p.trim().length > 0);
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope]);
 
   // ── SOS phrase actions ───────────────────────────────────────────────────────
   const save = async () => {
-    await storePhrase(phrase.trim());
-    const nowArmed = phrase.trim().length > 0;
-    setArmed(nowArmed);
+    const trimmedPhrase = phrase.trim();
+    // Reverse bidirectional guard: compare the new SOS input against the
+    // PERSISTED hide phrase (not the in-state hidePhrase, which may be unsaved).
+    if (trimmedPhrase) {
+      const persistedHide = await getHidePhrase();
+      if (phrasesConflict(trimmedPhrase, persistedHide)) {
+        setSosConflictsWithHide(true);
+        return;
+      }
+    }
+    setSosConflictsWithHide(false);
+    await storePhrase(trimmedPhrase);
+    setArmed(trimmedPhrase.length > 0);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -70,42 +103,50 @@ export default function CodePhrase() {
     setPhrase('');
     await storePhrase('');
     setArmed(false);
+    setSosConflictsWithHide(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
 
   // ── Discreet-screen phrase actions ──────────────────────────────────────────
   const saveHide = async () => {
-    if (hideConflictsWithSOS) return;   // blocked — user must resolve conflict first
-    const v = hidePhrase.trim();
-    try {
-      if (v) {
-        await AsyncStorage.setItem(`ws_hide_screen_v1_${scope}`, v);
-      } else {
-        await AsyncStorage.removeItem(`ws_hide_screen_v1_${scope}`);
-      }
-      setHideStorageError(false);
-      setHideArmed(v.length > 0);
-      setHideSaved(true);
-      setTimeout(() => setHideSaved(false), 2000);
-    } catch {
-      setHideStorageError(true);
+    setHidePersistedConflict(false);
+    // Fast in-state gate (covers the common case, gives instant UI feedback).
+    if (hideConflictsWithSOS) return;
+    // Delegate to store — it reads PERSISTED SOS for the authoritative check.
+    const result = await storeHidePhrase(hidePhrase);
+    if (result.conflict) {
+      setHidePersistedConflict(true);
+      return;
     }
+    if (result.storageError) {
+      setHideStorageError(true);
+      return;
+    }
+    setHideStorageError(false);
+    setHideArmed(result.armed ?? false);
+    setHideSaved(true);
+    setTimeout(() => setHideSaved(false), 2000);
   };
 
   const clearHide = async () => {
-    try {
-      await AsyncStorage.removeItem(`ws_hide_screen_v1_${scope}`);
-      // Also clear the active flag so the privacy cover does not persist
-      await AsyncStorage.removeItem(`ws_discreet_active_v1_${scope}`);
-      setHidePhrase('');
-      setHideArmed(false);
-      setHideStorageError(false);
-      setHideSaved(true);
-      setTimeout(() => setHideSaved(false), 2000);
-    } catch {
+    const result = await clearHidePhrase();
+    if (!result.cleared) {
       setHideStorageError(true);
+      return;
     }
+    // Also clear the AsyncStorage discreet-active flag so the privacy cover lifts.
+    // This flag is a session signal (not sensitive); it intentionally lives in
+    // AsyncStorage so the privacy cover component can read it without SecureStore.
+    try {
+      await AsyncStorage.removeItem(`ws_discreet_active_v1_${scope}`);
+    } catch {}
+    setHidePhrase('');
+    setHideArmed(false);
+    setHideStorageError(false);
+    setHidePersistedConflict(false);
+    setHideSaved(true);
+    setTimeout(() => setHideSaved(false), 2000);
   };
 
   return (
@@ -144,12 +185,23 @@ export default function CodePhrase() {
           </View>
         )}
 
+        {/* SOS ↔ Hide conflict notice */}
+        {sosConflictsWithHide && (
+          <View style={styles.conflictNotice}>
+            <Ionicons name="alert-circle-outline" size={16} color="#b45309" />
+            <Text style={styles.conflictNoticeTxt}>
+              This phrase is identical to your Privacy phrase. Use a different sentence so DHARA
+              can tell the two apart.
+            </Text>
+          </View>
+        )}
+
         <TextInput
           value={phrase}
-          onChangeText={setPhrase}
+          onChangeText={v => { setPhrase(v); setSosConflictsWithHide(false); }}
           placeholder="Type your code phrase"
           placeholderTextColor={c.muted}
-          style={styles.input}
+          style={[styles.input, sosConflictsWithHide && styles.inputConflict]}
           multiline
         />
         <Pressable style={styles.saveBtn} onPress={save}>
@@ -165,7 +217,7 @@ export default function CodePhrase() {
 
         <Text style={styles.sugTitle}>Suggestions</Text>
         {SUGGESTIONS.map(s => (
-          <Pressable key={s} style={styles.sug} onPress={() => setPhrase(s)}>
+          <Pressable key={s} style={styles.sug} onPress={() => { setPhrase(s); setSosConflictsWithHide(false); }}>
             <Ionicons name="bulb-outline" size={16} color={c.darkGold} />
             <Text style={styles.sugTxt}>{s}</Text>
           </Pressable>
@@ -224,8 +276,8 @@ export default function CodePhrase() {
           </View>
         )}
 
-        {/* Duplicate-phrase conflict warning */}
-        {hideConflictsWithSOS && (
+        {/* Conflict notice — shown for both real-time in-state check and persisted-value gate */}
+        {(hideConflictsWithSOS || hidePersistedConflict) && (
           <View style={styles.conflictNotice}>
             <Ionicons name="alert-circle-outline" size={16} color="#b45309" />
             <Text style={styles.conflictNoticeTxt}>
@@ -237,10 +289,10 @@ export default function CodePhrase() {
 
         <TextInput
           value={hidePhrase}
-          onChangeText={v => { setHidePhrase(v); setHideStorageError(false); }}
+          onChangeText={v => { setHidePhrase(v); setHideStorageError(false); setHidePersistedConflict(false); }}
           placeholder="Type your privacy phrase"
           placeholderTextColor={c.muted}
-          style={[styles.input, hideConflictsWithSOS && styles.inputConflict]}
+          style={[styles.input, (hideConflictsWithSOS || hidePersistedConflict) && styles.inputConflict]}
           multiline
         />
         <Pressable
@@ -269,8 +321,8 @@ export default function CodePhrase() {
         <View style={[styles.tip, styles.tipPrivacy]}>
           <Ionicons name="lock-closed-outline" size={18} color={c.onBrandPrimary} />
           <Text style={[styles.tipTxt, { color: c.onBrandPrimary }]}>
-            Stored in device memory only. Phrase matching happens entirely on this phone \u2014
-            never logged, never sent to any server.
+            Stored in OS-protected device storage (authenticated users) or device memory only (guest).
+            Phrase matching happens entirely on this phone \u2014 never logged, never sent to any server.
           </Text>
         </View>
 
