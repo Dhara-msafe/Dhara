@@ -356,63 +356,83 @@ async def update_location(token: str, body: LocationIn, user: dict = Depends(cur
 
 @router.get("/journey/status/{token}", response_class=HTMLResponse, include_in_schema=False)
 async def journey_status_page(token: str):
-    """Public HTML status page served to guardians — no authentication required."""
-    rec = await db.safety_journeys.find_one({"token": token})
+    """Public HTML status page — PR-1B1 static privacy notice.
 
-    if not rec:
-        return HTMLResponse(content=_not_found_html(), status_code=404)
+    Returns an identical static response for ALL token values (valid, revoked,
+    expired, or random). No database query is performed. No journey metadata,
+    traveller name, destination, timestamps, status label, location, or
+    auto-refresh behaviour is disclosed to anonymous visitors.
 
-    now      = datetime.now(timezone.utc)
-    expires  = datetime.fromisoformat(rec["expires_at"])
-    if now > expires:
-        return HTMLResponse(content=_expired_html(rec), status_code=410)
+    Intentional semantic changes from pre-PR-1B1 behaviour
+    -------------------------------------------------------
+    * Previously HTTP 404 for an unknown token → now HTTP 200.
+      Rationale: a 404 confirms that the token is not valid, which leaks the
+      existence (or non-existence) of a journey. Both valid and invalid tokens
+      must receive an identical response.
+    * Previously HTTP 410 for an expired journey → now HTTP 200.
+      Rationale: a 410 discloses expiry state, which requires a DB lookup and
+      confirms the token's validity. No DB query is made here any longer.
+    * Previously disclosed: traveller name, a generic destination label
+      ("Destination on file"), started-at / check-in / safe-at timestamps,
+      status labels (e.g. "Journey in progress", "Arrived safely") and a
+      30-second meta-refresh tag. None of these are disclosed after PR-1B1.
+    * The PR-1A "Location is unavailable through this shared link." notice
+      is superseded by the generic privacy notice below.
 
-    checkin_at = datetime.fromisoformat(rec["expected_checkin_at"])
-    is_overdue = now > checkin_at and rec["status"] == "in_progress"
+    The helper functions _status_html, _expired_html, and _not_found_html are
+    retained — they remain valid pure functions tested in
+    test_pr1a_guardian_containment.py — but are no longer called from this route.
+    Per-recipient, sign-in-gated access to journey metadata is deferred to a
+    later batch (PR-1B full) which will bind the signed-in viewer to a selected,
+    accepted recipient link with current permissions.
+    """
+    return HTMLResponse(content=_private_html())
 
-    status_label: str
-    status_colour: str
-    status_icon: str
-    if rec["status"] == "safe" and rec.get("sharing_revoked_at"):
-        # Both independent flags are set: the traveller marked themselves
-        # safe AFTER already withdrawing sharing. Neither flag is allowed
-        # to silently overwrite the other (see mark_safe()/revoke_sharing()
-        # docstrings) — the page says BOTH true things instead of picking
-        # one. Coordinates/map stay hidden either way (_sharing_closed
-        # gates on EITHER flag, independent of this label choice).
-        status_label  = "Arrived safely (sharing had already been turned off — no location was shown for this update)"
-        status_colour = "#16a34a"   # green-600 — arrival is the most reassuring fact for a guardian reading this
-        status_icon   = "✅"
-    elif rec["status"] == "safe":
-        status_label  = "Arrived safely"
-        status_colour = "#16a34a"   # green-600
-        status_icon   = "✅"
-    elif rec.get("sharing_revoked_at"):
-        # Owner withdrew sharing without claiming arrival — deliberately
-        # NOT the same colour/icon/wording as "Arrived safely" (that would
-        # be a false claim) nor "overdue" (that would be alarming/wrong).
-        status_label  = "Sharing turned off by traveller"
-        status_colour = "#6b7280"   # gray-500 — neutral
-        status_icon   = "🔒"
-    elif is_overdue:
-        status_label  = "Check-in overdue — please call them"
-        status_colour = "#dc2626"   # red-600
-        status_icon   = "🔴"
-    else:
-        status_label  = "Journey in progress"
-        status_colour = "#d97706"   # amber-600
-        status_icon   = "🟡"
 
-    return HTMLResponse(
-        content=_status_html(rec, status_label, status_colour, status_icon),
-        # P1 map follow-up: tile requests to tile.openstreetmap.org are
-        # cross-origin. Modern browsers already default to
-        # "strict-origin-when-cross-origin" (origin only, no path/token on
-        # cross-origin requests), but this header makes that explicit and
-        # robust rather than relying on an implicit default. See the
-        # OpenStreetMap tile documentation note in this module's docstring
-        # for the full analysis of what a tile request can reveal.
-        headers={"Referrer-Policy": "strict-origin"},
+# ── HTML templates ─────────────────────────────────────────────────────────────
+# _status_html / _expired_html / _not_found_html are retained as tested helper
+# functions (see test_pr1a_guardian_containment.py) but are no longer invoked
+# by journey_status_page after PR-1B1.  _private_html() is the only template
+# currently called from the route.
+
+def _private_html() -> str:
+    """PR-1B1: Static generic privacy notice served for every Guardian URL.
+
+    Discloses nothing: no name, no destination, no status, no timestamps, no
+    location, and no auto-refresh. The page is identical for valid, expired,
+    revoked, and completely unknown tokens — no existence confirmation of any
+    kind is embedded in the response.
+    """
+    return (
+        "<!DOCTYPE html>\n"
+        '<html lang="en">\n'
+        "<head>\n"
+        '  <meta charset="UTF-8"/>\n'
+        '  <meta name="viewport" content="width=device-width,initial-scale=1"/>\n'
+        "  <title>DHARA</title>\n"
+        "  <style>\n"
+        "    *{box-sizing:border-box;margin:0;padding:0}\n"
+        "    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;\n"
+        "         background:#f9fafb;color:#111;min-height:100vh;\n"
+        "         display:flex;align-items:center;justify-content:center;padding:24px}\n"
+        "    .card{background:#fff;border-radius:16px;padding:32px 24px;\n"
+        "          max-width:400px;width:100%;text-align:center;\n"
+        "          box-shadow:0 1px 6px rgba(0,0,0,.08)}\n"
+        "    .icon{font-size:40px;margin-bottom:16px}\n"
+        "    h1{font-size:18px;font-weight:700;color:#111;margin-bottom:12px;line-height:1.4}\n"
+        "    p{font-size:15px;color:#555;line-height:1.5;margin-bottom:0}\n"
+        "    .footer{font-size:12px;color:#aaa;margin-top:24px}\n"
+        "  </style>\n"
+        "</head>\n"
+        "<body>\n"
+        '  <div class="card">\n'
+        '    <div class="icon">&#128274;</div>\n'
+        "    <h1>Journey details are private.</h1>\n"
+        "    <p>Open DHARA and sign in to view information shared with you.</p>\n"
+        '    <div class="footer">DHARA legal aid app</div>\n'
+        "  </div>\n"
+        "</body>\n"
+        "</html>"
     )
 
 
