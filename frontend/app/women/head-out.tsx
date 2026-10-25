@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Linking, Modal } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Linking, Modal, AppState } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +14,7 @@ import { API_BASE } from '@/src/apiBase';
 import { listAcceptedRecipients, type InviteLink } from '@/src/trustedCircle/api';
 import { getLastLocation } from '@/src/safety/locationCache';
 import { formatLocationFix } from '@/src/safety/locationPresentation';
+import { useLocationUpload } from '@/src/hooks/useLocationUpload';
 
 const c = theme.colors;
 const GUARDIAN_SHARE_ENABLED   = process.env.EXPO_PUBLIC_GUARDIAN_SHARE === 'true';
@@ -189,6 +190,56 @@ export default function HeadOut() {
 
   // GO1B: GPS tracking — active only while session is running and flag is on
   const gps = useJourneyGPS(journeyToken, GO1B_GPS_ENABLED && !!session && !expired);
+
+  // F2b / F2c: battery-aware upload hook + stable refs for the AppState handler
+  const { lastGaspUpload } = useLocationUpload(authToken, journeyToken);
+  const lastGaspUploadRef  = useRef(lastGaspUpload);
+  useEffect(() => { lastGaspUploadRef.current = lastGaspUpload; }, [lastGaspUpload]);
+  const sessionRef  = useRef<HeadOutSession | null>(null);
+  const expiredRef  = useRef(false);
+  const userRef     = useRef<unknown>(user);
+  useEffect(() => { sessionRef.current = session; }, [session]);
+  useEffect(() => { expiredRef.current = expired; }, [expired]);
+  useEffect(() => { userRef.current    = user; },    [user]);
+  const lastGaspFiredRef = useRef(false);
+
+  // F2c: fire a last-gasp location upload when the app moves to background/inactive.
+  // Registered once; reads dynamic values via refs to avoid stale closures.
+  // - Only fires when a session is active and not yet expired.
+  // - Guard (lastGaspFiredRef) prevents duplicate uploads per backgrounding event.
+  // - Reset when the app returns to the foreground.
+  // - When GO1B_GPS_ENABLED is OFF, journeyToken is null so lastGaspUpload is a no-op.
+  useEffect(() => {
+    let prevState = AppState.currentState;
+    const sub = AppState.addEventListener('change', async (nextState) => {
+      const wasActive = prevState === 'active';
+      prevState = nextState;
+      if (nextState === 'active') {
+        // Returned to foreground — reset guard for next backgrounding
+        lastGaspFiredRef.current = false;
+        return;
+      }
+      // Only fire once, on an active→background/inactive transition, during a live session
+      if (
+        !wasActive ||
+        lastGaspFiredRef.current ||
+        !sessionRef.current ||
+        expiredRef.current
+      ) return;
+      lastGaspFiredRef.current = true;
+      try {
+        const uid: string = ((userRef.current as any)?.id) ?? 'anon';
+        const cached = await getLastLocation(uid);
+        await lastGaspUploadRef.current(
+          cached.lat,
+          cached.lng,
+          cached.accuracyM,
+          cached.plusCode || 'Unknown area',
+        );
+      } catch { /* non-fatal */ }
+    });
+    return () => sub.remove();
+  }, []); // mount-only; dynamic values accessed via refs
 
   const prepareAlertSMS = useCallback(async () => {
     const notifyContacts = circle.filter(ct => ct.notify !== false);
