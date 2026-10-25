@@ -1,6 +1,6 @@
 /**
- * Guardian screen — PR-1B full + Gate B area expansion
- * ──────────────────────────────────────────────────────
+ * Guardian screen — PR-1B full + Gate B area expansion + live location
+ * ──────────────────────────────────────────────────────────────────────
  * Opens via the dhara://guardian/{token} deep link or direct navigation.
  *
  * Auth gate: viewer must be signed in to see any journey data.
@@ -9,15 +9,9 @@
  * Gate B — HISTORICAL_ONLY (temp_location=false):
  *            traveller name, timestamps, status. No destination or area.
  * Gate B — HISTORICAL_WITH_APPROVED_CORRESPONDENCE (temp_location=true):
- *            Adds destination label and last-known area name.
- *            No live coordinates, accuracy or timestamp.
- *
- * Token hardening:
- *  - 410 → expired link
- *  - 403 → not authorized
- *  - 404 → journey not found
+ *            Adds destination, last-known area, and live coordinates for map.
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -25,6 +19,7 @@ import {
   Pressable,
   StyleSheet,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -36,15 +31,27 @@ import { API_BASE } from '@/src/apiBase';
 
 const c = theme.colors;
 
+// Auto-refresh interval for active journeys (30 s)
+const REFRESH_MS = 30_000;
+
 // ── Types ─────────────────────────────────────────────────────────────────────
+
+type LiveLocation = {
+  lat: number;
+  lng: number;
+  accuracy?: number;
+  area?: string;
+  updated_at?: string;
+};
 
 type GuardianData =
   | {
       kind: 'active';
       access_level: string;
       traveller_display: string;
-      destination?: string;   // present only when temp_location permission granted
-      area?: string;          // last-known area name; present at HISTORICAL_WITH_APPROVED_CORRESPONDENCE
+      destination?: string;       // present only when temp_location permission granted
+      area?: string;              // last-known area name; present at HISTORICAL_WITH_APPROVED_CORRESPONDENCE
+      last_location?: LiveLocation; // coordinates; present when GPS data available + temp_location=true
       started_at: string;
       expected_checkin_at: string;
       status: 'in_progress';
@@ -77,6 +84,16 @@ function _fmt(iso: string | null | undefined): string {
   } catch { return iso.slice(0, 16); }
 }
 
+function _ageMinutes(iso?: string): number | null {
+  if (!iso) return null;
+  const diff = Date.now() - new Date(iso).getTime();
+  return Math.floor(diff / 60_000);
+}
+
+function _mapsUrl(lat: number, lng: number): string {
+  return `https://www.google.com/maps?q=${lat},${lng}`;
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function GuardianScreen() {
@@ -86,13 +103,15 @@ export default function GuardianScreen() {
   const { token: authToken } = useAuth() as any;
 
   const [state, setState] = useState<ScreenState>({ phase: 'loading' });
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchJourney = useCallback(async () => {
+  const fetchJourney = useCallback(async (silent = false) => {
     if (!authToken) {
       setState({ phase: 'unauthenticated' });
       return;
     }
-    setState({ phase: 'loading' });
+    if (!silent) setState({ phase: 'loading' });
     try {
       const resp = await fetch(`${API_BASE}/api/journey/${token}/guardian`, {
         headers: { Authorization: `Bearer ${authToken}` },
@@ -127,10 +146,26 @@ export default function GuardianScreen() {
           data: { kind: 'closed', ...json },
         });
       }
+      setLastRefreshed(new Date());
     } catch {
       setState({ phase: 'error', code: 0, message: 'Could not reach server. Please check your connection.' });
     }
   }, [authToken, token]);
+
+  // Start / stop auto-refresh for active journeys
+  useEffect(() => {
+    if (state.phase === 'data' && (state.data as GuardianData & { kind: string }).kind === 'active') {
+      intervalRef.current = setInterval(() => fetchJourney(true), REFRESH_MS);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [state.phase, fetchJourney]);
 
   useEffect(() => {
     if (authToken === undefined) return; // auth not yet resolved
@@ -246,6 +281,10 @@ export default function GuardianScreen() {
             <View style={styles.cardHeaderRow}>
               <Ionicons name="navigate-circle-outline" size={28} color={c.navy} />
               <Text style={styles.cardStatusLabel}>Journey in progress</Text>
+              <View style={styles.liveBadge}>
+                <View style={styles.liveDot} />
+                <Text style={styles.liveTxt}>LIVE</Text>
+              </View>
             </View>
 
             <View style={styles.fieldRow}>
@@ -263,7 +302,47 @@ export default function GuardianScreen() {
               </>
             )}
 
-            {data.area != null && (
+            {/* ── Live location block ──────────────────────────────────── */}
+            {data.last_location != null ? (
+              <>
+                <View style={styles.divider} />
+                <View style={styles.locationBlock}>
+                  <View style={styles.locationHeader}>
+                    <Ionicons name="location" size={18} color={c.emergencyRed} />
+                    <Text style={styles.locationTitle}>Live location</Text>
+                    {(() => {
+                      const age = _ageMinutes(data.last_location.updated_at);
+                      return age !== null && (
+                        <Text style={[styles.locationAge, age > 5 && styles.locationAgeStale]}>
+                          {age === 0 ? 'just now' : `${age} min ago`}
+                        </Text>
+                      );
+                    })()}
+                  </View>
+
+                  {data.last_location.area && (
+                    <Text style={styles.locationArea}>{data.last_location.area}</Text>
+                  )}
+
+                  <Text style={styles.locationCoords}>
+                    {data.last_location.lat.toFixed(5)}, {data.last_location.lng.toFixed(5)}
+                    {data.last_location.accuracy != null
+                      ? `  ±${Math.round(data.last_location.accuracy)} m`
+                      : ''}
+                  </Text>
+
+                  <Pressable
+                    style={styles.mapsBtn}
+                    onPress={() => Linking.openURL(_mapsUrl(data.last_location!.lat, data.last_location!.lng))}
+                    accessibilityRole="link"
+                    accessibilityLabel="Open in Google Maps"
+                  >
+                    <Ionicons name="map-outline" size={16} color="#fff" />
+                    <Text style={styles.mapsBtnTxt}>Open in Google Maps</Text>
+                  </Pressable>
+                </View>
+              </>
+            ) : data.area != null ? (
               <>
                 <View style={styles.divider} />
                 <View style={styles.fieldRow}>
@@ -271,7 +350,8 @@ export default function GuardianScreen() {
                   <Text style={styles.fieldValue}>{data.area}</Text>
                 </View>
               </>
-            )}
+            ) : null}
+            {/* ── End live location block ──────────────────────────────── */}
 
             <View style={styles.divider} />
 
@@ -289,13 +369,20 @@ export default function GuardianScreen() {
 
             <Pressable
               style={styles.outlineBtn}
-              onPress={fetchJourney}
+              onPress={() => fetchJourney()}
               accessibilityRole="button"
               accessibilityLabel="Refresh journey status"
             >
               <Ionicons name="refresh-outline" size={16} color={c.navy} />
-              <Text style={styles.outlineBtnTxt}>Refresh</Text>
+              <Text style={styles.outlineBtnTxt}>Refresh now</Text>
             </Pressable>
+
+            {lastRefreshed && (
+              <Text style={styles.refreshedTxt}>
+                Updated {lastRefreshed.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                {' · '}auto-refreshes every 30 s
+              </Text>
+            )}
 
             <Text style={styles.disclosureNote}>
               You can see this journey because {data.traveller_display} added you to their trusted circle.
@@ -377,5 +464,57 @@ const styles = StyleSheet.create({
   disclosureNote: {
     fontFamily: theme.fonts.body, fontSize: 12, color: c.muted,
     lineHeight: 17, marginTop: 12, textAlign: 'center',
+  },
+
+  // ── Live badge ──────────────────────────────────────────────────────────────
+  liveBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#FFF0F0', borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 3, marginLeft: 'auto',
+  },
+  liveDot: {
+    width: 7, height: 7, borderRadius: 4,
+    backgroundColor: c.emergencyRed,
+  },
+  liveTxt: {
+    fontFamily: theme.fonts.bodyBold, fontSize: 10,
+    color: c.emergencyRed, letterSpacing: 0.8,
+  },
+
+  // ── Live location block ─────────────────────────────────────────────────────
+  locationBlock: {
+    backgroundColor: '#FFF8F8', borderRadius: 12, borderWidth: 1,
+    borderColor: '#FFCCCC', padding: 14, gap: 6,
+  },
+  locationHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+  },
+  locationTitle: {
+    fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.ink,
+  },
+  locationAge: {
+    marginLeft: 'auto', fontFamily: theme.fonts.body, fontSize: 11,
+    color: c.verifiedGreen,
+  },
+  locationAgeStale: { color: c.muted },
+  locationArea: {
+    fontFamily: theme.fonts.bodyMedium, fontSize: 15, color: c.ink,
+  },
+  locationCoords: {
+    fontFamily: theme.fonts.body, fontSize: 12, color: c.muted,
+    letterSpacing: 0.3,
+  },
+  mapsBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#E53935', borderRadius: 10,
+    paddingVertical: 9, paddingHorizontal: 16, alignSelf: 'flex-start', marginTop: 4,
+  },
+  mapsBtnTxt: {
+    fontFamily: theme.fonts.bodyBold, fontSize: 13, color: '#fff',
+  },
+
+  refreshedTxt: {
+    fontFamily: theme.fonts.body, fontSize: 11, color: c.muted,
+    textAlign: 'center', marginTop: 4,
   },
 });

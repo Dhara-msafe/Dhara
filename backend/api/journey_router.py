@@ -524,10 +524,20 @@ async def get_guardian_view(token: str, user: dict = Depends(current_user)):
     }
     if show_destination:
         body["destination"] = rec.get("destination")
-        # Area name only — no coordinates, accuracy or timestamp disclosed.
+        # Return location data (area name + coordinates) to authorised guardian.
         last_loc = rec.get("last_location")
-        if last_loc and last_loc.get("area"):
-            body["area"] = last_loc["area"]
+        if last_loc:
+            if last_loc.get("area"):
+                body["area"] = last_loc["area"]
+            # Include coordinates so the guardian can see a live map link.
+            if last_loc.get("lat") is not None and last_loc.get("lng") is not None:
+                body["last_location"] = {
+                    "lat":        last_loc["lat"],
+                    "lng":        last_loc["lng"],
+                    "accuracy":   last_loc.get("accuracy"),
+                    "area":       last_loc.get("area"),
+                    "updated_at": last_loc.get("updated_at"),
+                }
     return body
 
 

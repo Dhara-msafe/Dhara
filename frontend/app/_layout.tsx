@@ -74,7 +74,9 @@ function ConsentGuard() {
   const segments = useSegments();
 
   useEffect(() => {
-    if (loading || !segments.length || segments[0] === 'language' || segments[0] === 'consent' || segments[0] === 'emergency') return;
+    // 'guardian' handles its own auth state (shows sign-in prompt if unauthenticated)
+    // so it must not be redirected to /consent, especially for deep-linked recipients.
+    if (loading || !segments.length || segments[0] === 'language' || segments[0] === 'consent' || segments[0] === 'emergency' || segments[0] === 'guardian') return;
     let active = true;
     void (async () => {
       const stored = await AsyncStorage.getItem(consentVersionKey(user?.id)).catch(() => null);

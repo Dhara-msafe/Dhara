@@ -5,7 +5,10 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": ["dhara", "msafelegalaid"],
+    "scheme": [
+      "dhara",
+      "msafelegalaid"
+    ],
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
@@ -19,6 +22,7 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Keep guardian updated even when screen is off"
       },
       "associatedDomains": [
+        "applinks:bns-know-your-rights.emergent.host",
         "applinks:dhara-shield-2.preview.emergentagent.com"
       ]
     },
@@ -49,11 +53,14 @@
           "data": [
             {
               "scheme": "https",
-              "host": "dhara-shield-2.preview.emergentagent.com",
+              "host": "bns-know-your-rights.emergent.host",
               "pathPrefix": "/guardian"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
