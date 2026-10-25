@@ -17,7 +17,10 @@
         "NSPhotoLibraryUsageDescription": "Choose a profile photo or complaint evidence",
         "NSLocationWhenInUseUsageDescription": "Share your area with your guardian during Head Out",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Keep guardian updated even when screen is off"
-      }
+      },
+      "associatedDomains": [
+        "applinks:dhara-shield-2.preview.emergentagent.com"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -38,6 +41,20 @@
         "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_LOCATION"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "dhara-shield-2.preview.emergentagent.com",
+              "pathPrefix": "/guardian"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
       ]
     },
     "web": {

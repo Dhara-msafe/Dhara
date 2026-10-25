@@ -167,7 +167,7 @@ export default function GuardianScreen() {
             <Pressable
               testID="guardian-signin-btn"
               style={styles.primaryBtn}
-              onPress={() => router.push('/login')}
+              onPress={() => router.push({ pathname: '/login', params: { returnTo: `/guardian/${token}` } })}
               accessibilityRole="button"
               accessibilityLabel="Sign in to DHARA"
             >

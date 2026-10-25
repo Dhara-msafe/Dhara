@@ -375,6 +375,35 @@ async def health_ready():
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("gandhikar")
 
+# ── Guardian token log masking ─────────────────────────────────────────────────
+# Replaces the capability token in the two guardian routes with [TOKEN] before
+# any log record is emitted, so tokens never appear in supervisor log files.
+#   GET /api/journey/status/ABCDE12345       → .../status/[TOKEN]
+#   GET /api/journey/ABCDE12345/guardian     → .../[TOKEN]/guardian
+_GUARDIAN_LOG_RE = re.compile(
+    r"(/api/journey/(?:status/)?)([A-Za-z0-9_\-]{8,40})((?:/guardian)?)",
+    re.IGNORECASE,
+)
+
+class _GuardianTokenMaskFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        def _mask(s: str) -> str:
+            return _GUARDIAN_LOG_RE.sub(lambda m: f"{m.group(1)}[TOKEN]{m.group(3)}", s)
+        if isinstance(record.msg, str):
+            record.msg = _mask(record.msg)
+        if record.args:
+            if isinstance(record.args, dict):
+                record.args = {k: _mask(v) if isinstance(v, str) else v
+                               for k, v in record.args.items()}
+            elif isinstance(record.args, (list, tuple)):
+                record.args = tuple(_mask(a) if isinstance(a, str) else a
+                                    for a in record.args)
+        return True
+
+_gtmf = _GuardianTokenMaskFilter()
+logging.getLogger("uvicorn.access").addFilter(_gtmf)
+logging.getLogger("uvicorn").addFilter(_gtmf)
+
 # ---------- Models ----------
 class CheckoutIn(BaseModel):
     return_url: str

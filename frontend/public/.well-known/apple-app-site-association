@@ -1,0 +1,22 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "REPLACE_WITH_APPLE_TEAM_ID.com.msafesolutions.legalaid"
+        ],
+        "components": [
+          {
+            "/": "/guardian/*",
+            "comment": "Guardian deep-link screen — opens DHARA app directly"
+          }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "REPLACE_WITH_APPLE_TEAM_ID.com.msafesolutions.legalaid"
+    ]
+  }
+}

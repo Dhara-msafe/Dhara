@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, Link } from 'expo-router';
+import { useRouter, useLocalSearchParams, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
@@ -10,6 +10,11 @@ import { trackEvent } from '@/src/analytics';
 export default function Login() {
   const { login, loginWithGoogle, continueAsGuest, sessionExpired, clearSessionExpired } = useAuth();
   const router = useRouter();
+  // returnTo: deep-link callers (e.g. GuardianScreen) pass the screen the user
+  // should land on after signing in.  router.replace() removes the login screen
+  // from the back-stack so pressing Back doesn't loop through the login screen.
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
+  const _postLoginNav = () => router.replace((returnTo as any) || '/(tabs)/home');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -24,7 +29,7 @@ export default function Login() {
     setLoading(true);
     try {
       await login(email.trim(), password);
-      router.replace('/(tabs)/home');
+      _postLoginNav();
     } catch (e: any) {
       setError(e?.message || 'Login failed');
     } finally {
@@ -38,7 +43,7 @@ export default function Login() {
     setGoogleLoading(true);
     try {
       await loginWithGoogle();
-      router.replace('/(tabs)/home');
+      _postLoginNav();
     } catch (e: any) {
       setError(e?.message || 'Google sign-in failed');
     } finally {
@@ -53,7 +58,7 @@ export default function Login() {
     try {
       await continueAsGuest();
       trackEvent('guest_started');
-      router.replace('/(tabs)/home');
+      _postLoginNav();
     } catch (e: any) {
       setError(e?.message || 'Could not start guest session');
     } finally {
