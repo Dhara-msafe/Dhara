@@ -132,8 +132,14 @@ export async function whisperTranscribeFile(
     const extension = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm';
     form.append('audio', blob, `audio.${extension}`);
   } else {
-    // @ts-expect-error RN FormData file
-    form.append('audio', { uri, name: 'audio.m4a', type: 'audio/m4a' });
+    // On native, use expo/fetch to read the file:// URI into a real Blob.
+    // The old { uri, name, type } shorthand throws
+    // "Unsupported FormDataPart implementation" on real Android devices that
+    // use expo's native fetch implementation.
+    const { fetch: expoFetch } = await import('expo/fetch');
+    const fileBlob = await (await expoFetch(uri)).blob();
+    // @ts-ignore — RN FormData accepts (Blob, filename)
+    form.append('audio', fileBlob, 'audio.m4a');
   }
   if (languageHint) form.append('language', languageHint);
 

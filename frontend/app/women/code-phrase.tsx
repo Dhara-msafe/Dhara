@@ -1,18 +1,39 @@
 import { useEffect, useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '@/src/theme';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { getStoredPhrase, storePhrase } from '@/src/women/codePhraseStore';
+import { useAuth } from '@/src/auth';
 
 const c = theme.colors;
+
+// SOS phrase suggestions (emergency trigger)
 const SUGGESTIONS = ['Can you bring the blue umbrella?', 'Did you feed the cat today?', 'Is grandma\u2019s recipe ready?'];
 
+// Discreet-screen phrase suggestions (privacy trigger — different from SOS)
+const HIDE_SUGGESTIONS = [
+  'Has anyone called from home today?',
+  'What time is the doctor\u2019s appointment?',
+  'Can you check on the kids?',
+];
+
 export default function CodePhrase() {
+  const { user } = useAuth();
+  const scope = user?.id || 'device';
+
+  // ── SOS phrase (Phase 1 — triggers emergency sequence) ──────────────────────
   const [phrase, setPhrase] = useState('');
   const [saved, setSaved] = useState(false);
-  const [armed, setArmed] = useState<boolean | null>(null); // null = loading
+  const [armed, setArmed] = useState<boolean | null>(null);
 
+  // ── Discreet-screen phrase (D1-V — activates privacy masking) ───────────────
+  const [hidePhrase, setHidePhrase] = useState('');
+  const [hideSaved, setHideSaved] = useState(false);
+  const [hideArmed, setHideArmed] = useState<boolean | null>(null);
+
+  // Load SOS phrase
   useEffect(() => {
     getStoredPhrase().then(p => {
       setPhrase(p);
@@ -20,6 +41,16 @@ export default function CodePhrase() {
     });
   }, []);
 
+  // Load discreet-screen phrase
+  useEffect(() => {
+    AsyncStorage.getItem(`ws_hide_screen_v1_${scope}`).then(p => {
+      const v = p ?? '';
+      setHidePhrase(v);
+      setHideArmed(v.trim().length > 0);
+    });
+  }, [scope]);
+
+  // ── SOS phrase actions ───────────────────────────────────────────────────────
   const save = async () => {
     await storePhrase(phrase.trim());
     const nowArmed = phrase.trim().length > 0;
@@ -34,6 +65,29 @@ export default function CodePhrase() {
     setArmed(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  // ── Discreet-screen phrase actions ──────────────────────────────────────────
+  const saveHide = async () => {
+    const v = hidePhrase.trim();
+    if (v) {
+      await AsyncStorage.setItem(`ws_hide_screen_v1_${scope}`, v);
+    } else {
+      await AsyncStorage.removeItem(`ws_hide_screen_v1_${scope}`);
+    }
+    setHideArmed(v.length > 0);
+    setHideSaved(true);
+    setTimeout(() => setHideSaved(false), 2000);
+  };
+
+  const clearHide = async () => {
+    setHidePhrase('');
+    await AsyncStorage.removeItem(`ws_hide_screen_v1_${scope}`);
+    // Also clear the active flag so the cover doesn't stay on
+    await AsyncStorage.removeItem(`ws_discreet_active_v1_${scope}`);
+    setHideArmed(false);
+    setHideSaved(true);
+    setTimeout(() => setHideSaved(false), 2000);
   };
 
   return (

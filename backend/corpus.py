@@ -180,6 +180,11 @@ CORPUS = [
             "police complaint", "police station complaint", "report crime", "report to police",
             "refuse fir", "fir refused", "police refused fir", "zero fir", "online fir",
             "copy of fir", "free copy fir", "fir procedure", "fir cognizable",
+            "police not writing fir", "police won't write fir", "police wont write fir",
+            "won't write fir", "not writing fir", "refusing to write fir",
+            "not registering fir", "refusing to register fir", "police not taking complaint",
+            "police not registering complaint", "police refuse to write",
+            "police refuse register", "police not accepting fir", "police denying fir",
         ],
     },
     {

@@ -1629,7 +1629,11 @@ async def whisper_transcribe(audio: UploadFile, language: Optional[str]) -> dict
             if lang_hint and (
                 "unsupported_language" in err_msg
                 or "unsupported language" in err_msg
-                or "400" in err_msg and "language" in err_msg
+                or "invalid_language" in err_msg
+                or "invalid language" in err_msg
+                or ("400" in err_msg and "language" in err_msg)
+                or ("422" in err_msg and "language" in err_msg)
+                or ("language" in err_msg and ("not supported" in err_msg or "not valid" in err_msg))
             ):
                 logger.info(
                     "Whisper rejected language hint '%s' — retrying without hint",

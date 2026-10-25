@@ -77,6 +77,17 @@ _SYNONYMS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"\b(?:beat|beaten|hit|punched|slapped|kicked|attacked)\s+(?:me|him|her|us|them)\b", re.I),
                                                                           "assault hurt voluntarily causing hurt criminal force"),
     (re.compile(r"\bphysically\s+(?:abused|hurt|injured|attacked)\b", re.I), "assault hurt voluntarily causing hurt"),
+    # FIR refusal — colloquial variants ("won't write", "not taking", "not registering",
+    # "refuse to register") that contain no keyword shared with bnss_173 beyond "fir".
+    # Appending the statutory vocabulary restores the overlap to ≥ 4 score.
+    (re.compile(
+        r"\b(?:police|officer|station|thana|thane)\b.*\b(?:won.?t|not|refus(?:e[sd]?|ing)|den(?:y|ied)|not\s+willing|not\s+taking|not\s+writing|not\s+registering)\b.*\b(?:fir|complaint|case)\b",
+        re.I,
+    ), "refuse fir register fir police refused fir lodge fir"),
+    (re.compile(
+        r"\b(?:won.?t|not|refus(?:e[sd]?|ing)|den(?:y|ied))\b.*\b(?:write|register|lodge|take|file|record)\b.*\bfir\b",
+        re.I,
+    ), "refuse fir register fir police refused fir lodge fir"),
 ]
 
 
