@@ -112,11 +112,20 @@ def _sanitize_location(payload: dict, link: Optional[dict], journey: Optional[di
     a missing link, a non-accepted link, or missing/unsupported permission
     metadata are all treated as "not permitted" — never assume sharing is
     allowed. Scoped narrowly to the `last_location` sub-object (lat, lng,
-    accuracy, area, age_minutes, and any other nested fields it carries).
+    accuracy, area, age_minutes, and any other nested fields it carries)
+    and the top-level `destination` field.
+
+    PR-1B-A: destination is location data — it is stored as a raw address or
+    place name and must be gated by the same temp_location consent check as
+    exact coordinates. Previously it was returned unconditionally to any
+    authenticated recipient who could read the alert, bypassing the consent
+    gate. It is now stripped alongside last_location whenever exact-location
+    permission is not currently granted.
     """
     sanitized = dict(payload or {})
     if not _exact_location_permission_live(link, journey):
         sanitized.pop("last_location", None)
+        sanitized.pop("destination", None)   # PR-1B-A: destination is location data
     return sanitized
 
 
