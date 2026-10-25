@@ -177,14 +177,84 @@ CORPUS = [
         "keywords": [
             "bnss 173", "section 173 bnss", "fir", "file fir", "filing fir", "how to file fir",
             "how file fir", "lodge fir", "register fir", "first information report",
+            "how do i file", "how do i lodge", "how do i register fir",
+            "how can i file fir", "file an fir", "file a fir", "lodge an fir",
+            "what is fir", "what is an fir", "what is zero fir", "about fir",
             "police complaint", "police station complaint", "report crime", "report to police",
             "refuse fir", "fir refused", "police refused fir", "zero fir", "online fir",
-            "copy of fir", "free copy fir", "fir procedure", "fir cognizable",
+            "fir procedure", "fir cognizable",
             "police not writing fir", "police won't write fir", "police wont write fir",
             "won't write fir", "not writing fir", "refusing to write fir",
             "not registering fir", "refusing to register fir", "police not taking complaint",
             "police not registering complaint", "police refuse to write",
             "police refuse register", "police not accepting fir", "police denying fir",
+        ],
+        # REQUIRE_ANY gate: bnss_173 covers the FIR registration right.  Pure positive
+        # confirmations ("Police registered my FIR") contain "police" + "fir" but zero
+        # action/problem/process signal.  This gate prevents the refusal-framed scope_note
+        # from surfacing on those queries while keeping it for every legitimate use-case:
+        # refusal reports, how-to process questions, and follow-up "what next?" questions.
+        "require_any": [
+            # Refusal / problem signals
+            "refuse", "refus", "won t", "wont",
+            "not regist", "not write", "not taking", "not accept",
+            "denying", "denied",
+            # Process / how-to queries
+            "how to", "how do", "how can", "how file",
+            "what is", "what are", "what should", "can i",
+            # FIR action verbs (user intends to file)
+            "file", "lodge", "report", "complaint",
+            # FIR-specific process terms
+            "zero fir", "online fir", "fir procedure", "first information", "cognizable",
+            # Copy-adjacent (user mentions copy together with registration)
+            "copy", "free copy",
+            # Temporal follow-up ("after fir is registered, what next?")
+            "after", "next step", "following",
+            # Direct section references
+            "section 173", "bnss 173",
+        ],
+    },
+    {
+        # ACTION-STEP DISTINCTNESS: bnss_173(2) — the FREE COPY right.
+        # Splitting the copy scenario into its own entry gives a distinct short_label
+        # ("BNSS 173(2)") and a scope_note that focuses on the copy right rather than
+        # registration.  This prevents "Registration Refusal" and "Copy Refusal"
+        # answers from blurring their source identity.
+        "key": "bnss_173_copy",
+        "citation": "Bharatiya Nagarik Suraksha Sanhita 2023, Section 173(2) — Free copy of FIR",
+        "short_label": "BNSS 173(2)",
+        "act": "BNSS",
+        "official_text": (
+            "(2) A copy of the information as recorded under sub-section (1) shall be given "
+            "forthwith, free of cost, to the informant."
+        ),
+        "source_url": "https://www.indiacode.nic.in/handle/123456789/20099",
+        "verified_at": "2026-01-15",
+        "scope_note": (
+            "BNSS 173(2) guarantees your RIGHT TO A FREE COPY of your FIR. The moment your "
+            "complaint is recorded, the police must hand you a copy immediately and at no "
+            "charge. Demanding a fee for the copy, delaying it, or refusing it outright are "
+            "all violations of this right.  You can insist on the spot — or escalate to the "
+            "Superintendent of Police."
+        ),
+        "keywords": [
+            "bnss 173", "bnss 173(2)", "section 173(2) bnss", "section 173 bnss",
+            "copy of fir", "free copy fir", "fir copy", "copy fir", "fir copy free",
+            "copy of my fir", "copy of the fir", "copy of your fir",
+            "give me a copy", "give copy of fir", "give the copy",
+            "give me copy", "not giving copy", "refused copy", "refusing copy",
+            "police not giving copy", "police refusing to give", "police refusing copy fir",
+            "copy of complaint", "copy of report", "copy of my complaint",
+            "free of cost fir", "free fir copy", "charged for fir", "pay for fir",
+            "right to copy fir", "right to free copy",
+            "won't give copy", "wont give copy", "not giving fir copy",
+            "police not giving fir", "police won't give fir", "police wont give fir",
+        ],
+        # Require at least one copy-related signal to distinguish this entry from
+        # the registration entry above.
+        "require_any": [
+            "copy", "cop",
+            "section 173", "bnss 173",
         ],
     },
     {

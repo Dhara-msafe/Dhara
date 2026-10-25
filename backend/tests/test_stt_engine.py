@@ -247,3 +247,144 @@ class TestTranscribeWithRetry:
         assert r1["text"] == "result-1"
         assert r2["text"] == "result-2"
         assert call_n == 2, "each call must be independent — no shared state"
+
+
+
+# ── Tamil language acceptance tests ──────────────────────────────────────────
+#
+# Physical-device acceptance contract (NOT RUN here — require a native build):
+#   TA-N1  Real Tamil audio recorded on an Android device passes through the
+#          production Blob → multipart → /api/voice/transcribe pipeline.
+#   TA-N2  The `language: "ta-IN"` BCP-47 tag sent by the frontend is correctly
+#          normalised to "ta" by the backend before reaching Whisper.
+#   TA-N3  Whisper returns recognisable Tamil text (Unicode script) for a 2s
+#          Tamil utterance recorded on the test device.
+#   TA-N4  On Samsung devices (where native SpeechRecognizer silently fails),
+#          the WhisperCloudSTT path is used and Tamil text is returned correctly.
+#   TA-N5  Background noise common in Indian domestic environments does not
+#          cause the retry path to misfire (false "unsupported language" signal).
+
+class TestTamilAcceptancePath:
+    """Acceptance tests for the Tamil voice transcription path.
+
+    These exercise the PRODUCTION stt_engine functions with Tamil-specific
+    inputs.  They complement the generic TestTranscribeWithRetry suite by
+    verifying Tamil-specific normalisation, hint-set membership, and the
+    exact retry sequence that fires when Whisper rejects the "ta" hint.
+    """
+
+    # TA-1: Tamil BCP-47 variants normalise to the bare ISO 639-1 code
+    def test_ta1_bcp47_ta_in_normalises_to_ta(self):
+        assert normalize_language("ta-IN") == "ta"
+
+    def test_ta2_bcp47_ta_lk_normalises_to_ta(self):
+        assert normalize_language("ta-LK") == "ta"
+
+    def test_ta3_uppercase_TA_normalises_to_ta(self):
+        assert normalize_language("TA") == "ta"
+
+    # TA-4: Tamil is in the production WHISPER_HINT_SET (first attempt uses hint)
+    def test_ta4_ta_in_whisper_hint_set(self):
+        assert "ta" in WHISPER_HINT_SET, (
+            "Tamil must be in WHISPER_HINT_SET so the first transcription call "
+            "always sends language='ta' rather than auto-detect"
+        )
+
+    # TA-5: Successful Tamil transcription — Whisper accepts "ta"
+    @pytest.mark.asyncio
+    async def test_ta5_tamil_hint_success_single_call(self):
+        """When Whisper accepts "ta", no retry should occur."""
+        tamil_text = "அவர்கள் என் புகாரை எழுத மறுத்தனர்"  # "They refused to write my complaint"
+        client = make_client(text=tamil_text)
+        result = await transcribe_with_retry(AUDIO, FNAME, CTYPE, "ta-IN", client)
+        assert result["text"] == tamil_text
+        assert client.audio.transcriptions.create.call_count == 1, (
+            "A single call with language='ta' should suffice when Whisper accepts it"
+        )
+        call_kwargs = client.audio.transcriptions.create.call_args.kwargs
+        assert call_kwargs.get("language") == "ta"
+
+    # TA-6: Tamil retry path — Whisper rejects "ta" → retry without hint
+    @pytest.mark.asyncio
+    async def test_ta6_unsupported_language_ta_retries_without_hint(self):
+        """If Whisper returns an 'unsupported language' error for Tamil, the
+        engine retries once without the language hint (auto-detect)."""
+        calls = []
+        async def _create(**kwargs):
+            calls.append(kwargs.get("language"))
+            if kwargs.get("language") == "ta":
+                raise Exception("unsupported_language for ta")
+            r = MagicMock(); r.text = "auto-detected Tamil text"
+            return r
+        client = MagicMock()
+        client.audio.transcriptions.create = _create
+
+        result = await transcribe_with_retry(AUDIO, FNAME, CTYPE, "ta-IN", client)
+
+        assert len(calls) == 2, "must retry exactly once"
+        assert calls[0] == "ta",  "first call must use the normalised Tamil hint"
+        assert calls[1] is None,  "retry call must NOT pass a language hint"
+        assert result["text"] == "auto-detected Tamil text"
+
+    # TA-7: Tamil invalid_language signal also triggers retry
+    @pytest.mark.asyncio
+    async def test_ta7_invalid_language_ta_retries_without_hint(self):
+        calls = []
+        async def _create(**kwargs):
+            calls.append(kwargs.get("language"))
+            if kwargs.get("language") == "ta":
+                raise Exception("invalid_language code ta")
+            r = MagicMock(); r.text = "fallback text"
+            return r
+        client = MagicMock()
+        client.audio.transcriptions.create = _create
+
+        result = await transcribe_with_retry(AUDIO, FNAME, CTYPE, "ta", client)
+
+        assert calls[0] == "ta"
+        assert calls[1] is None
+        assert result["text"] == "fallback text"
+
+    # TA-8: 400 response with "language" in the message triggers Tamil retry
+    @pytest.mark.asyncio
+    async def test_ta8_400_with_language_triggers_retry(self):
+        calls = []
+        async def _create(**kwargs):
+            calls.append(kwargs.get("language"))
+            if kwargs.get("language") == "ta":
+                raise Exception("400 Bad Request: language parameter invalid")
+            r = MagicMock(); r.text = "ok"
+            return r
+        client = MagicMock()
+        client.audio.transcriptions.create = _create
+
+        await transcribe_with_retry(AUDIO, FNAME, CTYPE, "ta-IN", client)
+        assert len(calls) == 2
+
+    # TA-9: Both Tamil attempts fail → propagate error, do not swallow it
+    @pytest.mark.asyncio
+    async def test_ta9_both_attempts_fail_raises(self):
+        async def _create(**kwargs):
+            if kwargs.get("language") == "ta":
+                raise Exception("unsupported language ta")
+            raise Exception("audio_too_short")
+        client = MagicMock()
+        client.audio.transcriptions.create = _create
+
+        with pytest.raises(Exception, match="audio_too_short"):
+            await transcribe_with_retry(AUDIO, FNAME, CTYPE, "ta-IN", client)
+
+    # TA-10: Non-language Tamil error does NOT trigger retry (e.g., audio_too_short)
+    @pytest.mark.asyncio
+    async def test_ta10_non_language_error_with_ta_hint_does_not_retry(self):
+        calls = []
+        async def _create(**kwargs):
+            calls.append(kwargs)
+            raise Exception("audio_too_short")
+        client = MagicMock()
+        client.audio.transcriptions.create = _create
+
+        with pytest.raises(Exception, match="audio_too_short"):
+            await transcribe_with_retry(AUDIO, FNAME, CTYPE, "ta-IN", client)
+
+        assert len(calls) == 1, "audio_too_short must NOT trigger a Tamil retry"
