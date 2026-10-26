@@ -1,7 +1,7 @@
 import { Stack, useRouter, useSegments, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { Component, ErrorInfo, ReactNode, useCallback, useEffect, useRef } from "react";
-import { LogBox, Pressable, Text, View, useWindowDimensions, Platform } from "react-native";
+import React, { Component, ErrorInfo, ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { LogBox, Pressable, Text, View, useWindowDimensions, Platform, Modal } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -20,6 +20,7 @@ import { EvidenceRecorderProvider } from "@/src/women/EvidenceRecorderProvider";
 import { initSpeechGate } from "@/src/voice/speechGate";
 import { usePreventScreenCapture } from "expo-screen-capture";
 import { useShakeDetector } from "@/src/women/shakeActivation";
+import { CalcPro } from "@/src/women/CalcPro";
 import {
   POSTHOG_API_KEY,
   POSTHOG_OPTIONS,
@@ -167,10 +168,10 @@ function ScreenCaptureLock() {
   // expo-screen-capture throws UnavailabilityError on web — only render the
   // native lock on a native platform.
   if (Platform.OS === 'web') return null;
-  return <_NativeCaptureLock />;
+  return <NativeCaptureLock />;
 }
 /** Inner component so the hook runs only when rendered (i.e. on native). */
-function _NativeCaptureLock() {
+function NativeCaptureLock() {
   usePreventScreenCapture();
   return null;
 }
@@ -216,6 +217,35 @@ function NotificationTapBridge() {
   return null;
 }
 
+/**
+ * CalcLockGate — renders the "Calc Pro" disguise calculator as a full-screen
+ * Modal on every cold launch (app killed + reopened).
+ *
+ * The gate does NOT re-lock on background/foreground transitions so the user
+ * can switch apps freely once unlocked. Re-locking only happens when the
+ * component unmounts (i.e. the process is killed and restarted).
+ *
+ * Unlock: type the PIN (default "5765") and press "=".
+ */
+function CalcLockGate({ children }: { children: ReactNode }) {
+  const [locked, setLocked] = useState(true);
+
+  return (
+    <>
+      {children}
+      <Modal
+        visible={locked}
+        animationType="none"
+        statusBarTranslucent
+        hardwareAccelerated
+        onRequestClose={() => { /* back button must not dismiss */ }}
+      >
+        <CalcPro onUnlock={() => setLocked(false)} />
+      </Modal>
+    </>
+  );
+}
+
 export default function RootLayout() {
   const [iconsLoaded, iconError] = useIconFonts();
   const [brandLoaded, brandError] = useAppFonts();
@@ -248,6 +278,7 @@ export default function RootLayout() {
   return (
     <RootErrorBoundary>
       <SafeAreaProvider>
+        <CalcLockGate>
         <KeyboardProvider preserveEdgeToEdge>
           {/* PostHogProvider must wrap AuthProvider so PostHogBridge can reach
               the client while AuthProvider still owns the user state. */}
@@ -281,6 +312,7 @@ export default function RootLayout() {
             </AuthProvider>
           </PostHogProvider>
         </KeyboardProvider>
+        </CalcLockGate>
       </SafeAreaProvider>
     </RootErrorBoundary>
   );
