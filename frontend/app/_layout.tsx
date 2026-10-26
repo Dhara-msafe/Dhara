@@ -1,7 +1,7 @@
 import { Stack, useRouter, useSegments, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { Component, ErrorInfo, ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { LogBox, Pressable, Text, View, useWindowDimensions, Platform, Modal } from "react-native";
+import React, { Component, ErrorInfo, ReactNode, useCallback, useEffect, useRef } from "react";
+import { LogBox, Pressable, Text, View, useWindowDimensions, Platform } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -20,7 +20,6 @@ import { EvidenceRecorderProvider } from "@/src/women/EvidenceRecorderProvider";
 import { initSpeechGate } from "@/src/voice/speechGate";
 import { usePreventScreenCapture } from "expo-screen-capture";
 import { useShakeDetector } from "@/src/women/shakeActivation";
-import { CalcPro } from "@/src/women/CalcPro";
 import {
   POSTHOG_API_KEY,
   POSTHOG_OPTIONS,
@@ -218,35 +217,8 @@ function NotificationTapBridge() {
 }
 
 /**
- * CalcLockGate — renders the "Calc Pro" disguise calculator as a full-screen
- * Modal on every cold launch (app killed + reopened).
- *
- * The gate does NOT re-lock on background/foreground transitions so the user
- * can switch apps freely once unlocked. Re-locking only happens when the
- * component unmounts (i.e. the process is killed and restarted).
- *
- * Unlock: type the PIN (default "5765") and press "=".
+ * CalcLockGate removed — see CalcPro.tsx if you want to restore it.
  */
-function CalcLockGate({ children }: { children: ReactNode }) {
-  // Calculator disguise is a mobile-only privacy feature.
-  // Skip the lock on web so the preview panel is never blocked.
-  const [locked, setLocked] = useState(Platform.OS !== 'web');
-
-  return (
-    <>
-      {children}
-      <Modal
-        visible={locked}
-        animationType="none"
-        statusBarTranslucent
-        hardwareAccelerated
-        onRequestClose={() => { /* back button must not dismiss */ }}
-      >
-        <CalcPro onUnlock={() => setLocked(false)} />
-      </Modal>
-    </>
-  );
-}
 
 export default function RootLayout() {
   const [iconsLoaded, iconError] = useIconFonts();
@@ -280,7 +252,6 @@ export default function RootLayout() {
   return (
     <RootErrorBoundary>
       <SafeAreaProvider>
-        <CalcLockGate>
         <KeyboardProvider preserveEdgeToEdge>
           {/* PostHogProvider must wrap AuthProvider so PostHogBridge can reach
               the client while AuthProvider still owns the user state. */}
@@ -314,7 +285,6 @@ export default function RootLayout() {
             </AuthProvider>
           </PostHogProvider>
         </KeyboardProvider>
-        </CalcLockGate>
       </SafeAreaProvider>
     </RootErrorBoundary>
   );
