@@ -4,6 +4,8 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { API_BASE as API } from './apiBase';
+// B002 fix: keep cover state clean across sign-in / sign-out transitions
+import { deactivateCover } from './women/coverState';
 
 // Required for iOS to properly complete the auth session
 WebBrowser.maybeCompleteAuthSession();
@@ -133,6 +135,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const persist = async (t: string, u: User) => {
+    // B002 fix: clear the *previous* session's cover flag before switching
+    // identity. Handles guest→auth, auth→guest, and auth-A→auth-B transitions.
+    // Uses _activeUserIdCache (synchronous, always current) to avoid any
+    // async gap where a concurrent session-switch could read a stale value.
+    const prevScope = _activeUserIdCache || 'device';
+    const newScope  = u.id  || 'device';
+    if (prevScope !== newScope) {
+      try { await deactivateCover(prevScope); } catch { /* best-effort */ }
+    }
     // Update the synchronous identity cache FIRST, before any async
     // AsyncStorage I/O — see its own doc comment for why this ordering
     // matters (atomic capture for any concurrent on-device-storage read).
@@ -219,11 +230,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    // B002 fix: capture the departing user's scope BEFORE clearing the cache,
+    // then deactivate their cover flag so it does not persist to the next session.
+    const prevScope = _activeUserIdCache || 'device';
     // Update the synchronous identity cache FIRST (see its doc comment) —
     // any on-device storage read/write that starts AFTER this line sees
     // "nobody signed in" immediately, even before the AsyncStorage
     // multiRemove below actually finishes.
     _setActiveUserIdCache(null);
+    // Best-effort: clear the departing user's cover flag (B002 fix)
+    try { await deactivateCover(prevScope); } catch { /* non-blocking */ }
     // P0-Fix1e: clear FIR session data on logout
     await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY, 'fir_draft_state', 'gk_fir_session']);
     setToken(null);
