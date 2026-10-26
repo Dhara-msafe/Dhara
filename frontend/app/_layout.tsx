@@ -228,7 +228,9 @@ function NotificationTapBridge() {
  * Unlock: type the PIN (default "5765") and press "=".
  */
 function CalcLockGate({ children }: { children: ReactNode }) {
-  const [locked, setLocked] = useState(true);
+  // Calculator disguise is a mobile-only privacy feature.
+  // Skip the lock on web so the preview panel is never blocked.
+  const [locked, setLocked] = useState(Platform.OS !== 'web');
 
   return (
     <>
