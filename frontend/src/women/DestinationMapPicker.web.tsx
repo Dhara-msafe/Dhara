@@ -1,165 +1,160 @@
 /**
- * DestinationMapPicker — web implementation (OpenStreetMap via Leaflet).
+ * DestinationMapPicker — web implementation (Google Maps JavaScript API).
  *
- * Isolated synthetic pilot (see DestinationPicker.tsx for full scope notes).
- * Renders public OSM tiles with a single draggable pin and a radius circle.
- * No geocoding, no address search, no Google Places/Routes calls are made —
- * the pin's position is only ever set by the user dragging it or tapping
- * the map. The starting position is a generic, clearly-labelled demo point,
- * never derived from device location or any search/geocoding API.
+ * Replaced from the previous OpenStreetMap/Leaflet implementation.
+ * Uses @react-google-maps/api with EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY.
  *
- * IMPORTANT: `leaflet` reads `window` at module-evaluation time, which
- * crashes Expo Router's web SSR pass (no `window` on the server) for every
- * route, not just this one. To avoid that, the leaflet/react-leaflet
- * modules are loaded lazily inside a `useEffect` (client-only — effects
- * never run during SSR), never via a top-level `import`.
+ * Features:
+ *  • Draggable destination pin
+ *  • Radius circle showing the planned arrival area
+ *  • Tap-to-move pin
+ *  • Responds to recenterKey prop for saved-place selection
+ *
+ * Privacy contract:
+ *  • No device GPS is ever requested or read.
+ *  • Starting position uses parent-supplied coords or the New Delhi demo point.
+ *  • No geocoding or address lookup is performed.
+ *
+ * LoadScript is lazy (only loads the Maps JS bundle when this component
+ * mounts) and cached across re-renders so the script is fetched once per
+ * session regardless of how many instances render.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import 'leaflet/dist/leaflet.css';
+import {
+  GoogleMap,
+  LoadScript,
+  Marker,
+  Circle,
+} from '@react-google-maps/api';
 import { theme } from '@/src/theme';
+import { isValidCoord, isValidRadius } from '@/src/utils/mapValidation';
 
 const c = theme.colors;
 
-// Generic demo centre (New Delhi) used only until a pin position exists.
-// Never derived from device GPS or any search/geocoding API.
-const DEMO_CENTER: [number, number] = [28.6139, 77.209];
+// Generic demo centre (New Delhi) — never from device GPS.
+const DEMO_LAT = 28.6139;
+const DEMO_LNG = 77.209;
 
-interface Props {
+const WEB_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY ?? '';
+
+const MAP_CONTAINER_STYLE = { width: '100%', height: '220px', borderRadius: '14px' };
+
+const MAP_OPTIONS: google.maps.MapOptions = {
+  disableDefaultUI: true,
+  zoomControl: true,
+  clickableIcons: false,
+};
+
+const CIRCLE_OPTIONS: google.maps.CircleOptions = {
+  fillColor: '#1A3F74',
+  fillOpacity: 0.12,
+  strokeColor: '#1A3F74',
+  strokeOpacity: 0.55,
+  strokeWeight: 1.5,
+  clickable: false,
+};
+
+export interface Props {
   latitude: number | null;
   longitude: number | null;
   radiusMeters: number;
   onPositionChange: (lat: number, lng: number) => void;
-  /** Change this value to force the map to recentre (e.g. a different saved place was picked). */
   recenterKey?: string | number;
   testID?: string;
 }
 
-type LeafletModules = {
-  MapContainer: any; TileLayer: any; Marker: any; Circle: any; useMapEvents: any; L: any;
-};
+export function DestinationMapPicker({
+  latitude,
+  longitude,
+  radiusMeters,
+  onPositionChange,
+  recenterKey,
+  testID,
+}: Props) {
+  const hasPin = isValidCoord(latitude, longitude);
+  const initLat = hasPin ? latitude! : DEMO_LAT;
+  const initLng = hasPin ? longitude! : DEMO_LNG;
 
-let cachedModules: LeafletModules | null = null;
+  const [markerPos, setMarkerPos] = useState<google.maps.LatLngLiteral>({ lat: initLat, lng: initLng });
+  const mapRef = useRef<google.maps.Map | null>(null);
 
-function loadLeaflet(): Promise<LeafletModules> {
-  if (cachedModules) return Promise.resolve(cachedModules);
-  return Promise.all([
-    import('react-leaflet'),
-    import('leaflet'),
-  ]).then(([rl, Lmod]) => {
-    const L = (Lmod as any).default ?? Lmod;
-    cachedModules = {
-      MapContainer: rl.MapContainer,
-      TileLayer: rl.TileLayer,
-      Marker: rl.Marker,
-      Circle: rl.Circle,
-      useMapEvents: rl.useMapEvents,
-      L,
-    };
-    return cachedModules;
-  });
-}
-
-export function DestinationMapPicker(props: Props) {
-  const [mods, setMods] = useState<LeafletModules | null>(cachedModules);
-
+  // Re-centre map when recenterKey changes (saved place selected by parent)
   useEffect(() => {
-    let active = true;
-    if (!mods) {
-      loadLeaflet().then(m => { if (active) setMods(m); }).catch((err) => {
-        console.error('[DestinationMapPicker] failed to load leaflet:', err);
-      });
-    }
-    return () => { active = false; };
+    const lat = isValidCoord(latitude, longitude) ? latitude! : DEMO_LAT;
+    const lng = isValidCoord(latitude, longitude) ? longitude! : DEMO_LNG;
+    setMarkerPos({ lat, lng });
+    mapRef.current?.panTo({ lat, lng });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [recenterKey]);
 
-  if (!mods) {
+  const handleMapClick = useCallback(
+    (e: google.maps.MapMouseEvent) => {
+      if (!e.latLng) return;
+      const lat = e.latLng.lat();
+      const lng = e.latLng.lng();
+      if (!isValidCoord(lat, lng)) return;
+      setMarkerPos({ lat, lng });
+      onPositionChange(lat, lng);
+    },
+    [onPositionChange],
+  );
+
+  const handleDragEnd = useCallback(
+    (e: google.maps.MapMouseEvent) => {
+      if (!e.latLng) return;
+      const lat = e.latLng.lat();
+      const lng = e.latLng.lng();
+      if (!isValidCoord(lat, lng)) return;
+      setMarkerPos({ lat, lng });
+      onPositionChange(lat, lng);
+    },
+    [onPositionChange],
+  );
+
+  if (!WEB_API_KEY) {
     return (
-      <View style={styles.wrap} testID={props.testID ?? 'destination-map-picker'}>
-        <View style={styles.loadingBox}>
-          <Text style={styles.hint}>Loading map preview…</Text>
+      <View style={styles.wrap} testID={testID ?? 'destination-map-picker'}>
+        <View style={styles.fallback}>
+          <Text style={styles.hint}>Map unavailable — web API key not configured.</Text>
         </View>
       </View>
     );
   }
 
-  return <LeafletMap {...props} mods={mods} />;
-}
-
-function LeafletMap({
-  latitude, longitude, radiusMeters, onPositionChange, recenterKey, testID, mods,
-}: Props & { mods: LeafletModules }) {
-  const { MapContainer, TileLayer, Marker, Circle, useMapEvents, L } = mods;
-  const hasPin = latitude != null && longitude != null;
-
-  const pinIcon = useMemo(() => L.divIcon({
-    className: 'dp-pin-icon',
-    html: '<div style="width:26px;height:26px;border-radius:50% 50% 50% 0;background:#1A3F74;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.45);"></div>',
-    iconSize: [26, 26],
-    iconAnchor: [13, 26],
-  }), [L]);
-
-  // Only used to (re)seed the map's initial view — changing it remounts the
-  // map (via the `key` below) so the view recentres on an explicit pick.
-  const initial = useMemo<[number, number]>(
-    () => (hasPin ? [latitude as number, longitude as number] : DEMO_CENTER),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [recenterKey],
-  );
-
-  const [pos, setPos] = useState<[number, number]>(initial);
-  useEffect(() => { setPos(initial); }, [initial]);
-
-  const handleMove = useCallback((lat: number, lng: number) => {
-    setPos([lat, lng]);
-    onPositionChange(lat, lng);
-  }, [onPositionChange]);
-
-  function ClickToMove() {
-    useMapEvents({
-      click(e: any) { handleMove(e.latlng.lat, e.latlng.lng); },
-    });
-    return null;
-  }
-
   return (
-    <View testID={testID ?? 'destination-map-picker'} style={styles.wrap}>
-      <div style={{ height: 220, width: '100%', borderRadius: 14, overflow: 'hidden' }}>
-        <MapContainer
-          key={String(recenterKey ?? 'default')}
-          center={initial}
+    <View style={styles.wrap} testID={testID ?? 'destination-map-picker'}>
+      <LoadScript googleMapsApiKey={WEB_API_KEY} loadingElement={
+        <View style={styles.fallback}><Text style={styles.hint}>Loading map…</Text></View>
+      }>
+        <GoogleMap
+          mapContainerStyle={MAP_CONTAINER_STYLE}
+          center={markerPos}
           zoom={15}
-          style={{ height: '100%', width: '100%' }}
-          scrollWheelZoom={false}
+          options={MAP_OPTIONS}
+          onClick={handleMapClick}
+          onLoad={(map) => { mapRef.current = map; }}
         >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
           <Marker
-            position={pos}
-            icon={pinIcon}
+            position={markerPos}
             draggable
-            eventHandlers={{
-              dragend(e: any) {
-                const p = e.target.getLatLng();
-                handleMove(p.lat, p.lng);
-              },
-            }}
+            onDragEnd={handleDragEnd}
+            title="Planned destination"
           />
-          <Circle
-            center={pos}
-            radius={radiusMeters}
-            pathOptions={{ color: '#1A3F74', fillColor: '#1A3F74', fillOpacity: 0.12, weight: 1.5 }}
-          />
-          <ClickToMove />
-        </MapContainer>
-      </div>
+          {isValidRadius(radiusMeters) && (
+            <Circle
+              center={markerPos}
+              radius={radiusMeters}
+              options={CIRCLE_OPTIONS}
+            />
+          )}
+        </GoogleMap>
+      </LoadScript>
       <Text style={styles.hint} testID="destination-map-picker-hint">
         {hasPin
-          ? 'Drag the pin or tap the map to adjust your planned arrival spot.'
-          : 'Demo view \u2014 drag the pin or tap the map to set a planned arrival spot. No address search is performed.'}
+          ? 'Drag the pin or click the map to adjust your planned arrival area.'
+          : 'Demo view \u2014 click the map or drag the pin to set your planned arrival area. No device location is used.'}
       </Text>
     </View>
   );
@@ -167,9 +162,18 @@ function LeafletMap({
 
 const styles = StyleSheet.create({
   wrap: { marginBottom: 14 },
-  loadingBox: {
-    height: 220, width: '100%', borderRadius: 14,
-    backgroundColor: c.surfaceSecondary, alignItems: 'center', justifyContent: 'center',
+  fallback: {
+    height: 220,
+    borderRadius: 14,
+    backgroundColor: c.surfaceSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  hint: { fontFamily: theme.fonts.body, fontSize: 11, color: c.muted, marginTop: 6, lineHeight: 15 },
+  hint: {
+    fontFamily: theme.fonts.body,
+    fontSize: 11,
+    color: c.muted,
+    marginTop: 6,
+    lineHeight: 15,
+  },
 });

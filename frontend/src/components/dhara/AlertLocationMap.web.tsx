@@ -1,18 +1,39 @@
 /**
- * AlertLocationMap — web fallback.
+ * AlertLocationMap — web implementation (Google Maps JavaScript API).
  *
- * `react-native-maps` is a native-only module and cannot render on web.
- * Metro automatically picks this file for web builds (via the `.web.tsx`
- * platform extension), so the native module is never imported into the web
- * bundle. The existing "Open in Maps" button on the alert screen remains
- * the way to view this location visually on web/Expo Go preview; this file
- * only avoids a blank/crashed area where the map would have been.
+ * Replaced the previous text-only fallback. Shows a static Google Map with
+ * the recipient's last-known-location marker and accuracy circle.
+ * Uses @react-google-maps/api with EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY.
+ *
+ * No device GPS is read — the coordinates are passed in by the caller
+ * from data already fetched from the backend.
  */
+
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { GoogleMap, LoadScript, Marker, Circle } from '@react-google-maps/api';
 import { theme } from '@/src/theme';
 
 const c = theme.colors;
+
+const WEB_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY ?? '';
+
+const MAP_CONTAINER_STYLE = { width: '100%', height: '180px', borderRadius: '14px' };
+
+const MAP_OPTIONS: google.maps.MapOptions = {
+  disableDefaultUI: true,
+  zoomControl: true,
+  clickableIcons: false,
+};
+
+const CIRCLE_OPTIONS: google.maps.CircleOptions = {
+  fillColor: '#1A3F74',
+  fillOpacity: 0.15,
+  strokeColor: '#1A3F74',
+  strokeOpacity: 0.6,
+  strokeWeight: 1,
+  clickable: false,
+};
 
 type Props = {
   lat: number;
@@ -20,18 +41,52 @@ type Props = {
   accuracyMeters?: number;
 };
 
-// eslint-disable-next-line no-empty-pattern
-export function AlertLocationMap({}: Props) {
+export function AlertLocationMap({ lat, lng, accuracyMeters }: Props) {
+  const center = { lat, lng };
+
+  if (!WEB_API_KEY) {
+    return (
+      <View style={styles.fallback} testID="alert-location-map">
+        <Text style={styles.txt}>
+          Map preview available in the mobile app. Use &quot;Open in Maps&quot; below to view this location.
+        </Text>
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.box} testID="alert-location-map">
-      <Text style={styles.txt}>
-        Map preview is available in the DHARA mobile app. Use &quot;Open in Maps&quot; below to view this location.
-      </Text>
+    <View style={styles.wrap} testID="alert-location-map">
+      <LoadScript googleMapsApiKey={WEB_API_KEY} loadingElement={
+        <View style={styles.fallback}><Text style={styles.txt}>Loading map…</Text></View>
+      }>
+        <GoogleMap
+          mapContainerStyle={MAP_CONTAINER_STYLE}
+          center={center}
+          zoom={15}
+          options={MAP_OPTIONS}
+        >
+          <Marker position={center} title="Last known location" />
+          {!!accuracyMeters && accuracyMeters > 0 && (
+            <Circle center={center} radius={accuracyMeters} options={CIRCLE_OPTIONS} />
+          )}
+        </GoogleMap>
+      </LoadScript>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  box: { backgroundColor: c.surfaceSecondary, borderRadius: 14, padding: 14, marginTop: 10 },
-  txt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 17 },
+  wrap: { marginTop: 10 },
+  fallback: {
+    backgroundColor: c.surfaceSecondary,
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 10,
+  },
+  txt: {
+    fontFamily: theme.fonts.body,
+    fontSize: 12,
+    color: c.muted,
+    lineHeight: 17,
+  },
 });

@@ -16,7 +16,7 @@
  * last-known snapshot already fetched by the caller.
  */
 import React from 'react';
-import { Platform, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import MapView, { Marker, Circle, PROVIDER_GOOGLE } from 'react-native-maps';
 
 type Props = {
@@ -31,7 +31,7 @@ export function AlertLocationMap({ lat, lng, accuracyMeters }: Props) {
     <MapView
       testID="alert-location-map"
       style={styles.map}
-      provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+      provider={PROVIDER_GOOGLE}
       initialRegion={{ ...coordinate, latitudeDelta: 0.01, longitudeDelta: 0.01 }}
     >
       <Marker coordinate={coordinate} title="Last known location" />

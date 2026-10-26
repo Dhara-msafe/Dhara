@@ -27,7 +27,7 @@
  *  User tap/drag → update markerCoord + fire onPositionChange once.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import MapView, { Circle, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import type { Region } from 'react-native-maps';
 import { theme } from '@/src/theme';
@@ -138,8 +138,9 @@ export function DestinationMapPicker({
         ref={mapRef}
         testID="destination-map-picker-mapview"
         style={styles.map}
-        // Google Maps on Android; Apple Maps on iOS (no key needed)
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+        // Google Maps on both Android and iOS (requires EXPO_PUBLIC_GOOGLE_MAPS_IOS_API_KEY
+        // to be injected via app.config.js → ios.config.googleMapsApiKey for iOS).
+        provider={PROVIDER_GOOGLE}
         initialRegion={initialRegion}
         // ── Privacy: device GPS is NEVER requested ────────────────────────────
         showsUserLocation={false}
