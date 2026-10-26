@@ -1,6 +1,6 @@
 import { Stack, useRouter, useSegments, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { Component, ErrorInfo, ReactNode, useEffect, useRef } from "react";
+import React, { Component, ErrorInfo, ReactNode, useCallback, useEffect, useRef } from "react";
 import { LogBox, Pressable, Text, View, useWindowDimensions, Platform } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -18,6 +18,8 @@ import { consentVersionKey, isCurrentConsent } from "@/src/consentStorage";
 import { theme } from "@/src/theme";
 import { EvidenceRecorderProvider } from "@/src/women/EvidenceRecorderProvider";
 import { initSpeechGate } from "@/src/voice/speechGate";
+import { usePreventScreenCapture } from "expo-screen-capture";
+import { useShakeDetector } from "@/src/women/shakeActivation";
 import {
   POSTHOG_API_KEY,
   POSTHOG_OPTIONS,
@@ -157,6 +159,45 @@ function AnalyticsIdentitySync() {
 
 const TRUSTED_CIRCLE_RECIPIENT = process.env.EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT === 'true';
 
+/** Prevents the OS from capturing a screenshot or showing DHARA content as a
+ *  thumbnail in the app-switcher.  Uses FLAG_SECURE on Android and the iOS
+ *  secure-display equivalent.  Has no visible effect in Expo Go — requires a
+ *  native build to validate.  Safe to call unconditionally on web (no-op). */
+function ScreenCaptureLock() {
+  // expo-screen-capture throws UnavailabilityError on web — only render the
+  // native lock on a native platform.
+  if (Platform.OS === 'web') return null;
+  return <_NativeCaptureLock />;
+}
+/** Inner component so the hook runs only when rendered (i.e. on native). */
+function _NativeCaptureLock() {
+  usePreventScreenCapture();
+  return null;
+}
+
+/** Detects a physical shake gesture and immediately activates the discreet
+ *  privacy cover — the same cover triggered by the D1-V hide phrase.
+ *  Accelerometer is only enabled on native (web has no sensor API). */
+function ShakeGuard() {
+  const router = useRouter();
+  const { user } = useAuth();
+
+  const onShake = useCallback(async () => {
+    const uid = user?.id;
+    const scope = uid || 'device';
+    try {
+      // Set both keys so the women-shield toggle and D1-V cover both activate.
+      if (uid) await AsyncStorage.setItem(`ws_discreet_${uid}`, '1');
+      await AsyncStorage.setItem(`ws_discreet_active_v1_${scope}`, 'true');
+    } catch {}
+    router.push('/women-shield' as any);
+  }, [user?.id, router]);
+
+  // expo-sensors Accelerometer is not available on web — guard it.
+  useShakeDetector({ onShake, enabled: Platform.OS !== 'web' });
+  return null;
+}
+
 /** Part P4 — routes a tapped push notification's `action_url`
  * (e.g. /alerts/{id} or /invite/{id}) into the app. Inert while the
  * Trusted Circle Recipient flag is off — no behavior change otherwise. */
@@ -220,6 +261,8 @@ export default function RootLayout() {
               <AnalyticsIdentitySync />
               <AnalyticsScreenTracker />
               <ConsentGuard />
+              <ShakeGuard />
+              <ScreenCaptureLock />
               <NotificationTapBridge />
               <LanguageOnboardModal />
               <StatusBar style="dark" />

@@ -17,14 +17,61 @@ import { API_BASE } from '@/src/auth';
 
 export type PushPermissionState = 'granted' | 'denied' | 'undetermined' | 'unsupported';
 
-// Foreground behaviour: show banners even while the app is open.
+// ── Notification-payload redaction ────────────────────────────────────────────
+//
+// DHARA must never reveal sensitive context on the lock screen.  We apply a
+// two-layer redaction strategy:
+//
+//  LAYER 1 — Foreground interception (this file, all platforms):
+//    When the app is open, we intercept every incoming notification, suppress
+//    the original, and immediately re-schedule it with a generic title/body.
+//    The original data payload is preserved so deep-links still work.
+//
+//  LAYER 2 — Server-side (required for lock-screen in background/killed state):
+//    The SuprSend/FCM/APNs payload sent by the backend MUST use the generic
+//    title "New message" and body "Tap to open."  The actual action_url lives
+//    in the data payload (never in the visible title/body).
+//    → Update the notification template in the SuprSend dashboard.
+//    → Backend /api/notify calls should always pass:
+//        title: "New message"
+//        body:  "Tap to open."
+//        data:  { action_url: "<real destination>" }
+//
+// LAYER 3 — App-switcher protection (expo-screen-capture, in _layout.tsx):
+//    Prevents the OS from capturing a screenshot of sensitive screen content
+//    when the user presses the home button or switches apps.
+
+const REDACTED_TITLE = 'New message';
+const REDACTED_BODY  = 'Tap to open.';
+
+// Foreground behaviour: intercept, suppress original, re-schedule as generic.
+// We set shouldShowBanner: false on the handler so the RAW notification is
+// never displayed; then we fire our own generic scheduled notification below.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
+    shouldShowBanner: false, // suppress raw notification — we re-schedule below
+    shouldShowList:   false,
+    shouldPlaySound:  false,
+    shouldSetBadge:   false,
   }),
+});
+
+// Listener that fires the redacted replacement.
+// The subscription is set up once at module load (same lifecycle as the handler).
+Notifications.addNotificationReceivedListener((notification) => {
+  // Preserve the original data payload so action_url tap-listeners still work.
+  const originalData = notification.request.content.data ?? {};
+  Notifications.scheduleNotificationAsync({
+    content: {
+      title: REDACTED_TITLE,
+      body:  REDACTED_BODY,
+      data:  originalData,
+      sound: true,
+    },
+    trigger: null, // fire immediately
+  }).catch(() => {
+    // Scheduling failure must never crash the app.
+  });
 });
 
 export async function getPushPermissionState(): Promise<PushPermissionState> {
