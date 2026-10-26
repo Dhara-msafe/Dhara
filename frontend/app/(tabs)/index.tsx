@@ -49,11 +49,11 @@ import { t } from '@/src/i18n';
 import { MarqueeBanner } from '@/src/components/MarqueeBanner';
 import { verifiedLabel, isStale, STALE_WARNING_TEXT } from '@/src/citationStaleness';
 // ── Phase 1 + D1-V: Code-phrase and discreet-screen intercepts ───────────────
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStoredPhrase, getHidePhrase, normalizePhrase } from '@/src/women/codePhraseStore';
 import { isCodePhraseMatch } from '@/src/women/codePhraseMatcher';
 import { triggerSafetySequence } from '@/src/women/safetyTriggerCoordinator';
 import { useEvidenceRecorder } from '@/src/women/EvidenceRecorderProvider';
+import { activateCover } from '@/src/women/coverState';
 
 /** Strip raw markdown markers from streaming text so asterisks/hashes never
  *  flash in the UI while the LLM is still mid-sentence. Called only on the
@@ -673,11 +673,14 @@ export default function ChatScreen() {
           const storedHide = await getHidePhrase();
           if (storedHide && normalizePhrase(q) === normalizePhrase(storedHide)) {
             const d1Scope = user?.id || 'device';
-            await AsyncStorage.setItem(`ws_discreet_active_v1_${d1Scope}`, 'true');
-            // Note: activateCover() not called here — PrivacyCoverGate re-reads
-            // AsyncStorage on the next AppState 'active' event.  For immediate
-            // in-session cover, index.tsx would need to import activateCover.
-            // Tracked as a follow-up (not part of the 4-file plan).
+            // activateCover() sets the in-memory flag IMMEDIATELY (synchronous
+            // _active = true + listener emit) then persists to AsyncStorage
+            // as a best-effort background write.  The cover UI reacts to the
+            // listener emit — no AppState round-trip required.
+            // GATE NOTE: PrivacyCoverGate in _layout.tsx only renders when
+            // EXPO_PUBLIC_PRIVACY_COVER_V1 === 'true'.  This call is always
+            // correct; if the flag is off the cover simply won't be visible.
+            await activateCover(d1Scope);
             setInput('');
             return; // DO NOT send to LLM, analytics, or chat history
           }
