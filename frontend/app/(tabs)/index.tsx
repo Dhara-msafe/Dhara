@@ -642,22 +642,9 @@ export default function ChatScreen() {
       // D1-V: Foreground voice-phrase => screen-privacy activation.
       // Reads the hide phrase from codePhraseStore (SecureStore for auth users,
       // in-memory for guests). Uses the same normalizePhrase() as the config
-      // screen's conflict gate so matching is always consistent.
-      if (process.env.EXPO_PUBLIC_SAFE_WORD_V1 === 'true') {
-        try {
-          const storedHide = await getHidePhrase();
-          if (storedHide && normalizePhrase(q) === normalizePhrase(storedHide)) {
-            const d1Scope = user?.id || 'device';
-            await AsyncStorage.setItem(`ws_discreet_active_v1_${d1Scope}`, 'true');
-            setInput('');
-            return; // DO NOT send to LLM, analytics, or chat history
-          }
-        } catch {
-          // Any error in the D1-V intercept must not block normal chat.
-        }
-      }
-
       // ── Phase 1: Code-phrase safety intercept ────────────────────────────
+      // SOS phrase is evaluated FIRST (amendment 1) so an SOS phrase cannot be
+      // accidentally consumed by the D1-V hide-phrase check.
       // This MUST run before trackEvent / setMessages so the phrase is never
       // sent to analytics, the backend, or rendered in the chat history.
       if (process.env.EXPO_PUBLIC_SAFE_WORD_V1 === 'true') {
@@ -676,6 +663,26 @@ export default function ChatScreen() {
           }
         } catch {
           // Any error in the intercept must not block normal chat.
+        }
+      }
+
+      // ── D1-V: Discreet-screen phrase check (runs after SOS — amendment 1) ──
+      // screen's conflict gate so matching is always consistent.
+      if (process.env.EXPO_PUBLIC_SAFE_WORD_V1 === 'true') {
+        try {
+          const storedHide = await getHidePhrase();
+          if (storedHide && normalizePhrase(q) === normalizePhrase(storedHide)) {
+            const d1Scope = user?.id || 'device';
+            await AsyncStorage.setItem(`ws_discreet_active_v1_${d1Scope}`, 'true');
+            // Note: activateCover() not called here — PrivacyCoverGate re-reads
+            // AsyncStorage on the next AppState 'active' event.  For immediate
+            // in-session cover, index.tsx would need to import activateCover.
+            // Tracked as a follow-up (not part of the 4-file plan).
+            setInput('');
+            return; // DO NOT send to LLM, analytics, or chat history
+          }
+        } catch {
+          // Any error in the D1-V intercept must not block normal chat.
         }
       }
       // ── End code-phrase intercept ─────────────────────────────────────────

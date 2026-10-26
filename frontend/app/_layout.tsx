@@ -1,7 +1,9 @@
 import { Stack, useRouter, useSegments, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { Component, ErrorInfo, ReactNode, useCallback, useEffect, useRef } from "react";
-import { LogBox, Pressable, Text, View, useWindowDimensions, Platform } from "react-native";
+import { LogBox, Pressable, Text, View, useWindowDimensions, Platform, Modal, AppState } from "react-native";
+import { activateCover, isCoverActive, subscribeCover, syncCoverFromStorage, deactivateCover } from "@/src/women/coverState";
+import { PrivacyCover } from "@/src/women/PrivacyCover";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -175,26 +177,36 @@ function NativeCaptureLock() {
   return null;
 }
 
-/** Detects a physical shake gesture and immediately activates the discreet
- *  privacy cover — the same cover triggered by the D1-V hide phrase.
- *  Accelerometer is only enabled on native (web has no sensor API). */
+const PRIVACY_COVER_ENABLED = process.env.EXPO_PUBLIC_PRIVACY_COVER_V1 === 'true';
+
+/** Detects a physical shake gesture and activates the privacy cover.
+ *  Shake is opt-in: enabled via Safety phrases screen (ws_shake_opt_in_<uid>).
+ *  Only active when EXPO_PUBLIC_PRIVACY_COVER_V1 === 'true'.
+ *  NOTE: shake behaviour is UNVERIFIED — not tested on a real Android device. */
 function ShakeGuard() {
-  const router = useRouter();
   const { user } = useAuth();
+  const [shakeOptIn, setShakeOptIn] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!PRIVACY_COVER_ENABLED) return;
+    const key = `ws_shake_opt_in_${user?.id ?? 'device'}`;
+    AsyncStorage.getItem(key).then(v => setShakeOptIn(v === 'true')).catch(() => {});
+  }, [user?.id]);
 
   const onShake = useCallback(async () => {
-    const uid = user?.id;
-    const scope = uid || 'device';
-    try {
-      // Set both keys so the women-shield toggle and D1-V cover both activate.
-      if (uid) await AsyncStorage.setItem(`ws_discreet_${uid}`, '1');
-      await AsyncStorage.setItem(`ws_discreet_active_v1_${scope}`, 'true');
-    } catch {}
-    router.push('/women-shield' as any);
-  }, [user?.id, router]);
+    if (!PRIVACY_COVER_ENABLED) return;
+    const scope = user?.id || 'device';
+    if (user?.id) {
+      try { await AsyncStorage.setItem(`ws_discreet_${user.id}`, '1'); } catch {}
+    }
+    await activateCover(scope);
+    // router.push removed — PrivacyCoverGate handles the visual overlay.
+  }, [user?.id]);
 
-  // expo-sensors Accelerometer is not available on web — guard it.
-  useShakeDetector({ onShake, enabled: Platform.OS !== 'web' });
+  useShakeDetector({
+    onShake,
+    enabled: PRIVACY_COVER_ENABLED && shakeOptIn && Platform.OS !== 'web',
+  });
   return null;
 }
 
@@ -217,8 +229,69 @@ function NotificationTapBridge() {
 }
 
 /**
- * CalcLockGate removed — see CalcPro.tsx if you want to restore it.
+ * PrivacyCoverGate — full-screen opaque Modal overlay managed inside AuthProvider
+ * so useAuth() is available for the account-scoped AsyncStorage key.
+ * Stacks above all other Modals (last-visible-on-top order in React Native).
+ * Amendment 2: Modal starts visible (cold-start-pending) so no app content is
+ * briefly exposed during the async AsyncStorage read.
+ * NOTE: app-switcher background→foreground behaviour is UNVERIFIED on real device.
  */
+function PrivacyCoverGate() {
+  if (!PRIVACY_COVER_ENABLED) return null;
+  return <PrivacyCoverGateInner />;
+}
+
+function PrivacyCoverGateInner() {
+  const { user } = useAuth();
+  const scope = user?.id || 'device';
+
+  const [coldPending, setColdPending] = React.useState(true);
+  const [showCover,   setShowCover]   = React.useState(isCoverActive());
+
+  React.useEffect(() => {
+    let alive = true;
+    syncCoverFromStorage(scope)
+      .then(active => { if (alive) setShowCover(active); })
+      .catch(() => { /* keep cover on read failure (privacy-first) */ })
+      .finally(() => { if (alive) setColdPending(false); });
+    return () => { alive = false; };
+  }, [scope]);
+
+  React.useEffect(() => subscribeCover(active => setShowCover(active)), []);
+
+  React.useEffect(() => {
+    const sub = AppState.addEventListener('change', async appState => {
+      if (appState === 'background' || appState === 'inactive') {
+        if (isCoverActive()) setShowCover(true);
+      } else if (appState === 'active' && !coldPending) {
+        const active = await syncCoverFromStorage(scope);
+        setShowCover(active);
+      }
+    });
+    return () => sub.remove();
+  }, [scope, coldPending]);
+
+  const handleReveal = useCallback(async () => {
+    await deactivateCover(scope);
+    setShowCover(false);
+  }, [scope]);
+
+  return (
+    <Modal
+      visible={coldPending || showCover}
+      animationType="none"
+      statusBarTranslucent
+      hardwareAccelerated
+      onRequestClose={() => { /* back button must not dismiss */ }}
+      transparent={false}
+    >
+      {coldPending
+        ? <View style={{ flex: 1, backgroundColor: '#F8F7F4' }} />
+        : <PrivacyCover onReveal={handleReveal} />
+      }
+    </Modal>
+  );
+}
 
 export default function RootLayout() {
   const [iconsLoaded, iconError] = useIconFonts();
@@ -266,6 +339,7 @@ export default function RootLayout() {
               <AnalyticsScreenTracker />
               <ConsentGuard />
               <ShakeGuard />
+              <PrivacyCoverGate />
               <ScreenCaptureLock />
               <NotificationTapBridge />
               <LanguageOnboardModal />

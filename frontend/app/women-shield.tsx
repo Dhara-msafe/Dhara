@@ -11,6 +11,9 @@ import { SosPill, Divider } from '@/src/components/dhara/SosPill';
 import { fetchFlags, fetchHelplines, safetyRoute, setCheckin as persistCheckin, getCheckin, getCircle, type Helpline } from '@/src/women/api';
 import { loadVisibleRecordings, releaseRecordings } from '@/src/women/evidenceStore'; // Fix (S1-2): count only visible (non-segment) items
 import { enterWomensShield, leaveWomensShield } from '@/src/voice/speechGate';
+import { activateCover } from '@/src/women/coverState';
+
+const PRIVACY_COVER_ENABLED = process.env.EXPO_PUBLIC_PRIVACY_COVER_V1 === 'true';
 
 const HEAD_OUT_ENABLED = process.env.EXPO_PUBLIC_SAFETY_SESSION_V1 === 'true';
 const CAMPUS_ENABLED   = process.env.EXPO_PUBLIC_CAMPUS_LAYER === 'true';
@@ -133,6 +136,13 @@ export default function WomenShield() {
     ? helplines.map(h => ({ num: h.number, label: SHORT[h.number] || h.name, verified: h.verified }))
     : HELPLINES.map(h => ({ num: h.num, label: tr(h.key, lang), verified: false }));
 
+  // Privacy cover — visible "Hide" action (amendment: manual trigger)
+  const activatePrivacyCover = useCallback(async () => {
+    const scope = user?.id || 'device';
+    if (user?.id) await AsyncStorage.setItem(`ws_discreet_${user.id}`, '1').catch(() => {});
+    await activateCover(scope);
+  }, [user?.id]);
+
   // DHARA-P0-3 (B025): leave this screen instantly for a neutral page.
   const NEUTRAL_URL = 'https://www.google.com/search?q=weather';
   const quickExit = () => {
@@ -156,6 +166,13 @@ export default function WomenShield() {
               <Ionicons name="chevron-back" size={24} color="#fff" />
             </Pressable>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {/* Privacy Cover — visible manual Hide action (PRIVACY_COVER_V1 gate) */}
+              {PRIVACY_COVER_ENABLED && (
+                <Pressable onPress={activatePrivacyCover} style={styles.hideBtn} testID="ws-hide-btn" accessibilityRole="button" accessibilityLabel="Hide sensitive content">
+                  <Ionicons name="eye-off-outline" size={15} color="#fff" />
+                  <Text style={styles.hideBtnTxt}>Hide</Text>
+                </Pressable>
+              )}
               {/* DHARA-P0-3 (B025): one-tap safe exit to a neutral page */}
               <Pressable onPress={quickExit} style={styles.quickExit} testID="ws-quick-exit" accessibilityRole="button" accessibilityLabel={tr('ws.quickexit', lang)}>
                 <Ionicons name="exit-outline" size={16} color={c.navy} />
@@ -328,6 +345,8 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
   header: { backgroundColor: c.navy, paddingHorizontal: 20, paddingBottom: 18 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  hideBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, height: 30, borderRadius: 15 },
+  hideBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 13 },
   quickExit: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#fff', paddingHorizontal: 12, height: 32, borderRadius: 16 },
   quickExitTxt: { color: c.navy, fontWeight: '700', fontSize: 13 },
   backBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },

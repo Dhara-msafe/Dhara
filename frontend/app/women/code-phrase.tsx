@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Platform } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Platform, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '@/src/theme';
@@ -11,10 +11,12 @@ import {
   setHidePhrase as storeHidePhrase,
   clearHidePhrase,
   phrasesConflict,
+  normalizePhrase,
 } from '@/src/women/codePhraseStore';
 import { useAuth } from '@/src/auth';
 
 const c = theme.colors;
+const PRIVACY_COVER_ENABLED = process.env.EXPO_PUBLIC_PRIVACY_COVER_V1 === 'true';
 
 // SOS phrase suggestions (emergency trigger)
 const SUGGESTIONS = [
@@ -51,6 +53,10 @@ export default function CodePhrase() {
   /** Set when the store's persisted-value conflict check rejects a hide save. */
   const [hidePersistedConflict, setHidePersistedConflict] = useState(false);
 
+  // Shake opt-in (PRIVACY_COVER_V1 gate)
+  const [shakeOptIn, setShakeOptIn] = useState(false);
+  const shakeKey = `ws_shake_opt_in_${user?.id ?? 'device'}`;
+
   /**
    * Real-time UI hint: both in-state phrases are identical after normalisation.
    * Gives immediate visual feedback while the user is still typing.
@@ -77,6 +83,10 @@ export default function CodePhrase() {
       setHidePhrase(p);
       setHideArmed(p.trim().length > 0);
     });
+    // Load shake opt-in preference
+    if (PRIVACY_COVER_ENABLED) {
+      AsyncStorage.getItem(shakeKey).then(v => setShakeOptIn(v === 'true')).catch(() => {});
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope]);
 
@@ -113,6 +123,21 @@ export default function CodePhrase() {
     setHidePersistedConflict(false);
     // Fast in-state gate (covers the common case, gives instant UI feedback).
     if (hideConflictsWithSOS) return;
+    // Amendment 1: also reject if hide phrase CONTAINS the SOS phrase or vice versa.
+    const trimmedHide = hidePhrase.trim();
+    if (trimmedHide) {
+      try {
+        const persistedSOS = await getStoredPhrase();
+        if (persistedSOS) {
+          const nHide = normalizePhrase(trimmedHide);
+          const nSOS  = normalizePhrase(persistedSOS);
+          if (nSOS.length > 0 && (nHide.includes(nSOS) || nSOS.includes(nHide))) {
+            setHidePersistedConflict(true);
+            return;
+          }
+        }
+      } catch {}
+    }
     // Delegate to store — it reads PERSISTED SOS for the authoritative check.
     const result = await storeHidePhrase(hidePhrase);
     if (result.conflict) {
@@ -326,6 +351,27 @@ export default function CodePhrase() {
           </Text>
         </View>
 
+        {/* ── Shake opt-in (gated behind PRIVACY_COVER_V1) ── */}
+        {PRIVACY_COVER_ENABLED && (
+          <View style={styles.shakeSection}>
+            <View style={styles.shakeRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.shakeLabel}>Shake to hide</Text>
+                <Text style={styles.shakeSub}>Shake the device to show the privacy cover. Off by default.</Text>
+              </View>
+              <Switch
+                value={shakeOptIn}
+                onValueChange={async v => {
+                  setShakeOptIn(v);
+                  try { await AsyncStorage.setItem(shakeKey, v ? 'true' : 'false'); } catch {}
+                }}
+                testID="shake-opt-in-switch"
+                accessibilityLabel="Shake to hide toggle"
+              />
+            </View>
+          </View>
+        )}
+
       </ScrollView>
     </View>
   );
@@ -372,5 +418,9 @@ const styles = StyleSheet.create({
   tipTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 19 },
   // Section divider
   sectionDivider: { alignItems: 'center', marginVertical: 32 },
+  shakeSection: { marginHorizontal: 20, marginBottom: 28, padding: 16, backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.lines },
+  shakeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  shakeLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink, marginBottom: 2 },
+  shakeSub: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18 },
   sectionDividerLine: { width: '100%', height: 1, backgroundColor: c.lines },
 });
