@@ -22,6 +22,7 @@ import { hasPin, setPin, verifyPin, getLockoutRemainingMs } from '@/src/women/ev
 import { getManifestEntry, type ManifestEntry, type GpsPoint } from '@/src/women/evidenceManifest';
 import { anchorItem, backupItem } from '@/src/women/evidenceBackup';
 import { fetchFlags } from '@/src/women/api';
+import { markPendingTemp, clearPendingTemp, listPendingTemps } from '@/src/women/evidencePendingTemp';
 import { exportCertificate } from '@/src/women/evidenceCertificate';
 import { screenPlayer } from '@/src/media/screenPlayer';
 import type { TtsPlayer } from '@/src/voice/tts';
@@ -281,6 +282,20 @@ export default function EvidenceLocker() {
     if (videoPreviewRef.current) releaseDecryptedTempUri(videoPreviewRef.current.uri, videoPreviewRef.current.wasDecrypted);
     setVideoPreview(null);
   }, []);
+  // ── A2 Step 1: a temp recording is only deleted once its encrypted copy is
+  // saved AND read back. Until then it stays on disk with a pending marker so
+  // the next launch can recover it. ───────────────────────────────────────────
+  const persistThenDiscard = useCallback(async (item: RecordingItem, uri: string) => {
+    const check = await getDecryptedTempUri(scope, item);
+    releaseDecryptedTempUri(check, !!item.iv);
+    discardTemporaryRecording(uri);
+    await clearPendingTemp(AsyncStorage, scope, uri);
+  }, [scope]);
+  // Holds the latest save() so navigation/background paths can stop-and-save
+  // without re-creating useFocusEffect on every render.
+  const saveRef = useRef<null | (() => Promise<void>)>(null);
+  // cancel() = EXPLICIT USER DISCARD ONLY (confirmed in the UI). It is never
+  // wired to navigation or AppState any more — see exitPreserving below.
   const cancel = useCallback(() => {
     epoch.current++;
     stopPlayer();
@@ -323,8 +338,39 @@ export default function EvidenceLocker() {
     // keeps the cancel reference stable across ownership changes so useFocusEffect
     // never re-runs (and never fires a spurious cancel()) during recording.
   }, [recorder, stopPlayer, scope, releaseLockerClaim, getOwner, stopTriggerRecording]);
+  // A2 Step 1: leaving the screen must STOP AND SAVE, never discard.
+  const exitPreserving = useCallback(() => {
+    stopPlayer();
+    if (active.current || getOwner() === 'locker') {
+      // Stop-and-save. save() clears the segment timer itself and awaits any
+      // in-flight segment commit, so no segment is lost here.
+      void saveRef.current?.();
+    }
+    // owner === 'trigger': leave the trigger recording running — it is owned by
+    // the provider and must not be stopped or discarded by this screen.
+  }, [stopPlayer, getOwner]);
   useFocusEffect(useCallback(() => {
     let alive = true;
+    // A2 Step 1: recover any temp recording left behind by a crash, a call or
+    // a background kill (one whose encrypted copy was never read back).
+    if (!active.current) {
+      listPendingTemps(AsyncStorage, scope).then(async pending => {
+        if (!alive || pending.length === 0 || active.current) return;
+        let recovered = 0;
+        for (const entry of pending) {
+          try {
+            const item = await saveRecording(scope, entry.uri);
+            await persistThenDiscard(item, entry.uri);
+            recovered++;
+          } catch { /* keep it pending — try again on the next launch */ }
+        }
+        if (!alive || recovered === 0) return;
+        const visible = await loadVisibleRecordings(scope).catch(() => null);
+        if (!alive) return;
+        if (visible) { owned.current = visible; setItems(visible); }
+        setStatus(`Recovered ${recovered} unfinished recording(s) from your last session.`);
+      }).catch(() => {});
+    }
     // P0-B: Load only non-segment items for the top-level list.
     loadVisibleRecordings(scope).then(async rows => {
       if (!alive) { releaseRecordings(rows); return; }
@@ -354,7 +400,7 @@ export default function EvidenceLocker() {
       }).catch(() => {});
     }
     return () => {
-      alive = false; cancel(); releaseRecordings(owned.current);
+      alive = false; exitPreserving(); releaseRecordings(owned.current);
       Object.entries(photoUrisRef.current).forEach(([id, uri]) => {
         const row = owned.current.find(r => r.id === id);
         releaseDecryptedTempUri(uri, !!row?.iv);
@@ -363,21 +409,19 @@ export default function EvidenceLocker() {
       closeVideoPreview();
       owned.current = [];
     };
-  }, [scope, cancel, closeVideoPreview]));
+  }, [scope, exitPreserving, closeVideoPreview, persistThenDiscard]));
   useEffect(() => {
     const sub = AppState.addEventListener('change', value => {
       if (value !== 'active' && active.current) {
-        // P0-B: When segmented recording is active, interrupt preserves committed segments.
-        if (sessionRef.current && segmentedEnabled.current) {
-          setStatus(`Recording interrupted. ${segCountRef.current} segment(s) were saved and can be recovered.`);
-        } else {
-          setStatus('Recording stopped. Unfinished audio is not saved. Keep this screen open and use Stop & save.');
-        }
-        cancel();
+        // A2 Step 1: backgrounding/interruption STOPS AND SAVES. The temp file
+        // is kept until its encrypted copy is read back; if the OS suspends us
+        // mid-save, the next launch recovers it (see useFocusEffect above).
+        setStatus('Recording stopped — saving your evidence. Nothing is discarded.');
+        void saveRef.current?.();
       }
     });
     return () => sub.remove();
-  }, [cancel]);
+  }, []);
   // ── P0-B: Segment cycling ─────────────────────────────────────────────────
   // commitCurrentSegment: stop recorder → encrypt+persist the segment →
   // restart recording for the next segment. Runs on a ~SEGMENT_TARGET_MS timer.
@@ -393,8 +437,9 @@ export default function EvidenceLocker() {
       // concurrent access to recorder.uri here (fix a).
       const uri = recorder.uri;
       if (uri) {
+        await markPendingTemp(AsyncStorage, scope, uri); // A2: protect before saving
         const segItem = await saveSegment(scope, uri, session.sessionId);
-        discardTemporaryRecording(uri);
+        await persistThenDiscard(segItem, uri); // A2: delete only after read-back
         lastCommittedUriRef.current = uri; // FIX (RC4): mark so save() skips it
         const durationMs = Date.now() - segStartTimeRef.current; // Fix (S1-3)
         await commitSegment(scope, session.sessionId, {
@@ -432,7 +477,7 @@ export default function EvidenceLocker() {
       active.current = false;
       setStatus(`Recording stopped after ${segCountRef.current} segment(s). Saved segments can be recovered.`);
     }
-  }, [recorder, scope]);
+  }, [recorder, scope, persistThenDiscard]);
 
   const start = useCallback(async () => {
     if (working.current || active.current) return;
@@ -571,8 +616,9 @@ export default function EvidenceLocker() {
         const uri = recorder.uri;
         if (uri && uri !== lastCommittedUriRef.current) {
           try {
+            await markPendingTemp(AsyncStorage, scope, uri); // A2: protect before saving
             const segItem = await saveSegment(scope, uri, session.sessionId);
-            discardTemporaryRecording(uri);
+            await persistThenDiscard(segItem, uri); // A2: delete only after read-back
             const elapsed = Date.now() - segStartTimeRef.current;
             await commitSegment(scope, session.sessionId, {
               segId: segItem.id, index: segCountRef.current, itemId: segItem.id,
@@ -593,9 +639,11 @@ export default function EvidenceLocker() {
         setStatus(`Saved ${segCountRef.current} segment(s) on this device. Nothing was uploaded or sent.`);
       } else {
         // ── V1: Legacy single-file save ───────────────────────────────────
-        if (!recorder.uri) throw new Error('No audio was captured. Please record again.');
-        const item = await saveRecording(scope, recorder.uri);
-        discardTemporaryRecording(recorder.uri);
+        const tempUri = recorder.uri;
+        if (!tempUri) throw new Error('No audio was captured. Please record again.');
+        await markPendingTemp(AsyncStorage, scope, tempUri); // A2: protect before saving
+        const item = await saveRecording(scope, tempUri);
+        await persistThenDiscard(item, tempUri); // A2: delete only after read-back
         owned.current = [item, ...owned.current]; setItems(owned.current);
         setStatus('Saved on this device. Nothing was uploaded or sent.');
       }
@@ -606,6 +654,8 @@ export default function EvidenceLocker() {
       if (Platform.OS !== 'web') void setAudioModeAsync({ allowsRecording: false }).catch(() => {});
     }
   };
+  // A2: expose the latest save() to the navigation/background exit paths.
+  saveRef.current = save;
   const play = useCallback(async (item: RecordingItem) => {
     const wasPlaying = playing === item.id;
     stopPlayer(); if (wasPlaying) return;
@@ -858,7 +908,14 @@ export default function EvidenceLocker() {
               : <ActivityIndicator color={c.onBrandPrimary} />
             : <Text style={styles.buttonText}>{state.isRecording ? 'Stop & save' : 'Start voice recording'}</Text>}
         </Pressable>
-        {state.isRecording && <Pressable testID="evidence-discard" style={styles.secondary} onPress={() => { cancel(); setStatus(segmentedEnabled.current ? `Discarded. ${segCountRef.current} committed segment(s) can still be recovered.` : 'Unfinished recording discarded.'); }}><Text style={styles.label}>Discard recording</Text></Pressable>}
+        {state.isRecording && <Pressable testID="evidence-discard" style={styles.secondary} onPress={() => crossAlert(
+          'Discard this recording?',
+          'This permanently deletes the audio captured since you tapped record. It cannot be undone.',
+          [
+            { text: 'Keep recording', style: 'cancel' },
+            { text: 'Discard recording', style: 'destructive', onPress: () => { cancel(); setStatus(segmentedEnabled.current ? `Discarded. ${segCountRef.current} committed segment(s) can still be recovered.` : 'Unfinished recording discarded.'); } },
+          ],
+        )}><Text style={styles.label}>Discard recording</Text></Pressable>}
         {/* P0-B: Recovery banner for interrupted sessions */}
         {recoverable.length > 0 && recoverable.map(ses => (
           <View key={ses.sessionId} style={[styles.secondary, { borderColor: c.gold }]} testID={`recovery-${ses.sessionId}`}>
