@@ -26,6 +26,14 @@ export const POSTHOG_OPTIONS = {
   // Disable auto-pageview here; we fire screen_view manually via the
   // AnalyticsNavigationTracker hook so we can attach the language prop.
   capturePageview: false,
+  // P0 containment (T08 — analytics-consent defect, 2026-10-26
+  // remediation): PostHogProvider mounts at app root, before any consent
+  // decision exists. `defaultOptIn: false` + `autocapture: false` make the
+  // freshly-constructed client start in a non-capturing state — nothing is
+  // transmitted until an explicit optIn() call below, which only happens
+  // once consent is loaded/granted as `true`.
+  defaultOptIn: false,
+  autocapture: false,
   // Session replay masking — DPDP Act 2023 compliance:
   // ensures no form field values, text, or images are recorded.
   sessionReplay: {
@@ -41,10 +49,40 @@ export const POSTHOG_OPTIONS = {
 let _posthog: PostHogType | null = null;
 
 // ── DPDP consent gate ───────────────────────────────────────────────────────
-// null  = not yet loaded (optimistically allow to avoid blocking the first event)
-// true  = user has accepted analytics
-// false = user has declined analytics (all sinks silenced)
+// P0 containment (T08 — analytics-consent defect): previously `null`
+// (not-yet-loaded, including the entire pre-login / pre-consent-dialog
+// window) was treated as "allowed", so screen_view and other events fired
+// optimistically before any consent decision existed. Analytics must now
+// default CLOSED and only open once consent is explicitly resolved to
+// `true` — see trackEvent()/ga4()'s `!== true` check below.
+// null  = not yet loaded / not yet decided — BLOCKED (fail closed)
+// true  = user has explicitly accepted analytics — the only state that unblocks sinks
+// false = user has declined/withdrawn analytics — all sinks silenced
 let _analyticsConsent: boolean | null = null;
+let _webScriptsLoaded = false;
+
+/**
+ * Applies a resolved consent value to every sink: syncs the PostHog
+ * opt-in/opt-out state (PostHogProvider starts with `defaultOptIn: false`,
+ * so nothing is captured until this explicitly opts in), and — on web only
+ * — lazily injects the GA4/Cloudflare script tags for the first time
+ * consent is confirmed `true` (they are never present in the static HTML
+ * template at all; see app/+html.tsx and loadWebAnalyticsScriptsIfConsented()).
+ * Opting out also asks PostHog to drop anything queued but not yet sent.
+ */
+function _applyConsentSideEffects(consent: boolean): void {
+  try {
+    if (consent) {
+      ph()?.optIn();
+      loadWebAnalyticsScriptsIfConsented();
+    } else {
+      // optOut() both stops future capture AND discards the in-memory
+      // event queue per the PostHog RN SDK's documented opt-out behaviour
+      // — satisfies "clear queued optional events on withdrawal".
+      ph()?.optOut();
+    }
+  } catch {}
+}
 
 /**
  * Load the stored consent preferences for the given user and cache the result.
@@ -64,6 +102,7 @@ export async function loadAnalyticsConsent(userId?: string): Promise<void> {
   } catch {
     _analyticsConsent = false;
   }
+  _applyConsentSideEffects(_analyticsConsent === true);
 }
 
 /**
@@ -71,6 +110,7 @@ export async function loadAnalyticsConsent(userId?: string): Promise<void> {
  */
 export function updateConsentCache(analyticsAllowed: boolean): void {
   _analyticsConsent = analyticsAllowed;
+  _applyConsentSideEffects(analyticsAllowed);
 }
 
 export function setPostHogInstance(instance: PostHogType): void {
@@ -79,6 +119,43 @@ export function setPostHogInstance(instance: PostHogType): void {
 
 function ph(): PostHogType | null {
   return _posthog;
+}
+
+// ── Web-only: consent-gated script loading ─────────────────────────────────
+/**
+ * GA4 (gtag.js) and the Cloudflare beacon used to be loaded unconditionally
+ * as static <script> tags in app/+html.tsx — i.e. on every web page load,
+ * before any consent decision could possibly exist. They are no longer
+ * present there at all (see +html.tsx). This function injects them into
+ * `document.head`, exactly once, ONLY after analytics consent has been
+ * explicitly resolved to `true`. A no-op on native / SSR (no `document`).
+ */
+function loadWebAnalyticsScriptsIfConsented(): void {
+  if (Platform.OS !== 'web') return;
+  if (typeof document === 'undefined') return;
+  if (_webScriptsLoaded) return;
+  _webScriptsLoaded = true;
+  try {
+    const gtagLib = document.createElement('script');
+    gtagLib.async = true;
+    gtagLib.src = 'https://www.googletagmanager.com/gtag/js?id=G-JDVMP7PKCV';
+    document.head.appendChild(gtagLib);
+
+    const gtagInit = document.createElement('script');
+    gtagInit.innerHTML = `
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-JDVMP7PKCV', { send_page_view: false });
+    `;
+    document.head.appendChild(gtagInit);
+
+    const cfBeacon = document.createElement('script');
+    cfBeacon.defer = true;
+    cfBeacon.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+    cfBeacon.setAttribute('data-cf-beacon', '{"token": "4bf7b3812e52441981becae529ef1f18"}');
+    document.head.appendChild(cfBeacon);
+  } catch {}
 }
 
 // ── DPDP helper: SHA-256 hash ────────────────────────────────────────────
@@ -123,16 +200,19 @@ function ga4(eventName: string, params?: Record<string, unknown>): void {
  * Fire a named event to PostHog (all platforms) + GA4 (web only).
  * Properties must NEVER contain raw PII. Pass lengths, booleans, and codes.
  *
- * DPDP compliance: silenced when analytics consent is explicitly false.
- * If consent has not been loaded yet (_analyticsConsent is null) the event
- * fires optimistically — call loadAnalyticsConsent() at login to resolve.
+ * P0 containment (T08): fail CLOSED. Only an explicitly resolved `true`
+ * consent unblocks any sink — `null` (not yet loaded/decided) and `false`
+ * (declined/withdrawn) both silence every sink. Previously only `false`
+ * blocked, so every event before consent was ever loaded (the entire
+ * pre-login window, and any gap before loadAnalyticsConsent() resolves)
+ * fired optimistically — exactly the "transmit before consent is resolved
+ * and granted" defect this batch was opened to contain.
  */
 export function trackEvent(
   eventName: string,
   properties?: Record<string, unknown>,
 ): void {
-  // Consent gate — explicit false blocks all sinks
-  if (_analyticsConsent === false) return;
+  if (_analyticsConsent !== true) return;
   // PostHog
   try {
     ph()?.capture(eventName, properties);
@@ -144,11 +224,16 @@ export function trackEvent(
 /**
  * Associate the current device with a pseudonymous user ID.
  * The raw userId is SHA-256 hashed before it leaves the device.
+ *
+ * P0 containment (T08): gated the same as trackEvent() — identify() itself
+ * transmits the hashed ID to PostHog/GA4, so it must not fire before
+ * consent is explicitly `true` either.
  */
 export async function identifyUser(
   userId: string,
   traits?: Record<string, unknown>,
 ): Promise<void> {
+  if (_analyticsConsent !== true) return;
   const hashedId = await hashId(userId);
   try {
     ph()?.identify(hashedId, traits);

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from engine.models import StatusRecord
+from engine.approval_evidence import check_approval, compute_content_hash
 
 logger = logging.getLogger("gandhikar")
 
@@ -123,11 +124,18 @@ def check_provision(
 def annotate_provisions(
     provisions: List[dict],
     source_tag: str = "db",
+    approval_registry: Optional[List[dict]] = None,
 ) -> List[dict]:
     """Annotate each provision with law status info in-place (new dict copy).
 
     Provisions with INACTIVE status get a dead_warning prepended.
     This is the single source of truth for law-status display.
+
+    `approval_registry`: normally None (uses the real, currently-empty,
+    on-disk approval-evidence registry — see engine.approval_evidence).
+    Tests may pass an explicit in-memory list of synthetic approval records
+    to exercise the approved/revoked/hash-mismatch paths without ever
+    touching the real registry file.
     """
     annotated: List[dict] = []
     for prov in provisions:
@@ -136,35 +144,48 @@ def annotate_provisions(
 
         if status_label == "INACTIVE" and rec:
             if prov_copy.get("historical_still_applicable"):
-                # Hand-curated legacy corpus entry (corpus_ipc.py) — the old
-                # code is dead for NEW offences/events, but THIS specific
-                # text remains the governing law for matters (FIRs, pending
-                # trials) from before the cutover date, and the entry was
-                # verified specifically to answer that historical question.
-                # Deliberately do NOT set is_dead_law/status/dead_warning:
-                # those three fields are exactly what all_provisions_dead()
-                # and _is_dead() check to trigger the generic "cannot
-                # verify" refusal / "no longer enforceable" prompt guard —
-                # firing either of those here would wrongly swallow a
-                # legitimately answerable historical question with a
-                # template response. Use a distinct, non-triggering field
-                # instead so the historical framing still reaches the user
-                # (via with_historical_notice()) without being treated as
-                # a dead provision anywhere else in the pipeline.
-                prov_copy["historical_notice"] = (
-                    f"Historical note: {rec.short_name} was replaced by "
-                    f"{rec.successor_act or 'newer legislation'} for new matters. "
-                    f"This provision remains the governing law for events, FIRs, "
-                    f"and trials from before that date."
+                # P0 containment (T03): `historical_still_applicable` is a
+                # blanket hand-authored tag on the WHOLE corpus_ipc.py
+                # dataset (set once, in source, for every entry) — it is
+                # NOT a per-record approval from an authorized legal
+                # reviewer, and must never by itself grant the "this old
+                # text still governs" framing. Require an active, exact
+                # content-hash-bound approval record before granting it;
+                # missing/revoked/hash-mismatched/malformed evidence falls
+                # through to the standard dead-law warning below instead —
+                # fail closed, not "treat as historical by default".
+                _act_for_key = (prov.get("act_name") or prov.get("act") or "").strip()
+                _subject_key = (
+                    prov_copy.get("key")
+                    or f"{_act_for_key}|{prov.get('section_number') or prov.get('short_label') or ''}"
                 )
-                prov_copy["_law_status"] = rec.status
-                prov_copy["_successor_act"] = rec.successor_act
-                logger.info(
-                    "[law_status_guard] INACTIVE-but-historical act=%r status=%s (not marked dead)",
-                    rec.short_name[:60], rec.status,
+                _content_hash = compute_content_hash(
+                    prov_copy.get("official_text") or prov_copy.get("section_text") or ""
                 )
-                annotated.append(prov_copy)
-                continue
+                _approval = check_approval("historical_applicability", _subject_key, _content_hash, registry=approval_registry)
+                if _approval.approved:
+                    prov_copy["historical_notice"] = (
+                        f"Historical note: {rec.short_name} was replaced by "
+                        f"{rec.successor_act or 'newer legislation'} for new matters. "
+                        f"This provision remains the governing law for events, FIRs, "
+                        f"and trials from before that date."
+                    )
+                    prov_copy["_law_status"] = rec.status
+                    prov_copy["_successor_act"] = rec.successor_act
+                    prov_copy["_approval_reviewer"] = _approval.reviewer_id
+                    prov_copy["_approval_id"] = _approval.approval_id
+                    logger.info(
+                        "[law_status_guard] INACTIVE-but-historical act=%r status=%s (approved by reviewer=%s, not marked dead)",
+                        rec.short_name[:60], rec.status, _approval.reviewer_id,
+                    )
+                    annotated.append(prov_copy)
+                    continue
+                else:
+                    logger.warning(
+                        "[law_status_guard] historical_still_applicable REJECTED for subject=%r reason=%s "
+                        "(no valid reviewer approval) — falling back to standard dead-law warning",
+                        _subject_key, _approval.reason,
+                    )
             existing_warn = prov_copy.get("dead_warning") or ""
             guard_msg = (
                 f"⚠️ [LAW_STATUS_GUARD] '{rec.short_name}' is {rec.status}. "

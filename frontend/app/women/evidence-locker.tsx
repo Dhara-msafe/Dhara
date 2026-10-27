@@ -18,7 +18,7 @@ import {
   discardTemporaryRecording, getDecryptedTempUri, getSegmentedShareZipUri, releaseDecryptedTempUri, type RecordingItem,
   saveSegment, createSegmentedParent, loadSegments, loadVisibleRecordings,
 } from '@/src/women/evidenceStore';
-import { hasPin, setPin, verifyPin } from '@/src/women/evidenceLock';
+import { hasPin, setPin, verifyPin, getLockoutRemainingMs } from '@/src/women/evidenceLock';
 import { getManifestEntry, type ManifestEntry, type GpsPoint } from '@/src/women/evidenceManifest';
 import { anchorItem, backupItem } from '@/src/women/evidenceBackup';
 import { fetchFlags } from '@/src/women/api';
@@ -45,35 +45,98 @@ function InlineVideoPreview({ uri }: { uri: string }) {
 }
 
 // ── PIN lock gate ───────────────────────────────────────────────────────────
+function formatLockoutRemaining(ms: number): string {
+  const seconds = Math.ceil(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  return `${Math.ceil(seconds / 60)} min`;
+}
+
 function PinGate({ onUnlock }: { onUnlock: () => void }) {
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<'checking' | 'create' | 'confirm' | 'enter'>('checking');
   const [pin, setPinInput] = useState('');
   const [firstPin, setFirstPin] = useState('');
   const [error, setError] = useState('');
+  // T09: live lockout countdown (ms remaining, 0 = not locked out). This is
+  // ONLY ever used to drive the on-screen message/countdown — it must never
+  // be the sole gate that decides whether an unlock is allowed (see submit()
+  // below, which re-reads the authoritative value from storage every time).
+  const [lockoutMs, setLockoutMs] = useState(0);
+  // T09 bugfix: a critical lockout-bypass was found in testing where a
+  // correct PIN submitted during an active lockout still unlocked the
+  // screen. Defends against every plausible cause at once, rather than
+  // relying on any single guard: (a) `submittingRef` below serializes
+  // submit() calls so no second call can race a lockout write that is
+  // still in flight from the previous call; (b) submit() re-reads
+  // getLockoutRemainingMs() FRESH FROM STORAGE at its very top instead of
+  // trusting the `lockoutMs` React-state closure, which could in principle
+  // be stale; (c) onChangeText ignores input entirely while locked, so a
+  // PIN cannot even enter state during lockout regardless of how the
+  // underlying platform input was manipulated; (d) the Pressable adds an
+  // explicit `pointerEvents: 'none'` style, since `disabled` alone was
+  // observed to still allow a click through on web.
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     hasPin()
-      .then(exists => setMode(exists ? 'enter' : 'create'))
+      .then(async exists => {
+        setMode(exists ? 'enter' : 'create');
+        if (exists) setLockoutMs(await getLockoutRemainingMs());
+      })
       .catch(() => { setMode('create'); setError('Could not check for an existing PIN — you can set a new one.'); });
   }, []);
 
+  // Tick the countdown every second while locked out so the Unlock button
+  // re-enables itself without the user needing to retry manually. Keyed on
+  // `lockoutMs > 0` (not `lockoutMs` itself) so the interval is created once
+  // per lockout period instead of being torn down/recreated every second.
+  useEffect(() => {
+    if (lockoutMs <= 0) return;
+    const id = setInterval(() => setLockoutMs(ms => Math.max(0, ms - 1000)), 1000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lockoutMs > 0]);
+
   const submit = useCallback(async () => {
-    setError('');
-    if (pin.length < 4) { setError('Enter at least 4 digits.'); return; }
-    if (mode === 'create') { setFirstPin(pin); setPinInput(''); setMode('confirm'); return; }
-    if (mode === 'confirm') {
-      if (pin !== firstPin) { setError('PINs did not match — try again.'); setPinInput(''); setFirstPin(''); setMode('create'); return; }
-      await setPin(pin); onUnlock(); return;
-    }
-    if (mode === 'enter') {
-      const ok = await verifyPin(pin);
-      if (!ok) { setError('Incorrect PIN.'); setPinInput(''); return; }
-      onUnlock();
+    // (a) Serialize — ignore any call while a previous one is still in
+    // flight (prevents a correct-PIN call from racing ahead of a wrong-PIN
+    // call that is still in the middle of writing the lockout to storage).
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    try {
+      setError('');
+      // (b) Authoritative, storage-backed re-check — never trust only the
+      // `lockoutMs` React-state closure for the actual security decision.
+      const freshLockoutMs = await getLockoutRemainingMs();
+      if (freshLockoutMs > 0) {
+        setLockoutMs(freshLockoutMs);
+        return;
+      }
+      if (pin.length < 4) { setError('Enter at least 4 digits.'); return; }
+      if (mode === 'create') { setFirstPin(pin); setPinInput(''); setMode('confirm'); return; }
+      if (mode === 'confirm') {
+        if (pin !== firstPin) { setError('PINs did not match — try again.'); setPinInput(''); setFirstPin(''); setMode('create'); return; }
+        await setPin(pin); onUnlock(); return;
+      }
+      if (mode === 'enter') {
+        const result = await verifyPin(pin);
+        setPinInput('');
+        if (result.ok) { onUnlock(); return; }
+        if (result.reason === 'locked_out') {
+          setLockoutMs(result.retryAfterMs);
+          setError(`Too many incorrect attempts. Try again in ${formatLockoutRemaining(result.retryAfterMs)}.`);
+        } else {
+          setError(`Incorrect PIN. ${result.attemptsRemaining} attempt(s) left before a short lockout.`);
+        }
+      }
+    } finally {
+      submittingRef.current = false;
     }
   }, [pin, mode, firstPin, onUnlock]);
 
   if (mode === 'checking') return <View style={styles.root}><ActivityIndicator color={c.navy} style={{ marginTop: 60 }} /></View>;
+
+  const locked = mode === 'enter' && lockoutMs > 0;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + 24, alignItems: 'center' }]} testID="evidence-pin-gate">
@@ -86,16 +149,30 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
       <TextInput
         testID="evidence-pin-input"
         value={pin}
-        onChangeText={t => setPinInput(t.replace(/\D/g, '').slice(0, 6))}
+        // (c) Ignore input entirely while locked — a PIN must never be able
+        // to reach `pin` state during an active lockout, no matter how the
+        // underlying platform input was changed (typing, paste, or a test/
+        // automation tool programmatically setting the field's value).
+        onChangeText={t => { if (locked) return; setPinInput(t.replace(/\D/g, '').slice(0, 6)); }}
         keyboardType="number-pad"
         secureTextEntry
         maxLength={6}
         placeholder="••••"
         style={styles.pinInput}
+        editable={!locked}
         autoFocus
       />
       {!!error && <Text testID="evidence-pin-error" style={[styles.note, { color: c.emergencyRed }]}>{error}</Text>}
-      <Pressable testID="evidence-pin-submit" style={styles.button} onPress={submit}>
+      {locked && <Text testID="evidence-pin-lockout" style={[styles.note, { color: c.emergencyRed }]}>Locked for {formatLockoutRemaining(lockoutMs)}.</Text>}
+      <Pressable
+        testID="evidence-pin-submit"
+        disabled={locked}
+        // (d) Explicit pointer-events block — `disabled` alone was observed
+        // in testing to still let a click through to onPress on web.
+        pointerEvents={locked ? 'none' : 'auto'}
+        style={[styles.button, locked && { opacity: 0.5 }]}
+        onPress={submit}
+      >
         <Text style={styles.buttonText}>{mode === 'enter' ? 'Unlock' : 'Continue'}</Text>
       </Pressable>
     </View>

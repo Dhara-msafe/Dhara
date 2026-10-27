@@ -79,6 +79,7 @@ from engine.answer_generator import (
     strip_leaked_citations,
     augment_prompt_with_actor_conduct_lock,
     reframe_misdirected_obligations,
+    recheck_dead_with_successor_release,
 )
 # AQF Phase 1b — jurisdiction-state unification (FEATURE_MATTER_CONTEXT_V2)
 from engine.models import FEATURE_MATTER_CONTEXT_V2, resolve_jurisdiction_state
@@ -833,6 +834,23 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
         classify_result=_v2_classify,
     )
 
+    # -------- P0 containment (T04/T05 ordering fix) -----------------------
+    # Recheck successor-release eligibility ONCE per turn, on this turn's
+    # full PRE-filter evidence, BEFORE either consumer reads it: (1) the
+    # citation-truth-guard's own "keep genuine successor-act citations"
+    # inclusion check just below, and (2) the Layer M cannot-verify bypass
+    # further down. Previously the citation-truth-guard ran first and read
+    # the `dead_with_successor` flag as it stood at the END of the PREVIOUS
+    # turn (before this turn's recheck had run), while the Layer M bypass
+    # used the freshly-rechecked value — the two consumers could disagree
+    # about the same turn. Computing it once, here, first, and reusing the
+    # result for both closes that ordering gap; mutates `_active_ref_now`
+    # in place exactly as before, so the next turn's carry-forward is
+    # unaffected.
+    _has_explicit_dead_citation_with_successor = recheck_dead_with_successor_release(
+        _active_ref_now, list(retrieved) + list(db_hits), _LEGACY_TO_SUCCESSOR_FAMILY,
+    )
+
     # -------- P0-D: Citation Truth Guard — content validation ------------
     # Runs HERE, upstream of ALL downstream citation-payload construction AND
     # upstream of the CITATION_GUARD_ENABLED buffering/timing branch further
@@ -893,46 +911,16 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
     # normally for any dead hit that was only a coincidental/fuzzy match on
     # a general query (no explicit citation), or that has no known
     # successor (a genuine unverifiable gap).
-    def _explicit_exact_dead_citation_with_successor() -> bool:
-        if not _active_ref_now:
-            return False
-        # Sticky across follow-up turns: once this conversation's active
-        # reference was established (on an earlier turn, in THIS function)
-        # to be a verified dead law with a known successor, that fact is
-        # carried forward on the active_statute_ref dict itself — so a
-        # fuzzy follow-up ("what is the BNS equivalent?") whose OWN
-        # retrieval no longer happens to re-match the exact dead record
-        # doesn't lose the exemption and fall back into a refusal. A
-        # genuinely NEW Act+section named later replaces this whole dict
-        # (see CaseState.active_statute_ref docstring), so this never
-        # leaks into an unrelated topic.
-        if _active_ref_now.get("dead_with_successor"):
-            return True
-        ref_act = (_active_ref_now.get("act") or "").strip().lower()
-        ref_sec = (_active_ref_now.get("section") or "").strip().upper()
-        if not (ref_act and ref_sec):
-            return False
-        for h in _all_hits_for_status:
-            h_act = (h.get("act_name") or h.get("act") or "").strip().lower()
-            h_sec = (h.get("section_number") or "").strip().upper()
-            if h_act == ref_act and h_sec == ref_sec and (
-                h.get("successor_act") or h.get("_successor_act")
-            ):
-                _active_ref_now["dead_with_successor"] = True
-                _active_ref_now["successor_act_label"] = h.get("successor_act") or h.get("_successor_act")
-                # Also record the successor's ACT FAMILY (e.g. "Bharatiya
-                # Nyaya Sanhita" for IPC) so a later follow-up turn's own
-                # legitimately-retrieved successor-act hits are recognised
-                # as supporting this active reference too — see
-                # _p0d_hit_supports_active_ref's matching use of this field.
-                _active_ref_now["successor_act_family"] = _LEGACY_TO_SUCCESSOR_FAMILY.get(ref_act)
-                return True
-        return False
-
+    # `_has_explicit_dead_citation_with_successor` was computed ONCE, earlier
+    # in this function (right after run_post_retrieval, on pre-filter
+    # evidence) — see the comment block there for why (P0 ordering fix,
+    # T04/T05: the citation-truth-guard's own successor-family inclusion
+    # check, just above, must see the SAME freshly-rechecked value, not a
+    # later recomputation on already-filtered hits).
     _all_hits_for_status = list(retrieved) + list(db_hits)
-    # Computed once, reused below at the second (citation/output) guard too —
-    # see "_has_explicit_dead_citation_with_successor" further down.
-    _has_explicit_dead_citation_with_successor = _explicit_exact_dead_citation_with_successor()
+    # Reuses the value already computed above (pre-filter) — NOT
+    # recomputed here, so the citation-truth-guard filter above and this
+    # Layer M bypass are guaranteed to agree for this turn.
     _cannot_verify = (
         not early_refusal
         and _all_hits_for_status

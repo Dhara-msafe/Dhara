@@ -145,11 +145,14 @@ function AnalyticsIdentitySync() {
   useEffect(() => {
     if (user?.id && user.id !== prevIdRef.current) {
       prevIdRef.current = user.id;
-      // Fire-and-forget; hash is async but the user session is already set.
-      identifyUser(user.id, { is_pro: user.is_pro ?? false }).catch(() => {});
-      // Load analytics consent into the in-memory cache so trackEvent
-      // respects the user's DPDP preference from this point forward.
-      loadAnalyticsConsent(user.id).catch(() => {});
+      // P0 containment (T08): resolve consent FIRST. identifyUser() itself
+      // checks consent before transmitting, but loading it first (instead
+      // of firing both in parallel) avoids a same-tick race where a
+      // returning user's already-true consent hasn't been read from
+      // storage yet when identify() runs.
+      loadAnalyticsConsent(user.id)
+        .catch(() => {})
+        .then(() => identifyUser(user.id, { is_pro: user.is_pro ?? false }).catch(() => {}));
     } else if (!user && prevIdRef.current) {
       prevIdRef.current = null;
       resetAnalyticsIdentity();

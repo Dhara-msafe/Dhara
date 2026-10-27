@@ -883,12 +883,19 @@ async def export_messages_csv(x_admin_key: Optional[str] = Header(None)):
     import csv, io
     from fastapi.responses import StreamingResponse
 
-    # Cache users for O(1) email lookups
-    user_index: dict = {}
-    async for u in db.users.find({}, projection={"id": 1, "email": 1, "name": 1, "phone": 1}):
-        user_index[u["id"]] = u
-
-    # Cache sessions for user linkage
+    # P0 containment (T07 — bulk-export privacy defect, 2026-10-26
+    # remediation): this endpoint used to join every user's full legal-
+    # conversation content with their email/name/phone in one unscoped CSV
+    # — exactly the "export combines users' legal conversations with
+    # personal details" defect flagged for containment. It is RESTRICTED,
+    # not removed: message content remains available for legitimate
+    # operational debugging, but is no longer bundled with directly-
+    # identifying personal details in the same unscoped dump. `user_id`
+    # (an opaque internal id, already present on every message) is kept so
+    # messages can still be correlated to an account when a SEPARATE,
+    # deliberate lookup is actually needed — that is a materially smaller
+    # disclosure than shipping name+email+phone next to 2000 chars of a
+    # person's actual legal situation for every user in one file.
     session_index: dict = {}
     async for s in db.sessions.find({}, projection={"id": 1, "user_id": 1}):
         session_index[s["id"]] = s.get("user_id", "")
@@ -896,13 +903,12 @@ async def export_messages_csv(x_admin_key: Optional[str] = Header(None)):
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow([
-        "timestamp", "user_email", "user_name", "user_phone", "role",
+        "timestamp", "user_id", "role",
         "status", "content", "citations", "session_id",
     ])
     async for m in db.messages.find({}).sort("created_at", -1):
         sid = m.get("session_id", "")
-        uid = session_index.get(sid, "")
-        u = user_index.get(uid, {})
+        uid = m.get("user_id") or session_index.get(sid, "")
         citations = m.get("citations") or []
         # Flatten citation labels for CSV
         cit_labels = " | ".join(
@@ -921,9 +927,7 @@ async def export_messages_csv(x_admin_key: Optional[str] = Header(None)):
                 status = "ok"
         writer.writerow([
             m.get("timestamp") or m.get("created_at", ""),
-            u.get("email", ""),
-            u.get("name", ""),
-            u.get("phone", ""),
+            uid,
             m.get("role", ""),
             status,
             (m.get("content") or "").replace("\r", " ").replace("\n", " ")[:2000],

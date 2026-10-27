@@ -62,6 +62,58 @@ _DEAD_STATUSES = {
 }
 
 
+def recheck_dead_with_successor_release(
+    active_ref: Optional[dict],
+    hits: Iterable[dict],
+    legacy_to_successor_family: dict,
+) -> bool:
+    """P0 containment (T04 — legal-release containment).
+
+    Decides, for THIS turn only, whether the conversation's active statute
+    reference is a verified dead law with a known successor — the sole
+    condition allowed to exempt an all-dead retrieval set from the generic
+    "cannot verify" refusal (see all_provisions_dead()/build_cannot_verify_
+    response() callers in api/chat_router.py).
+
+    A previously-stored `dead_with_successor` flag on `active_ref` (carried
+    across turns via CaseState.active_statute_ref, a persisted session
+    field) must NEVER be trusted on its own: conversation/topic memory is
+    not approval evidence. Trusting a stored flag would let an earlier
+    turn's determination silently authorize a later turn's answer even if
+    that later turn's own retrieval no longer supports it. This function
+    therefore ALWAYS re-derives the result from THIS turn's own retrieved
+    `hits` and overwrites the stored flag with the freshly computed value
+    (True or False) — a turn whose own retrieval no longer matches fails
+    closed instead of inheriting a stale True.
+
+    Mutates `active_ref` in place (same dict object, matching the prior
+    inline behaviour) so the recomputed `dead_with_successor` /
+    `successor_act_label` / `successor_act_family` fields are persisted for
+    the *next* turn's retrieval carry-forward — but recomputed every call,
+    never short-circuited by the previous value.
+    """
+    if not active_ref:
+        return False
+    ref_act = (active_ref.get("act") or "").strip().lower()
+    ref_sec = (active_ref.get("section") or "").strip().upper()
+    if not (ref_act and ref_sec):
+        return False
+    for h in hits or []:
+        h_act = (h.get("act_name") or h.get("act") or "").strip().lower()
+        h_sec = (h.get("section_number") or "").strip().upper()
+        if h_act == ref_act and h_sec == ref_sec and (
+            h.get("successor_act") or h.get("_successor_act")
+        ):
+            active_ref["dead_with_successor"] = True
+            active_ref["successor_act_label"] = h.get("successor_act") or h.get("_successor_act")
+            active_ref["successor_act_family"] = legacy_to_successor_family.get(ref_act)
+            return True
+    # This turn's own evidence does not support it — fail closed, clearing
+    # any stale True a prior turn may have left on the persisted dict.
+    active_ref["dead_with_successor"] = False
+    return False
+
+
 # ── Public builders ───────────────────────────────────────────────────────────
 
 def augment_prompt_with_numeric_fidelity_lock(prompt: str) -> str:

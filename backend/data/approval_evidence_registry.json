@@ -1,0 +1,4 @@
+{
+  "_comment": "P0 containment (T03). This registry is INTENTIONALLY EMPTY. No approvals are seeded by engineering or agent work. Entries may only be added by an authorized legal reviewer, out-of-band, with their own reviewer_id, an exact content_hash of the specific text version being approved, and status set to 'active'. A text change invalidates the hash and the approval fails closed automatically. Set status to 'revoked' (and revoked_at) to withdraw an approval; never delete the historical record.",
+  "approvals": []
+}

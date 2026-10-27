@@ -28,6 +28,25 @@ historical provision unusable or return a dead-law template" defect.
 
 These are direct unit tests against the pure functions (no DB, no network,
 no live server) — synthetic/library data only.
+
+=== POLICY CHANGE (P0 containment, T03, 2026-10-26 remediation) ===
+Several assertions below were updated from their original form. The
+ORIGINAL tests asserted that `historical_still_applicable=True` ALONE
+(a blanket hand-authored flag on the whole corpus_ipc.py dataset, never
+reviewed per-record by an authorized legal reviewer) was sufficient to
+grant the "this old text still governs" framing and keep a hit out of the
+cannot-verify gate. That is exactly the unapproved-release defect T03 was
+opened to contain: a stored/source flag independently authorizing an
+answer, with no reviewer identity, no record/hash binding, and no way to
+fail closed if ever revoked. `engine/law_status_guard.py` now requires an
+actual approval-evidence record (engine.approval_evidence.check_approval)
+before granting that framing; the on-disk registry is intentionally EMPTY
+(no approvals seeded), so by default these entries now get the STANDARD
+dead-law warning instead — the same outcome as any other superseded
+provision — until a legal reviewer actually approves a specific entry.
+Tests below are split into "no approval" (new default, fails closed) and
+"with a synthetic in-memory approval" (the original historical-notice
+behaviour, now gated).
 """
 import sys
 import os
@@ -37,6 +56,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from corpus_ipc import IPC_CRPC_CORPUS  # noqa: E402
 from engine.law_status_guard import annotate_provisions  # noqa: E402
 from engine.answer_generator import all_provisions_dead, _is_dead  # noqa: E402
+from engine.approval_evidence import compute_content_hash  # noqa: E402
 from corpus import with_historical_notice, public_citation  # noqa: E402
 
 
@@ -46,18 +66,70 @@ def _entry(key: str) -> dict:
     return hit
 
 
+def _synthetic_approval_for(entry: dict, reviewer_id: str = "test-reviewer-only-not-real") -> list:
+    """Build an in-memory (never written to disk) approval record for test
+    use only — exercises the approved path without ever creating a real
+    approval in backend/data/approval_evidence_registry.json."""
+    return [{
+        "approval_id": f"TEST-{entry['key']}",
+        "record_type": "historical_applicability",
+        "subject_key": entry["key"],
+        "content_hash": compute_content_hash(entry["official_text"]),
+        "reviewer_id": reviewer_id,
+        "status": "active",
+    }]
+
+
 class TestHistoricalCorpusEntriesAreTaggedAndNotMarkedDead:
-    """corpus_ipc.py entries must all carry historical_still_applicable."""
+    """corpus_ipc.py entries must all carry historical_still_applicable —
+    this flag is necessary but, since T03, no longer SUFFICIENT on its own."""
 
     def test_all_entries_tagged(self):
         assert len(IPC_CRPC_CORPUS) > 0
         assert all(e.get("historical_still_applicable") is True for e in IPC_CRPC_CORPUS)
 
-    def test_annotate_does_not_set_is_dead_law_for_historical_entry(self):
+    def test_without_approval_entry_now_fails_closed_to_standard_dead_law(self):
+        # T03 policy change: no approval exists for this entry (the real
+        # on-disk registry is empty) -> must behave like any other
+        # superseded provision, NOT get the special historical framing.
         hit = annotate_provisions([_entry("ipc_34")], source_tag="corpus")[0]
-        assert not hit.get("is_dead_law"), "a hand-verified historical entry must not be flagged dead_law"
+        assert hit.get("is_dead_law") is True, "without reviewer approval this must fail closed to standard dead-law treatment"
+        assert hit.get("dead_warning")
+        assert not hit.get("historical_notice"), "historical framing must not be granted without approval evidence"
+
+    def test_with_valid_synthetic_approval_grants_historical_notice(self):
+        entry = _entry("ipc_34")
+        approval_registry = _synthetic_approval_for(entry)
+        hit = annotate_provisions([entry], source_tag="corpus", approval_registry=approval_registry)[0]
+        assert not hit.get("is_dead_law"), "a genuinely approved historical entry must not be flagged dead_law"
         assert not (hit.get("status") or "").strip()
         assert hit.get("historical_notice"), "expected a historical framing notice to be attached"
+        assert hit.get("_approval_reviewer") == "test-reviewer-only-not-real"
+
+    def test_revoked_approval_also_fails_closed(self):
+        entry = _entry("ipc_34")
+        approval_registry = _synthetic_approval_for(entry)
+        approval_registry[0]["status"] = "revoked"
+        approval_registry[0]["revoked_at"] = "2026-10-27T00:00:00Z"
+        hit = annotate_provisions([entry], source_tag="corpus", approval_registry=approval_registry)[0]
+        assert hit.get("is_dead_law") is True
+        assert not hit.get("historical_notice")
+
+    def test_hash_mismatched_approval_also_fails_closed(self):
+        entry = _entry("ipc_34")
+        approval_registry = _synthetic_approval_for(entry)
+        approval_registry[0]["content_hash"] = "deadbeef" * 8  # wrong hash — text changed since approval
+        hit = annotate_provisions([entry], source_tag="corpus", approval_registry=approval_registry)[0]
+        assert hit.get("is_dead_law") is True
+        assert not hit.get("historical_notice")
+
+    def test_malformed_approval_missing_reviewer_id_fails_closed(self):
+        entry = _entry("ipc_34")
+        approval_registry = _synthetic_approval_for(entry)
+        approval_registry[0]["reviewer_id"] = ""  # malformed: no authorized reviewer identified
+        hit = annotate_provisions([entry], source_tag="corpus", approval_registry=approval_registry)[0]
+        assert hit.get("is_dead_law") is True
+        assert not hit.get("historical_notice")
 
     def test_annotate_preserves_original_official_text(self):
         original = _entry("ipc_34")
@@ -67,28 +139,42 @@ class TestHistoricalCorpusEntriesAreTaggedAndNotMarkedDead:
 
 
 class TestAllProvisionsDeadDoesNotWronglyFireForHistoricalHit:
-    """The exact bug: a single historical-corpus-only hit must NOT trigger
-    the Layer M cannot-verify gate."""
+    """With a genuine, reviewer-approved historical hit, the single hit must
+    NOT trigger the Layer M cannot-verify gate. Without approval (default),
+    it now correctly DOES count as dead, same as any superseded provision."""
 
-    def test_single_historical_hit_is_not_all_dead(self):
+    def test_single_historical_hit_without_approval_is_now_all_dead(self):
         hit = annotate_provisions([_entry("ipc_34")], source_tag="corpus")[0]
+        assert all_provisions_dead([hit]) is True
+
+    def test_single_historical_hit_with_approval_is_not_all_dead(self):
+        entry = _entry("ipc_34")
+        hit = annotate_provisions([entry], source_tag="corpus", approval_registry=_synthetic_approval_for(entry))[0]
         assert all_provisions_dead([hit]) is False
 
-    def test_is_dead_helper_also_says_alive(self):
-        hit = annotate_provisions([_entry("ipc_34")], source_tag="corpus")[0]
+    def test_is_dead_helper_says_alive_only_with_approval(self):
+        entry = _entry("ipc_34")
+        hit = annotate_provisions([entry], source_tag="corpus", approval_registry=_synthetic_approval_for(entry))[0]
         assert _is_dead(hit) is False
 
     def test_mixed_with_an_alive_db_hit_still_not_all_dead(self):
-        hist_hit = annotate_provisions([_entry("ipc_34")], source_tag="corpus")[0]
+        entry = _entry("ipc_34")
+        hist_hit = annotate_provisions([entry], source_tag="corpus", approval_registry=_synthetic_approval_for(entry))
         alive_db_hit = {"act": "BNS", "section": "199"}  # not in the dead registry
-        combined = annotate_provisions([hist_hit], source_tag="corpus") + \
-            annotate_provisions([alive_db_hit], source_tag="db")
+        combined = hist_hit + annotate_provisions([alive_db_hit], source_tag="db")
         assert all_provisions_dead(combined) is False
 
-    def test_crpc_entry_also_not_marked_dead(self):
+    def test_crpc_entry_without_approval_is_now_marked_dead(self):
         crpc_hits = [e for e in IPC_CRPC_CORPUS if e.get("act") == "CrPC"]
         assert crpc_hits, "expected at least one CrPC entry in corpus_ipc.py"
         hit = annotate_provisions([crpc_hits[0]], source_tag="corpus")[0]
+        assert hit.get("is_dead_law") is True
+        assert all_provisions_dead([hit]) is True
+
+    def test_crpc_entry_with_approval_is_not_marked_dead(self):
+        crpc_hits = [e for e in IPC_CRPC_CORPUS if e.get("act") == "CrPC"]
+        entry = crpc_hits[0]
+        hit = annotate_provisions([entry], source_tag="corpus", approval_registry=_synthetic_approval_for(entry))[0]
         assert not hit.get("is_dead_law")
         assert all_provisions_dead([hit]) is False
 
@@ -121,12 +207,22 @@ class TestCitationCardShowsHistoricalFraming:
     it directly in official_text (no frontend change required)."""
 
     def test_historical_notice_prepended_to_official_text(self):
-        hit = annotate_provisions([_entry("ipc_34")], source_tag="corpus")[0]
+        # Requires a valid synthetic approval (T03) — without one the
+        # notice is not granted at all (see TestHistoricalCorpusEntries...
+        # test_without_approval_entry_now_fails_closed_to_standard_dead_law).
+        entry = _entry("ipc_34")
+        hit = annotate_provisions([entry], source_tag="corpus", approval_registry=_synthetic_approval_for(entry))[0]
         cite = with_historical_notice(public_citation(hit), hit)
         assert cite["official_text"].startswith("Historical note:")
         assert "replaced by" in cite["official_text"]
         # Original verbatim text must still be present, unmodified, after the notice.
-        assert _entry("ipc_34")["official_text"] in cite["official_text"]
+        assert entry["official_text"] in cite["official_text"]
+
+    def test_no_notice_without_approval_even_though_flag_is_set(self):
+        hit = annotate_provisions([_entry("ipc_34")], source_tag="corpus")[0]
+        cite = with_historical_notice(public_citation(hit), hit)
+        assert not cite.get("historical_notice")
+        assert not cite["official_text"].startswith("Historical note:")
 
     def test_no_notice_prepended_for_a_live_non_dead_entry(self):
         live_entry = dict(_entry("ipc_34"))
@@ -136,7 +232,8 @@ class TestCitationCardShowsHistoricalFraming:
         assert out == cite_plain
 
     def test_with_historical_notice_does_not_mutate_inputs(self):
-        hit = annotate_provisions([_entry("ipc_34")], source_tag="corpus")[0]
+        entry = _entry("ipc_34")
+        hit = annotate_provisions([entry], source_tag="corpus", approval_registry=_synthetic_approval_for(entry))[0]
         cite = public_citation(hit)
         original_text = cite["official_text"]
         with_historical_notice(cite, hit)
