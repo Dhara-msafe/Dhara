@@ -1316,7 +1316,7 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
             and not _emergency
             and not is_denylisted(body.message)
         ):
-            _c1_intent = classify_conversational_intent(body.message)
+            _c1_intent = classify_conversational_intent(body.message, body.language)
             if _c1_intent:
                 _c1_reply = get_conversational_template(_c1_intent, body.language)
                 if _c1_reply:
