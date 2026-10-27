@@ -1510,10 +1510,13 @@ export default function ChatScreen() {
   useEffect(() => () => { deleteRetryAudio(); }, [deleteRetryAudio]);
   // Fix A: one short, fixed message per status — never the raw response body
   // (a 429 from the upstream Whisper rate limiter can come back as plain HTML).
-  const showTranscriptionError = useCallback((status: number | null, retry: () => void) => {
-    const message = status === 429
-      ? 'Too many requests. Please wait a moment and try again.'
-      : 'Could not transcribe. Please try again or type your question.';
+  // Mic diagnosis fix: this is the function the chat-mic user actually sees
+  // on a real transcription failure — it now routes through the same
+  // sttErrorToMessage() used everywhere else, so the distinct no-recording /
+  // no-connection / safe-server-detail messages reach the user here too,
+  // instead of the one hardcoded generic string.
+  const showTranscriptionError = useCallback((err: unknown, retry: () => void) => {
+    const message = sttErrorToMessage(err);
     crossAlert('Transcription failed', message, [
       { text: 'Cancel', style: 'cancel', onPress: () => deleteRetryAudio() }, // A2: cancelling the retry alert deletes the cached audio
       { text: 'Retry', onPress: retry },
@@ -1534,7 +1537,7 @@ export default function ChatScreen() {
           body: form,
         });
         if (res.status === 401) { setTranscribing(false); await forceLogout(); return; }
-        if (!res.ok) { setTranscribing(false); showTranscriptionError(res.status, retryTranscription); return; }
+        if (!res.ok) { setTranscribing(false); showTranscriptionError({ message: '__transcribe_failed__', status: res.status }, retryTranscription); return; }
         let data: any = {};
         try { data = await res.json(); } catch { data = {}; }
         const heardText = (data.text || '').trim();
@@ -1565,7 +1568,7 @@ export default function ChatScreen() {
     } catch (e: any) {
       setTranscribing(false);
       if (e?.message === '__session_expired__') { forceLogout(); return; }
-      showTranscriptionError((e as any)?.status ?? null, retryTranscription);
+      showTranscriptionError(e, retryTranscription);
     }
   }, [token, language, forceLogout, notify, enterConfirming, showTranscriptionError, deleteRetryAudio]);
 
@@ -1637,7 +1640,7 @@ export default function ChatScreen() {
           // Fix A: never show the raw response body (e.g. a non-JSON 429 page)
           // — one short message per status, with a Retry that resends this blob.
           setTranscribing(false);
-          showTranscriptionError(res.status, retryTranscription);
+          showTranscriptionError({ message: '__transcribe_failed__', status: res.status }, retryTranscription);
           return;
         }
         let data: any = {};
@@ -1702,7 +1705,7 @@ export default function ChatScreen() {
       }
       // Fix A: never show the raw error/response text — one short message
       // per status, with a Retry that resends the same recording.
-      showTranscriptionError((e as any)?.status ?? null, retryTranscription);
+      showTranscriptionError(e, retryTranscription);
     }
   }, [recorder, token, language, notify, forceLogout, showTranscriptionError, retryTranscription, deleteRetryAudio]);
 

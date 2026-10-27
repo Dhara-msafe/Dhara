@@ -302,12 +302,24 @@ export default function LookupScreen() {
     try {
       await recorder.stop();
       const uri = recorder.uri;
-      if (!uri) throw new Error('No recording captured');
+      // Mic diagnosis fix: distinct sentinel — "nothing captured" is not a
+      // transcription failure and never reaches the network.
+      if (!uri) throw new Error('__no_recording__');
       if (!API_BASE || !token) throw new Error('Voice input is unavailable');
       const result = await whisperTranscribeFile(API_BASE, token, uri, 'en');
       applyTranscript(result?.text || '');
-    } catch {
-      setHeardSummary('Could not transcribe. Please try again or type the CNR.');
+    } catch (e: any) {
+      // Mic diagnosis fix: distinct message per cause. Mirrors
+      // src/voice/stt.ts's sttErrorToMessage() mapping for the sentinels
+      // whisperTranscribeFile() throws.
+      const m = e?.message;
+      setHeardSummary(
+        m === '__no_recording__'
+          ? 'No sound was recorded. Please allow the microphone and try again.'
+          : m === '__network_error__'
+          ? 'Could not reach DHARA. Check your internet and try again.'
+          : (e?.serverMessage || 'Could not transcribe. Please try again or type the CNR.')
+      );
     } finally {
       setTranscribing(false);
       micLeaseRef.current?.release(); micLeaseRef.current = null;

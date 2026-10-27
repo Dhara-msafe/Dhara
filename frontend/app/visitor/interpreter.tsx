@@ -226,7 +226,7 @@ export default function InterpreterScreen() {
     try {
       const uri = await finishRecording();
 
-      if (!uri) throw new Error('No recording URI');
+      if (!uri) throw new Error('__no_recording__');
       const langHint = ISO_TO_BCP47[srcLang] || 'en';
       let text: string;
       try {

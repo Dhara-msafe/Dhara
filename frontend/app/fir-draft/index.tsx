@@ -883,14 +883,27 @@ Allowed: JPG, PNG, HEIC, MP4, MOV, PDF, DOC, DOCX`);
     try {
       await recorder.stop();
       const uri = recorder.uri;
-      if (!uri) throw new Error('No recording URI');
+      // Mic diagnosis fix: distinct sentinel — "nothing captured" is not a
+      // transcription failure and never reaches the network.
+      if (!uri) throw new Error('__no_recording__');
       const langCode = FIR_LANGUAGES.find(l => l.code === language)?.code || 'en';
       if (!API_BASE || !token) throw new Error('Voice input is unavailable');
       const result = await whisperTranscribeFile(API_BASE, token, uri, langCode);
       const text = result?.text || '';
       if (text) acceptHeardText(text);
-    } catch {
-      setVoiceNotice('Could not transcribe this recording. Please try again or type your response instead.');
+    } catch (e: any) {
+      // Mic diagnosis fix: distinct message per cause. Mirrors
+      // src/voice/stt.ts's sttErrorToMessage() mapping for the sentinels
+      // whisperTranscribeFile() throws (this file doesn't import that
+      // helper, to keep this change self-contained).
+      const m = e?.message;
+      setVoiceNotice(
+        m === '__no_recording__'
+          ? 'No sound was recorded. Please allow the microphone and try again.'
+          : m === '__network_error__'
+          ? 'Could not reach DHARA. Check your internet and try again.'
+          : (e?.serverMessage || 'Could not transcribe this recording. Please try again or type your response instead.')
+      );
     } finally {
       setTranscribing(false);
       micLeaseRef.current?.release(); micLeaseRef.current = null;

@@ -60,7 +60,8 @@ export default function ClientIntake() {
       try {
         await recorder.stop();
         const uri = recorder.uri;
-        if (!uri) throw new Error('No recording captured');
+        // Mic diagnosis fix: distinct sentinel for "nothing captured".
+        if (!uri) throw new Error('__no_recording__');
         const form = new FormData();
         // @ts-expect-error RN FormData file
         form.append('audio', { uri, name: 'audio.m4a', type: 'audio/m4a' });
@@ -75,8 +76,15 @@ export default function ClientIntake() {
         } else if (!res.ok) {
           alert(data?.detail || 'Could not transcribe your recording. Please try again or type your answer.');
         }
-      } catch {
-        alert('Could not transcribe your recording. Please try again or type your answer.');
+      } catch (e: any) {
+        // Mic diagnosis fix: distinct message per cause, mirroring
+        // src/voice/stt.ts's sttErrorToMessage() (this endpoint is a
+        // separate advocate-intake route, not the shared Whisper path).
+        alert(
+          e?.message === '__no_recording__'
+            ? 'No sound was recorded. Please allow the microphone and try again.'
+            : 'Could not transcribe your recording. Please try again or type your answer.'
+        );
       } finally {
         setTranscribingId(null);
         micLeaseRef.current?.release(); micLeaseRef.current = null;
