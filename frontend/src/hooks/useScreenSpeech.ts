@@ -9,6 +9,7 @@ import { speakNative, stopNativeTTS } from '../voice/native-tts';
 import { ChunkedSpeaker } from '../voice/tts';
 import { screenPlayer } from '../media/screenPlayer';
 import { canSpeakNow, noteSpeakIntent } from '../voice/speechGate';
+import { isMicHeldByEvidenceLocker, TTS_BLOCKED_BY_LOCKER_MESSAGE } from '../voice/micArbiterGuard';
 
 /** Uses the existing voice pipeline. Never speaks until the user taps Listen. */
 export function useScreenSpeech() {
@@ -51,6 +52,11 @@ export function useScreenSpeech() {
       resolved = true;
       if (usedNative) { if (completed) { active.current = false; setSpeaking(false); } return; }
       if (!token) throw new Error('Device voice is unavailable. Sign in and connect to the internet for cloud audio, or read the text.');
+      // P0-A: fail closed — never touch the shared audio session while the
+      // Evidence Locker is recording; skip speaking instead of risking its clip.
+      if (Platform.OS !== 'web' && isMicHeldByEvidenceLocker()) {
+        throw new Error(TTS_BLOCKED_BY_LOCKER_MESSAGE);
+      }
       if (Platform.OS !== 'web') await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true, shouldPlayInBackground: false });
       if (generation.current !== id) return;
       const group = `screen-${Date.now()}-${id}`;

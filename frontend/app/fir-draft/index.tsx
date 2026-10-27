@@ -24,7 +24,7 @@ import {
 import { whisperTranscribeFile } from '@/src/voice/stt';
 import { ChunkedSpeaker } from '@/src/voice/tts';
 import { createBrowserTtsPlayer } from '@/src/voice/browserPlayer';
-import { claimMic, MIC_BUSY_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
+import { claimMic, MIC_BUSY_MESSAGE, withMicLease, isMicHeldByEvidenceLocker, TTS_BLOCKED_BY_LOCKER_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
 import { canSpeakNow, noteSpeakIntent, VOICE_COMPANION_ENABLED } from '@/src/voice/speechGate';
 import { VoiceStateMachine } from '@/src/voice/core/voiceStateMachine';
 import { needsConfirmation } from '@/src/voice/core/voicePolicy';
@@ -783,11 +783,19 @@ Allowed: JPG, PNG, HEIC, MP4, MOV, PDF, DOC, DOCX`);
         return;
       }
       if (!recordingRequestedRef.current) return;
-      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-      await recorder.prepareToRecordAsync();
-      const lease = claimMic('fir_draft_mic', () => { try { recorder.stop(); } catch {} recordingActiveRef.current = false; setIsRecording(false); });
-      if (!lease.ok) { setVoiceNotice(MIC_BUSY_MESSAGE); return; }
-      micLeaseRef.current = lease;
+      // BATCH A1: claim the mic lease BEFORE touching the shared audio
+      // session — setAudioModeAsync is global and must never run ahead of
+      // a lease check, or it can disrupt an active Evidence Locker recording.
+      const claimResult = await withMicLease(
+        'fir_draft_mic',
+        () => { try { recorder.stop(); } catch {} recordingActiveRef.current = false; setIsRecording(false); },
+        async () => {
+          await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+          await recorder.prepareToRecordAsync();
+        },
+      );
+      if (!claimResult.ok) { setVoiceNotice(MIC_BUSY_MESSAGE); return; }
+      micLeaseRef.current = claimResult.lease;
       recorder.record();
       // A permission prompt or preparation can outlast the user's press.
       // Stop and discard immediately rather than recording after they let go.
@@ -904,7 +912,11 @@ Allowed: JPG, PNG, HEIC, MP4, MOV, PDF, DOC, DOCX`);
       webChunksRef.current = [];
     } else {
       try { await recorder.stop(); } catch {}
-      try { await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }); } catch {}
+      // P0-C: never flip allowsRecording:false while the Evidence Locker
+      // holds the shared session.
+      if (!isMicHeldByEvidenceLocker()) {
+        try { await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }); } catch {}
+      }
     }
     micLeaseRef.current?.release(); micLeaseRef.current = null;
   }, [recorder]);
@@ -1139,6 +1151,15 @@ ${data.bot_message}`);
 
     speakingIdRef.current = msgId;
     setTtsLoadingMsgId(msgId);
+
+    // P0-A: fail closed — never touch the shared audio session while the
+    // Evidence Locker is recording; skip speaking instead of risking its clip.
+    if (Platform.OS !== 'web' && isMicHeldByEvidenceLocker()) {
+      speakingIdRef.current = null;
+      setTtsLoadingMsgId(null);
+      setVoiceNotice(TTS_BLOCKED_BY_LOCKER_MESSAGE);
+      return;
+    }
 
     try {
       if (Platform.OS !== 'web') {

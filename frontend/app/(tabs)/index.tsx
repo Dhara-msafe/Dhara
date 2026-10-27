@@ -39,7 +39,7 @@ import { useUserProfile } from '@/src/userProfile';
 import { theme } from '@/src/theme';
 import { trackEvent } from '@/src/analytics';
 import { getConfiguredSTT, whisperTranscribeFile } from '@/src/voice/stt';
-import { claimMic, MIC_BUSY_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
+import { claimMic, MIC_BUSY_MESSAGE, withMicLease, isMicHeldByEvidenceLocker, TTS_BLOCKED_BY_LOCKER_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
 import { canSpeakNow, noteSpeakIntent, VOICE_COMPANION_ENABLED } from '@/src/voice/speechGate';
 import { VoiceStateMachine } from '@/src/voice/core/voiceStateMachine';
 import { needsConfirmation } from '@/src/voice/core/voicePolicy';
@@ -623,7 +623,10 @@ export default function ChatScreen() {
   useEffect(() => {
     (async () => {
       try {
-        if (Platform.OS !== 'web') {
+        // P0-A: skip entirely if the Evidence Locker is already recording
+        // when this screen mounts — this call is global and would
+        // reconfigure its session away from allowsRecording.
+        if (Platform.OS !== 'web' && !isMicHeldByEvidenceLocker()) {
           await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false });
         }
       } catch {}
@@ -1138,6 +1141,13 @@ export default function ChatScreen() {
 
       // ── Cloud TTS (streamed, highest quality) ────────────────────────────
 
+      // P0-A: fail closed — never touch the shared audio session while the
+      // Evidence Locker is recording; skip speaking instead of risking its clip.
+      if (Platform.OS !== 'web' && isMicHeldByEvidenceLocker()) {
+        notify('Voice paused', TTS_BLOCKED_BY_LOCKER_MESSAGE);
+        return;
+      }
+
       // Force iOS silent-switch playback and disable recording-mode conflicts
       try {
         if (Platform.OS !== 'web') {
@@ -1436,16 +1446,22 @@ export default function ChatScreen() {
             return;
           }
           if (!isMicHeldRef.current && !lockedRef.current) return;
-          await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
-          try { await recorder.stop(); } catch {}
-          await recorder.prepareToRecordAsync();
+          // BATCH A1: claim the mic lease BEFORE touching the shared audio
+          // session — setAudioModeAsync is global and must never run ahead
+          // of a lease check, or it can disrupt an active Evidence Locker
+          // recording.
+          const claimResult = await withMicLease('chat_mic', onPreempt, async () => {
+            await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
+            try { await recorder.stop(); } catch {}
+            await recorder.prepareToRecordAsync();
+          });
+          if (!claimResult.ok) { notify('Microphone busy', MIC_BUSY_MESSAGE); return; }
           if (!isMicHeldRef.current && !lockedRef.current) {
             try { await recorder.stop(); } catch {}
+            claimResult.lease.release();
             return;
           }
-          const lease = claimMic('chat_mic', onPreempt);
-          if (!lease.ok) { notify('Microphone busy', MIC_BUSY_MESSAGE); return; }
-          micLeaseRef.current = lease;
+          micLeaseRef.current = claimResult.lease;
           recorder.record();
           started = true;
           setRecording(true);
@@ -1646,9 +1662,13 @@ export default function ChatScreen() {
         // leave the mic UI stuck or surface as an unhandled rejection.
         try { await recorder.stop(); } catch {}
         const uri = recorder.uri;
-        try {
-          await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false });
-        } catch {}
+        // P0-C: never flip allowsRecording:false while the Evidence Locker
+        // holds the shared session.
+        if (!isMicHeldByEvidenceLocker()) {
+          try {
+            await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false });
+          } catch {}
+        }
         releaseMicLease();
         if (!uri) { setTranscribing(false); return; }
         if (!token) { setTranscribing(false); return; }
@@ -1755,7 +1775,9 @@ export default function ChatScreen() {
         webChunksRef.current = [];
       } else {
         try { recorder.stop(); } catch {}
-        try { setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }); } catch {}
+        if (!isMicHeldByEvidenceLocker()) {
+          try { setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }); } catch {}
+        }
       }
       releaseMicLease();
       return;
@@ -1811,7 +1833,9 @@ export default function ChatScreen() {
       webChunksRef.current = [];
     } else {
       void recorder.stop().catch(() => {});
-      void setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }).catch(() => {});
+      if (!isMicHeldByEvidenceLocker()) {
+        void setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }).catch(() => {});
+      }
     }
     releaseMicLease();
   }, [recorder, micPulse, releaseMicLease]);

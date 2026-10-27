@@ -10,7 +10,7 @@ import { useAudioRecorder, RecordingPresets, setAudioModeAsync, AudioModule } fr
 import { API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { INTAKE_TEMPLATES, getTemplate, IntakeTemplate } from '@/src/intakeTemplates';
-import { claimMic, MIC_BUSY_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
+import { MIC_BUSY_MESSAGE, withMicLease, type MicLease } from '@/src/voice/micArbiterGuard';
 
 const NAVY = theme.colors.primary;
 const GOLD = theme.colors.gold;
@@ -95,11 +95,19 @@ export default function ClientIntake() {
         alert('Microphone permission denied. Please allow microphone access in Settings, or type your answer.');
         return;
       }
-      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-      await recorder.prepareToRecordAsync();
-      const lease = claimMic('intake_mic', () => { try { recorder.stop(); } catch {} recordingActiveRef.current = false; setActiveVoice(null); });
-      if (!lease.ok) { alert(MIC_BUSY_MESSAGE); return; }
-      micLeaseRef.current = lease;
+      // BATCH A1: claim the mic lease BEFORE touching the shared audio
+      // session — setAudioModeAsync is global and must never run ahead of
+      // a lease check, or it can disrupt an active Evidence Locker recording.
+      const claimResult = await withMicLease(
+        'intake_mic',
+        () => { try { recorder.stop(); } catch {} recordingActiveRef.current = false; setActiveVoice(null); },
+        async () => {
+          await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+          await recorder.prepareToRecordAsync();
+        },
+      );
+      if (!claimResult.ok) { alert(MIC_BUSY_MESSAGE); return; }
+      micLeaseRef.current = claimResult.lease;
       recorder.record();
       recordingActiveRef.current = true;
       setActiveVoice(qId);

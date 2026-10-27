@@ -21,7 +21,7 @@ import {
 import { useAuth, API_BASE } from '@/src/auth';
 import { whisperTranscribeFile } from '@/src/voice/stt';
 import { parseSpokenCaseRef } from '@/src/voice/spokenCnrParser';
-import { claimMic, MIC_BUSY_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
+import { claimMic, MIC_BUSY_MESSAGE, withMicLease, type MicLease } from '@/src/voice/micArbiterGuard';
 
 const NAVY  = theme.colors.primary;
 const GOLD  = theme.colors.gold;
@@ -238,11 +238,19 @@ export default function LookupScreen() {
         }
         return;
       }
-      await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
-      await recorder.prepareToRecordAsync();
-      const lease = claimMic('lookup_mic', () => { try { recorder.stop(); } catch {} setIsRecording(false); });
-      if (!lease.ok) { Alert.alert('Microphone busy', MIC_BUSY_MESSAGE); return; }
-      micLeaseRef.current = lease;
+      // BATCH A1: claim the mic lease BEFORE touching the shared audio
+      // session — setAudioModeAsync is global and must never run ahead of
+      // a lease check, or it can disrupt an active Evidence Locker recording.
+      const claimResult = await withMicLease(
+        'lookup_mic',
+        () => { try { recorder.stop(); } catch {} setIsRecording(false); },
+        async () => {
+          await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
+          await recorder.prepareToRecordAsync();
+        },
+      );
+      if (!claimResult.ok) { Alert.alert('Microphone busy', MIC_BUSY_MESSAGE); return; }
+      micLeaseRef.current = claimResult.lease;
       recorder.record();
       setIsRecording(true);
     } catch (e: any) {

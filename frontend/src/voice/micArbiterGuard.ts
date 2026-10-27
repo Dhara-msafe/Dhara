@@ -51,3 +51,65 @@ export function claimMic(owner: MicOwner, onPreempt?: () => void): MicLease {
 /** Shown when another part of DHARA is already using the microphone. */
 export const MIC_BUSY_MESSAGE =
   'The microphone is being used by another part of DHARA right now. Please finish that first, then try again.';
+
+/**
+ * BATCH A1 — Evidence Locker audio-session fix.
+ *
+ * Claim `owner`'s mic lease FIRST, then run `fn` — which must contain every
+ * call that touches the shared OS audio session (setAudioModeAsync,
+ * prepareToRecordAsync, record()) — ONLY once the lease is confirmed granted.
+ *
+ * Every mic-start call site in the app used to call setAudioModeAsync BEFORE
+ * checking claimMic(), so even when the lease check correctly failed a moment
+ * later (Evidence Locker already recording), the global audio session had
+ * already been reconfigured — expo-audio's setAudioModeAsync is process-wide,
+ * not per-recorder, and can corrupt or halt an unrelated in-progress
+ * recording. This helper makes that ordering mistake impossible: `fn` simply
+ * never runs when the lease is denied.
+ */
+export async function withMicLease<T>(
+  owner: MicOwner,
+  onPreempt: (() => void) | undefined,
+  fn: () => Promise<T>,
+): Promise<
+  | { ok: true; lease: MicLease; result: T }
+  | { ok: false; heldBy?: MicOwner; blockedByEvidenceLocker?: boolean }
+> {
+  const lease = claimMic(owner, onPreempt);
+  if (!lease.ok) {
+    return { ok: false, heldBy: lease.heldBy, blockedByEvidenceLocker: lease.blockedByEvidenceLocker };
+  }
+  try {
+    const result = await fn();
+    return { ok: true, lease, result };
+  } catch (e) {
+    lease.release();
+    throw e;
+  }
+}
+
+/**
+ * Rollback switch for the BATCH A1 guard (withMicLease ordering + the
+ * isMicHeldByEvidenceLocker() TTS fail-closed check below). Defaults to
+ * enabled, matching the arbiter's own always-on default — flip to 'false'
+ * to instantly disable just this guard without a code revert.
+ */
+export const MIC_LEASE_GUARD_ENABLED = process.env.EXPO_PUBLIC_MIC_LEASE_GUARD_ENABLED !== 'false';
+
+/**
+ * True when the Evidence Locker currently owns the shared microphone.
+ *
+ * TTS playback — and any other code about to call setAudioModeAsync with
+ * allowsRecording:false, or otherwise touch the global audio session —
+ * MUST check this first and skip the call entirely (fail closed) when true.
+ * TTS does not need to own the mic to play audio; it only needs to avoid
+ * reconfiguring the shared session while the Locker legitimately owns it.
+ */
+export function isMicHeldByEvidenceLocker(): boolean {
+  if (!MIC_ARBITER_ENABLED || !MIC_LEASE_GUARD_ENABLED) return false;
+  return micArbiter.currentOwner === 'evidence_locker';
+}
+
+/** Shown when TTS/audio-mode changes are skipped because the Evidence Locker is recording. */
+export const TTS_BLOCKED_BY_LOCKER_MESSAGE =
+  'Voice playback is paused while Evidence Locker is recording.';

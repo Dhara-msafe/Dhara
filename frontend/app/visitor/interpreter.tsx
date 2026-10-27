@@ -15,7 +15,7 @@ import { theme } from '@/src/theme';
 import { loadVisitorSession, VisitorSession, getStateLocalLang, HINDI_LANG, STATE_LOCAL_LANG, type LocalLang } from '@/src/visitor/session';
 import { API_BASE, useAuth } from '@/src/auth';
 import { whisperTranscribeFile, sttErrorToMessage } from '@/src/voice/stt';
-import { claimMic, MIC_BUSY_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
+import { claimMic, MIC_BUSY_MESSAGE, withMicLease, isMicHeldByEvidenceLocker, type MicLease } from '@/src/voice/micArbiterGuard';
 
 const C = theme.colors;
 
@@ -169,11 +169,19 @@ export default function InterpreterScreen() {
           perm = await AudioModule.requestRecordingPermissionsAsync();
         }
         if (!perm.granted) { Alert.alert('Microphone permission denied'); return; }
-        await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
-        await recorder.prepareToRecordAsync();
-        const lease = claimMic('interpreter_mic', () => { try { recorder.stop(); } catch {} setPhase('idle'); });
-        if (!lease.ok) { Alert.alert('Microphone busy', MIC_BUSY_MESSAGE); return; }
-        micLeaseRef.current = lease;
+        // BATCH A1: claim the mic lease BEFORE touching the shared audio
+        // session — setAudioModeAsync is global and must never run ahead of
+        // a lease check, or it can disrupt an active Evidence Locker recording.
+        const claimResult = await withMicLease(
+          'interpreter_mic',
+          () => { try { recorder.stop(); } catch {} setPhase('idle'); },
+          async () => {
+            await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
+            await recorder.prepareToRecordAsync();
+          },
+        );
+        if (!claimResult.ok) { Alert.alert('Microphone busy', MIC_BUSY_MESSAGE); return; }
+        micLeaseRef.current = claimResult.lease;
         recorder.record();
       }
       setPhase('recording');
@@ -203,7 +211,11 @@ export default function InterpreterScreen() {
       return blob.size ? URL.createObjectURL(blob) : '';
     }
     try { await recorder.stop(); } catch {}
-    try { await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }); } catch {}
+    // P0-C: never flip allowsRecording:false while the Evidence Locker holds
+    // the shared session — this instance may already have been preempted.
+    if (!isMicHeldByEvidenceLocker()) {
+      try { await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }); } catch {}
+    }
     micLeaseRef.current?.release(); micLeaseRef.current = null;
     return recorder.uri || '';
   }, [recorder]);
