@@ -202,3 +202,49 @@ class TestSevenMandatoryCasesNeverIntercepted:
     def test_hindi_language_query(self):
         msg = "अगर मकान मालिक बिना नोटिस के मुझे घर से निकाल दे तो मेरे क्या अधिकार हैं?"
         assert classify_conversational_intent(msg) is None
+
+
+class TestAddressingTheAssistantByName:
+    """Real-world bug: 'good morning dhara' (addressing the assistant by
+    name, the natural way most people actually greet it) did not match any
+    allowlist pattern, even with the flag on. Fixed by stripping a
+    standalone 'dhara' before matching."""
+
+    def test_good_morning_dhara(self):
+        assert classify_conversational_intent("good morning dhara") == "greeting"
+        assert classify_conversational_intent("Good morning, Dhara") == "greeting"
+        assert classify_conversational_intent("Good morning Dhara!") == "greeting"
+
+    def test_hi_and_hey_dhara(self):
+        assert classify_conversational_intent("hi dhara") == "greeting"
+        assert classify_conversational_intent("hey dhara") == "greeting"
+        assert classify_conversational_intent("Dhara, hi") == "greeting"
+
+    def test_name_leading_is_also_stripped(self):
+        assert classify_conversational_intent("dhara good morning") == "greeting"
+
+    def test_thanks_dhara(self):
+        assert classify_conversational_intent("thank you dhara") == "thanks"
+        assert classify_conversational_intent("thanks dhara") == "thanks"
+
+    def test_what_can_you_do_dhara(self):
+        assert classify_conversational_intent("what can you do dhara") == "what_can_you_do"
+
+    def test_deny_list_still_wins_even_when_dhara_is_addressed(self):
+        # is_denylisted() runs on the ORIGINAL message — name-stripping must
+        # never bypass it.
+        assert is_denylisted("dhara help") is True
+        assert is_denylisted("help dhara") is True
+
+    def test_hindi_dhara_word_for_section_is_never_stripped(self):
+        # "धारा" is the ordinary Hindi legal term for "Section" — must NOT
+        # be treated as an address to the assistant. This real legal
+        # question must still return None (fail closed), same as before.
+        msg = "धारा 302 क्या है?"
+        assert classify_conversational_intent(msg) is None
+
+    def test_action_veto_still_runs_on_the_unstripped_message(self):
+        # A long legal message that happens to mention "dhara" must still
+        # be vetoed, not have "dhara" stripped and the remainder matched.
+        msg = "dhara, my landlord is trying to evict me without any notice, what are my rights?"
+        assert classify_conversational_intent(msg) is None

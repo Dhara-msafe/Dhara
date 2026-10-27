@@ -66,8 +66,22 @@ def is_denylisted(message: str) -> bool:
     return bool(_DENY_RE.search(message or ""))
 
 
+# Users naturally address the assistant by name — "good morning Dhara",
+# "hi Dhara", "Dhara, thanks" — which the allowlist patterns below don't
+# spell out individually. Strip a standalone "dhara" (plus any adjacent
+# comma/exclamation) before matching, so the bare-phrase patterns still
+# apply. English only, deliberately: in Hindi, "धारा" is the ordinary legal
+# term for "Section" (e.g. "धारा 302 क्या है?" — "What is Section 302?"),
+# so stripping it there would risk nudging a real legal question toward an
+# allowlist match. The length cap and canonical-action veto still run on
+# the ORIGINAL, unstripped message, so this can only ever narrow matches.
+_ADDRESS_RE = re.compile(r"\bdhara\b[,!]?\s*", re.I)
+
+
 def _normalize(message: str) -> str:
-    return (message or "").strip().lower()
+    raw = (message or "").strip().lower()
+    stripped = re.sub(r"\s+", " ", _ADDRESS_RE.sub(" ", raw)).strip()
+    return stripped if stripped else raw
 
 
 # intent key -> list of near-exact phrase patterns (already anchored ^...$)
