@@ -109,6 +109,17 @@ _LEGACY_TO_SUCCESSOR_FAMILY = {
 
 router = APIRouter()
 
+# ── DHARA C1 — conversational replies (non-legal allowlist) ──────────────────
+# Default OFF. Deterministic matcher, no LLM, deny-list always wins, EN/HI
+# templates only. Full contract: engine/conversational_intents.py.
+FEATURE_C1_CONVERSATIONAL_REPLIES = os.getenv("FEATURE_C1_CONVERSATIONAL_REPLIES", "false").lower() == "true"
+from engine.conversational_intents import (
+    classify_conversational_intent,
+    get_conversational_template,
+    is_denylisted,
+)
+
+
 # ── Pydantic models ───────────────────────────────────────────────────────────
 
 # ── DHARA-P0-4 (B024): immediate-danger guard ─────────────────────────────────────────
@@ -1294,6 +1305,26 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                         f"in Dhara yet. Confirm the local position with {state_topic['authority']}."
                     ),
                 })
+
+        # DHARA C1 (GO amendment 1/2): conversational-intent gate. Runs
+        # strictly AFTER the backend immediate-danger check above (_emergency)
+        # and only when the message is not on the explicit deny list — a
+        # denied or emergency message is NEVER given a canned reply and
+        # always falls through to the normal path below unchanged.
+        if (
+            FEATURE_C1_CONVERSATIONAL_REPLIES
+            and not _emergency
+            and not is_denylisted(body.message)
+        ):
+            _c1_intent = classify_conversational_intent(body.message)
+            if _c1_intent:
+                _c1_reply = get_conversational_template(_c1_intent, body.language)
+                if _c1_reply:
+                    yield sse({"type": "delta", "content": _c1_reply})
+                    await save_assistant(_c1_reply, error=None)
+                    await save_case_state(db, session_id, _v2_state)
+                    yield sse({"type": "done"})
+                    return
 
         # Refusal path — do not call the LLM. Send the refusal as a delta so the frontend
         # shows it in the normal chat bubble.
