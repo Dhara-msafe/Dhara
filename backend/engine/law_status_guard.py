@@ -8,6 +8,7 @@ Pure code — no LLM call. Cost: 0 ECU per invocation.
 from __future__ import annotations
 import json
 import logging
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -23,6 +24,90 @@ _REGISTRY_PATH = Path(__file__).parent.parent / "data" / "law_status_registry.js
 _INACTIVE_STATUSES = {"REPEALED", "SUPERSEDED", "STRUCK_DOWN", "UNKNOWN"}
 # Statuses that require a warning annotation but the provision may partially apply
 _WARN_STATUSES = {"AMENDED", "PARTIALLY_ACTIVE", "READ_DOWN", "STAYED", "NOT_YET_EFFECTIVE"}
+
+
+# ── Alias matching constants (module-level for performance) ──────────────────
+# Maps textual aliases / abbreviations → registry act_id keys (UPPER-CASED).
+# All comparisons are done on the upper-cased act_name from the provision.
+_ALIASES: Dict[str, str] = {
+    "INDIAN PENAL CODE":                            "IPC_1860",
+    "IPC":                                          "IPC_1860",
+    "CODE OF CRIMINAL PROCEDURE":                   "CRPC_1973",
+    "CRPC":                                         "CRPC_1973",
+    "INDIAN EVIDENCE ACT":                          "EVIDENCE_ACT_1872",
+    "BHARATIYA NYAYA SANHITA":                      "BNS_2023",
+    "BNS":                                          "BNS_2023",
+    "BHARATIYA NAGARIK SURAKSHA SANHITA":           "BNSS_2023",
+    "BNSS":                                         "BNSS_2023",
+    "BHARATIYA SAKSHYA ADHINIYAM":                  "BSA_2023",
+    "BSA":                                          "BSA_2023",
+    "FOREIGN EXCHANGE REGULATION ACT":              "FERA_1973",
+    "FERA":                                         "FERA_1973",
+    "PLACES OF WORSHIP":                            "PLACES_OF_WORSHIP_1991",
+    "PREVENTION OF TERRORISM ACT":                  "POTA_2002",
+    "POTA":                                         "POTA_2002",
+    "DIGITAL PERSONAL DATA PROTECTION":             "DPDP_2023",
+    "DPDP":                                         "DPDP_2023",
+    # H3 Phase 2 — six sourced central Acts
+    "MV":                                           "MVA_1988",
+    "MOTOR VEHICLES ACT":                           "MVA_1988",
+    "MOTOR VEHICLES":                               "MVA_1988",
+    "RTI":                                          "RTI_2005",
+    "RIGHT TO INFORMATION ACT":                     "RTI_2005",
+    "RIGHT TO INFORMATION":                         "RTI_2005",
+    "PWDVA":                                        "PWDVA_2005",
+    "PROTECTION OF WOMEN FROM DOMESTIC VIOLENCE":   "PWDVA_2005",
+    "DOMESTIC VIOLENCE ACT":                        "PWDVA_2005",
+    "CPA":                                          "CPA_2019",
+    "CONSUMER PROTECTION ACT":                      "CPA_2019",
+    "CONSUMER PROTECTION":                          "CPA_2019",
+    "CODE ON WAGES":                                "COW_2019",
+    "INDUSTRIAL RELATIONS CODE":                    "IRC_2020",
+}
+
+# Canonical year for each act_id that is year-specific.
+# When a provision's act_name carries an explicit year that DIFFERS from
+# this canonical year, the alias is rejected to prevent cross-era false
+# positives:  "Consumer Protection Act, 1986" ≠ CPA_2019  (1986 ≠ 2019)
+#             "Motor Vehicles Act, 1939"       ≠ MVA_1988  (1939 ≠ 1988)
+_ALIAS_CANONICAL_YEARS: Dict[str, str] = {
+    "IPC_1860":               "1860",
+    "EVIDENCE_ACT_1872":      "1872",
+    "CRPC_1973":              "1973",
+    "FERA_1973":              "1973",
+    "PLACES_OF_WORSHIP_1991": "1991",
+    "POTA_2002":              "2002",
+    "PWDVA_2005":             "2005",
+    "RTI_2005":               "2005",
+    "MVA_1988":               "1988",
+    "CPA_2019":               "2019",
+    "COW_2019":               "2019",
+    "IRC_2020":               "2020",
+    "DPDP_2023":              "2023",
+    "BNS_2023":               "2023",
+    "BNSS_2023":              "2023",
+    "BSA_2023":               "2023",
+}
+
+# Pre-compiled regex: matches 4-digit years in range 1800–2099
+_YEAR_RE = re.compile(r"\b(1[89]\d{2}|20\d{2})\b")
+
+
+def _is_whole_word_match(alias: str, text: str) -> bool:
+    r"""Return True iff *alias* appears in *text* as a whole token / phrase.
+
+    Uses \b word-boundary anchors so short abbreviations like 'RTI' will NOT
+    match inside longer words such as 'PARTITION', 'ARTILLERY', or 'MARTIN'.
+    Works identically for multi-word phrases like 'MOTOR VEHICLES ACT':
+    the boundary is checked only at the very start and very end of the phrase.
+
+    Examples::
+
+        _is_whole_word_match("RTI", "PARTITION OF ESTATES ACT")  → False
+        _is_whole_word_match("RTI", "RTI ACT 2005")               → True
+        _is_whole_word_match("MOTOR VEHICLES", "MOTOR VEHICLES TAXATION ACT")  → True
+    """
+    return bool(re.search(r"\b" + re.escape(alias) + r"\b", text))
 
 
 @lru_cache(maxsize=1)
@@ -71,57 +156,67 @@ def _name_fragments(short_name: str) -> List[str]:
 
 
 def _match_provision_to_registry(provision: dict) -> Optional[StatusRecord]:
-    """Try to find a registry record for a retrieved provision."""
+    """Try to find a registry record for a retrieved provision.
+
+    Matching strategy (in order):
+    1. Direct key lookup against the registry index (catches exact short_name
+       and the abbreviated / year-stripped fragments generated by _name_fragments).
+    2. Whole-word, year-aware alias scan:
+       a. Each alias is tested with \\b word-boundary anchors so that short
+          abbreviations like 'RTI' cannot match inside longer words — e.g.
+          'RTI' will NOT match 'PARTITION', 'ARTILLERY', or 'MARTIN'.
+       b. If act_name carries an explicit year (1800–2099) AND the alias
+          targets a year-specific act (see _ALIAS_CANONICAL_YEARS), the alias
+          is rejected when the years differ — e.g. 'Consumer Protection Act,
+          1986' must NOT be matched to CPA_2019 (1986 ≠ 2019).
+       c. The longest matching alias wins (more specific alias preferred).
+       d. If two equal-length aliases map to *different* act_ids the result
+          is ambiguous and None is returned (fail-safe, not fail-open).
+    """
     registry = _load_registry()
     act_name = (provision.get("act_name") or provision.get("act") or "").upper().strip()
     if not act_name:
         return None
 
-    # Direct key lookup
+    # 1. Direct key lookup (exact match or pre-indexed fragment)
     if act_name in registry:
         return registry[act_name]
 
-    # Try known act aliases
-    _ALIASES: Dict[str, str] = {
-        "INDIAN PENAL CODE": "IPC_1860",
-        "IPC": "IPC_1860",
-        "CODE OF CRIMINAL PROCEDURE": "CRPC_1973",
-        "CRPC": "CRPC_1973",
-        "INDIAN EVIDENCE ACT": "EVIDENCE_ACT_1872",
-        "BHARATIYA NYAYA SANHITA": "BNS_2023",
-        "BNS": "BNS_2023",
-        "BHARATIYA NAGARIK SURAKSHA SANHITA": "BNSS_2023",
-        "BNSS": "BNSS_2023",
-        "BHARATIYA SAKSHYA ADHINIYAM": "BSA_2023",
-        "BSA": "BSA_2023",
-        "FOREIGN EXCHANGE REGULATION ACT": "FERA_1973",
-        "FERA": "FERA_1973",
-        "PLACES OF WORSHIP": "PLACES_OF_WORSHIP_1991",
-        "PREVENTION OF TERRORISM ACT": "POTA_2002",
-        "POTA": "POTA_2002",
-        "DIGITAL PERSONAL DATA PROTECTION": "DPDP_2023",
-        "DPDP": "DPDP_2023",
-        # H3 Phase 2 — six sourced central Acts
-        "MV": "MVA_1988",
-        "MOTOR VEHICLES ACT": "MVA_1988",
-        "MOTOR VEHICLES": "MVA_1988",
-        "RTI": "RTI_2005",
-        "RIGHT TO INFORMATION ACT": "RTI_2005",
-        "RIGHT TO INFORMATION": "RTI_2005",
-        "PWDVA": "PWDVA_2005",
-        "PROTECTION OF WOMEN FROM DOMESTIC VIOLENCE": "PWDVA_2005",
-        "DOMESTIC VIOLENCE ACT": "PWDVA_2005",
-        "CPA": "CPA_2019",
-        "CONSUMER PROTECTION ACT": "CPA_2019",
-        "CONSUMER PROTECTION": "CPA_2019",
-        "CODE ON WAGES": "COW_2019",
-        "INDUSTRIAL RELATIONS CODE": "IRC_2020",
-    }
-    for alias, act_id in _ALIASES.items():
-        if alias in act_name:
-            return registry.get(act_id.upper())
+    # 2a. Extract explicit year from act_name (for cross-era year guard)
+    year_m = _YEAR_RE.search(act_name)
+    act_year: Optional[str] = year_m.group(1) if year_m else None
 
-    return None
+    # 2b. Collect all whole-word matches that also pass the year guard
+    candidates: List[Tuple[int, str]] = []  # (alias_length, act_id_upper)
+    for alias, act_id in _ALIASES.items():
+        # Whole-word / whole-phrase boundary check
+        if not _is_whole_word_match(alias, act_name):
+            continue
+        # Year guard: reject if act_name's year contradicts the alias's canonical year
+        canonical_year = _ALIAS_CANONICAL_YEARS.get(act_id.upper())
+        if act_year and canonical_year and act_year != canonical_year:
+            continue
+        candidates.append((len(alias), act_id.upper()))
+
+    if not candidates:
+        return None
+
+    # 2c. Longest match wins (most specific alias preferred)
+    candidates.sort(key=lambda x: -x[0])
+    best_len = candidates[0][0]
+    best = [c for c in candidates if c[0] == best_len]
+
+    # 2d. Ambiguity guard: two equal-length aliases targeting different acts → None
+    unique_ids = {c[1] for c in best}
+    if len(unique_ids) > 1:
+        logger.warning(
+            "[law_status_guard] ambiguous alias match for act=%r — "
+            "equal-length candidates=%r — returning None (fail-safe)",
+            act_name[:80], [c[1] for c in best],
+        )
+        return None
+
+    return registry.get(best[0][1])
 
 
 def check_provision(

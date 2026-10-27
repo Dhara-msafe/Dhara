@@ -332,3 +332,150 @@ def test_h3_new_entries_carry_checked_by_and_review_status():
         assert rec.checked_by, f"{act_id} has blank checked_by"
         assert rec.review_status, f"{act_id} has blank review_status"
     lsg._load_registry.cache_clear()
+
+
+# ── Matcher Fix tests — whole-word + year-aware (no false positives) ─────────
+
+def _clear_registry():
+    """Clear the lru_cache so each test sees a fresh registry."""
+    import engine.law_status_guard as lsg
+    lsg._load_registry.cache_clear()
+
+
+class TestMatcherWholeWordFalsePositives:
+    """'RTI' must NOT match acts that merely contain 'rti' inside a word."""
+
+    def test_partition_of_revenue_paying_estates_not_matched_to_rti(self):
+        _clear_registry()
+        status, rec = law_status_guard.check_provision(
+            {"act_name": "Partition of Revenue-paying Estates Act"}
+        )
+        assert status == "NOT_IN_REGISTRY", (
+            f"'RTI' substring inside 'paRTItion' must not produce a match; got {status!r}"
+        )
+        assert rec is None
+
+    def test_martin_luther_christian_university_not_matched_to_rti(self):
+        _clear_registry()
+        status, rec = law_status_guard.check_provision(
+            {"act_name": "Martin Luther Christian University Act"}
+        )
+        assert status == "NOT_IN_REGISTRY", (
+            f"'RTI' substring inside 'maRTIn' must not produce a match; got {status!r}"
+        )
+        assert rec is None
+
+    def test_artillery_practice_acts_not_matched_to_rti(self):
+        _clear_registry()
+        status, rec = law_status_guard.check_provision(
+            {"act_name": "Artillery Practice Act"}
+        )
+        assert status == "NOT_IN_REGISTRY", (
+            f"'RTI' substring inside 'aRTIllery' must not produce a match; got {status!r}"
+        )
+        assert rec is None
+
+
+class TestMatcherYearAwareFalsePositives:
+    """Year-specific acts must NOT match corpus acts from a different era."""
+
+    def test_state_motor_vehicles_taxation_act_1958_not_matched_to_mva_1988(self):
+        _clear_registry()
+        status, rec = law_status_guard.check_provision(
+            {"act_name": "Motor Vehicles Taxation Act, 1958"}
+        )
+        assert status == "NOT_IN_REGISTRY", (
+            f"Year 1958 ≠ MVA_1988 canonical year 1988; should be NOT_IN_REGISTRY, got {status!r}"
+        )
+        assert rec is None
+
+    def test_telangana_places_of_worship_act_1997_not_matched_to_pow_1991(self):
+        _clear_registry()
+        status, rec = law_status_guard.check_provision(
+            {"act_name": "Telangana Places of Worship Act, 1997"}
+        )
+        assert status == "NOT_IN_REGISTRY", (
+            f"Year 1997 ≠ PLACES_OF_WORSHIP_1991 canonical year 1991; "
+            f"should be NOT_IN_REGISTRY, got {status!r}"
+        )
+        assert rec is None
+
+    def test_consumer_protection_act_1986_not_matched_to_cpa_2019(self):
+        _clear_registry()
+        status, rec = law_status_guard.check_provision(
+            {"act_name": "Consumer Protection Act, 1986"}
+        )
+        assert status == "NOT_IN_REGISTRY", (
+            f"Year 1986 ≠ CPA_2019 canonical year 2019; should be NOT_IN_REGISTRY, got {status!r}"
+        )
+        assert rec is None
+
+    def test_motor_vehicles_act_1939_not_matched_to_mva_1988(self):
+        _clear_registry()
+        status, rec = law_status_guard.check_provision(
+            {"act_name": "Motor Vehicles Act, 1939"}
+        )
+        assert status == "NOT_IN_REGISTRY", (
+            f"Year 1939 ≠ MVA_1988 canonical year 1988; should be NOT_IN_REGISTRY, got {status!r}"
+        )
+        assert rec is None
+
+
+class TestMatcherPositiveRegressions:
+    """Valid aliases must still resolve correctly after the fix."""
+
+    def test_rti_short_code_still_matches_rti_2005(self):
+        _clear_registry()
+        status, rec = law_status_guard.check_provision({"act": "RTI"})
+        assert status == "ACTIVE", f"Short alias 'RTI' should match RTI_2005; got {status!r}"
+        assert rec is not None and rec.act_id == "RTI_2005"
+
+    def test_rti_act_2005_still_matches_rti_2005(self):
+        _clear_registry()
+        status, rec = law_status_guard.check_provision({"act": "RTI ACT 2005"})
+        assert status == "ACTIVE", f"'RTI ACT 2005' should match RTI_2005; got {status!r}"
+        assert rec is not None and rec.act_id == "RTI_2005"
+
+    def test_right_to_information_act_still_matches_rti_2005(self):
+        _clear_registry()
+        status, rec = law_status_guard.check_provision({"act": "Right to Information Act"})
+        assert status == "ACTIVE", f"Long alias should match RTI_2005; got {status!r}"
+        assert rec is not None and rec.act_id == "RTI_2005"
+
+    def test_motor_vehicles_act_1988_still_matches_mva_1988(self):
+        _clear_registry()
+        status, rec = law_status_guard.check_provision({"act": "Motor Vehicles Act, 1988"})
+        assert status == "ACTIVE", f"MVA 1988 should still match MVA_1988; got {status!r}"
+        assert rec is not None and rec.act_id == "MVA_1988"
+
+    def test_mv_short_code_still_matches_mva_1988(self):
+        _clear_registry()
+        status, rec = law_status_guard.check_provision({"act": "MV"})
+        assert status == "ACTIVE", f"Short alias 'MV' should match MVA_1988; got {status!r}"
+        assert rec is not None and rec.act_id == "MVA_1988"
+
+    def test_consumer_protection_act_2019_still_matches_cpa_2019(self):
+        _clear_registry()
+        status, rec = law_status_guard.check_provision({"act": "Consumer Protection Act, 2019"})
+        assert status == "ACTIVE", f"CPA 2019 should still match CPA_2019; got {status!r}"
+        assert rec is not None and rec.act_id == "CPA_2019"
+
+    def test_cpa_short_code_still_matches_cpa_2019(self):
+        _clear_registry()
+        status, rec = law_status_guard.check_provision({"act": "CPA"})
+        assert status == "ACTIVE", f"Short alias 'CPA' should match CPA_2019; got {status!r}"
+        assert rec is not None and rec.act_id == "CPA_2019"
+
+    def test_longer_alias_wins_over_shorter_for_same_act(self):
+        """'MOTOR VEHICLES ACT' (18 chars) beats 'MOTOR VEHICLES' (14 chars) — same act_id ✓."""
+        _clear_registry()
+        status, rec = law_status_guard.check_provision({"act": "Motor Vehicles Act, 1988"})
+        assert status == "ACTIVE"
+        assert rec is not None and rec.act_id == "MVA_1988"
+
+    def test_ipc_short_code_still_matches_ipc_1860(self):
+        _clear_registry()
+        status, rec = law_status_guard.check_provision({"act": "IPC"})
+        assert status in ("INACTIVE", "SUPERSEDED", "ACTIVE"), \
+            f"IPC must produce a registry match; got {status!r}"
+        assert rec is not None and rec.act_id == "IPC_1860"
