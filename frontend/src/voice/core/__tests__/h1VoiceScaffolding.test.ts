@@ -200,6 +200,44 @@ test('H1/speech: DHARA declines to speak while the Evidence Locker holds the mic
   if (locker.ok) micArbiter.release(locker.claim);
 });
 
+
+test('H2b/Fix2: isMicHeldByEvidenceLocker fails closed when guard is on but arbiter is off', () => {
+  // Fix 2 reorders the guards so:
+  //   guard disabled               → return false  (opt-out respected)
+  //   guard on + arbiter off       → return true   (cannot verify = fail closed)
+  //   guard on + arbiter on        → check owner   (normal live path)
+  //
+  // Env: EXPO_PUBLIC_AUDIO_ARBITER_ENABLED=true, so MIC_ARBITER_ENABLED=true here.
+  // We cannot re-import with different env values under --experimental-strip-types,
+  // so we verify the source logic as a predicate (matching H1 flag-contract style)
+  // and exercise the live path (both flags on) functionally.
+  const src = read(path.join(SRC, 'voice', 'micArbiterGuard.ts'));
+  // Guard must be checked FIRST
+  assert.match(src, /if \(!MIC_LEASE_GUARD_ENABLED\) return false/,
+    'guard-disabled path must come before arbiter check');
+  // Arbiter-off path must return true (fail closed), not false
+  assert.match(src, /if \(!MIC_ARBITER_ENABLED\) return true/,
+    'arbiter-off path must fail closed');
+  // Live env: both flags on → functional detection still works
+  assert.equal(MIC_ARBITER_ENABLED, true);
+  assert.equal(MIC_LEASE_GUARD_ENABLED, true);
+  // With no owner: false
+  const prevOwner = micArbiter.currentOwner;
+  if (prevOwner) {
+    const tmp = micArbiter.claim(prevOwner);
+    if (tmp.ok) micArbiter.release(tmp.claim);
+  }
+  assert.equal(isMicHeldByEvidenceLocker(), false,
+    'no owner → not held by locker in live env');
+  // With locker owner: true
+  const lease = micArbiter.claim('evidence_locker');
+  assert.ok(lease.ok);
+  assert.equal(isMicHeldByEvidenceLocker(), true,
+    'locker owner → held by locker in live env');
+  if (lease.ok) micArbiter.release(lease.claim);
+});
+
+
 test('H1/speech: the decline wording is exactly the existing approved text', () => {
   assert.equal(
     TTS_BLOCKED_BY_LOCKER_MESSAGE,

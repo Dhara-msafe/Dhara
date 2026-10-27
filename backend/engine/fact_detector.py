@@ -68,6 +68,13 @@ def detect(
 
     required_facts = _DOMAIN_REQUIRED_FACTS.get(domain, [])
     if not required_facts:
+        # Fix 3 (H2b): an unrecognised or blank domain has no fact spec.
+        # Return CONDITIONAL (fail-closed) rather than DIRECT (fail-open).
+        if not domain or domain not in _DOMAIN_REQUIRED_FACTS:
+            logger.warning(
+                "[fact_detector] domain=%r not in registry — returning CONDITIONAL (fail-closed)", domain
+            )
+            return FactCheckResult(answer_mode="CONDITIONAL")
         return FactCheckResult(answer_mode="DIRECT")
 
     missing: List[str] = []

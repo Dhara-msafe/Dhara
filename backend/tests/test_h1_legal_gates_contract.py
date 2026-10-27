@@ -147,12 +147,11 @@ def test_fact_detector_soft_gate_for_non_hard_domains():
 
 
 def test_fact_detector_missing_or_malformed_input():
-    # DEFECT PIN (reported, not fixed): an empty query with an unknown/blank
-    # domain returns DIRECT — i.e. the detector fails OPEN for unknown domains
-    # because no required-fact list exists for them. Pinned so the owner can
-    # decide whether unknown domains should escalate instead.
-    assert fact_detector.detect(LegalQuery(), "").answer_mode == "DIRECT"
-    assert fact_detector.detect(LegalQuery(original_query=""), "no_such_domain").answer_mode == "DIRECT"
+    # Fix 3 (H2b): an empty or unrecognised domain now returns CONDITIONAL
+    # (fail-closed) because no required-fact spec exists for it.
+    # A known domain with an empty required-facts list still returns DIRECT.
+    assert fact_detector.detect(LegalQuery(), "").answer_mode == "CONDITIONAL"
+    assert fact_detector.detect(LegalQuery(original_query=""), "no_such_domain").answer_mode == "CONDITIONAL"
 
 
 # ── Law Status Guard ───────────────────────────────────────────────────────

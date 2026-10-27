@@ -106,7 +106,12 @@ export const MIC_LEASE_GUARD_ENABLED = process.env.EXPO_PUBLIC_MIC_LEASE_GUARD_E
  * reconfiguring the shared session while the Locker legitimately owns it.
  */
 export function isMicHeldByEvidenceLocker(): boolean {
-  if (!MIC_ARBITER_ENABLED || !MIC_LEASE_GUARD_ENABLED) return false;
+  // Fail-closed ordering (Fix 2 — H2b):
+  //   1. Guard disabled explicitly → allow TTS (opt-out respected).
+  //   2. Guard on but arbiter off → cannot verify; fail closed (block TTS).
+  //   3. Both on → check the live arbiter owner.
+  if (!MIC_LEASE_GUARD_ENABLED) return false;
+  if (!MIC_ARBITER_ENABLED) return true;
   return micArbiter.currentOwner === 'evidence_locker';
 }
 
