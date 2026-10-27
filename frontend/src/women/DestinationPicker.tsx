@@ -28,8 +28,21 @@ import {
   ActivityIndicator, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Crypto from 'expo-crypto';
 import { theme } from '@/src/theme';
 import { DestinationMapPicker } from './DestinationMapPicker';
+
+// Google Places (New) debounced autocomplete pilot — default OFF. When off,
+// this component behaves exactly as before (manual Search button + OSM
+// only). See /api/geo/autocomplete, /api/geo/details (geo_router.py).
+const PLACES_AUTOCOMPLETE_ENABLED = process.env.EXPO_PUBLIC_PLACES_AUTOCOMPLETE_V1 === 'true';
+const PLACES_DEBOUNCE_MS = 300;
+
+// Mandatory limitation disclosure wording — kept accurate to whichever
+// search path is actually active, never claiming device-location reads.
+const ADDRESS_SOURCE_DISCLOSURE = PLACES_AUTOCOMPLETE_ENABLED
+  ? 'Address suggestions appear as you type (Google Places, with a free OpenStreetMap backup) or when you tap Search — never from your device location.'
+  : 'Address suggestions come from OpenStreetMap search and only run when you tap Search — never from your device location.';
 
 const c = theme.colors;
 
@@ -61,6 +74,14 @@ export interface AddressSuggestion {
   label: string;
   latitude: number;
   longitude: number;
+}
+
+/** A Google Places (New) / OSM-fallback autocomplete row (pilot). */
+export interface PlacesSuggestion {
+  place_id: string;
+  main_text: string;
+  secondary_text: string;
+  provider: string; // "google" | "osm"
 }
 
 interface Props {
@@ -104,10 +125,38 @@ async function fetchAddressSuggestions(base: string, query: string): Promise<Add
   return j.suggestions ?? [];
 }
 
+// ── Places (New) debounced autocomplete pilot — behind EXPO_PUBLIC_PLACES_AUTOCOMPLETE_V1.
+// Both calls THROW on any non-2xx/network error so callers can fail closed
+// (hide the dropdown, leave the manual Search button fully functional).
+async function fetchPlacesAutocomplete(base: string, input: string, sessionToken: string): Promise<PlacesSuggestion[]> {
+  const r = await fetch(
+    `${base}/api/geo/autocomplete?input=${encodeURIComponent(input)}&session_token=${encodeURIComponent(sessionToken)}&limit=6`
+  );
+  if (!r.ok) throw new Error(`places_autocomplete_${r.status}`);
+  const j = await r.json();
+  return j.suggestions ?? [];
+}
+
+async function fetchPlaceDetails(
+  base: string, placeId: string, sessionToken: string, provider: string
+): Promise<{ label: string; latitude: number; longitude: number } | null> {
+  const r = await fetch(
+    `${base}/api/geo/details?place_id=${encodeURIComponent(placeId)}&session_token=${encodeURIComponent(sessionToken)}&provider=${encodeURIComponent(provider)}`
+  );
+  if (!r.ok) throw new Error(`places_details_${r.status}`);
+  return r.json();
+}
+
 /** Shorter, cleaner label for a selected address (first 2 comma segments). */
 function shortAddressLabel(full: string): string {
   const parts = full.split(',').map(s => s.trim()).filter(Boolean);
   return parts.slice(0, 2).join(', ') || full;
+}
+
+/** Combine a Places suggestion's main/secondary text into one display label. */
+function placesSuggestionLabel(s: PlacesSuggestion): string {
+  const combined = s.secondary_text ? `${s.main_text}, ${s.secondary_text}` : s.main_text;
+  return combined.length > 100 ? s.main_text : combined;
 }
 
 // ── Saved-place API helpers (no external SDK needed) ─────────────────────────
@@ -415,6 +464,22 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
   const [deleteTarget, setDeleteTarget] = useState<SavedPlace | null>(null);
   const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
 
+  // ── Places (New) debounced autocomplete pilot (default OFF) ────────────
+  // Typing debounces (~300ms) into /api/geo/autocomplete, reusing one
+  // session token per search session (new token on first keystroke of a
+  // fresh search, discarded after a details lookup). Any error — network,
+  // 503 (flag off server-side), timeout — fails CLOSED: the dropdown just
+  // stays hidden and the pre-existing manual Search button / OSM flow above
+  // keeps working completely unaffected.
+  const [placesSuggestions, setPlacesSuggestions] = useState<PlacesSuggestion[]>([]);
+  const [showPlacesDropdown, setShowPlacesDropdown] = useState(false);
+  const [placesLoading, setPlacesLoading] = useState(false);
+  const placesSessionTokenRef = useRef<string | null>(null);
+  const placesDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const placesReqRef = useRef(0);
+
+  useEffect(() => () => { if (placesDebounceRef.current) clearTimeout(placesDebounceRef.current); }, []);
+
   // Load saved places once on mount (or when auth becomes available)
   useEffect(() => {
     if (!hasAuth) return;
@@ -428,6 +493,7 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
   const submitSearch = useCallback(async () => {
     const trimmed = value.label.trim();
     setShowSuggestions(true);
+    setShowPlacesDropdown(false);
     if (trimmed.length < SEARCH_MIN_CHARS) {
       setSuggestions([]);
       setSearchError(false);
@@ -452,11 +518,69 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
 
   const handleLabelChange = useCallback((text: string) => {
     onChange({ ...value, label: text, savedPlaceId: undefined });
-    // Typing alone never triggers a search — stale results no longer apply.
+    // Typing alone never triggers the manual search — stale results no longer apply.
     setSuggestions([]);
     setShowSuggestions(false);
     setSearchError(false);
-  }, [value, onChange]);
+
+    if (placesDebounceRef.current) clearTimeout(placesDebounceRef.current);
+    if (!PLACES_AUTOCOMPLETE_ENABLED) return;
+
+    const trimmed = text.trim();
+    if (trimmed.length < SEARCH_MIN_CHARS) {
+      setPlacesSuggestions([]);
+      setShowPlacesDropdown(false);
+      return;
+    }
+
+    placesDebounceRef.current = setTimeout(async () => {
+      if (!placesSessionTokenRef.current) {
+        placesSessionTokenRef.current = Crypto.randomUUID();
+      }
+      const token = placesSessionTokenRef.current;
+      const reqId = ++placesReqRef.current;
+      setPlacesLoading(true);
+      try {
+        const results = await fetchPlacesAutocomplete(base, trimmed, token);
+        if (placesReqRef.current !== reqId) return; // superseded by newer keystroke
+        setPlacesSuggestions(results);
+        setShowPlacesDropdown(results.length > 0);
+      } catch {
+        if (placesReqRef.current !== reqId) return;
+        // Fail closed: no dropdown — manual Search button above is unaffected.
+        setPlacesSuggestions([]);
+        setShowPlacesDropdown(false);
+      } finally {
+        if (placesReqRef.current === reqId) setPlacesLoading(false);
+      }
+    }, PLACES_DEBOUNCE_MS);
+  }, [value, onChange, base]);
+
+  const selectPlacesSuggestion = useCallback(async (s: PlacesSuggestion) => {
+    const token = placesSessionTokenRef.current;
+    setShowPlacesDropdown(false);
+    if (!token) return;
+    setPlacesLoading(true);
+    try {
+      const details = await fetchPlaceDetails(base, s.place_id, token, s.provider);
+      if (details) {
+        onChange({
+          ...value,
+          label: placesSuggestionLabel(s).slice(0, 120),
+          savedPlaceId: undefined,
+          latitude: details.latitude,
+          longitude: details.longitude,
+        });
+        setMapRecenterKey(k => k + 1);
+      }
+    } catch {
+      // Fail closed — keep the typed text as-is; manual Search still works.
+    } finally {
+      setPlacesLoading(false);
+      setPlacesSuggestions([]);
+      placesSessionTokenRef.current = null; // session concluded — fresh token next search
+    }
+  }, [base, value, onChange]);
 
   const selectSuggestion = useCallback((s: AddressSuggestion) => {
     onChange({
@@ -468,6 +592,7 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
     });
     setSuggestions([]);
     setShowSuggestions(false);
+    setShowPlacesDropdown(false);
     setMapRecenterKey(k => k + 1);
   }, [value, onChange]);
 
@@ -573,10 +698,14 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
           testID="dp-destination-input"
           value={value.label}
           onChangeText={handleLabelChange}
-          onFocus={() => setShowSuggestions(suggestions.length > 0 || searchError)}
+          onFocus={() => {
+            setShowSuggestions(suggestions.length > 0 || searchError);
+            if (PLACES_AUTOCOMPLETE_ENABLED && placesSuggestions.length > 0) setShowPlacesDropdown(true);
+          }}
           onBlur={() => { setTimeout(() => {
             if (suppressBlurHideRef.current) { suppressBlurHideRef.current = false; return; }
             setShowSuggestions(false);
+            setShowPlacesDropdown(false);
           }, 150); }}
           onSubmitEditing={submitSearch}
           placeholder="Search an address, or type a label (e.g. bus stop)…"
@@ -587,8 +716,9 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
           accessibilityLabel="Destination address or name"
           accessibilityHint="Type an address or label, then tap Search to look it up"
         />
-        {/* Batch 2: address search now only runs on this explicit tap (or the
-            keyboard's Search key) — never automatically while typing. */}
+        {/* Batch 2: manual address search still only runs on this explicit tap
+            (or the keyboard's Search key). The Places debounced dropdown
+            below is purely additive and never disables this button. */}
         <Pressable
           onPress={submitSearch}
           onPressIn={() => { suppressBlurHideRef.current = true; }}
@@ -598,7 +728,7 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
           accessibilityLabel="Search for this address"
           testID="dp-search-button"
         >
-          {searching
+          {(searching || placesLoading)
             ? <ActivityIndicator size="small" color={c.navy} />
             : <Ionicons name="search" size={18} color={c.navy} />
           }
@@ -641,6 +771,34 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
               </Pressable>
             ))
           )}
+        </View>
+      )}
+
+      {/* ── Places (New) debounced autocomplete dropdown (pilot, default OFF) ──
+          Purely additive: appears only while PLACES_AUTOCOMPLETE_ENABLED and a
+          debounced lookup has suggestions. Never shown together with the
+          manual-search box above (typing always clears that one first). */}
+      {PLACES_AUTOCOMPLETE_ENABLED && showPlacesDropdown && placesSuggestions.length > 0 && (
+        <View style={styles.suggestionsBox} testID="dp-places-suggestions">
+          {placesSuggestions.map((s, i) => (
+            <Pressable
+              key={`${s.place_id}-${i}`}
+              style={styles.suggestionRow}
+              onPressIn={() => { suppressBlurHideRef.current = true; }}
+              onPress={() => selectPlacesSuggestion(s)}
+              accessibilityRole="button"
+              accessibilityLabel={`Select address ${s.main_text}${s.secondary_text ? ', ' + s.secondary_text : ''}`}
+              testID={`dp-places-suggestion-${i}`}
+            >
+              <Ionicons name="location-outline" size={16} color={c.muted} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.suggestionTxt} numberOfLines={1}>{s.main_text}</Text>
+                {!!s.secondary_text && (
+                  <Text style={styles.suggestionSecondaryTxt} numberOfLines={1}>{s.secondary_text}</Text>
+                )}
+              </View>
+            </Pressable>
+          ))}
         </View>
       )}
 
@@ -746,9 +904,9 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
           {gpsForegroundEnabled
             // GPS feature is on for this journey: say so accurately — foreground-only,
             // not yet running, never background, never an automatic alert.
-            ? 'Planned arrival area only. Radius selection does not activate geofence monitoring. If you start this journey, DHARA will share your location only while this app is open on your screen — never in the background, and no one is alerted automatically. Address suggestions come from OpenStreetMap search and only run when you tap Search — never from your device location.'
+            ? `Planned arrival area only. Radius selection does not activate geofence monitoring. If you start this journey, DHARA will share your location only while this app is open on your screen — never in the background, and no one is alerted automatically. ${ADDRESS_SOURCE_DISCLOSURE}`
             // Default (feature off): no GPS capability exists for this journey at all.
-            : 'Planned arrival area only. Radius selection does not activate geofence monitoring or any location tracking. Address suggestions come from OpenStreetMap search and only run when you tap Search — never from your device location.'}
+            : `Planned arrival area only. Radius selection does not activate geofence monitoring or any location tracking. ${ADDRESS_SOURCE_DISCLOSURE}`}
         </Text>
       </View>
 
@@ -810,6 +968,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.lines,
   },
   suggestionTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, lineHeight: 18 },
+  suggestionSecondaryTxt: { fontFamily: theme.fonts.body, fontSize: 11, color: c.muted, marginTop: 1 },
   suggestionEmptyTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, padding: 12, fontStyle: 'italic' },
   savedSection: { marginBottom: 16 },
   savedHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
