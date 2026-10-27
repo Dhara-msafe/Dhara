@@ -38,7 +38,7 @@ import { useAuth, API_BASE, logClientError } from '@/src/auth';
 import { useUserProfile } from '@/src/userProfile';
 import { theme } from '@/src/theme';
 import { trackEvent } from '@/src/analytics';
-import { getConfiguredSTT, whisperTranscribeFile } from '@/src/voice/stt';
+import { getConfiguredSTT, whisperTranscribeFile, sttErrorToMessage } from '@/src/voice/stt';
 import { claimMic, MIC_BUSY_MESSAGE, withMicLease, isMicHeldByEvidenceLocker, TTS_BLOCKED_BY_LOCKER_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
 import { canSpeakNow, noteSpeakIntent, VOICE_COMPANION_ENABLED } from '@/src/voice/speechGate';
 import { VoiceStateMachine } from '@/src/voice/core/voiceStateMachine';
@@ -1670,7 +1670,15 @@ export default function ChatScreen() {
           } catch {}
         }
         releaseMicLease();
-        if (!uri) { setTranscribing(false); return; }
+        // Mic diagnosis fix: this used to return silently — no message at
+        // all — leaving the user staring at a mic button that just reset
+        // with zero feedback. Empty uri means nothing was ever captured
+        // (e.g. permission denied mid-flow, or an instant tap/release).
+        if (!uri) {
+          setTranscribing(false);
+          notify('Microphone', sttErrorToMessage(new Error('__no_recording__')));
+          return;
+        }
         if (!token) { setTranscribing(false); return; }
         lastAudioForRetryRef.current = { platform: 'native', uri }; // Fix A: enable Retry with the same recording
         const result = await whisperTranscribeFile(API_BASE, token, uri, language?.code);

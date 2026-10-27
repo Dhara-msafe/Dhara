@@ -149,7 +149,11 @@ export async function whisperTranscribeFile(
   /** Injectable for tests — production callers omit this. */
   _blobReader: (uri: string) => Promise<Blob> = defaultBlobReader,
 ): Promise<WhisperTranscribeResult> {
-  if (!uri) throw new Error('__transcribe_failed__');
+  // Mic diagnosis fix: distinct sentinel for "nothing was captured" — this is
+  // NOT a transcription failure, it never reaches the network, and it needs
+  // its own message (the generic one was misleading users into thinking the
+  // server rejected a real recording).
+  if (!uri) throw new Error('__no_recording__');
 
   const fileBlob = await _blobReader(uri);
   const form = new FormData();
@@ -175,11 +179,29 @@ export async function whisperTranscribeFile(
     throw new Error('__session_expired__');
   }
   if (!res.ok) {
-    // Fix A: never let a non-JSON error body (e.g. a raw HTML 429 page from
-    // an upstream rate limiter/proxy) leak into the thrown message — classify
-    // by status code ONLY, before ever attempting to parse the body.
+    // Mic diagnosis fix: we may now surface the SERVER's own message, but
+    // only when it is safe to show — a short, plain `detail` string, and
+    // only for 4xx (client-error) responses that our own backend crafts on
+    // purpose (e.g. "Recording was too short…"). 5xx bodies can embed raw
+    // exception text (provider/model names) and a non-JSON body (e.g. an
+    // HTML page from an upstream proxy) must never leak through either.
+    let serverMessage: string | undefined;
+    if (res.status >= 400 && res.status < 500) {
+      try {
+        const body = await res.json();
+        if (
+          typeof body?.detail === 'string' &&
+          body.detail.length > 0 &&
+          body.detail.length < 200 &&
+          !body.detail.includes('<')
+        ) {
+          serverMessage = body.detail;
+        }
+      } catch {}
+    }
     const err: any = new Error('__transcribe_failed__');
     err.status = res.status;
+    if (serverMessage) err.serverMessage = serverMessage;
     throw err;
   }
   let data: any = {};
@@ -203,16 +225,26 @@ export async function whisperTranscribeFile(
  */
 export function sttErrorToMessage(err: unknown): string {
   const status = (err as any)?.status;
+  const serverMessage = (err as any)?.serverMessage;
   const msg = String((err as any)?.message ?? err ?? '');
+  // Nothing was captured — permission denial, an instant tap/release, or a
+  // hard-kill mid-recording. Never reached the network.
+  if (msg.includes('__no_recording__'))
+    return 'No sound was recorded. Please allow the microphone and try again.';
   if (msg.includes('__session_expired__'))
     return 'Session expired — please sign in again.';
   if (msg.includes('__network_error__'))
-    return 'No network connection. Please check your internet and try again.';
-  // Fix A: one short, fixed message per status — never the raw response body
-  // (some upstream rate-limit responses are plain HTML, not JSON).
+    return 'Could not reach DHARA. Check your internet and try again.';
+  // Fix A (kept): one short, fixed message per status — never the raw
+  // response body (some upstream rate-limit responses are plain HTML, not
+  // JSON) — UNLESS it was already vetted as a safe, short, plain-text
+  // `detail` string above (4xx only).
   if (status === 429) return 'Too many requests. Please wait a moment and try again.';
   if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('denied'))
     return 'Microphone permission denied. Please allow microphone access in Settings.';
-  if (msg === '__transcribe_failed__') return 'Could not transcribe. Please try again or type your question.';
+  if (msg === '__transcribe_failed__') {
+    if (typeof serverMessage === 'string' && serverMessage.length > 0) return serverMessage;
+    return 'DHARA could not transcribe that. Please try again or type your question.';
+  }
   return msg || 'Voice recognition failed. Please try again.';
 }
