@@ -238,3 +238,97 @@ def test_c1_flag_defaults_to_off_when_missing_or_misspelt(monkeypatch):
     assert os.getenv("FEATURE_C1_CONVERSATIONAL_REPLIES", "false").lower() != "true"
     monkeypatch.setenv("FEATURE_C1_CONVERSATIONAL_REPLIES", "true")
     assert os.getenv("FEATURE_C1_CONVERSATIONAL_REPLIES", "false").lower() == "true"
+
+
+# ── H3 Phase 2 tests ────────────────────────────────────────────────────────
+
+def _fresh_registry():
+    """Clear the lru_cache so each test sees the real file on disk."""
+    import engine.law_status_guard as lsg
+    lsg._load_registry.cache_clear()
+    return lsg._load_registry()
+
+
+def test_h3_new_active_acts_pass_with_no_dead_warning():
+    """Newly added ACTIVE acts must reach check_provision as ACTIVE, no dead_warning."""
+    import engine.law_status_guard as lsg
+    lsg._load_registry.cache_clear()
+    for corpus_label, expected_id in [
+        ("MV",                    "MVA_1988"),
+        ("RTI",                   "RTI_2005"),
+        ("PWDVA",                 "PWDVA_2005"),
+        ("CPA",                   "CPA_2019"),
+        ("Code on Wages",         "COW_2019"),
+        ("Industrial Relations Code", "IRC_2020"),
+        # duplicate corpus labels
+        ("Right to Information Act",  "RTI_2005"),
+        ("Consumer Protection Act",   "CPA_2019"),
+    ]:
+        status, rec = lsg.check_provision({"act": corpus_label})
+        assert status == "ACTIVE", f"{corpus_label!r}: expected ACTIVE, got {status!r}"
+        assert rec is not None, f"{corpus_label!r}: expected a StatusRecord"
+        assert rec.act_id == expected_id, f"{corpus_label!r}: expected act_id {expected_id!r}, got {rec.act_id!r}"
+    # Annotate a sample MV provision — must carry no dead_warning
+    out = lsg.annotate_provisions([{"act": "MV", "key": "mv_129"}])
+    assert "dead_warning" not in out[0], "ACTIVE MV provision must not have dead_warning"
+    assert out[0].get("_law_status") == "ACTIVE"
+
+
+def test_h3_state_act_provisions_get_state_not_checked():
+    """State-jurisdiction provisions must be marked STATE_NOT_CHECKED, not NOT_IN_REGISTRY."""
+    import engine.law_status_guard as lsg
+    lsg._load_registry.cache_clear()
+    state_prov = {"act": "Delhi Rent Control Act", "state": "DL", "key": "dl_rent_14"}
+    out = lsg.annotate_provisions([state_prov])
+    assert out[0].get("_law_status") == "STATE_NOT_CHECKED", \
+        f"Expected STATE_NOT_CHECKED, got {out[0].get('_law_status')!r}"
+    assert "dead_warning" not in out[0]
+
+
+def test_h3_central_unregistered_act_still_not_in_registry():
+    """An Act not named in the GO and absent from the registry stays NOT_IN_REGISTRY."""
+    import engine.law_status_guard as lsg
+    lsg._load_registry.cache_clear()
+    status, rec = lsg.check_provision({"act": "Negotiable Instruments Act"})
+    assert status == "NOT_IN_REGISTRY"
+    assert rec is None
+    out = lsg.annotate_provisions([{"act": "Negotiable Instruments Act", "key": "ni_138"}])
+    assert out[0].get("_law_status") == "NOT_IN_REGISTRY"
+    assert "dead_warning" not in out[0]
+
+
+def test_h3_loader_rejects_blank_source_url(tmp_path, monkeypatch):
+    """A registry entry with blank source_url must be skipped by the loader."""
+    import json, engine.law_status_guard as lsg
+    bad_registry = {
+        "registry": [{
+            "act_id": "FAKE_ACT_9999",
+            "short_name": "Fake Act, 9999",
+            "status": "ACTIVE",
+            "source_url": "",          # blank — must be rejected
+            "source_type": "UNKNOWN",
+            "verified_at": "2026-01-01",
+            "status_reason": "Test entry with blank source_url",
+        }]
+    }
+    fake_path = tmp_path / "fake_registry.json"
+    fake_path.write_text(json.dumps(bad_registry))
+    monkeypatch.setattr(lsg, "_REGISTRY_PATH", fake_path)
+    lsg._load_registry.cache_clear()
+    reg = lsg._load_registry()
+    assert "FAKE_ACT_9999" not in reg, \
+        "Entry with blank source_url must be rejected by the loader check"
+    lsg._load_registry.cache_clear()
+
+
+def test_h3_new_entries_carry_checked_by_and_review_status():
+    """All six H3 entries must have non-empty checked_by and review_status."""
+    import engine.law_status_guard as lsg
+    lsg._load_registry.cache_clear()
+    reg = lsg._load_registry()
+    for act_id in ("MVA_1988", "RTI_2005", "PWDVA_2005", "CPA_2019", "COW_2019", "IRC_2020"):
+        rec = reg.get(act_id.upper())
+        assert rec is not None, f"{act_id} missing from registry"
+        assert rec.checked_by, f"{act_id} has blank checked_by"
+        assert rec.review_status, f"{act_id} has blank review_status"
+    lsg._load_registry.cache_clear()

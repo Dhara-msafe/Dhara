@@ -122,6 +122,9 @@ class StatusRecord(BaseModel):
     source_url: str = ""
     source_type: str = ""
     verified_at: Optional[str] = None
+    # H3 Phase 2: audit-trail fields — present on all new entries; legacy entries default to ""
+    checked_by: str = ""     # AGENT_SOURCED | ADVOCATE_REVIEWED | OWNER_APPROVED
+    review_status: str = ""  # SOURCED | NEEDS_HUMAN_REVIEW | ADVOCATE_APPROVED
 
 
 class VerifiedClaim(BaseModel):

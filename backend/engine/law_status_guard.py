@@ -33,6 +33,14 @@ def _load_registry() -> Dict[str, StatusRecord]:
         records: Dict[str, StatusRecord] = {}
         for item in raw.get("registry", []):
             rec = StatusRecord.model_validate(item)
+            # Blank-source loader check (H3 Phase 2): reject entries with no source_url.
+            # A sourced URL is required; absence means the status was asserted without evidence.
+            if not rec.source_url or not rec.source_url.strip():
+                logger.warning(
+                    "[law_status_guard] registry entry %r has blank source_url — skipped (loader check)",
+                    rec.act_id,
+                )
+                continue
             records[rec.act_id.upper()] = rec
             # Also index by short fragments for fuzzy matching
             for frag in _name_fragments(rec.short_name):
@@ -93,6 +101,21 @@ def _match_provision_to_registry(provision: dict) -> Optional[StatusRecord]:
         "POTA": "POTA_2002",
         "DIGITAL PERSONAL DATA PROTECTION": "DPDP_2023",
         "DPDP": "DPDP_2023",
+        # H3 Phase 2 — six sourced central Acts
+        "MV": "MVA_1988",
+        "MOTOR VEHICLES ACT": "MVA_1988",
+        "MOTOR VEHICLES": "MVA_1988",
+        "RTI": "RTI_2005",
+        "RIGHT TO INFORMATION ACT": "RTI_2005",
+        "RIGHT TO INFORMATION": "RTI_2005",
+        "PWDVA": "PWDVA_2005",
+        "PROTECTION OF WOMEN FROM DOMESTIC VIOLENCE": "PWDVA_2005",
+        "DOMESTIC VIOLENCE ACT": "PWDVA_2005",
+        "CPA": "CPA_2019",
+        "CONSUMER PROTECTION ACT": "CPA_2019",
+        "CONSUMER PROTECTION": "CPA_2019",
+        "CODE ON WAGES": "COW_2019",
+        "INDUSTRIAL RELATIONS CODE": "IRC_2020",
     }
     for alias, act_id in _ALIASES.items():
         if alias in act_name:
@@ -216,18 +239,30 @@ def annotate_provisions(
             )
             prov_copy["_law_status"] = rec.status
 
+        elif status_label == "ACTIVE" and rec:
+            # Mark confirmed-active provisions internally (H3 Phase 2).
+            # No user-facing text; the marker enables analytics and test assertions.
+            prov_copy["_law_status"] = "ACTIVE"
+
         elif status_label == "NOT_IN_REGISTRY":
             # Fix 1 Option B (H2b): act is absent from the verified registry.
-            # Set an internal marker for analytics/logging only.
-            # No dead_warning, no is_dead_law — registry gap is too wide to
-            # surface a user-facing caution without first expanding the registry.
+            # H3 Phase 2: distinguish state-jurisdiction provisions from genuinely
+            # unregistered central Acts — the central registry cannot confirm state law status.
             act_hint = (prov.get("act_name") or prov.get("act") or "<no act name>").strip()
-            prov_copy["_law_status"] = "NOT_IN_REGISTRY"
-            logger.info(
-                "[law_status_guard] NOT_IN_REGISTRY act=%r — status unverifiable, "
-                "internal marker set, no user-facing caution (registry gap, Option B)",
-                act_hint,
-            )
+            if prov.get("state"):
+                prov_copy["_law_status"] = "STATE_NOT_CHECKED"
+                logger.info(
+                    "[law_status_guard] STATE_NOT_CHECKED state=%r act=%r — "
+                    "central registry does not cover state Acts",
+                    prov["state"], act_hint,
+                )
+            else:
+                prov_copy["_law_status"] = "NOT_IN_REGISTRY"
+                logger.info(
+                    "[law_status_guard] NOT_IN_REGISTRY act=%r — status unverifiable, "
+                    "internal marker set, no user-facing caution (registry gap, Option B)",
+                    act_hint,
+                )
 
         annotated.append(prov_copy)
 
