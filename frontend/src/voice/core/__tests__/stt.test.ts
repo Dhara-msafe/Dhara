@@ -7,9 +7,101 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { whisperTranscribeFile, sttErrorToMessage } from '../../stt.ts';
+import { whisperTranscribeFile, sttErrorToMessage, audioFileDescriptorFromUri } from '../../stt.ts';
 
 const fakeBlob = async (_uri: string) => new Blob(['x']);
+
+/** Minimal FormData mock so tests can inspect exactly what whisperTranscribeFile()
+ * appended, without depending on Node's real FormData's stringification of
+ * non-Blob/non-string values. Swapped onto globalThis for the duration of a
+ * test only, then restored — the real function under test is unmodified. */
+class _MockFormData {
+  appended: Array<[string, any, any?]> = [];
+  append(...args: any[]) { this.appended.push(args as any); }
+}
+
+function withMockFormDataAndFetch<T>(fetchImpl: (...a: any[]) => Promise<any>, fn: (mock: _MockFormData) => Promise<T>): Promise<T> {
+  const mock = new _MockFormData();
+  const originalFormData = (globalThis as any).FormData;
+  const originalFetch = globalThis.fetch;
+  (globalThis as any).FormData = function () { return mock; } as any;
+  (globalThis as any).fetch = fetchImpl as any;
+  return fn(mock).finally(() => {
+    (globalThis as any).FormData = originalFormData;
+    (globalThis as any).fetch = originalFetch;
+  });
+}
+
+// ── Native audio upload fix: native path never constructs a Blob ───────────
+
+test('native path appends a {uri,name,type} descriptor, never constructs a Blob', async () => {
+  let blobReaderCalled = false;
+  await withMockFormDataAndFetch(
+    async () => ({ ok: true, status: 200, json: async () => ({ text: 'hello' }) }),
+    async (mock) => {
+      const result = await whisperTranscribeFile(
+        'https://api.example.com', 'tok', 'file:///data/recording-123.m4a', undefined,
+        async () => { blobReaderCalled = true; return new Blob(['x']); },
+        'android',
+      );
+      assert.equal(blobReaderCalled, false, '_blobReader must never be called on native');
+      const audioAppend = mock.appended.find(a => a[0] === 'audio');
+      assert.ok(audioAppend, 'audio field was appended');
+      const value = audioAppend![1];
+      assert.equal(value instanceof Blob, false, 'native must not append a Blob instance');
+      assert.equal(value.uri, 'file:///data/recording-123.m4a');
+      assert.equal(value.name, 'recording-123.m4a');
+      assert.equal(value.type, 'audio/m4a');
+      assert.equal(result.text, 'hello');
+    },
+  );
+});
+
+test('native path works on ios too (platform-agnostic, not android-specific)', async () => {
+  await withMockFormDataAndFetch(
+    async () => ({ ok: true, status: 200, json: async () => ({ text: 'ok' }) }),
+    async (mock) => {
+      await whisperTranscribeFile('https://api.example.com', 'tok', 'file:///var/rec.m4a', undefined, fakeBlob, 'ios');
+      const audioAppend = mock.appended.find(a => a[0] === 'audio');
+      assert.equal(audioAppend![1].uri, 'file:///var/rec.m4a');
+    },
+  );
+});
+
+// ── Web path — existing Blob behaviour unchanged ────────────────────────────
+
+test('web path still builds a real Blob via _blobReader (unchanged)', async () => {
+  const fakeBlobInstance = new Blob(['y']);
+  await withMockFormDataAndFetch(
+    async () => ({ ok: true, status: 200, json: async () => ({ text: 'hi' }) }),
+    async (mock) => {
+      const result = await whisperTranscribeFile(
+        'https://api.example.com', 'tok', 'blob:abc', undefined,
+        async () => fakeBlobInstance,
+        'web',
+      );
+      const audioAppend = mock.appended.find(a => a[0] === 'audio');
+      assert.ok(audioAppend);
+      assert.equal(audioAppend![1], fakeBlobInstance);
+      assert.equal(audioAppend![2], 'audio.m4a');
+      assert.equal(result.text, 'hi');
+    },
+  );
+});
+
+// ── audioFileDescriptorFromUri — real-extension derivation ──────────────────
+
+test('audioFileDescriptorFromUri derives name/type from the real extension', () => {
+  assert.deepEqual(audioFileDescriptorFromUri('file:///data/rec.m4a'), { name: 'rec.m4a', type: 'audio/m4a' });
+  assert.deepEqual(audioFileDescriptorFromUri('file:///data/rec.3gp'), { name: 'rec.3gp', type: 'audio/3gpp' });
+  assert.deepEqual(audioFileDescriptorFromUri('file:///data/rec.caf'), { name: 'rec.caf', type: 'audio/x-caf' });
+  assert.deepEqual(audioFileDescriptorFromUri('file:///data/rec.wav'), { name: 'rec.wav', type: 'audio/wav' });
+});
+
+test('audioFileDescriptorFromUri falls back to m4a for a missing or unknown extension', () => {
+  assert.deepEqual(audioFileDescriptorFromUri('file:///data/rec'), { name: 'rec.m4a', type: 'audio/m4a' });
+  assert.deepEqual(audioFileDescriptorFromUri('file:///data/rec.xyz'), { name: 'rec.xyz', type: 'audio/m4a' });
+});
 
 test('empty uri throws __no_recording__ and never calls fetch', async () => {
   let fetchCalled = false;
@@ -17,7 +109,7 @@ test('empty uri throws __no_recording__ and never calls fetch', async () => {
   (globalThis as any).fetch = async () => { fetchCalled = true; throw new Error('should not be called'); };
   try {
     await assert.rejects(
-      () => whisperTranscribeFile('https://api.example.com', 'tok', '', undefined, fakeBlob),
+      () => whisperTranscribeFile('https://api.example.com', 'tok', '', undefined, fakeBlob, 'web'),
       (e: any) => e.message === '__no_recording__',
     );
     assert.equal(fetchCalled, false);
@@ -31,7 +123,7 @@ test('network failure (fetch throws) maps to __network_error__', async () => {
   (globalThis as any).fetch = async () => { throw new TypeError('Network request failed'); };
   try {
     await assert.rejects(
-      () => whisperTranscribeFile('https://api.example.com', 'tok', 'file://a.m4a', undefined, fakeBlob),
+      () => whisperTranscribeFile('https://api.example.com', 'tok', 'file://a.m4a', undefined, fakeBlob, 'web'),
       (e: any) => e.message === '__network_error__',
     );
   } finally {
@@ -44,7 +136,7 @@ test('401 maps to __session_expired__', async () => {
   (globalThis as any).fetch = async () => ({ ok: false, status: 401, json: async () => ({}) });
   try {
     await assert.rejects(
-      () => whisperTranscribeFile('https://api.example.com', 'tok', 'file://a.m4a', undefined, fakeBlob),
+      () => whisperTranscribeFile('https://api.example.com', 'tok', 'file://a.m4a', undefined, fakeBlob, 'web'),
       (e: any) => e.message === '__session_expired__',
     );
   } finally {
@@ -61,7 +153,7 @@ test('safe 4xx detail (e.g. "Recording was too short") is carried through as ser
   });
   try {
     await assert.rejects(
-      () => whisperTranscribeFile('https://api.example.com', 'tok', 'file://a.m4a', undefined, fakeBlob),
+      () => whisperTranscribeFile('https://api.example.com', 'tok', 'file://a.m4a', undefined, fakeBlob, 'web'),
       (e: any) => e.message === '__transcribe_failed__' && e.serverMessage.startsWith('Recording was too short'),
     );
   } finally {
@@ -78,7 +170,7 @@ test('5xx never carries serverMessage through, even if detail is present', async
   });
   try {
     await assert.rejects(
-      () => whisperTranscribeFile('https://api.example.com', 'tok', 'file://a.m4a', undefined, fakeBlob),
+      () => whisperTranscribeFile('https://api.example.com', 'tok', 'file://a.m4a', undefined, fakeBlob, 'web'),
       (e: any) => e.message === '__transcribe_failed__' && e.serverMessage === undefined,
     );
   } finally {
@@ -95,7 +187,7 @@ test('HTML (non-JSON) error body never leaks into serverMessage', async () => {
   });
   try {
     await assert.rejects(
-      () => whisperTranscribeFile('https://api.example.com', 'tok', 'file://a.m4a', undefined, fakeBlob),
+      () => whisperTranscribeFile('https://api.example.com', 'tok', 'file://a.m4a', undefined, fakeBlob, 'web'),
       (e: any) => e.message === '__transcribe_failed__' && e.status === 429 && e.serverMessage === undefined,
     );
   } finally {
@@ -136,11 +228,17 @@ test('sttErrorToMessage: generic server error without serverMessage falls back t
   assert.equal(sttErrorToMessage(err), 'DHARA could not transcribe that. Please try again or type your question.');
 });
 
-test('sttErrorToMessage: never leaks a provider/key string even if accidentally attached as serverMessage-like message', () => {
-  // Defensive: a raw, non-sentinel Error (e.g. an unexpected provider exception
-  // object) must never have its raw .message echoed with provider internals.
-  const msg = sttErrorToMessage(new Error('openai.APIError: invalid_api_key sk-proj-xxxx'));
-  // Falls through to the final generic "return msg" branch by current design —
-  // documents existing behaviour for this unmapped case (not part of this fix).
-  assert.equal(typeof msg, 'string');
+test('sttErrorToMessage: never leaks a provider/key string or any other raw native exception text', () => {
+  // Native audio upload fix regression guard: this is the exact bug — the
+  // "Transcription failed" dialog was showing
+  // "Creating blobs from 'ArrayBuffer' and 'ArrayBufferView' are not
+  // supported" verbatim. Any unrecognised error must now always map to the
+  // one safe generic string, never its own .message.
+  const safe = 'Voice recognition failed. Please try again.';
+  assert.equal(
+    sttErrorToMessage(new Error("Creating blobs from 'ArrayBuffer' and 'ArrayBufferView' are not supported")),
+    safe,
+  );
+  assert.equal(sttErrorToMessage(new Error('openai.APIError: invalid_api_key sk-proj-xxxx')), safe);
+  assert.equal(sttErrorToMessage(new TypeError('undefined is not a function')), safe);
 });

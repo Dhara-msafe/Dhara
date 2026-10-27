@@ -141,6 +141,41 @@ export async function defaultBlobReader(uri: string): Promise<Blob> {
   return (await expoFetch(uri)).blob();
 }
 
+// Native audio upload fix: map a recorded file's real extension to a MIME
+// type, instead of hardcoding 'audio.m4a' — if a recorder preset ever
+// changes output format, this keeps working without a code change. Falls
+// back to m4a (today's actual RecordingPresets.HIGH_QUALITY output on both
+// iOS and Android) only when the extension is unrecognised.
+const _AUDIO_MIME_BY_EXT: Record<string, string> = {
+  m4a: 'audio/m4a',
+  '3gp': 'audio/3gpp',
+  caf: 'audio/x-caf',
+  wav: 'audio/wav',
+  aac: 'audio/aac',
+  mp4: 'audio/mp4',
+};
+
+/** Derives { name, type } from the recorder's ACTUAL output file, by
+ * parsing the real extension off its uri — never hardcoded. Exported so
+ * tests can assert on it directly. */
+export function audioFileDescriptorFromUri(uri: string): { name: string; type: string } {
+  const base = (uri.split('/').pop() || '').split('?')[0] || 'recording.m4a';
+  const dot = base.lastIndexOf('.');
+  const ext = dot >= 0 ? base.slice(dot + 1).toLowerCase() : 'm4a';
+  const name = dot >= 0 ? base : `${base}.m4a`;
+  const type = _AUDIO_MIME_BY_EXT[ext] || 'audio/m4a';
+  return { name, type };
+}
+
+/** Lazy Platform.OS lookup — same dynamic-import pattern as
+ * defaultBlobReader(), so whisperTranscribeFile() stays importable in Node
+ * test environments (react-native cannot be parsed there). Tests inject
+ * _platformOS directly so this is never called during local test runs. */
+async function defaultPlatformOS(): Promise<string> {
+  const { Platform } = await import('react-native');
+  return Platform.OS;
+}
+
 export async function whisperTranscribeFile(
   apiBase: string,
   token: string,
@@ -148,6 +183,9 @@ export async function whisperTranscribeFile(
   languageHint?: string,
   /** Injectable for tests — production callers omit this. */
   _blobReader: (uri: string) => Promise<Blob> = defaultBlobReader,
+  /** Injectable for tests — production callers omit this (computed lazily
+   * via defaultPlatformOS() below). */
+  _platformOS?: string,
 ): Promise<WhisperTranscribeResult> {
   // Mic diagnosis fix: distinct sentinel for "nothing was captured" — this is
   // NOT a transcription failure, it never reaches the network, and it needs
@@ -155,10 +193,30 @@ export async function whisperTranscribeFile(
   // server rejected a real recording).
   if (!uri) throw new Error('__no_recording__');
 
-  const fileBlob = await _blobReader(uri);
+  const platformOS = _platformOS ?? (await defaultPlatformOS());
+
   const form = new FormData();
-  // @ts-ignore — RN FormData accepts (Blob, filename)
-  form.append('audio', fileBlob, 'audio.m4a');
+  if (platformOS === 'web') {
+    // Web path — UNCHANGED.
+    const fileBlob = await _blobReader(uri);
+    // @ts-ignore — RN FormData accepts (Blob, filename)
+    form.append('audio', fileBlob, 'audio.m4a');
+  } else {
+    // Native audio upload fix: never construct a Blob on native. React
+    // Native's own fetch/FormData implementation (the plain global `fetch`
+    // used for the POST below — this file never overrides it with
+    // expo/fetch) streams a { uri, name, type } descriptor straight from
+    // disk via native code: no Blob, no ArrayBuffer, no in-memory read.
+    // This is what was failing: expo/fetch's Response.blob() internally
+    // builds `new Blob([arrayBuffer])`, which React Native's own Blob
+    // implementation rejects with "Creating blobs from 'ArrayBuffer' and
+    // 'ArrayBufferView' are not supported" — so the request never even
+    // reached the network. name/type come from the recording's real
+    // extension (see audioFileDescriptorFromUri), not a hardcoded guess.
+    const { name, type } = audioFileDescriptorFromUri(uri);
+    // @ts-ignore — RN FormData accepts {uri, name, type} as a file descriptor
+    form.append('audio', { uri, name, type } as any);
+  }
   if (languageHint) form.append('language', languageHint);
 
   // Network errors (no connection, DNS failure, timeout) must surface as a
@@ -246,5 +304,10 @@ export function sttErrorToMessage(err: unknown): string {
     if (typeof serverMessage === 'string' && serverMessage.length > 0) return serverMessage;
     return 'DHARA could not transcribe that. Please try again or type your question.';
   }
-  return msg || 'Voice recognition failed. Please try again.';
+  // Native audio upload fix: this used to be `return msg || '...'`, which
+  // echoed RAW exception text (e.g. "Creating blobs from 'ArrayBuffer' and
+  // 'ArrayBufferView' are not supported") straight into the "Transcription
+  // failed" dialog. Any error that isn't one of the recognised sentinels
+  // above must never be shown verbatim — always the safe generic message.
+  return 'Voice recognition failed. Please try again.';
 }
