@@ -216,6 +216,19 @@ def annotate_provisions(
             )
             prov_copy["_law_status"] = rec.status
 
+        elif status_label == "NOT_IN_REGISTRY":
+            # Fix 1 Option B (H2b): act is absent from the verified registry.
+            # Set an internal marker for analytics/logging only.
+            # No dead_warning, no is_dead_law — registry gap is too wide to
+            # surface a user-facing caution without first expanding the registry.
+            act_hint = (prov.get("act_name") or prov.get("act") or "<no act name>").strip()
+            prov_copy["_law_status"] = "NOT_IN_REGISTRY"
+            logger.info(
+                "[law_status_guard] NOT_IN_REGISTRY act=%r — status unverifiable, "
+                "internal marker set, no user-facing caution (registry gap, Option B)",
+                act_hint,
+            )
+
         annotated.append(prov_copy)
 
     return annotated

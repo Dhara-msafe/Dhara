@@ -196,16 +196,17 @@ def test_law_status_guard_historical_tag_without_approval_falls_back_to_dead_war
 
 
 def test_law_status_guard_missing_or_malformed_provision():
-    # DEFECT PIN (reported, not fixed): a provision with no act name, or one
-    # absent from the registry, returns NOT_IN_REGISTRY and annotate_provisions
-    # passes it through UNANNOTATED — a law of unknown status is shown with no
-    # warning at all, which is fail-OPEN relative to the module docstring
-    # ("UNKNOWN status is treated as NOT ACTIVE per spec").
+    # Fix 1 Option B (H2b): a provision whose act is absent from the registry
+    # now gets an internal _law_status = "NOT_IN_REGISTRY" marker (logged, not
+    # shown to users). No dead_warning, no is_dead_law — those are reserved for
+    # known-INACTIVE acts. Registry gap was 46.5 % of corpus; user-facing text
+    # is deferred until the registry covers those acts.
     assert law_status_guard.check_provision({})[0] == "NOT_IN_REGISTRY"
     assert law_status_guard.check_provision({"act_name": ""})[0] == "NOT_IN_REGISTRY"
     out = law_status_guard.annotate_provisions([{"act_name": "Entirely Made Up Act 2099"}])
     assert "dead_warning" not in out[0]
     assert out[0].get("is_dead_law") is None
+    assert out[0].get("_law_status") == "NOT_IN_REGISTRY"
 
 
 def test_law_status_registry_loads():
