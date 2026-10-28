@@ -583,3 +583,90 @@ own original wording in their own language. English queries are untouched (zero 
   - Emergent-independence rollout: set `EMERGENT_OFF=1` and `COMPANY_LLM_KEY=<key>` in
     staging env, then run `python /app/backend/scripts/verify_emergent_off.py` — the script
     prints which key the gateway resolved and asserts the switch is safe.
+
+
+---
+
+## 28 October 2026 — Unauthorised commits reverted + Approval Registry seeded + PILOT BLOCKER closed
+
+### Revert of unauthorised Emergent Support commits (commit `7448f5f`)
+- Commits `f8888ac` (backend: reviewer allowlist, cross-reference fail-closed gate, successor
+  path containment) and `09b0e75` (frontend: `ipc-bns-lookup.tsx` withheld-row display) were
+  applied to Preview without written owner approval. Both reverted in a single commit
+  (`7448f5f`) by Callistus Moses. Preview only; production untouched.
+- All 15 affected files restored to their pre-support state; 3 new Emergent test files deleted.
+- Backend health confirmed OK immediately after revert.
+
+### REGISTRY-001 — Approval registry populated (commit `d263f47`)
+**GO:** `GO: Populate the approval registry for IPC 166A → BNS 199 — Batch REGISTRY-001`
+- `backend/data/approval_evidence_registry.json` populated with:
+  - Authorized reviewer: `callistus-moses-founder` (Callistus Moses, founder-ceo, active)
+  - Approval record `REGISTRY-001-IPC166A-BNS199`:
+    - `subject_key`: `IPC:166A->BNS:199`
+    - `offence_text`: Public servant disobeying direction under law
+    - `punishment_text`: Rigorous imprisonment of at least six months and up to two years, and fine
+    - `content_hash`: `214ad46d3ecb3b1955c8698253228112cb98c056eda9ee4178be66668158f15d`
+    - `status`: active — `approved_by`: callistus-moses-founder
+- Hash algorithm: `sha256` of canonical sorted-key JSON of
+  `{source_section, target_section, provision_text, punishment_note, what_changed}`.
+- One file changed only. No backend restarted.
+
+### CORRECTION-001 — BNS 199 punishment wording fix — **PILOT BLOCKER CLOSED** (commit `372b913`)
+**GO:** `GO: Fix BNS 199 punishment wording in answer_generator.py — Batch CORRECTION-001`
+**Commit:** `372b913` — `fix(layer-m): BNS 199 punishment wording — structured field comparison, mandatory minimum + rigorous imprisonment, regression tests [CORRECTION-001]`
+
+**Root cause of pilot blocker:**
+The `correct_punishment_mismatch` post-processor in `backend/engine/answer_generator.py` only
+caught the P1 "one-year confusion" pattern. The QA-observed P2 failure — the model producing
+`"up to two years in jail, a fine, or both"` — slipped through entirely (wrong imprisonment
+type: "jail" not "rigorous"; mandatory minimum omitted; fine presented as optional).
+
+**Fix applied (`answer_generator.py`):**
+- Added module-level `_BNS_199_APPROVED_TEXT`, `_BNS_199_FIELDS` (structured source of truth,
+  tied to REGISTRY-001 hash `214ad46d...`)
+- Added 6 compiled regexes: 4 field-presence predicates + 2 structural disqualifiers
+- Expanded `_WRONG_PUNISHMENT_RE` to cover all P2 surface forms: `"up to two years in jail"`,
+  `"two years in jail"`, `"jail for/of up to two years"`, `"up to two years imprisonment"`,
+  plus the "imprisonment up to one year" P1 variant that lacked `for`/`of`
+- Added `_bns_199_fields_satisfied()` — structured 4-field check (rigorous ✓, six months ✓,
+  two years ✓, mandatory fine ✓, no jail ✓, no "or both" ✓)
+- Rewrote `correct_punishment_mismatch()` as a 3-step pipeline:
+  - Step 1: fast-pass if all 4 fields already correct
+  - Step 2: targeted replacement of known wrong-form phrases with approved verbatim text
+  - Step 3: catch-all for novel surface forms (residual jail→rigorous, or-both→and-fine,
+    missing minimum expansion)
+- Removed incorrect old replacement string `"rigorous imprisonment for a term of six months
+  to two years"` (was missing "and fine" and used wrong "for a term of" phrasing)
+
+**Regression tests added (`test_layer_m_golden.py`, class `TestCorrectPunishmentMismatch`):**
+- test_101: P2 exact QA failure: `"up to two years in jail, a fine, or both"` → corrected ✅
+- test_102: IPC 166A hit also triggers correction ✅
+- test_103: P1 one-year confusion corrected (now with correct replacement text) ✅
+- test_104: Scope guard — no fire for other sections ✅
+- test_105: Correct wording passes through unchanged ✅
+- test_106: Empty text returns empty ✅
+
+**Test result:** 106/106 passed (100 pre-existing + 6 new)
+
+### Synthetic QA — Preview verification (28 Oct 2026)
+Three questions run against Preview backend (`voicetest2026@example.com`):
+
+| # | Question | Overall | Key assertions |
+|---|---|---|---|
+| Q1 | What is the punishment for IPC Section 166A? | **PASS** | rigorous imprisonment ✓, six months ✓, no jail ✓, no "or both" ✓ |
+| Q2 | What is the punishment under BNS Section 199? | **PASS** | no jail ✓, no "or both" ✓, text returned ✓ |
+| Q3 | What is the IPC equivalent and what punishment did it carry? (follow-up) | **PASS** | no jail ✓, no "or both" ✓, text returned ✓ |
+
+### Release gate status
+All five release gates remain **OPEN**. The PILOT BLOCKER (incorrect BNS 199 punishment
+wording) is now resolved in Preview. No production publish, APK build or live pilot has been
+approved. Legal and authorization blockers (T03–T12) remain open per the tracker.
+
+| Gate | Status |
+|------|--------|
+| G0 — Scope ready | OPEN |
+| G1 — Safe test harness | OPEN |
+| G2 — Legal containment | OPEN |
+| G3 — Native device QA | OPEN |
+| G4 — Deployment/pilot approval | OPEN |
+
