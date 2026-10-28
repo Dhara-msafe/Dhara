@@ -30,12 +30,21 @@ export type MicLease = {
 const GRANTED_NOOP: MicLease = { ok: true, release: () => {} };
 
 /**
- * Claim the shared microphone for `owner`. `onPreempt` fires synchronously if
- * the Evidence Locker later takes the mic — stop your recorder there.
+ * Claim the shared microphone for `owner`.
+ *
+ * onPreempt — fires synchronously if the Evidence Locker later takes the mic.
+ *             Stop your recorder here.
+ * onRestore — fires synchronously when the Evidence Locker releases AND this
+ *             owner was the one preempted. Restart recording here.
+ *             Omitting onRestore means the screen must manually poll / re-claim.
  */
-export function claimMic(owner: MicOwner, onPreempt?: () => void): MicLease {
+export function claimMic(
+  owner: MicOwner,
+  onPreempt?: () => void,
+  onRestore?: () => void,
+): MicLease {
   if (!MIC_ARBITER_ENABLED) return GRANTED_NOOP;
-  const res = micArbiter.claim(owner, onPreempt);
+  const res = micArbiter.claim(owner, { onPreempt, onRestore });
   if (!res.ok) {
     return {
       ok: false,
@@ -71,11 +80,12 @@ export async function withMicLease<T>(
   owner: MicOwner,
   onPreempt: (() => void) | undefined,
   fn: () => Promise<T>,
+  onRestore?: () => void,
 ): Promise<
   | { ok: true; lease: MicLease; result: T }
   | { ok: false; heldBy?: MicOwner; blockedByEvidenceLocker?: boolean }
 > {
-  const lease = claimMic(owner, onPreempt);
+  const lease = claimMic(owner, onPreempt, onRestore);
   if (!lease.ok) {
     return { ok: false, heldBy: lease.heldBy, blockedByEvidenceLocker: lease.blockedByEvidenceLocker };
   }

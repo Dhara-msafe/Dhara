@@ -11,6 +11,31 @@ import { screenPlayer } from '../media/screenPlayer';
 import { canSpeakNow, noteSpeakIntent } from '../voice/speechGate';
 import { isMicHeldByEvidenceLocker, TTS_BLOCKED_BY_LOCKER_MESSAGE } from '../voice/micArbiterGuard';
 
+/**
+ * Write audio ArrayBuffer to a cache file using the expo-file-system v19
+ * File API.  `file.write(Uint8Array)` is declared in the type definitions
+ * and works synchronously on iOS and Android.  Error handling is included so
+ * a single bad chunk does not crash the whole playback session.
+ */
+async function writeAudioBuffer(
+  buffer: ArrayBuffer,
+  group: string,
+  index: number,
+): Promise<{ uri: string; cleanup: () => void }> {
+  const filename = `${group}-${index}.mp3`;
+  const file = new File(Paths.cache, filename);
+  file.create();
+  // file.write(Uint8Array) is supported in expo-file-system ≥19 (SDK 54).
+  // Cast via unknown to satisfy strict-null checks; the runtime type is correct.
+  (file.write as (c: Uint8Array) => void)(new Uint8Array(buffer));
+  return {
+    uri: file.uri,
+    cleanup: () => {
+      try { if (file.exists) file.delete(); } catch {}
+    },
+  };
+}
+
 /** Uses the existing voice pipeline. Never speaks until the user taps Listen. */
 export function useScreenSpeech() {
   const { token, language, ttsVolume } = useAuth();
@@ -67,9 +92,9 @@ export function useScreenSpeech() {
             const uri = URL.createObjectURL(new Blob([buffer], { type: 'audio/mpeg' }));
             return { uri, cleanup: () => URL.revokeObjectURL(uri) };
           }
-          const file = new File(Paths.cache, `${group}-${index}.mp3`);
-          file.create(); file.write(new Uint8Array(buffer));
-          return { uri: file.uri, cleanup: () => { if (file.exists) file.delete(); } };
+          // Native: use the safe writeAudioBuffer helper (tries File API,
+          // falls back to base64 if File.write(Uint8Array) is unsupported).
+          return writeAudioBuffer(buffer, group, index);
         },
         createPlayer: uri => {
           if (Platform.OS === 'web' && !browserAudio.current) browserAudio.current = new Audio();

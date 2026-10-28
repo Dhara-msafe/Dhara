@@ -355,6 +355,66 @@
       "verified_at": "2026-10-27",
       "checked_by": "AGENT_SOURCED",
       "review_status": "SOURCED"
+    },
+    {
+      "act_id": "NI_1881",
+      "short_name": "Negotiable Instruments Act, 1881",
+      "status": "ACTIVE",
+      "effective_from": "1881-03-09",
+      "effective_to": null,
+      "successor_act": null,
+      "successor_act_id": null,
+      "status_reason": "Central Act 26 of 1881. In force as amended to 2019; Negotiable Instruments (Amendment) Acts 2015 and 2018 strengthened Section 138 (dishonoured cheque) — added interim compensation (s.143A) and deposit order on appeal (s.148).",
+      "source_url": "https://www.indiacode.gov.in/handle/123456789/2159",
+      "source_type": "INDIA_CODE",
+      "verified_at": "2026-10-27",
+      "checked_by": "AGENT_SOURCED",
+      "review_status": "SOURCED"
+    },
+    {
+      "act_id": "IT_2000",
+      "short_name": "Information Technology Act, 2000",
+      "status": "PARTIALLY_ACTIVE",
+      "effective_from": "2000-10-17",
+      "effective_to": null,
+      "successor_act": null,
+      "successor_act_id": null,
+      "status_reason": "Central Act 21 of 2000 (as amended by IT Amendment Act 2008). Core Act is active. CAUTION: Section 66A was struck down in its entirety as unconstitutional by the Supreme Court in Shreya Singhal v. Union of India (2015) 5 SCC 1 — it cannot be used to arrest or prosecute. Sections 69A (blocking orders) and 79 (safe harbour) were upheld.",
+      "source_url": "https://main.sci.gov.in/jonew/judis/44512.pdf",
+      "source_type": "SUPREME_COURT_JUDGMENT",
+      "verified_at": "2026-10-27",
+      "checked_by": "AGENT_SOURCED",
+      "review_status": "SOURCED"
+    },
+    {
+      "act_id": "POCSO_2012",
+      "short_name": "Protection of Children from Sexual Offences Act, 2012",
+      "status": "ACTIVE",
+      "effective_from": "2012-11-14",
+      "effective_to": null,
+      "successor_act": null,
+      "successor_act_id": null,
+      "status_reason": "Central Act 32 of 2012. Fully in force. POCSO (Amendment) Act 2019 (Central Act 25 of 2019) added mandatory minimum sentences and death penalty for aggravated penetrative sexual assault of a child.",
+      "source_url": "https://www.indiacode.gov.in/handle/123456789/2080",
+      "source_type": "INDIA_CODE",
+      "verified_at": "2026-10-27",
+      "checked_by": "AGENT_SOURCED",
+      "review_status": "SOURCED"
+    },
+    {
+      "act_id": "PMLA_2002",
+      "short_name": "Prevention of Money Laundering Act, 2002",
+      "status": "ACTIVE",
+      "effective_from": "2005-07-01",
+      "effective_to": null,
+      "successor_act": null,
+      "successor_act_id": null,
+      "status_reason": "Central Act 15 of 2003; commenced 1 July 2005. Substantially amended in 2009, 2012, 2019, and 2023. Enforcement Directorate powers under Sections 17-18 (search/arrest) and Section 45 (bail conditions) have been upheld by the SC in Vijay Madanlal Choudhary v. Union of India (2022). PMLA Amendment Ordinance 2023 further widened the definition of 'proceeds of crime'.",
+      "source_url": "https://www.indiacode.gov.in/handle/123456789/2203",
+      "source_type": "INDIA_CODE",
+      "verified_at": "2026-10-27",
+      "checked_by": "AGENT_SOURCED",
+      "review_status": "SOURCED"
     }
   ]
 }

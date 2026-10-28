@@ -197,16 +197,26 @@ def test_law_status_guard_historical_tag_without_approval_falls_back_to_dead_war
 
 def test_law_status_guard_missing_or_malformed_provision():
     # Fix 1 Option B (H2b): a provision whose act is absent from the registry
-    # now gets an internal _law_status = "NOT_IN_REGISTRY" marker (logged, not
-    # shown to users). No dead_warning, no is_dead_law — those are reserved for
-    # known-INACTIVE acts. Registry gap was 46.5 % of corpus; user-facing text
-    # is deferred until the registry covers those acts.
+    # now gets an internal _law_status = "NOT_IN_REGISTRY" marker.
+    # Graduate Fix 1: central NOT_IN_REGISTRY provisions also get a soft
+    # registry_gap_note (NOT dead_warning — that is reserved for INACTIVE acts).
     assert law_status_guard.check_provision({})[0] == "NOT_IN_REGISTRY"
     assert law_status_guard.check_provision({"act_name": ""})[0] == "NOT_IN_REGISTRY"
     out = law_status_guard.annotate_provisions([{"act_name": "Entirely Made Up Act 2099"}])
+    # dead_warning and is_dead_law are strictly reserved for INACTIVE acts
     assert "dead_warning" not in out[0]
     assert out[0].get("is_dead_law") is None
     assert out[0].get("_law_status") == "NOT_IN_REGISTRY"
+    # Graduate Fix 1: soft caution must be present for named central acts
+    assert "registry_gap_note" in out[0], \
+        "NOT_IN_REGISTRY central act must receive a soft registry_gap_note (Graduate Fix 1)"
+    note = out[0]["registry_gap_note"]
+    assert "Entirely Made Up Act 2099" in note, \
+        f"registry_gap_note must cite the act name; got: {note!r}"
+    # Provisions with no act name must NOT get a registry_gap_note (nothing to cite)
+    no_act_out = law_status_guard.annotate_provisions([{"act_name": ""}])
+    assert "registry_gap_note" not in no_act_out[0], \
+        "Provision with empty act_name must not get a registry_gap_note"
 
 
 def test_law_status_registry_loads():
@@ -286,15 +296,23 @@ def test_h3_state_act_provisions_get_state_not_checked():
 
 
 def test_h3_central_unregistered_act_still_not_in_registry():
-    """An Act not named in the GO and absent from the registry stays NOT_IN_REGISTRY."""
+    """An Act absent from the registry must stay NOT_IN_REGISTRY after H4 expansion.
+
+    NOTE: The Negotiable Instruments Act 1881 was previously used here but was
+    added to the registry in H4 Phase 1.  Use an act that is intentionally
+    absent (Waqf Act, 1995) to keep the test meaningful.
+    """
     import engine.law_status_guard as lsg
     lsg._load_registry.cache_clear()
-    status, rec = lsg.check_provision({"act": "Negotiable Instruments Act"})
+    status, rec = lsg.check_provision({"act": "Waqf Act, 1995"})
     assert status == "NOT_IN_REGISTRY"
     assert rec is None
-    out = lsg.annotate_provisions([{"act": "Negotiable Instruments Act", "key": "ni_138"}])
+    out = lsg.annotate_provisions([{"act": "Waqf Act, 1995", "key": "waqf_40"}])
     assert out[0].get("_law_status") == "NOT_IN_REGISTRY"
     assert "dead_warning" not in out[0]
+    # Graduate Fix 1: soft caution must now be present
+    assert "registry_gap_note" in out[0], \
+        "Central unregistered act must carry registry_gap_note (Graduate Fix 1)"
 
 
 def test_h3_loader_rejects_blank_source_url(tmp_path, monkeypatch):
@@ -479,3 +497,131 @@ class TestMatcherPositiveRegressions:
         assert status in ("INACTIVE", "SUPERSEDED", "ACTIVE"), \
             f"IPC must produce a registry match; got {status!r}"
         assert rec is not None and rec.act_id == "IPC_1860"
+
+
+
+# ── H4 Phase 1 tests — NI 1881, IT 2000, POCSO 2012, PMLA 2002 ───────────────
+
+class TestH4RegistryExpansion:
+    """H4 Phase 1: four new central Acts must be in the registry and resolve correctly."""
+
+    def setup_method(self):
+        import engine.law_status_guard as lsg
+        lsg._load_registry.cache_clear()
+
+    def teardown_method(self):
+        import engine.law_status_guard as lsg
+        lsg._load_registry.cache_clear()
+
+    # ── NI Act 1881 ────────────────────────────────────────────────────────────
+
+    def test_ni_short_code_matches_ni_1881(self):
+        status, rec = law_status_guard.check_provision({"act": "NI"})
+        assert status == "ACTIVE", f"Short alias 'NI' must match NI_1881; got {status!r}"
+        assert rec is not None and rec.act_id == "NI_1881"
+
+    def test_negotiable_instruments_act_long_form_matches(self):
+        status, rec = law_status_guard.check_provision(
+            {"act": "Negotiable Instruments Act, 1881"}
+        )
+        assert status == "ACTIVE", \
+            f"'Negotiable Instruments Act, 1881' must match NI_1881; got {status!r}"
+        assert rec is not None and rec.act_id == "NI_1881"
+
+    def test_ni_section_138_provision_has_no_dead_warning(self):
+        """NI Act is ACTIVE — s.138 provisions must not carry dead_warning."""
+        out = law_status_guard.annotate_provisions([{"act": "NI", "key": "ni_138"}])
+        assert out[0].get("_law_status") == "ACTIVE"
+        assert "dead_warning" not in out[0]
+        assert "registry_gap_note" not in out[0], \
+            "ACTIVE NI provisions must NOT have registry_gap_note"
+
+    def test_ni_act_1961_not_matched_to_ni_1881_year_guard(self):
+        """Year guard: hypothetical NI Act 1961 must not map to NI_1881."""
+        status, rec = law_status_guard.check_provision(
+            {"act": "Negotiable Instruments Act, 1961"}
+        )
+        assert status == "NOT_IN_REGISTRY", \
+            f"Year 1961 ≠ NI_1881 canonical year 1881; got {status!r}"
+
+    # ── IT Act 2000 (PARTIALLY_ACTIVE) ────────────────────────────────────────
+
+    def test_information_technology_act_matches_it_2000(self):
+        status, rec = law_status_guard.check_provision(
+            {"act": "Information Technology Act, 2000"}
+        )
+        assert status == "WARN", \
+            f"IT_2000 is PARTIALLY_ACTIVE so should land in WARN; got {status!r}"
+        assert rec is not None and rec.act_id == "IT_2000"
+
+    def test_it_2000_provision_carries_warn_dead_warning(self):
+        """PARTIALLY_ACTIVE IT Act must carry a dead_warning (WARN path)."""
+        out = law_status_guard.annotate_provisions(
+            [{"act": "Information Technology Act", "key": "it_66a"}]
+        )
+        assert out[0].get("_law_status") == "PARTIALLY_ACTIVE"
+        assert "dead_warning" in out[0], \
+            "PARTIALLY_ACTIVE IT Act provision must carry dead_warning via WARN path"
+        warn = out[0]["dead_warning"]
+        assert "66A" in warn or "PARTIALLY" in warn or "status" in warn.lower(), \
+            f"dead_warning must mention the partial status; got: {warn!r}"
+
+    def test_it_act_1999_not_matched_to_it_2000_year_guard(self):
+        """Year guard: IT Act 1999 (hypothetical) must not map to IT_2000."""
+        status, rec = law_status_guard.check_provision(
+            {"act": "Information Technology Act, 1999"}
+        )
+        assert status == "NOT_IN_REGISTRY", \
+            f"Year 1999 ≠ IT_2000 canonical year 2000; got {status!r}"
+
+    # ── POCSO Act 2012 ─────────────────────────────────────────────────────────
+
+    def test_pocso_short_code_matches_pocso_2012(self):
+        status, rec = law_status_guard.check_provision({"act": "POCSO"})
+        assert status == "ACTIVE", f"Short alias 'POCSO' must match POCSO_2012; got {status!r}"
+        assert rec is not None and rec.act_id == "POCSO_2012"
+
+    def test_pocso_full_name_matches(self):
+        status, rec = law_status_guard.check_provision(
+            {"act": "Protection of Children from Sexual Offences Act, 2012"}
+        )
+        assert status == "ACTIVE", \
+            f"Long form POCSO must match POCSO_2012; got {status!r}"
+        assert rec is not None and rec.act_id == "POCSO_2012"
+
+    def test_pocso_provision_has_no_dead_warning(self):
+        out = law_status_guard.annotate_provisions([{"act": "POCSO", "key": "pocso_4"}])
+        assert out[0].get("_law_status") == "ACTIVE"
+        assert "dead_warning" not in out[0]
+        assert "registry_gap_note" not in out[0]
+
+    # ── PMLA Act 2002 ──────────────────────────────────────────────────────────
+
+    def test_pmla_short_code_matches_pmla_2002(self):
+        status, rec = law_status_guard.check_provision({"act": "PMLA"})
+        assert status == "ACTIVE", f"Short alias 'PMLA' must match PMLA_2002; got {status!r}"
+        assert rec is not None and rec.act_id == "PMLA_2002"
+
+    def test_prevention_of_money_laundering_act_matches(self):
+        status, rec = law_status_guard.check_provision(
+            {"act": "Prevention of Money Laundering Act, 2002"}
+        )
+        assert status == "ACTIVE", \
+            f"Long form PMLA must match PMLA_2002; got {status!r}"
+        assert rec is not None and rec.act_id == "PMLA_2002"
+
+    def test_pmla_provision_has_no_dead_warning(self):
+        out = law_status_guard.annotate_provisions([{"act": "PMLA", "key": "pmla_3"}])
+        assert out[0].get("_law_status") == "ACTIVE"
+        assert "dead_warning" not in out[0]
+        assert "registry_gap_note" not in out[0]
+
+    # ── Graduate Fix 1: STATE_NOT_CHECKED must still not get registry_gap_note ─
+
+    def test_state_not_checked_has_no_registry_gap_note(self):
+        """State provisions must not receive registry_gap_note — only central NOT_IN_REGISTRY ones."""
+        state_prov = {"act": "Rajasthan Tenancy Act", "state": "RJ", "key": "rj_ten_12"}
+        out = law_status_guard.annotate_provisions([state_prov])
+        assert out[0].get("_law_status") == "STATE_NOT_CHECKED"
+        assert "registry_gap_note" not in out[0], \
+            "STATE_NOT_CHECKED provisions must not receive registry_gap_note"

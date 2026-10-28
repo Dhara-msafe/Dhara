@@ -63,6 +63,17 @@ _ALIASES: Dict[str, str] = {
     "CONSUMER PROTECTION":                          "CPA_2019",
     "CODE ON WAGES":                                "COW_2019",
     "INDUSTRIAL RELATIONS CODE":                    "IRC_2020",
+    # H4 Phase 1 — four additional sourced central Acts
+    "NI":                                           "NI_1881",
+    "NEGOTIABLE INSTRUMENTS ACT":                   "NI_1881",
+    "NEGOTIABLE INSTRUMENTS":                       "NI_1881",
+    "INFORMATION TECHNOLOGY ACT":                   "IT_2000",
+    "INFORMATION TECHNOLOGY":                       "IT_2000",
+    "POCSO":                                        "POCSO_2012",
+    "PROTECTION OF CHILDREN FROM SEXUAL OFFENCES":  "POCSO_2012",
+    "PMLA":                                         "PMLA_2002",
+    "PREVENTION OF MONEY LAUNDERING ACT":           "PMLA_2002",
+    "PREVENTION OF MONEY LAUNDERING":               "PMLA_2002",
 }
 
 # Canonical year for each act_id that is year-specific.
@@ -87,6 +98,11 @@ _ALIAS_CANONICAL_YEARS: Dict[str, str] = {
     "BNS_2023":               "2023",
     "BNSS_2023":              "2023",
     "BSA_2023":               "2023",
+    # H4 Phase 1
+    "NI_1881":                "1881",
+    "IT_2000":                "2000",
+    "POCSO_2012":             "2012",
+    "PMLA_2002":              "2002",
 }
 
 # Pre-compiled regex: matches 4-digit years in range 1800–2099
@@ -343,6 +359,10 @@ def annotate_provisions(
             # Fix 1 Option B (H2b): act is absent from the verified registry.
             # H3 Phase 2: distinguish state-jurisdiction provisions from genuinely
             # unregistered central Acts — the central registry cannot confirm state law status.
+            # Graduate Fix 1: central Acts that are NOT_IN_REGISTRY now receive a soft
+            # user-facing registry_gap_note (NOT dead_warning — that is reserved for known
+            # INACTIVE acts). This uses a separate field so the INACTIVE/WARN rendering
+            # paths are completely unaffected.
             act_hint = (prov.get("act_name") or prov.get("act") or "<no act name>").strip()
             if prov.get("state"):
                 prov_copy["_law_status"] = "STATE_NOT_CHECKED"
@@ -353,9 +373,15 @@ def annotate_provisions(
                 )
             else:
                 prov_copy["_law_status"] = "NOT_IN_REGISTRY"
+                if act_hint and act_hint != "<no act name>":
+                    prov_copy["registry_gap_note"] = (
+                        f"ℹ️ Dhara has not verified the current status of '{act_hint}'. "
+                        "This provision may have been amended or superseded — "
+                        "confirm with an official source or consult an advocate."
+                    )
                 logger.info(
-                    "[law_status_guard] NOT_IN_REGISTRY act=%r — status unverifiable, "
-                    "internal marker set, no user-facing caution (registry gap, Option B)",
+                    "[law_status_guard] NOT_IN_REGISTRY act=%r — "
+                    "registry gap note set for user; no dead_warning (Graduate Fix 1)",
                     act_hint,
                 )
 

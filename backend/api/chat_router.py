@@ -1023,6 +1023,10 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                 lines.append(f"SAFETY WARNING (DEAD LAW): {hit['dead_warning']}")
             if hit.get("judicial_flag"):
                 lines.append(f"JUDICIAL ALERT: {hit['judicial_flag']}")
+            # Graduate Fix 1: surface registry_gap_note so the LLM is aware
+            # the Act's current status has not been independently verified.
+            if hit.get("registry_gap_note"):
+                lines.append(f"REGISTRY NOTE: {hit['registry_gap_note']}")
             # P0 fix: the registry-level dead_warning above only names the
             # successor ACT (e.g. "Bharatiya Nyaya Sanhita, 2023"), never the
             # specific successor SECTION. When the seeded record itself
@@ -1215,7 +1219,8 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
         for hit in db_hits:
             dead_warn = hit.get("dead_warning") or ""
             ji_warn = hit.get("judicial_flag") or ""
-            warning_prefix = "\n\n".join(filter(None, [dead_warn, ji_warn]))
+            reg_note = hit.get("registry_gap_note") or ""
+            warning_prefix = "\n\n".join(filter(None, [dead_warn, ji_warn, reg_note]))
             if hit.get("no_current_text"):
                 no_text_notice = (
                     "⚠️ Current statutory text is not available for this section. "
