@@ -143,21 +143,112 @@ def augment_prompt_with_numeric_fidelity_lock(prompt: str) -> str:
     )
 
 
+# ── BNS 199 / IPC 166A approved punishment fields (REGISTRY-001) ──────────────
+# Structural source of truth for the correct_punishment_mismatch post-processor.
+# Sourced from approval registry REGISTRY-001-IPC166A-BNS199, content_hash
+# 214ad46d3ecb3b1955c8698253228112cb98c056eda9ee4178be66668158f15d.
+# A change to the approved text invalidates that hash and requires a new GO.
+_BNS_199_APPROVED_TEXT = (
+    "Rigorous imprisonment of at least six months and up to two years, and fine"
+)
+_BNS_199_FIELDS = {
+    "imprisonment_type": "rigorous",    # Never "simple", never "jail"
+    "minimum_term":      "six months",  # Mandatory minimum — must not be omitted
+    "maximum_term":      "two years",   # Upper bound
+    "fine_mandatory":    True,          # Fine is AND, not "or both"
+}
+
+# Field-presence predicates (compiled once at module load):
+_FIELD_RIGOROUS   = re.compile(r"\brigorous\b", re.IGNORECASE)
+_FIELD_SIX_MONTHS = re.compile(r"\bsix\s*months?\b", re.IGNORECASE)
+_FIELD_TWO_YEARS  = re.compile(r"\btwo\s*years?\b|\b2\s*years?\b", re.IGNORECASE)
+_FIELD_FINE_MAND  = re.compile(r"\bfine\b", re.IGNORECASE)
+
+# Structural disqualifiers — a match means the constraint is violated:
+_DISQ_JAIL    = re.compile(r"\bjail\b", re.IGNORECASE)
+_DISQ_OR_BOTH = re.compile(r"\bfine[,\s]+or\s+both\b|\bor\s+both\b", re.IGNORECASE)
+
+# All observed surface forms of the wrong punishment for BNS 199 / IPC 166A.
+# P1 — one-year confusion: the model substitutes the ADJACENT IPC 166's figure.
+# P2 — two-year/jail/optional-fine confusion (QA 28 Oct 2026):
+#       exact failure wording: "up to two years in jail, a fine, or both"
+_WRONG_PUNISHMENT_RE = re.compile(
+    # P1: one-year duration patterns (all orderings observed in QA)
+    r"up to (?:one|1)\s*year'?s?\s*(?:of\s*)?(?:rigorous\s+)?imprisonment|"
+    r"imprisonment\s+(?:for\s+|of\s+)?up\s+to\s+(?:one|1)\s*year|"
+    r"(?:one|1)\s*year(?:'s)?\s*imprisonment|"
+    # P2: two-year / jail / optional-fine patterns
+    r"up to (?:two|2)\s*years?\s*(?:in\s+)?jail|"
+    r"(?:two|2)\s*years?\s*(?:in\s+)?jail|"
+    r"jail\s+(?:for|of)\s+(?:up\s+to\s+)?(?:two|2)\s*years?|"
+    r"up to (?:two|2)\s*years?\s*imprisonment",
+    re.IGNORECASE,
+)
+
+
+def _bns_199_fields_satisfied(text: str) -> bool:
+    """Structured check: returns True only when all four approved punishment
+    fields from REGISTRY-001 are correctly represented in ``text``.
+
+      imprisonment_type = rigorous  → _FIELD_RIGOROUS present, _DISQ_JAIL absent
+      minimum_term      = six months → _FIELD_SIX_MONTHS present
+      maximum_term      = two years  → _FIELD_TWO_YEARS present
+      fine_mandatory    = True       → _FIELD_FINE_MAND present, _DISQ_OR_BOTH absent
+    """
+    if not _FIELD_RIGOROUS.search(text):
+        return False
+    if _DISQ_JAIL.search(text):
+        return False
+    if not _FIELD_SIX_MONTHS.search(text):
+        return False
+    if not _FIELD_TWO_YEARS.search(text):
+        return False
+    if not _FIELD_FINE_MAND.search(text):
+        return False
+    if _DISQ_OR_BOTH.search(text):
+        return False
+    return True
+
+
 def correct_punishment_mismatch(text: str, hits: Iterable[dict]) -> str:
-    """Deterministic, code-only correction — the prompt-level NUMERIC
-    FIDELITY instruction above did not reliably stop this one specific,
-    repeatedly-observed hallucination: for BNS Section 199 / IPC Section
-    166A (verbatim punishment: 'rigorous imprisonment ... not less than
-    six months ... may extend to two years ... also liable to fine'), the
-    LLM kept substituting the ADJACENT, unrelated IPC Section 166's figure
-    ('up to one year ... fine ... or both') regardless of instruction.
-    Runs only when one of THIS turn's own verified hits is specifically
-    BNS 199 or IPC 166A, and only replaces the specific wrong-duration
-    phrase — never rewrites anything else model-authored, never invents a
-    number not already present in a verified hit's own text.
+    """Deterministic, code-only correction for BNS Section 199 / IPC Section
+    166A punishment text.
+
+    Two hallucination patterns have been repeatedly observed:
+
+      P1 — One-year confusion: the model substitutes the ADJACENT IPC Section
+           166's figure ("up to one year ... fine or both") regardless of
+           NUMERIC FIDELITY prompt instructions.
+
+      P2 — Two-year/jail/optional-fine confusion (QA 28 Oct 2026): the model
+           produced "up to two years in jail, a fine, or both" — omitting the
+           mandatory minimum ("at least six months"), using "jail" instead of
+           "rigorous imprisonment", and presenting the fine as optional.
+
+    Correction strategy — three steps (structured field comparison against
+    REGISTRY-001):
+
+      Step 1 — Fast-pass: if all four fields are already correctly stated,
+               return the text unchanged.
+      Step 2 — Targeted replacement: if a known-wrong surface-form phrase is
+               found, replace it with the registry-approved verbatim text.
+               Re-check structural fields; if now satisfied, return.
+      Step 3 — Catch-all for novel surface forms not yet in the regex:
+               replace residual "jail" → "rigorous imprisonment", residual
+               "or both" fine → "and fine", and if the mandatory minimum is
+               still absent, expand any "two years" phrase to the full
+               approved wording.
+
+    Approved source (REGISTRY-001-IPC166A-BNS199,
+    hash 214ad46d3ecb3b1955c8698253228112cb98c056eda9ee4178be66668158f15d):
+      "Rigorous imprisonment of at least six months and up to two years, and fine"
+
+    Scope guard: runs ONLY when this turn's verified hits include BNS 199
+    or IPC 166A. Never rewrites text for any other provision.
     """
     if not text:
         return text
+
     _is_199_or_166a = any(
         (h.get("section_number") or "").upper() in ("199", "166A")
         and (
@@ -168,15 +259,30 @@ def correct_punishment_mismatch(text: str, hits: Iterable[dict]) -> str:
     )
     if not _is_199_or_166a:
         return text
-    _wrong_duration_re = re.compile(
-        r"up to (?:one|1)\s*year'?s?\s*(?:of\s*)?imprisonment|"
-        r"imprisonment (?:for|of) up to (?:one|1)\s*year|"
-        r"(?:one|1)\s*year(?:'s)?\s*imprisonment",
-        re.IGNORECASE,
-    )
-    if _wrong_duration_re.search(text):
-        text = _wrong_duration_re.sub(
-            "rigorous imprisonment for a term of six months to two years", text,
+
+    # Step 1 — fast-pass: all structural fields already correct.
+    if _bns_199_fields_satisfied(text):
+        return text
+
+    # Step 2 — targeted replacement of all known wrong-form phrases.
+    if _WRONG_PUNISHMENT_RE.search(text):
+        text = _WRONG_PUNISHMENT_RE.sub(_BNS_199_APPROVED_TEXT, text)
+        if _bns_199_fields_satisfied(text):
+            return text
+
+    # Step 3 — catch-all for novel surface forms not yet in the regex.
+    if _DISQ_JAIL.search(text):
+        text = _DISQ_JAIL.sub("rigorous imprisonment", text)
+    if _DISQ_OR_BOTH.search(text):
+        text = _DISQ_OR_BOTH.sub("and fine", text)
+    if not _FIELD_SIX_MONTHS.search(text):
+        text = re.sub(
+            r"(rigorous\s+imprisonment\s+(?:of\s+|for\s+a\s+term\s+of\s+)?"
+            r"(?:up\s+to\s+)?(?:two|2)\s*years?)",
+            r"rigorous imprisonment of at least six months and up to two years",
+            text,
+            flags=re.IGNORECASE,
+            count=1,
         )
     return text
 

@@ -25,6 +25,7 @@ from engine.answer_generator import (
     build_cannot_verify_response,
     augment_prompt_with_status_guard,
     strip_leaked_citations,
+    correct_punishment_mismatch,
 )
 from engine.models import LegalQuery
 
@@ -514,3 +515,86 @@ def _pytest_class_to_unittest(cls):
     import unittest
     methods = {name: getattr(cls, name) for name in dir(cls) if name.startswith("test_")}
     return type(cls.__name__, (unittest.TestCase,), methods)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 6. correct_punishment_mismatch — CORRECTION-001 regression tests (6 cases)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestCorrectPunishmentMismatch:
+    """Regression tests for correct_punishment_mismatch() — Batch CORRECTION-001.
+
+    Pinned against:
+      P1 — wrong IPC 166 one-year figure (pre-existing catch, now with correct
+           replacement text including "and fine" and "at least six months")
+      P2 — QA 28 Oct 2026 exact pilot-blocker wording:
+           "up to two years in jail, a fine, or both"
+
+    Approved source (REGISTRY-001-IPC166A-BNS199):
+      "Rigorous imprisonment of at least six months and up to two years, and fine"
+    """
+
+    _HIT_BNS_199  = {"section_number": "199",  "act_name": "Bharatiya Nyaya Sanhita"}
+    _HIT_IPC_166A = {"section_number": "166A", "act_name": "Indian Penal Code"}
+    _HIT_OTHER    = {"section_number": "302",  "act_name": "Bharatiya Nyaya Sanhita"}
+
+    # ── P2: exact QA-observed failure (pilot blocker) ─────────────────────────
+
+    def test_101_p2_qa_exact_jail_or_both_corrected_bns199_hit(self):
+        """Exact failure observed in QA 28 Oct 2026: 'up to two years in jail, a fine, or both'."""
+        wrong  = "The punishment is up to two years in jail, a fine, or both."
+        result = correct_punishment_mismatch(wrong, [self._HIT_BNS_199])
+        assert "rigorous imprisonment" in result.lower(), \
+            f"'rigorous imprisonment' absent after correction: {result}"
+        assert "six months" in result.lower(), \
+            f"Mandatory minimum 'six months' absent after correction: {result}"
+        assert "jail" not in result.lower(), \
+            f"'jail' still present after correction: {result}"
+        assert "or both" not in result.lower(), \
+            f"'or both' still present after correction: {result}"
+
+    def test_102_p2_ipc_166a_hit_also_triggers_correction(self):
+        """Correction must fire for IPC 166A hit, not only for BNS 199."""
+        wrong  = "The offender faces up to two years in jail, a fine, or both."
+        result = correct_punishment_mismatch(wrong, [self._HIT_IPC_166A])
+        assert "rigorous imprisonment" in result.lower()
+        assert "six months" in result.lower()
+        assert "jail" not in result.lower()
+        assert "or both" not in result.lower()
+
+    # ── P1: one-year confusion ────────────────────────────────────────────────
+
+    def test_103_p1_one_year_confusion_corrected(self):
+        """P1: adjacent IPC 166 figure must be replaced with approved source text."""
+        wrong  = "The punishment is imprisonment up to one year, fine, or both."
+        result = correct_punishment_mismatch(wrong, [self._HIT_BNS_199])
+        assert "rigorous imprisonment" in result.lower(), \
+            f"'rigorous imprisonment' absent: {result}"
+        assert "six months" in result.lower(), \
+            f"Mandatory minimum absent: {result}"
+        assert "one year" not in result.lower(), \
+            f"'one year' still present: {result}"
+
+    # ── Scope guard ───────────────────────────────────────────────────────────
+
+    def test_104_scope_guard_does_not_fire_for_other_sections(self):
+        """Correction must not fire when the hit set contains no BNS 199 or IPC 166A."""
+        text   = "imprisonment for up to one year"
+        result = correct_punishment_mismatch(text, [self._HIT_OTHER])
+        assert result == text, \
+            f"Correction must not alter text for non-199/166A hits: {result}"
+
+    # ── Pass-through ──────────────────────────────────────────────────────────
+
+    def test_105_correct_wording_passes_through_unchanged(self):
+        """When the text already satisfies all four structural fields, leave it alone."""
+        correct = "Rigorous imprisonment of at least six months and up to two years, and fine"
+        result  = correct_punishment_mismatch(correct, [self._HIT_BNS_199])
+        assert result == correct, \
+            f"Correct approved text was modified: {result}"
+
+    # ── Null guard ────────────────────────────────────────────────────────────
+
+    def test_106_empty_text_returns_empty(self):
+        assert correct_punishment_mismatch("", [self._HIT_BNS_199]) == ""
+
