@@ -48,6 +48,17 @@ def _entry(key: str) -> dict:
     return hit
 
 
+# Approval now additionally requires an allowlisted reviewer (Emergent
+# support fix 1). In-memory only; the real on-disk allowlist stays empty.
+_TEST_ALLOWLIST = [{
+    "reviewer_id": "test-reviewer-only-not-real",
+    "name": "Synthetic test reviewer",
+    "status": "active",
+    "revoked_at": None,
+    "added_at": "2026-10-28T00:00:00Z",
+}]
+
+
 def _synthetic_approval_for(entry: dict) -> list:
     return [{
         "approval_id": f"TEST-{entry['key']}",
@@ -72,7 +83,7 @@ class TestSsePromptGuardSurfaceInheritsApprovalGate:
 
     def test_approved_historical_hit_does_not_get_the_dead_law_instruction(self):
         entry = _entry("ipc_34")
-        hit = annotate_provisions([entry], source_tag="corpus", approval_registry=_synthetic_approval_for(entry))[0]
+        hit = annotate_provisions([entry], source_tag="corpus", approval_registry=_synthetic_approval_for(entry), authorized_reviewers=_TEST_ALLOWLIST)[0]
         prompt = augment_prompt_with_status_guard("BASE PROMPT", [hit])
         assert prompt == "BASE PROMPT", "an approved historical hit must not be instructed-against as dead law"
 
@@ -88,7 +99,7 @@ class TestLayerMGateInheritsApprovalGate:
 
     def test_approved_hit_does_not_trigger_cannot_verify(self):
         entry = _entry("ipc_34")
-        hit = annotate_provisions([entry], source_tag="corpus", approval_registry=_synthetic_approval_for(entry))[0]
+        hit = annotate_provisions([entry], source_tag="corpus", approval_registry=_synthetic_approval_for(entry), authorized_reviewers=_TEST_ALLOWLIST)[0]
         assert all_provisions_dead([hit]) is False
 
 
@@ -105,7 +116,7 @@ class TestBothSurfacesAgreeForTheSameHit:
 
     def test_both_surfaces_agree_when_approved(self):
         entry = _entry("ipc_34")
-        hit = annotate_provisions([entry], source_tag="corpus", approval_registry=_synthetic_approval_for(entry))[0]
+        hit = annotate_provisions([entry], source_tag="corpus", approval_registry=_synthetic_approval_for(entry), authorized_reviewers=_TEST_ALLOWLIST)[0]
         warned_in_prompt = "STATUS-GUARD NOTICE" in augment_prompt_with_status_guard("P", [hit])
         counted_dead = all_provisions_dead([hit])
         assert warned_in_prompt is False and counted_dead is False

@@ -182,7 +182,7 @@ def correct_punishment_mismatch(text: str, hits: Iterable[dict]) -> str:
 
 
 
-def augment_prompt_with_exact_dead_citation_lock(prompt: str) -> str:
+def augment_prompt_with_exact_dead_citation_lock(prompt: str, *, successor_approved: bool = False) -> str:
     """P0 fix — strong, explicit instruction for the one scenario the
     generic status-guard notice above was not firm enough for: the user
     named an EXACT (now-superseded) Act+Section by name, and the ONLY
@@ -194,7 +194,25 @@ def augment_prompt_with_exact_dead_citation_lock(prompt: str) -> str:
     own narrow rule) treat the reply as a refusal and almost discard the
     citation. This instruction removes the ambiguity: the model must
     state the provision's content and successor plainly, never refuse.
+
+    Emergent support fix 3d: the instruction to name the successor
+    section is given ONLY when the (dead section -> successor section)
+    relationship has an allowlisted-reviewer, hash-bound approval
+    (engine.correspondence_gate). Default is fail-closed: the model is told
+    not to name or guess any successor section number.
     """
+    if not successor_approved:
+        return prompt + (
+            "\n\nEXACT-SECTION LOOKUP NOTICE (mandatory):\n"
+            "The user explicitly asked about ONE specific, now-superseded section by name. "
+            "A verified source for that exact section IS available above (marked DEAD LAW). "
+            "Do NOT say you 'cannot confirm' this or that there is 'no verified "
+            "source' — there is one. Instead: (1) state plainly what that section covered/the "
+            "punishment it carried, clearly labelled as the now-replaced provision; (2) do NOT "
+            "name or guess any successor section number — no approved correspondence is "
+            "available; (3) note this old text no longer applies to new "
+            "matters, only to events/FIRs/trials from before the cutover."
+        )
     return prompt + (
         "\n\nEXACT-SECTION LOOKUP NOTICE (mandatory):\n"
         "The user explicitly asked about ONE specific, now-superseded section by name. "
@@ -229,7 +247,15 @@ def build_cannot_verify_response(
         act = h.get("act_name") or h.get("short_label") or "This provision"
         sec = h.get("section_number")
         status = (h.get("status") or "SUPERSEDED").upper()
-        successor = h.get("successor_act") or h.get("successor_act_id")
+        # Emergent support fix 3e: a section-level successor_act is named
+        # only when its relationship is approved; otherwise fall back to the
+        # act-level successor_act_id (unchanged behaviour) or omit it.
+        successor = h.get("successor_act_id")
+        if h.get("successor_act"):
+            from engine.correspondence_gate import check_successor_claim
+            if check_successor_claim(h.get("act_name") or h.get("act"), h.get("section_number"),
+                                     h.get("successor_act")).approved:
+                successor = h.get("successor_act")
         line = f"- {act}"
         if sec:
             line += f", Section {sec}"
@@ -264,7 +290,14 @@ def build_cannot_verify_response(
     return body
 
 
-def build_bns_identifier_hypothesis_response(act_hint: str, section_hint: str, hypothesis: dict) -> str:
+def build_bns_identifier_hypothesis_response(
+    act_hint: str,
+    section_hint: str,
+    hypothesis: dict,
+    *,
+    registry: Optional[List[dict]] = None,
+    authorized_reviewers: Optional[List[dict]] = None,
+) -> str:
     """Deterministic, hedged response for a well-formed BNS/BNSS/BSA reference
     whose exact record is absent AND whose number is not confirmed to exist
     in the verified correspondence index, but DOES match a former IPC/CrPC/
@@ -274,8 +307,24 @@ def build_bns_identifier_hypothesis_response(act_hint: str, section_hint: str, h
     and OFFERS the old-law correspondence as a possible intended reference,
     never a silent substitution. Deterministic/template, not LLM-authored, so
     it can never invent a punishment or statutory claim.
+
+    Emergent support fix 3d: the IPC->BNS correspondence sentence (which
+    names a successor section number) is included ONLY when that exact
+    relationship is approved (engine.correspondence_gate). Otherwise the
+    response keeps only the existing "no verified record" hedge and the
+    existing advocate/disclaimer wording, and names no successor number.
     """
+    from engine.correspondence_gate import check_relationship
     bns_sec = hypothesis.get("bns_section", "")
+    if not check_relationship(section_hint, bns_sec, registry=registry,
+                              authorized_reviewers=authorized_reviewers).approved:
+        return (
+            f"I don't have a verified record confirming that {act_hint} has a Section "
+            f"{section_hint}. I also can't independently confirm it does NOT exist \u2014 this is "
+            f"only a gap in what I can verify right now, not a ruling on the section itself.\n\n"
+            f"Please confirm with a licensed advocate before relying on it.\n\n"
+            f"\u26a0\ufe0f Legal information, not legal advice."
+        )
     return (
         f"I don't have a verified record confirming that {act_hint} has a Section "
         f"{section_hint}. I also can't independently confirm it does NOT exist \u2014 this is "

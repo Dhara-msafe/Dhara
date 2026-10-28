@@ -112,7 +112,10 @@ class TestRetrieveDbReturnsCorrectGrounding:
             "status": "SUPERSEDED",
         }
         text = build_cannot_verify_response(None, dead_hits=[hit])
-        assert "199" in text, "Historical explanation must name the BNS 199 correspondence"
+        # Emergent support fix 3e: naming the successor section now requires an
+        # allowlisted-reviewer, hash-bound correspondence approval. The real
+        # registry is empty, so the fallback must NOT name BNS 199.
+        assert "199" not in text, "Unapproved correspondence must not be named in the fallback"
 
 
 # ── check_bns_family_identifier() — existence index + hypothesis ────────────
@@ -145,7 +148,10 @@ class TestHypothesisResponseIsHedgedNeverAssertive:
         assert "this section does not exist" not in lowered
         assert "don't have a verified record" in lowered
         assert "can't independently confirm" in lowered
-        assert "199" in text
+        # Emergent support fix 3d: the IPC->BNS correspondence sentence is gated
+        # on an approved relationship; the real registry is empty, so no
+        # successor number may appear.
+        assert "199" not in text
         assert "licensed advocate" in lowered
 
     def test_response_never_swaps_the_users_act(self):

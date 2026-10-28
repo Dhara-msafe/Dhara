@@ -259,6 +259,7 @@ def annotate_provisions(
     provisions: List[dict],
     source_tag: str = "db",
     approval_registry: Optional[List[dict]] = None,
+    authorized_reviewers: Optional[List[dict]] = None,
 ) -> List[dict]:
     """Annotate each provision with law status info in-place (new dict copy).
 
@@ -270,6 +271,9 @@ def annotate_provisions(
     Tests may pass an explicit in-memory list of synthetic approval records
     to exercise the approved/revoked/hash-mismatch paths without ever
     touching the real registry file.
+
+    `authorized_reviewers`: normally None (uses the real, currently-empty,
+    on-disk reviewer allowlist). Tests may inject a synthetic allowlist.
     """
     annotated: List[dict] = []
     for prov in provisions:
@@ -296,7 +300,10 @@ def annotate_provisions(
                 _content_hash = compute_content_hash(
                     prov_copy.get("official_text") or prov_copy.get("section_text") or ""
                 )
-                _approval = check_approval("historical_applicability", _subject_key, _content_hash, registry=approval_registry)
+                _approval = check_approval(
+                    "historical_applicability", _subject_key, _content_hash,
+                    registry=approval_registry, authorized_reviewers=authorized_reviewers,
+                )
                 if _approval.approved:
                     prov_copy["historical_notice"] = (
                         f"Historical note: {rec.short_name} was replaced by "

@@ -22,6 +22,12 @@ sys.path.insert(0, BACKEND_DIR)
 from engine.approval_evidence import check_approval, compute_content_hash  # noqa: E402
 
 
+# Approval now additionally requires an allowlisted reviewer (Emergent
+# support fix 1). In-memory only; the real on-disk allowlist stays empty.
+_TEST_ALLOWLIST = [{"reviewer_id": "adv.jane.doe", "name": "Synthetic", "status": "active",
+                    "revoked_at": None, "added_at": "2026-10-28T00:00:00Z"}]
+
+
 def _valid_record(**overrides) -> dict:
     rec = {
         "approval_id": "A-001",
@@ -103,14 +109,14 @@ class TestMalformedOrUnauthorizedFailsClosed:
 
     def test_non_dict_entry_in_registry_is_skipped_not_crashed(self):
         registry = ["not-a-dict", _valid_record()]
-        result = check_approval("historical_applicability", "ipc_34", compute_content_hash("the exact approved text"), registry=registry)
+        result = check_approval("historical_applicability", "ipc_34", compute_content_hash("the exact approved text"), registry=registry, authorized_reviewers=_TEST_ALLOWLIST)
         assert result.approved is True  # the valid record after the junk entry still works
 
 
 class TestValidApprovalIsGranted:
     def test_fully_valid_record_is_approved_and_identifies_reviewer(self):
         registry = [_valid_record()]
-        result = check_approval("historical_applicability", "ipc_34", compute_content_hash("the exact approved text"), registry=registry)
+        result = check_approval("historical_applicability", "ipc_34", compute_content_hash("the exact approved text"), registry=registry, authorized_reviewers=_TEST_ALLOWLIST)
         assert result.approved is True
         assert result.reason == "approved"
         assert result.reviewer_id == "adv.jane.doe"

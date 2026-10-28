@@ -107,6 +107,142 @@ _LEGACY_TO_SUCCESSOR_FAMILY = {
     "indian evidence act": "Bharatiya Sakshya Adhiniyam",
 }
 
+# Emergent support fix 3: every section-level successor / correspondence
+# statement on the chat path is released only with an allowlisted-reviewer,
+# hash-bound "correspondence" approval (engine.correspondence_gate). On
+# failure the successor claim is omitted; no new refusal wording.
+from engine.correspondence_gate import (  # noqa: E402
+    check_successor_claim as _check_successor_claim,
+    parse_successor_label as _parse_successor_label,
+)
+
+
+def _approved_successor_label(hit: dict) -> Optional[str]:
+    """The hit's section-level successor_act, or None when not approved."""
+    label = hit.get("successor_act")
+    if not label:
+        return None
+    res = _check_successor_claim(hit.get("act_name") or hit.get("act"), hit.get("section_number"), label)
+    if not res.approved:
+        logger.info(
+            "[correspondence_gate] successor withheld act=%r sec=%r reason=%s",
+            (hit.get("act_name") or "")[:40], hit.get("section_number"), res.reason,
+        )
+        return None
+    return label
+
+
+def _active_ref_successor_approved(active_ref: Optional[dict]) -> bool:
+    """Is the active reference's (dead section -> successor) relationship approved?"""
+    if not active_ref or not active_ref.get("dead_with_successor"):
+        return False
+    return _check_successor_claim(
+        active_ref.get("act"), active_ref.get("section"), active_ref.get("successor_act_label"),
+    ).approved
+
+
+def _successor_family_hit_supports_ref(active_ref: Optional[dict], hit: dict) -> bool:
+    """Fix 3c: a successor-act-family hit may stand in for a dead active
+    reference only when the (dead section -> successor section) relationship
+    is approved AND the hit IS that approved successor section."""
+    if not active_ref or not active_ref.get("dead_with_successor"):
+        return False
+    if hit.get("act_name") != active_ref.get("successor_act_family"):
+        return False
+    if not _active_ref_successor_approved(active_ref):
+        return False
+    _, succ_sec = _parse_successor_label(active_ref.get("successor_act_label"))
+    return (hit.get("section_number") or "").strip().upper() == succ_sec
+
+
+def _db_hit_context_block(hit: dict) -> str:
+    """LLM-context block for one MongoDB corpus hit (was inline in chat_stream)."""
+    lines: list[str] = []
+    if hit.get("dead_warning"):
+        lines.append(f"SAFETY WARNING (DEAD LAW): {hit['dead_warning']}")
+    if hit.get("judicial_flag"):
+        lines.append(f"JUDICIAL ALERT: {hit['judicial_flag']}")
+    # Graduate Fix 1: surface registry_gap_note so the LLM is aware
+    # the Act's current status has not been independently verified.
+    if hit.get("registry_gap_note"):
+        lines.append(f"REGISTRY NOTE: {hit['registry_gap_note']}")
+    # P0 fix: the registry-level dead_warning above only names the
+    # successor ACT (e.g. "Bharatiya Nyaya Sanhita, 2023"), never the
+    # specific successor SECTION. When the seeded record itself
+    # carries a section-specific successor_act (set at seed time —
+    # see scripts/seed_ipc166a_bns199.py), surface that exact string
+    # too so the LLM can actually name the successor section instead
+    # of only the successor Act.
+    # Emergent support fix 3a: only when that relationship is approved;
+    # otherwise the line is omitted.
+    _succ = _approved_successor_label(hit)
+    if _succ:
+        lines.append(f"Successor provision: {_succ}")
+    sec_heading = hit.get("section_heading", "")
+    act_label = f"{hit.get('act_name', '')}, Section {hit.get('section_number', '')}"
+    if sec_heading:
+        act_label += f" — {sec_heading}"
+    lines.append(f"Source: {act_label}")
+    if hit.get("no_current_text"):
+        lines.append(
+            "NOTE: Current statutory text for this section is not available "
+            "in the corpus — the act may have been repealed or replaced by "
+            "successor legislation (e.g. IPC superseded by BNS). "
+            "Tell the user plainly that this section may no longer be in force "
+            "and advise them to consult an advocate for the current legal position."
+        )
+    else:
+        sec_text = (hit.get("section_text") or "")[:600]
+        if sec_text:
+            lines.append(f"Text: {sec_text}")
+    return "\n".join(lines)
+
+
+def _db_hit_citation_payload(hit: dict) -> dict:
+    """SSE citation event for one MongoDB corpus hit (was inline in event_gen).
+    G1/G2 safety warnings are prepended to official_text so they appear at
+    the top of the citation card in the UI."""
+    dead_warn = hit.get("dead_warning") or ""
+    ji_warn = hit.get("judicial_flag") or ""
+    reg_note = hit.get("registry_gap_note") or ""
+    warning_prefix = "\n\n".join(filter(None, [dead_warn, ji_warn, reg_note]))
+    if hit.get("no_current_text"):
+        no_text_notice = (
+            "⚠️ Current statutory text is not available for this section. "
+            "This may reflect a repeal or replacement by successor legislation. "
+            "Please consult an advocate for the current legal position."
+        )
+        official = (warning_prefix + "\n\n" + no_text_notice) if warning_prefix else no_text_notice
+    else:
+        raw_text = (hit.get("section_text") or "")[:2000]
+        official = (warning_prefix + "\n\n" + raw_text) if warning_prefix else raw_text
+    sec_heading = hit.get("section_heading", "")
+    act_label = (
+        f"{hit.get('act_name', '')}, Section {hit.get('section_number', '')}"
+        + (f" — {sec_heading}" if sec_heading else "")
+    )
+    citation = {
+        "key": f"{hit.get('act_name', '')} § {hit.get('section_number', '')}",
+        "citation": act_label,
+        "short_label": f"§ {hit.get('section_number', '')}",
+        "act": hit.get("act_name", ""),
+        "official_text": official,
+        "source_url": hit.get("source_url") or "",
+        "verified_at": hit.get("badge") or "Sourced from Government of India",
+        "text_kind": "verbatim" if not hit.get("no_current_text") else "judicial_ruling",
+        "state": None if (hit.get("jurisdiction") or "CENTRAL") == "CENTRAL" else hit.get("jurisdiction"),
+        "is_dead_law": hit.get("is_dead_law", False),
+        "dead_warning": hit.get("dead_warning"),
+        # Emergent support fix 3b: section-level successor only if approved.
+        "successor_act": _approved_successor_label(hit),
+        "judicial_flag": hit.get("judicial_flag"),
+        "no_current_text": hit.get("no_current_text", False),
+    }
+    if hit.get("successor_act") and citation["successor_act"] is None:
+        citation["successor_withheld"] = True
+    return {"type": "citation", "citation": citation}
+
+
 router = APIRouter()
 
 # ── DHARA C1 — conversational replies (non-legal allowlist) ──────────────────
@@ -895,7 +1031,9 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
             # "IPC Section 166A" a follow-up "what is the BNS equivalent?"
             # should be allowed to keep its genuine BNS hits, not have them
             # all stripped for not literally being IPC 166A.
-            if _p0d_active_ref.get("dead_with_successor") and h.get("act_name") == _p0d_active_ref.get("successor_act_family"):
+            # Emergent support fix 3c: also requires the approved
+            # (dead section -> successor section) relationship.
+            if _successor_family_hit_supports_ref(_p0d_active_ref, h):
                 return True
             return False
         _p0d_before = len(db_hits)
@@ -1018,42 +1156,7 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
     if db_hits:
         db_parts: list[str] = []
         for hit in db_hits:
-            lines: list[str] = []
-            if hit.get("dead_warning"):
-                lines.append(f"SAFETY WARNING (DEAD LAW): {hit['dead_warning']}")
-            if hit.get("judicial_flag"):
-                lines.append(f"JUDICIAL ALERT: {hit['judicial_flag']}")
-            # Graduate Fix 1: surface registry_gap_note so the LLM is aware
-            # the Act's current status has not been independently verified.
-            if hit.get("registry_gap_note"):
-                lines.append(f"REGISTRY NOTE: {hit['registry_gap_note']}")
-            # P0 fix: the registry-level dead_warning above only names the
-            # successor ACT (e.g. "Bharatiya Nyaya Sanhita, 2023"), never the
-            # specific successor SECTION. When the seeded record itself
-            # carries a section-specific successor_act (set at seed time —
-            # see scripts/seed_ipc166a_bns199.py), surface that exact string
-            # too so the LLM can actually name the successor section instead
-            # of only the successor Act.
-            if hit.get("successor_act"):
-                lines.append(f"Successor provision: {hit['successor_act']}")
-            sec_heading = hit.get("section_heading", "")
-            act_label = f"{hit.get('act_name', '')}, Section {hit.get('section_number', '')}"
-            if sec_heading:
-                act_label += f" — {sec_heading}"
-            lines.append(f"Source: {act_label}")
-            if hit.get("no_current_text"):
-                lines.append(
-                    "NOTE: Current statutory text for this section is not available "
-                    "in the corpus — the act may have been repealed or replaced by "
-                    "successor legislation (e.g. IPC superseded by BNS). "
-                    "Tell the user plainly that this section may no longer be in force "
-                    "and advise them to consult an advocate for the current legal position."
-                )
-            else:
-                sec_text = (hit.get("section_text") or "")[:600]
-                if sec_text:
-                    lines.append(f"Text: {sec_text}")
-            db_parts.append("\n".join(lines))
+            db_parts.append(_db_hit_context_block(hit))
         db_block = "\n---\n".join(db_parts)
         corpus_context = (corpus_context + "\n---\n" + db_block) if corpus_context else db_block
 
@@ -1120,7 +1223,10 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
     # status-guard reminder alone was not enough to stop the LLM defaulting
     # to a refusal-style answer when a real citation was available.
     if _has_explicit_dead_citation_with_successor:
-        system_prompt = augment_prompt_with_exact_dead_citation_lock(system_prompt)
+        system_prompt = augment_prompt_with_exact_dead_citation_lock(
+            system_prompt,
+            successor_approved=_active_ref_successor_approved(_active_ref_now),
+        )
     # ACTOR-CONDUCT LOCK: if Layer B found the user asking about someone
     # else's regulated conduct, instruct the LLM not to transfer that
     # obligation onto the user (see README_DEPLOYMENT.md > Engine Architecture).
@@ -1217,44 +1323,7 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
         # Emit MongoDB-corpus citations.  G1/G2 safety warnings are prepended to
         # official_text so they appear at the top of the citation card in the UI.
         for hit in db_hits:
-            dead_warn = hit.get("dead_warning") or ""
-            ji_warn = hit.get("judicial_flag") or ""
-            reg_note = hit.get("registry_gap_note") or ""
-            warning_prefix = "\n\n".join(filter(None, [dead_warn, ji_warn, reg_note]))
-            if hit.get("no_current_text"):
-                no_text_notice = (
-                    "⚠️ Current statutory text is not available for this section. "
-                    "This may reflect a repeal or replacement by successor legislation. "
-                    "Please consult an advocate for the current legal position."
-                )
-                official = (warning_prefix + "\n\n" + no_text_notice) if warning_prefix else no_text_notice
-            else:
-                raw_text = (hit.get("section_text") or "")[:2000]
-                official = (warning_prefix + "\n\n" + raw_text) if warning_prefix else raw_text
-            sec_heading = hit.get("section_heading", "")
-            act_label = (
-                f"{hit.get('act_name', '')}, Section {hit.get('section_number', '')}"
-                + (f" — {sec_heading}" if sec_heading else "")
-            )
-            _citation_payloads.append({
-                "type": "citation",
-                "citation": {
-                    "key": f"{hit.get('act_name', '')} § {hit.get('section_number', '')}",
-                    "citation": act_label,
-                    "short_label": f"§ {hit.get('section_number', '')}",
-                    "act": hit.get("act_name", ""),
-                    "official_text": official,
-                    "source_url": hit.get("source_url") or "",
-                    "verified_at": hit.get("badge") or "Sourced from Government of India",
-                    "text_kind": "verbatim" if not hit.get("no_current_text") else "judicial_ruling",
-                    "state": None if (hit.get("jurisdiction") or "CENTRAL") == "CENTRAL" else hit.get("jurisdiction"),
-                    "is_dead_law": hit.get("is_dead_law", False),
-                    "dead_warning": hit.get("dead_warning"),
-                    "successor_act": hit.get("successor_act"),
-                    "judicial_flag": hit.get("judicial_flag"),
-                    "no_current_text": hit.get("no_current_text", False),
-                },
-            })
+            _citation_payloads.append(_db_hit_citation_payload(hit))
 
         # Orphan judicial-invalidation warning (section in judicial_invalidations
         # but NOT in legal_sections — e.g. IPC §377 replaced by BNS).

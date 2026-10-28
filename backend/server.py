@@ -1479,6 +1479,10 @@ def _xref_search(q: str = "", ipc: str = "", bns: str = "") -> list[dict]:
             "reviewed_by":        entry.get("reviewed_by"),
             "mapping_version":    entry.get("mapping_version", ""),
             "new_subsection":     entry.get("bns_subsection") or entry.get("bnss_subsection") or entry.get("bsa_subsection") or "",
+            # Internal: the raw mapping record, hashed by the correspondence
+            # approval gate in cross_reference() and popped there before the
+            # response is built (engine.correspondence_gate).
+            "_raw_entry":         entry,
         }
 
     seen: set[str] = set()
@@ -1534,6 +1538,16 @@ async def cross_reference(
     data    = _load_xref()
     results = _xref_search(q=q, ipc=ipc, bns=bns)
 
+    # ── Correspondence approval gate (Emergent support fix 2) ──────────────────
+    # Every mapping row is a relationship claim. It is released only with an
+    # allowlisted-reviewer, hash-bound "correspondence" approval binding BOTH
+    # sides (engine.correspondence_gate). Otherwise the row is kept (shape is
+    # backward compatible) but its other-side section and texts are blanked
+    # and it is marked correspondence_withheld. No auth/role bypass exists.
+    from engine.correspondence_gate import gate_xref_results
+    _query_side = "target" if (bns.strip() and not ipc.strip()) else "source"
+    withheld_count = gate_xref_results(results, query_side=_query_side)
+
     # ── Citation Guard metadata ───────────────────────────────────────────────
     is_section_search = bool(ipc.strip() or bns.strip())
     unverified_count  = sum(1 for r in results if not r.get("verified"))
@@ -1561,6 +1575,13 @@ async def cross_reference(
             "Section mapping not yet confirmed in our database. "
             "Please consult a manual or the bare Act directly."
             if is_section_search and len(results) == 0 else ""
+        ),
+        "withheld_count":     withheld_count,
+        "approval_gate":      "fail_closed",
+        "withheld_message": (
+            "Section mapping not yet confirmed in our database. "
+            "Please consult a manual or the bare Act directly."
+            if withheld_count else ""
         ),
     }
 
