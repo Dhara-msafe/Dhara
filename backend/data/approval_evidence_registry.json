@@ -1,4 +1,33 @@
 {
-  "_comment": "P0 containment (T03). This registry is INTENTIONALLY EMPTY. No approvals are seeded by engineering or agent work. Entries may only be added by an authorized legal reviewer, out-of-band, with their own reviewer_id, an exact content_hash of the specific text version being approved, and status set to 'active'. A text change invalidates the hash and the approval fails closed automatically. Set status to 'revoked' (and revoked_at) to withdraw an approval; never delete the historical record.",
-  "approvals": []
+  "_comment": "P0 containment (T03). Entries may only be added by an authorized legal reviewer, out-of-band, with their own reviewer_id, an exact content_hash of the specific text version being approved, and status set to active. A text change invalidates the hash and the approval fails closed automatically. Set status to revoked (and revoked_at) to withdraw an approval; never delete the historical record.",
+  "authorized_reviewers": [
+    {
+      "reviewer_id": "callistus-moses-founder",
+      "name": "Callistus Moses",
+      "role": "founder-ceo",
+      "status": "active",
+      "revoked": false
+    }
+  ],
+  "approvals": [
+    {
+      "approval_id": "REGISTRY-001-IPC166A-BNS199",
+      "batch": "REGISTRY-001",
+      "record_type": "correspondence",
+      "subject_key": "IPC:166A->BNS:199",
+      "section_from": "IPC:166A",
+      "section_to": "BNS:199",
+      "offence_text": "Public servant disobeying direction under law",
+      "punishment_text": "Rigorous imprisonment of at least six months and up to two years, and fine",
+      "what_changed": "P0-A correction (2026-06): previous value 'BNS 202' was incorrect. Correct correspondence is BNS Section 199, per NCRB BNS correspondence table and the official BNS Act text. Covers police officers failing to record FIR for rape/acid attack victims. Rigorous imprisonment 6 months to 2 years + fine.",
+      "content_hash": "214ad46d3ecb3b1955c8698253228112cb98c056eda9ee4178be66668158f15d",
+      "reviewer_id": "callistus-moses-founder",
+      "approved_by": "callistus-moses-founder",
+      "status": "active",
+      "revoked": false,
+      "revoked_at": null,
+      "approved_at": "2026-10-28T00:00:00Z",
+      "go_instruction": "GO: Populate the approval registry for IPC 166A -> BNS 199 — Batch REGISTRY-001"
+    }
+  ]
 }
