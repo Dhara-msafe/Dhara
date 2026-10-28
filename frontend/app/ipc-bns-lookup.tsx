@@ -35,10 +35,6 @@ interface XRef {
   source_link?:      string;
   judicial_citation?: string;
   dead_law?:         boolean;
-  // Set by the backend approval gate when the IPC↔BNS correspondence has no
-  // active approval: the other side and the offence text are blanked.
-  correspondence_withheld?: boolean;
-  withheld_reason?:   string | null;
 }
 interface CitationGuard {
   database_only:        boolean;
@@ -47,8 +43,6 @@ interface CitationGuard {
   unverified_count:     number;
   total_in_db:          number;
   not_in_db_message:    string;
-  withheld_count?:      number;
-  withheld_message?:    string;
 }
 
 // ── Change-type display config ────────────────────────────────────────────────
@@ -61,7 +55,6 @@ const CHANGE_META: Record<string, { label: string; bg: string; color: string }> 
   deleted:                         { label: 'Deleted',         bg: '#FEE2E2', color: '#B91C1C' },
   new:                             { label: 'New',             bg: '#ECFDF5', color: '#065F46' },
   dead_law:                        { label: '⚠ Dead Law',      bg: '#1F2937', color: '#FCA5A5' },
-  withheld:                        { label: 'Not yet approved', bg: '#F3F4F6', color: '#374151' },
 };
 function changeMeta(ct: string) {
   return CHANGE_META[ct] ?? { label: ct.replace(/_/g, ' '), bg: '#F3F4F6', color: '#374151' };
@@ -235,50 +228,10 @@ function UnverifiedBanner() {
   );
 }
 
-// ── Withheld card: correspondence not approved ────────────────────────────────
-// A blank new_section here means "not approved", NOT "deleted" — never route a
-// withheld row through Guard B / the dead-law banner.
-const WITHHELD_FALLBACK_MSG =
-  'Section mapping not yet confirmed in our database. Please consult a manual or the bare Act directly.';
-
-function WithheldCard({ item, message }: { item: XRef; message?: string }) {
-  const searched = item.old_section || item.new_section || '—';
-  return (
-    <View style={rc.card}>
-      <View style={rc.sourceRow}>
-        <View style={[rc.srcBadge, { backgroundColor: '#F3F4F6' }]}>
-          <Text style={[rc.srcTxt, { color: '#374151' }]}>{item.source}</Text>
-        </View>
-        <View style={[rc.chgBadge, { backgroundColor: '#F3F4F6' }]}>
-          <Text style={[rc.chgTxt, { color: '#374151' }]}>Not yet approved</Text>
-        </View>
-      </View>
-      <View style={rc.secRow}>
-        <View style={rc.secBox}>
-          <Text style={rc.secLabel}>Section</Text>
-          <Text style={rc.secNum}>{searched}</Text>
-        </View>
-        <View style={rc.secBox}>
-          <Text style={rc.secLabel}>Mapping</Text>
-          <Text style={[rc.secNum, { color: '#374151', fontSize: 13, lineHeight: 18 }]}>
-            Not yet{'\n'}approved
-          </Text>
-        </View>
-      </View>
-      <Text style={rc.offence}>{message || WITHHELD_FALLBACK_MSG}</Text>
-    </View>
-  );
-}
-
 // ── Result card ───────────────────────────────────────────────────────────────
-function ResultCard({ item, withheldMessage }: { item: XRef; withheldMessage?: string }) {
+function ResultCard({ item }: { item: XRef }) {
   // Hook must be called unconditionally (Rules of Hooks)
   const [expanded, setExpanded] = useState(false);
-
-  // Approval gate: withheld correspondence → neutral card, never "Deleted" or dead-law
-  if (item.correspondence_withheld) {
-    return <WithheldCard item={item} message={withheldMessage} />;
-  }
 
   // Guard D: dead-law → dedicated banner, never a normal card
   if (item.change_type === 'dead_law' || item.dead_law) {
@@ -536,7 +489,7 @@ export default function IpcBnsLookup() {
             <>
               <GuardStatusBar guard={guard} total={results.length} />
               {results.map((item, i) => (
-                <ResultCard key={`${item.old_section}|${item.new_section}|${i}`} item={item} withheldMessage={guard.withheld_message} />
+                <ResultCard key={`${item.old_section}|${item.new_section}|${i}`} item={item} />
               ))}
             </>
           )}
