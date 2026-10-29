@@ -18,6 +18,7 @@ try:
 except Exception:
     razorpay = None
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pathlib import Path
 from typing import List, Optional, AsyncGenerator
 
@@ -1029,6 +1030,121 @@ async def admin_refusal_stats(
         "score_histogram": score_histogram,
         "near_miss_top_keys": dict(sorted(near_miss_top_keys.items(), key=lambda x: x[1], reverse=True)),
         "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@api.get("/admin/overview")
+async def admin_overview(
+    tz: str = "Asia/Kolkata",
+    days: int = 30,
+    x_admin_key: Optional[str] = Header(None),
+):
+    """
+    Read-only analytics overview — no PII, aggregated counts only.
+
+    Fields:
+      registered_accounts  total real accounts (guests, test-email and
+                           deleted accounts excluded)
+      new_registrations    real accounts whose created_at >= now - days
+      dau                  distinct active users today (local tz)
+      mau                  distinct active users in the last 30 days
+      open_tickets         grievance_tickets not yet in a closed state
+      as_of                UTC timestamp of this response
+
+    DAU / MAU source: usage_daily (scope="user", distinct user_id per day).
+    This collection is written at query time and deduplicates within the day,
+    making it more accurate than counting distinct user_id in messages.
+
+    Guest exclusion:    is_guest != true
+    Test exclusion:     email does not match TEST_ / safety_test_ / @guest.dhara.local
+    Deleted exclusion:  hard-delete only — no soft-delete field exists in this
+                        schema; deleted users are absent from the collection.
+    Closed ticket set:  ["resolved", "closed", "rejected"]
+    """
+    _check_admin_key(x_admin_key)
+
+    # ── Timezone resolution ───────────────────────────────────────────────────
+    try:
+        tz_obj = ZoneInfo(tz)
+    except (ZoneInfoNotFoundError, KeyError):
+        tz_obj = ZoneInfo("Asia/Kolkata")
+        tz = "Asia/Kolkata"
+
+    now_utc   = datetime.now(timezone.utc)
+    now_local = now_utc.astimezone(tz_obj)
+
+    # usage_daily uses YYYY-MM-DD in local time
+    today_local = now_local.date().isoformat()
+    mau_since_local = (now_local - timedelta(days=30)).date().isoformat()
+
+    # created_at in users/messages is stored as a naive UTC ISO string
+    # (e.g. "2026-07-22T22:14:29.835"). Strip tzinfo before comparing.
+    since_utc_naive = (now_utc.replace(tzinfo=None) - timedelta(days=days)).isoformat()
+
+    # ── Exclusion filter for real accounts ────────────────────────────────────
+    _real_account = {
+        "is_guest": {"$ne": True},
+        "email": {
+            "$not": {
+                "$regex": r"TEST_|safety_test_|@guest\.dhara\.local",
+                "$options": "i",
+            }
+        },
+    }
+
+    # ── 1. registered_accounts ────────────────────────────────────────────────
+    registered_accounts = await db.users.count_documents(_real_account)
+
+    # ── 2. new_registrations (last `days` days) ───────────────────────────────
+    new_registrations = await db.users.count_documents({
+        **_real_account,
+        "created_at": {"$gte": since_utc_naive},
+    })
+
+    # ── 3. DAU — distinct user_id active today (local tz) ────────────────────
+    dau_pipeline = [
+        {"$match": {"scope": "user", "day": today_local}},
+        {"$group": {"_id": "$user_id"}},
+        {"$count": "n"},
+    ]
+    dau_result = await db.usage_daily.aggregate(dau_pipeline).to_list(1)
+    dau = dau_result[0]["n"] if dau_result else 0
+
+    # ── 4. MAU — distinct user_id active in last 30 days (local tz) ──────────
+    mau_pipeline = [
+        {"$match": {"scope": "user", "day": {"$gte": mau_since_local}}},
+        {"$group": {"_id": "$user_id"}},
+        {"$count": "n"},
+    ]
+    mau_result = await db.usage_daily.aggregate(mau_pipeline).to_list(1)
+    mau = mau_result[0]["n"] if mau_result else 0
+
+    # ── 5. open_tickets ───────────────────────────────────────────────────────
+    _closed_statuses = ["resolved", "closed", "rejected"]
+    open_tickets = await db.grievance_tickets.count_documents(
+        {"status": {"$nin": _closed_statuses}}
+    )
+
+    return {
+        "registered_accounts": registered_accounts,
+        "new_registrations":   new_registrations,
+        "dau":                 dau,
+        "mau":                 mau,
+        "open_tickets":        open_tickets,
+        "as_of":               now_utc.isoformat(),
+        "_meta": {
+            "tz":              tz,
+            "days":            days,
+            "dau_source":      "usage_daily",
+            "mau_source":      "usage_daily",
+            "today_local":     today_local,
+            "mau_since_local": mau_since_local,
+            "since_utc_naive": since_utc_naive,
+            "closed_statuses": _closed_statuses,
+            "guest_field":     "is_guest",
+            "test_email_regex": r"TEST_|safety_test_|@guest\.dhara\.local",
+            "deleted_field":   "none — hard-delete only",
+        },
     }
 
 
