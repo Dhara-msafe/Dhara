@@ -74,6 +74,24 @@ class TestNormalizeLanguage:
     def test_unknown_code_not_in_hint_set(self):
         assert "xx" not in WHISPER_HINT_SET
 
+    # V1-A: nine proxy-rejected codes must NOT be in the hint set —
+    # they get auto-detect (no hint), not a first attempt that will 400.
+    def test_v1a_proxy_rejected_codes_removed(self):
+        rejected = {"bn", "te", "gu", "ml", "pa", "or", "as", "sa", "sd"}
+        overlap = rejected & WHISPER_HINT_SET
+        assert not overlap, (
+            f"Proxy-rejected codes still in WHISPER_HINT_SET: {overlap}. "
+            "These cause a wasted first attempt → 400 → retry. Remove them."
+        )
+
+    # V1-A: the seven confirmed codes must remain.
+    def test_v1a_confirmed_codes_present(self):
+        confirmed = {"en", "hi", "ta", "mr", "kn", "ur", "ne"}
+        missing = confirmed - WHISPER_HINT_SET
+        assert not missing, (
+            f"Probe-confirmed codes missing from WHISPER_HINT_SET: {missing}."
+        )
+
 
 # ── _should_retry_without_hint ────────────────────────────────────────────────
 

@@ -10,6 +10,21 @@ Isolation contract
 * ``_script_check`` is injected by the caller — tests supply a no-op.
 * No FastAPI types (UploadFile, HTTPException) enter this module.
   Callers translate domain errors to HTTP responses.
+
+WHISPER_HINT_SET policy (V1-A, 2026-10-30)
+-------------------------------------------
+Only include codes confirmed working via the Emergent Whisper proxy.
+The following nine codes are NOT in the set because the proxy returns
+HTTP 400 "Language '<code>' is not supported." for them:
+  bn, te, gu, ml, pa, or, as, sa, sd
+Those languages are still available to users — they receive accurate
+transcription via auto-detect (no hint sent).  The retry-without-hint
+path (_should_retry_without_hint) remains as a safety net for any new
+codes that may be added to the set without a fresh proxy probe.
+
+DO NOT add a code to this set without first confirming the proxy
+accepts it in a live probe test (see TestWhisperSupportedSetMismatch
+in tests/test_voice_transcribe.py).
 """
 from __future__ import annotations
 
@@ -20,9 +35,10 @@ logger = logging.getLogger(__name__)
 
 # ── Language normalisation ────────────────────────────────────────────────────
 
+# Probe-verified set: Emergent Whisper proxy confirmed accepting these codes.
+# (See policy comment above before adding any code.)
 WHISPER_HINT_SET: frozenset[str] = frozenset({
-    "en", "hi", "bn", "ta", "te", "mr", "gu", "kn", "ml", "pa",
-    "or", "as", "ur", "sa", "sd", "ne",
+    "en", "hi", "ta", "mr", "kn", "ur", "ne",
     "fr", "de", "es", "pt", "it", "ja", "ko", "zh", "ar", "ru",
 })
 
