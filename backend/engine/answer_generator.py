@@ -370,7 +370,12 @@ def build_cannot_verify_response(
     return body
 
 
-def build_bns_identifier_hypothesis_response(act_hint: str, section_hint: str, hypothesis: dict) -> str:
+def build_bns_identifier_hypothesis_response(
+    act_hint: str,
+    section_hint: str,
+    hypothesis: dict,
+    _approval_registry=None,
+) -> str:
     """Deterministic, hedged response for a well-formed BNS/BNSS/BSA reference
     whose exact record is absent AND whose number is not confirmed to exist
     in the verified correspondence index, but DOES match a former IPC/CrPC/
@@ -380,18 +385,63 @@ def build_bns_identifier_hypothesis_response(act_hint: str, section_hint: str, h
     and OFFERS the old-law correspondence as a possible intended reference,
     never a silent substitution. Deterministic/template, not LLM-authored, so
     it can never invent a punishment or statutory claim.
+
+    Correspondence approval gate: the specific "IPC X corresponds to BNS Y"
+    claim requires an active, unrevoked section_correspondence approval in the
+    registry (check_section_correspondence_approval). If none exists the claim
+    is replaced with a generic "former IPC section" reference that names
+    neither a specific successor section nor a punishment figure.
+
+    `_approval_registry` is None in production (reads the real registry) and
+    can be an in-memory list in tests.
     """
-    bns_sec = hypothesis.get("bns_section", "")
-    return (
-        f"I don't have a verified record confirming that {act_hint} has a Section "
-        f"{section_hint}. I also can't independently confirm it does NOT exist \u2014 this is "
-        f"only a gap in what I can verify right now, not a ruling on the section itself.\n\n"
-        f"You may be thinking of the former IPC Section {section_hint}, which under the "
-        f"IPC\u2192BNS renumbering corresponds to BNS Section {bns_sec}. I haven't "
-        f"independently re-verified this beyond that correspondence table, so please confirm "
-        f"with a licensed advocate before relying on it.\n\n"
-        f"\u26a0\ufe0f Legal information, not legal advice."
+    from engine.approval_evidence import (
+        check_section_correspondence_approval,
     )
+
+    bns_sec = (hypothesis.get("bns_section") or "").strip()
+
+    # Build the IPC/BNS keys exactly as stored in the registry.
+    # Only attempt a specific correspondence claim when both keys are non-empty.
+    ipc_key = f"IPC:{section_hint.upper()}" if section_hint else ""
+    bns_key = f"BNS:{bns_sec.upper()}" if bns_sec else ""
+
+    if ipc_key and bns_key:
+        corr_result = check_section_correspondence_approval(
+            ipc_key, bns_key, registry=_approval_registry,
+        )
+        correspondence_approved = corr_result.approved
+    else:
+        correspondence_approved = False
+
+    if correspondence_approved:
+        # Full specific claim — both records and the correspondence are approved.
+        body = (
+            f"I don't have a verified record confirming that {act_hint} has a Section "
+            f"{section_hint}. I also can't independently confirm it does NOT exist \u2014 this is "
+            f"only a gap in what I can verify right now, not a ruling on the section itself.\n\n"
+            f"You may be thinking of the former IPC Section {section_hint}, which under the "
+            f"IPC\u2192BNS renumbering corresponds to BNS Section {bns_sec}. I haven't "
+            f"independently re-verified this beyond that correspondence table, so please confirm "
+            f"with a licensed advocate before relying on it.\n\n"
+            f"\u26a0\ufe0f Legal information, not legal advice."
+        )
+    else:
+        # Approval absent / revoked / mismatched — emit hedged body that does NOT
+        # claim a specific successor section.  The user is still told the section
+        # reference is unconfirmed; we just don't name the specific BNS number.
+        body = (
+            f"I don't have a verified record confirming that {act_hint} has a Section "
+            f"{section_hint}. I also can't independently confirm it does NOT exist \u2014 this is "
+            f"only a gap in what I can verify right now, not a ruling on the section itself.\n\n"
+            f"This number matches a section in an earlier version of the law. "
+            f"The specific correspondence has not yet been independently confirmed in "
+            f"my current verification set, so I cannot reliably name its successor "
+            f"section. Please consult a licensed advocate or the official bare Act.\n\n"
+            f"\u26a0\ufe0f Legal information, not legal advice."
+        )
+
+    return body
 
 
 def augment_prompt_with_status_guard(prompt: str, hits: Iterable[dict]) -> str:

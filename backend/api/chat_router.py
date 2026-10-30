@@ -81,6 +81,7 @@ from engine.answer_generator import (
     reframe_misdirected_obligations,
     recheck_dead_with_successor_release,
 )
+from engine.approval_evidence import check_section_correspondence_approval as _check_corr_approval
 # AQF Phase 1b — jurisdiction-state unification (FEATURE_MATTER_CONTEXT_V2)
 from engine.models import FEATURE_MATTER_CONTEXT_V2, resolve_jurisdiction_state
 from engine.output_guard import validate_dhara_text, looks_like_refusal, CANNOT_CONFIRM_MESSAGE
@@ -1034,8 +1035,26 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
             # see scripts/seed_ipc166a_bns199.py), surface that exact string
             # too so the LLM can actually name the successor section instead
             # of only the successor Act.
+            #
+            # CORRESPONDENCE GATE (Batch P2): a stored `successor_act` field
+            # alone cannot authorize this claim.  It requires an active,
+            # unrevoked section_correspondence approval in the registry.
+            # Rechecked on every turn — never cached.
             if hit.get("successor_act"):
-                lines.append(f"Successor provision: {hit['successor_act']}")
+                _ipc_sec = (hit.get("section_number") or "").strip().upper()
+                # Parse the BNS section number from the stored successor_act
+                # string, e.g. "Bharatiya Nyaya Sanhita, 2023, Section 199" → "199"
+                import re as _re_corr
+                _bns_m = _re_corr.search(r"Section\s+(\S+)", hit.get("successor_act", ""), _re_corr.IGNORECASE)
+                _bns_sec = _bns_m.group(1).rstrip(".,;") if _bns_m else ""
+                _ipc_key = f"IPC:{_ipc_sec}" if _ipc_sec else ""
+                _bns_key = f"BNS:{_bns_sec.upper()}" if _bns_sec else ""
+                _corr_ok = (
+                    _ipc_key and _bns_key and
+                    _check_corr_approval(_ipc_key, _bns_key).approved
+                )
+                if _corr_ok:
+                    lines.append(f"Successor provision: {hit['successor_act']}")
             sec_heading = hit.get("section_heading", "")
             act_label = f"{hit.get('act_name', '')}, Section {hit.get('section_number', '')}"
             if sec_heading:
@@ -1236,6 +1255,22 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                 f"{hit.get('act_name', '')}, Section {hit.get('section_number', '')}"
                 + (f" — {sec_heading}" if sec_heading else "")
             )
+            # CORRESPONDENCE GATE: only surface the specific successor section
+            # if the IPC→BNS correspondence has an active, unrevoked approval.
+            # Rechecked here on every turn — never cached.
+            _raw_successor = hit.get("successor_act")
+            _gated_successor_act = None
+            if _raw_successor:
+                import re as _re_cit
+                _cit_ipc_sec = (hit.get("section_number") or "").strip().upper()
+                _cit_bns_m   = _re_cit.search(r"Section\s+(\S+)", _raw_successor, _re_cit.IGNORECASE)
+                _cit_bns_sec = _cit_bns_m.group(1).rstrip(".,;").upper() if _cit_bns_m else ""
+                if _cit_ipc_sec and _cit_bns_sec:
+                    _cit_corr_ok = _check_corr_approval(
+                        f"IPC:{_cit_ipc_sec}", f"BNS:{_cit_bns_sec}"
+                    ).approved
+                    _gated_successor_act = _raw_successor if _cit_corr_ok else None
+
             _citation_payloads.append({
                 "type": "citation",
                 "citation": {
@@ -1250,7 +1285,7 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                     "state": None if (hit.get("jurisdiction") or "CENTRAL") == "CENTRAL" else hit.get("jurisdiction"),
                     "is_dead_law": hit.get("is_dead_law", False),
                     "dead_warning": hit.get("dead_warning"),
-                    "successor_act": hit.get("successor_act"),
+                    "successor_act": _gated_successor_act,
                     "judicial_flag": hit.get("judicial_flag"),
                     "no_current_text": hit.get("no_current_text", False),
                     # Graduate Fix 2: surface as a separate field so the

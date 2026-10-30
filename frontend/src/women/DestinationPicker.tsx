@@ -432,6 +432,19 @@ function InfoModal({
 
 export function DestinationPicker({ value, onChange, authToken, testID, apiBase, gpsForegroundEnabled }: Props) {
   const base = apiBase ?? process.env.EXPO_PUBLIC_BACKEND_URL ?? '';
+
+  // ── Stale-closure guard ───────────────────────────────────────────────────
+  // All async callbacks (map events, search results, Places debounce) that
+  // spread `value` must read the LATEST value, not the one that existed when
+  // the callback was last created.  A ref is synchronously updated on every
+  // render so it is always current without adding `value` to every dep array
+  // (which would not help anyway — React batches synchronous events, but
+  // native-map drag callbacks and resolved fetch promises are NOT batched, so
+  // they can fire with a stale closure even in React 18).
+  const valueRef = useRef<DestinationValue>(value);
+  useEffect(() => { valueRef.current = value; });
+  // ─────────────────────────────────────────────────────────────────────────
+
   const [places, setPlaces] = useState<SavedPlace[]>([]);
   const [loadingPlaces, setLoadingPlaces] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -491,7 +504,9 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
   }, [hasAuth, authToken, base]);
 
   const submitSearch = useCallback(async () => {
-    const trimmed = value.label.trim();
+    // Read label from ref so the search always uses the current text even if
+    // the callback was created before the most recent label keystroke landed.
+    const trimmed = valueRef.current.label.trim();
     setShowSuggestions(true);
     setShowPlacesDropdown(false);
     if (trimmed.length < SEARCH_MIN_CHARS) {
@@ -514,10 +529,12 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
     } finally {
       if (searchReqRef.current === reqId) setSearching(false);
     }
-  }, [base, value.label]);
+  }, [base]);
 
   const handleLabelChange = useCallback((text: string) => {
-    onChange({ ...value, label: text, savedPlaceId: undefined });
+    // Use ref so the spread always picks up the current radiusMeters, even if
+    // this callback fires before the radius-chip state update has re-rendered.
+    onChange({ ...valueRef.current, label: text, savedPlaceId: undefined });
     // Typing alone never triggers the manual search — stale results no longer apply.
     setSuggestions([]);
     setShowSuggestions(false);
@@ -554,7 +571,7 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
         if (placesReqRef.current === reqId) setPlacesLoading(false);
       }
     }, PLACES_DEBOUNCE_MS);
-  }, [value, onChange, base]);
+  }, [onChange, base]);
 
   const selectPlacesSuggestion = useCallback(async (s: PlacesSuggestion) => {
     const token = placesSessionTokenRef.current;
@@ -564,8 +581,9 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
     try {
       const details = await fetchPlaceDetails(base, s.place_id, token, s.provider);
       if (details) {
+        // Read ref: the user may have changed radiusMeters after typing started.
         onChange({
-          ...value,
+          ...valueRef.current,
           label: placesSuggestionLabel(s).slice(0, 120),
           savedPlaceId: undefined,
           latitude: details.latitude,
@@ -580,11 +598,12 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
       setPlacesSuggestions([]);
       placesSessionTokenRef.current = null; // session concluded — fresh token next search
     }
-  }, [base, value, onChange]);
+  }, [base, onChange]);
 
   const selectSuggestion = useCallback((s: AddressSuggestion) => {
+    // Read ref: address suggestions may resolve after a radius chip was tapped.
     onChange({
-      ...value,
+      ...valueRef.current,
       label: shortAddressLabel(s.label),
       savedPlaceId: undefined,
       latitude: s.latitude,
@@ -594,11 +613,11 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
     setShowSuggestions(false);
     setShowPlacesDropdown(false);
     setMapRecenterKey(k => k + 1);
-  }, [value, onChange]);
+  }, [onChange]);
 
   const selectPreset = useCallback((m: number) => {
-    onChange({ ...value, radiusMeters: m });
-  }, [value, onChange]);
+    onChange({ ...valueRef.current, radiusMeters: m });
+  }, [onChange]);
 
   const selectPlace = useCallback((p: SavedPlace) => {
     onChange({
@@ -613,22 +632,25 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
   }, [onChange]);
 
   const movePin = useCallback((lat: number, lng: number) => {
-    onChange({ ...value, latitude: lat, longitude: lng });
-  }, [value, onChange]);
+    // Read ref: a map drag event fired by the native map tile renderer can
+    // arrive between a radius-chip tap and the next React render cycle.
+    onChange({ ...valueRef.current, latitude: lat, longitude: lng });
+  }, [onChange]);
 
   const saveCurrentAsPlace = useCallback(async () => {
-    if (!hasAuth || !value.label.trim()) return;
+    const cur = valueRef.current; // snapshot ref at call time
+    if (!hasAuth || !cur.label.trim()) return;
     setSaving(true);
     try {
       const created = await createSavedPlace(base, authToken!, {
-        label: value.label.trim().slice(0, 80),
-        radius_meters: value.radiusMeters,
-        latitude: value.latitude ?? undefined,
-        longitude: value.longitude ?? undefined,
+        label: cur.label.trim().slice(0, 80),
+        radius_meters: cur.radiusMeters,
+        latitude: cur.latitude ?? undefined,
+        longitude: cur.longitude ?? undefined,
       });
       if (created) {
         setPlaces(prev => [created, ...prev]);
-        onChange({ ...value, savedPlaceId: created.place_id });
+        onChange({ ...valueRef.current, savedPlaceId: created.place_id });
       } else {
         setErrorModal({
           title: 'Could not save',
@@ -640,7 +662,7 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
     } finally {
       setSaving(false);
     }
-  }, [hasAuth, authToken, base, value, onChange]);
+  }, [hasAuth, authToken, base, onChange]);
 
   const handleEdit = useCallback(async (label: string, radius: number) => {
     if (!editTarget || !authToken) return;
@@ -649,8 +671,8 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
     }).catch(() => null);
     if (updated) {
       setPlaces(prev => prev.map(p => p.place_id === updated.place_id ? updated : p));
-      // If this place is selected, update the picker value too
-      if (value.savedPlaceId === updated.place_id) {
+      // Read ref so we don't compare against a stale savedPlaceId.
+      if (valueRef.current.savedPlaceId === updated.place_id) {
         onChange({
           label: updated.label,
           radiusMeters: updated.radius_meters,
@@ -661,7 +683,7 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
       }
     }
     setEditTarget(null);
-  }, [editTarget, authToken, base, value, onChange]);
+  }, [editTarget, authToken, base, onChange]);
 
   // Batch 2: Alert.alert is a no-op on react-native-web — delete confirmation
   // now uses an in-app Modal (ConfirmDeleteModal) instead. handleDelete just
@@ -677,13 +699,14 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
     const ok = await deleteSavedPlace(base, authToken!, target.place_id).catch(() => false);
     if (ok) {
       setPlaces(prev => prev.filter(p => p.place_id !== target.place_id));
-      if (value.savedPlaceId === target.place_id) {
-        onChange({ ...value, savedPlaceId: undefined });
+      // Read ref: user may have changed selection while the delete request was in-flight.
+      if (valueRef.current.savedPlaceId === target.place_id) {
+        onChange({ ...valueRef.current, savedPlaceId: undefined });
       }
     } else {
       setErrorModal({ title: 'Could not delete', message: 'Check your connection and try again.' });
     }
-  }, [deleteTarget, authToken, base, value, onChange]);
+  }, [deleteTarget, authToken, base, onChange]);
 
   const alreadySaved = !!value.savedPlaceId || places.some(
     p => p.label.toLowerCase() === value.label.trim().toLowerCase()
@@ -914,7 +937,7 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
       <CustomRadiusModal
         visible={customVisible}
         initial={isPreset(value.radiusMeters) ? 100 : value.radiusMeters}
-        onSave={m => { onChange({ ...value, radiusMeters: m }); setCustomVisible(false); }}
+        onSave={m => { onChange({ ...valueRef.current, radiusMeters: m }); setCustomVisible(false); }}
         onCancel={() => setCustomVisible(false)}
       />
       <ConfirmDeleteModal

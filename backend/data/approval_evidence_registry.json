@@ -20,14 +20,15 @@
       "offence_text": "Public servant disobeying direction under law",
       "punishment_text": "Rigorous imprisonment of at least six months and up to two years, and fine",
       "what_changed": "P0-A correction (2026-06): previous value 'BNS 202' was incorrect. Correct correspondence is BNS Section 199, per NCRB BNS correspondence table and the official BNS Act text. Covers police officers failing to record FIR for rape/acid attack victims. Rigorous imprisonment 6 months to 2 years + fine.",
-      "content_hash": "214ad46d3ecb3b1955c8698253228112cb98c056eda9ee4178be66668158f15d",
+      "content_hash": "eedb095a3250ac8ca0c5929c4fabe4076c9ef43342801683ee88b64db8ee401b",
       "reviewer_id": "callistus-moses-founder",
       "approved_by": "callistus-moses-founder",
       "status": "active",
       "revoked": false,
       "revoked_at": null,
       "approved_at": "2026-10-28T00:00:00Z",
-      "go_instruction": "GO: Populate the approval registry for IPC 166A -> BNS 199 — Batch REGISTRY-001"
+      "go_instruction": "GO: Populate the approval registry for IPC 166A -> BNS 199 — Batch REGISTRY-001",
+      "_content_hash_note": "SHA-256 of canonical subject_key string \"IPC:166A->BNS:199\" (UTF-8, stripped). The approval_evidence gate computes compute_content_hash(subject_key) at call time to get this value. Any change to the subject_key string requires a new GO."
     }
   ]
 }

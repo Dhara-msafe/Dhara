@@ -1452,6 +1452,7 @@ async def intakes_list(advocate_id: str, user: dict = Depends(current_user)):
 
 import json as _json_mod
 from pathlib import Path as _Path
+from engine.approval_evidence import check_section_correspondence_approval as _xref_check_corr
 
 _XREF_PATH = _Path(__file__).parent / "ipc_bns_mapping.json"
 _XREF_DATA: dict = {}
@@ -1595,6 +1596,15 @@ def _xref_search(q: str = "", ipc: str = "", bns: str = "") -> list[dict]:
             "reviewed_by":        entry.get("reviewed_by"),
             "mapping_version":    entry.get("mapping_version", ""),
             "new_subsection":     entry.get("bns_subsection") or entry.get("bnss_subsection") or entry.get("bsa_subsection") or "",
+            # CORRESPONDENCE GATE (Batch P2): approval status from registry.
+            # Checked here on every request — never cached.  The frontend
+            # MUST surface "approval_status": "approved" before treating a
+            # result as a confirmed claim.  Any other value means the
+            # correspondence has not been independently verified in the registry.
+            "correspondence_approval": _xref_check_corr(
+                f"IPC:{str(old_sec).upper()}",
+                f"BNS:{str(new_sec).upper()}",
+            ).reason if str(old_sec) and str(new_sec) and str(new_sec) != "—" else "no_section",
         }
 
     seen: set[str] = set()

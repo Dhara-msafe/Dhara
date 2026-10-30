@@ -598,3 +598,298 @@ class TestCorrectPunishmentMismatch:
     def test_106_empty_text_returns_empty(self):
         assert correct_punishment_mismatch("", [self._HIT_BNS_199]) == ""
 
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 6. Section-correspondence approval gate — 24 cases
+#
+# Tests the three gated surfaces:
+#   A. approval_evidence.check_section_correspondence_approval
+#   B. answer_generator.build_bns_identifier_hypothesis_response
+#   C. (implicit) chat_router successor_act injection — tested via the gate
+#      helper directly (no live chat call required).
+#
+# Fixtures: in-memory registry records, never read from / write to the
+#           real approval_evidence_registry.json.
+# ─────────────────────────────────────────────────────────────────────────────
+
+import hashlib as _hashlib
+
+from engine.approval_evidence import (
+    check_section_correspondence_approval,
+    compute_content_hash,
+)
+from engine.answer_generator import build_bns_identifier_hypothesis_response
+
+
+def _make_corr_record(
+    *,
+    approval_id: str = "TEST-CORR-001",
+    subject_key: str = "IPC:166A->BNS:199",
+    section_from: str = "IPC:166A",
+    section_to: str = "BNS:199",
+    content_hash: str | None = None,
+    status: str = "active",
+    revoked: bool = False,
+    revoked_at=None,
+    reviewer_id: str = "test-reviewer",
+) -> dict:
+    """Build a synthetic in-memory approval record."""
+    if content_hash is None:
+        content_hash = compute_content_hash(subject_key)
+    return {
+        "approval_id":    approval_id,
+        "record_type":    "correspondence",
+        "subject_key":    subject_key,
+        "section_from":   section_from,
+        "section_to":     section_to,
+        "content_hash":   content_hash,
+        "status":         status,
+        "revoked":        revoked,
+        "revoked_at":     revoked_at,
+        "reviewer_id":    reviewer_id,
+    }
+
+
+class TestSectionCorrespondenceApprovalGate:
+    """6A — check_section_correspondence_approval: 14 cases."""
+
+    # ── A.1 Approved path ─────────────────────────────────────────────────────
+
+    def test_201_approved_with_valid_record(self):
+        rec = _make_corr_record()
+        result = check_section_correspondence_approval("IPC:166A", "BNS:199", registry=[rec])
+        assert result.approved is True, f"Expected approved=True, got: {result}"
+        assert result.reason == "approved"
+        assert result.approval_id == "TEST-CORR-001"
+
+    def test_202_recheck_on_same_call_still_approved(self):
+        """Approve twice in sequence (simulates same-session follow-up turn)."""
+        rec = _make_corr_record()
+        r1 = check_section_correspondence_approval("IPC:166A", "BNS:199", registry=[rec])
+        r2 = check_section_correspondence_approval("IPC:166A", "BNS:199", registry=[rec])
+        assert r1.approved and r2.approved, "Both turns must be independently approved"
+
+    # ── A.2 Missing approval ─────────────────────────────────────────────────
+
+    def test_203_empty_registry_fails_closed(self):
+        result = check_section_correspondence_approval("IPC:166A", "BNS:199", registry=[])
+        assert result.approved is False
+        assert result.reason == "missing_approval"
+
+    def test_204_wrong_subject_key_fails_closed(self):
+        rec = _make_corr_record(subject_key="IPC:166->BNS:198",
+                                section_from="IPC:166", section_to="BNS:198",
+                                content_hash=compute_content_hash("IPC:166->BNS:198"))
+        result = check_section_correspondence_approval("IPC:166A", "BNS:199", registry=[rec])
+        assert result.approved is False
+        assert result.reason == "missing_approval"
+
+    def test_205_wrong_record_type_fails_closed(self):
+        rec = _make_corr_record()
+        rec = {**rec, "record_type": "historical_applicability"}
+        result = check_section_correspondence_approval("IPC:166A", "BNS:199", registry=[rec])
+        assert result.approved is False
+
+    # ── A.3 Revoked ──────────────────────────────────────────────────────────
+
+    def test_206_revoked_status_fails_closed(self):
+        rec = _make_corr_record(status="revoked", revoked=True, revoked_at="2026-01-01T00:00:00Z")
+        result = check_section_correspondence_approval("IPC:166A", "BNS:199", registry=[rec])
+        assert result.approved is False
+        assert result.reason == "revoked"
+
+    def test_207_active_status_but_revoked_at_set_fails_closed(self):
+        """status='active' + revoked_at set is still revoked."""
+        rec = _make_corr_record(revoked_at="2026-06-01T00:00:00Z")
+        result = check_section_correspondence_approval("IPC:166A", "BNS:199", registry=[rec])
+        assert result.approved is False
+
+    def test_208_dead_with_successor_flag_alone_cannot_authorize(self):
+        """A stored dead_with_successor corpus flag must NOT bypass the approval gate.
+        This test passes an empty registry (no approval record at all) to verify
+        that the gate returns missing_approval — not approved — when no registry
+        record exists, even though the corpus hit carries the flag.
+        """
+        result = check_section_correspondence_approval("IPC:166A", "BNS:199", registry=[])
+        assert result.approved is False, (
+            "dead_with_successor corpus flag alone must not authorize correspondence output"
+        )
+
+    # ── A.4 Hash mismatch ────────────────────────────────────────────────────
+
+    def test_209_hash_mismatch_fails_closed(self):
+        rec = _make_corr_record(content_hash="badhash" + "0" * 57)
+        result = check_section_correspondence_approval("IPC:166A", "BNS:199", registry=[rec])
+        assert result.approved is False
+        assert result.reason == "hash_mismatch"
+
+    def test_210_altered_text_changes_hash_fails_closed(self):
+        """Simulate the claim text being altered — old hash no longer matches."""
+        old_hash = compute_content_hash("IPC:166A->BNS:199")
+        # The registry still has the old hash, but the claim text was changed:
+        rec = _make_corr_record(
+            content_hash=compute_content_hash("IPC:166A->BNS:199"),
+            subject_key="IPC:166A->BNS:199-ALTERED",  # drift
+        )
+        result = check_section_correspondence_approval("IPC:166A", "BNS:199", registry=[rec])
+        assert result.approved is False
+
+    # ── A.5 Structural mismatch (section_from / section_to disagree) ─────────
+
+    def test_211_section_from_mismatch_fails_closed(self):
+        """section_from in record does not match the requested from key."""
+        rec = _make_corr_record(section_from="IPC:167")  # wrong source section
+        result = check_section_correspondence_approval("IPC:166A", "BNS:199", registry=[rec])
+        # subject_key still won't match because section_from is wrong ↑ but
+        # even if it did, the structural guard should catch it.
+        assert result.approved is False
+
+    # ── A.6 Approval-store failure ───────────────────────────────────────────
+
+    def test_212_malformed_record_missing_required_field(self):
+        rec = _make_corr_record()
+        del rec["reviewer_id"]  # missing required field
+        result = check_section_correspondence_approval("IPC:166A", "BNS:199", registry=[rec])
+        assert result.approved is False
+        assert result.reason == "malformed"
+
+    def test_213_null_value_on_required_field_is_malformed(self):
+        rec = _make_corr_record()
+        rec["content_hash"] = ""  # falsy → malformed
+        result = check_section_correspondence_approval("IPC:166A", "BNS:199", registry=[rec])
+        assert result.approved is False
+
+    def test_214_multiple_records_only_one_valid_still_approves(self):
+        """When several records for the same key exist, the first valid one wins."""
+        bad_rec = _make_corr_record(content_hash="badhash" + "0" * 57)
+        good_rec = _make_corr_record()
+        result = check_section_correspondence_approval(
+            "IPC:166A", "BNS:199", registry=[bad_rec, good_rec]
+        )
+        assert result.approved is True
+
+
+class TestBnsIdentifierHypothesisGate:
+    """6B — build_bns_identifier_hypothesis_response: 10 cases."""
+
+    _HYP = {"bns_section": "199", "ipc_section": "166A"}
+
+    def _approved_registry(self):
+        return [_make_corr_record()]
+
+    def _empty_registry(self):
+        return []
+
+    def _revoked_registry(self):
+        return [_make_corr_record(status="revoked", revoked=True,
+                                  revoked_at="2026-01-01T00:00:00Z")]
+
+    def _hash_mismatch_registry(self):
+        return [_make_corr_record(content_hash="badhash" + "0" * 57)]
+
+    # ── B.1 Approved — specific correspondence allowed ───────────────────────
+
+    def test_301_approved_includes_bns_section(self):
+        body = build_bns_identifier_hypothesis_response(
+            "Bharatiya Nyaya Sanhita", "166A", self._HYP,
+            _approval_registry=self._approved_registry(),
+        )
+        assert "BNS Section 199" in body, f"BNS section absent from approved response: {body}"
+        assert "IPC Section 166A" in body
+
+    def test_302_approved_response_contains_hedge(self):
+        body = build_bns_identifier_hypothesis_response(
+            "BNS", "166A", self._HYP,
+            _approval_registry=self._approved_registry(),
+        )
+        assert "confirm" in body.lower(), "Hedge / advocate-confirm instruction missing"
+        assert "⚠️" in body, "Legal-not-advice warning missing"
+
+    def test_303_approved_streamed_content_same_as_direct(self):
+        """Streamed text comes from the same body — test twice (turn recheck)."""
+        b1 = build_bns_identifier_hypothesis_response(
+            "BNS", "166A", self._HYP, _approval_registry=self._approved_registry()
+        )
+        b2 = build_bns_identifier_hypothesis_response(
+            "BNS", "166A", self._HYP, _approval_registry=self._approved_registry()
+        )
+        assert b1 == b2, "Response must be deterministic across turns"
+        assert "BNS Section 199" in b1
+
+    # ── B.2 Unapproved — specific section claim suppressed ───────────────────
+
+    def test_304_missing_approval_suppresses_specific_section(self):
+        body = build_bns_identifier_hypothesis_response(
+            "BNS", "166A", self._HYP,
+            _approval_registry=self._empty_registry(),
+        )
+        assert "BNS Section 199" not in body, (
+            f"Unapproved claim still names BNS 199: {body}"
+        )
+        # The generic hedge must still appear
+        assert "former" in body.lower() or "earlier" in body.lower(), (
+            f"Generic hedge missing: {body}"
+        )
+        assert "⚠️" in body
+
+    def test_305_revoked_approval_suppresses_specific_section(self):
+        body = build_bns_identifier_hypothesis_response(
+            "BNS", "166A", self._HYP,
+            _approval_registry=self._revoked_registry(),
+        )
+        assert "BNS Section 199" not in body, (
+            f"Revoked approval still allows specific section claim: {body}"
+        )
+
+    def test_306_hash_mismatch_suppresses_specific_section(self):
+        body = build_bns_identifier_hypothesis_response(
+            "BNS", "166A", self._HYP,
+            _approval_registry=self._hash_mismatch_registry(),
+        )
+        assert "BNS Section 199" not in body, (
+            f"Hash-mismatched approval still allows specific section claim: {body}"
+        )
+
+    def test_307_missing_bns_section_hypothesis_suppresses_without_error(self):
+        """Hypothesis without bns_section — no crash, no specific claim."""
+        body = build_bns_identifier_hypothesis_response(
+            "BNS", "166A", {},
+            _approval_registry=self._approved_registry(),
+        )
+        # bns_key is empty → gate returns False → hedged body
+        assert "BNS Section" not in body or "BNS Section " not in body, (
+            f"Non-empty bns_section appeared when hypothesis had none: {body}"
+        )
+
+    def test_308_same_session_follow_up_still_gated(self):
+        """Gate rechecked on turn 2 — approval on turn 1 cannot carry to turn 2
+        if the registry changes between turns (simulate by swapping registries)."""
+        body_turn1 = build_bns_identifier_hypothesis_response(
+            "BNS", "166A", self._HYP, _approval_registry=self._approved_registry()
+        )
+        # Turn 2: approval revoked between turns
+        body_turn2 = build_bns_identifier_hypothesis_response(
+            "BNS", "166A", self._HYP, _approval_registry=self._revoked_registry()
+        )
+        assert "BNS Section 199" in body_turn1, "Turn 1 should be approved"
+        assert "BNS Section 199" not in body_turn2, "Turn 2 should fail after revocation"
+
+    def test_309_approval_store_failure_empty_list_fails_closed(self):
+        """simulate approval store failure (empty list) — must not emit claim"""
+        body = build_bns_identifier_hypothesis_response(
+            "BNS", "166A", self._HYP, _approval_registry=[]
+        )
+        assert "BNS Section 199" not in body
+
+    def test_310_correct_punishment_mismatch_unchanged_by_gate(self):
+        """correct_punishment_mismatch is a separate post-processor; gating
+        the identifier hypothesis must not break the BNS 199 punishment check."""
+        from engine.answer_generator import correct_punishment_mismatch
+        wrong_text = "imprisonment for up to one year or fine"
+        hit_bns_199 = {"section_number": "199", "act_name": "Bharatiya Nyaya Sanhita, 2023"}
+        result = correct_punishment_mismatch(wrong_text, [hit_bns_199])
+        assert "rigorous" in result.lower() or "six months" in result.lower(), (
+            f"Punishment post-processor broken by gate changes: {result}"
+        )

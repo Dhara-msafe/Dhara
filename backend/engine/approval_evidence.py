@@ -105,3 +105,70 @@ def check_approval(
     if saw_malformed:
         return ApprovalCheckResult(False, "malformed")
     return ApprovalCheckResult(False, "missing_approval")
+
+
+# ── Section-correspondence gate ───────────────────────────────────────────────
+
+def check_section_correspondence_approval(
+    from_act_and_section: str,   # e.g. "IPC:166A"
+    to_act_and_section: str,     # e.g. "BNS:199"
+    registry: Optional[List[dict]] = None,
+) -> ApprovalCheckResult:
+    """Fail-closed check for a specific section-to-section correspondence claim.
+
+    The claim (e.g. "IPC:166A maps to BNS:199") is gated by a single approval
+    record that:
+      • has record_type="correspondence"
+      • has subject_key = "{from_act_and_section}->{to_act_and_section}"
+      • has content_hash = sha256(subject_key)  — binding the exact pair
+      • has section_from = from_act_and_section  (checked as a secondary guard)
+      • has section_to   = to_act_and_section    (checked as a secondary guard)
+      • is active, unrevoked, not malformed
+
+    Rechecked on every turn: callers MUST NOT cache the return value between
+    requests. A stored dead_with_successor flag in a corpus record is NOT
+    sufficient — this gate must pass independently for each output that names
+    the specific successor section.
+    """
+    subject_key = f"{from_act_and_section}->{to_act_and_section}"
+    # The canonical claim text is the subject_key string itself; the registry
+    # content_hash is SHA-256 of that string (see approval_evidence_registry.json
+    # and _content_hash_note).
+    content_hash = compute_content_hash(subject_key)
+
+    # Step 1: standard hash+status gate.
+    base_result = check_approval("correspondence", subject_key, content_hash, registry=registry)
+    if not base_result.approved:
+        return base_result
+
+    # Step 2: secondary structural guard — both endpoint fields must agree.
+    # This prevents an approval for a different pair (e.g. IPC:166->BNS:198)
+    # from covering this claim if the subject_key were ever forged or aliased.
+    records = _load_registry() if registry is None else registry
+    for rec in records:
+        if (
+            isinstance(rec, dict)
+            and rec.get("record_type") == "correspondence"
+            and rec.get("subject_key") == subject_key
+            and rec.get("status") == "active"
+            and not rec.get("revoked_at")
+            and rec.get("content_hash") == content_hash
+        ):
+            rec_from = (rec.get("section_from") or "").strip()
+            rec_to   = (rec.get("section_to")   or "").strip()
+            if rec_from != from_act_and_section or rec_to != to_act_and_section:
+                logger.warning(
+                    "[approval_evidence] section_correspondence structural mismatch: "
+                    "record %s claims from=%r to=%r but check requested from=%r to=%r — "
+                    "failing closed",
+                    rec.get("approval_id"), rec_from, rec_to,
+                    from_act_and_section, to_act_and_section,
+                )
+                return ApprovalCheckResult(False, "malformed",
+                                           rec.get("reviewer_id"), rec.get("approval_id"))
+            return ApprovalCheckResult(True, "approved",
+                                       rec.get("reviewer_id"), rec.get("approval_id"))
+
+    # If base_result.approved is True but no full record matches the structural
+    # guard (shouldn't happen, but be explicit):
+    return ApprovalCheckResult(False, "malformed")
