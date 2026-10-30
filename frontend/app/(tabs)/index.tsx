@@ -40,7 +40,7 @@ import { theme } from '@/src/theme';
 import { trackEvent } from '@/src/analytics';
 import { getConfiguredSTT, whisperTranscribeFile, sttErrorToMessage } from '@/src/voice/stt';
 import { claimMic, MIC_BUSY_MESSAGE, withMicLease, isMicHeldByEvidenceLocker, TTS_BLOCKED_BY_LOCKER_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
-import { canSpeakNow, noteSpeakIntent, VOICE_COMPANION_ENABLED } from '@/src/voice/speechGate';
+import { canSpeakNow, noteAudioInterruption, noteSpeakIntent, VOICE_COMPANION_ENABLED } from '@/src/voice/speechGate';
 import { VoiceStateMachine } from '@/src/voice/core/voiceStateMachine';
 import { needsConfirmation } from '@/src/voice/core/voicePolicy';
 import { classifyFact } from '@/src/voice/factClassifier';
@@ -1473,7 +1473,14 @@ export default function ChatScreen() {
         }
       }
     } catch (e: any) {
-      notify('Recording failed', e?.message || 'Try again');
+      // V1-C: never surface raw exception text (W-12 defect).
+      // Device-specific strings (e.g. "AVAudioSession error -50") are
+      // not actionable for users and may carry implementation detail.
+      // Log the raw error at warn level for developer diagnostics only —
+      // this log must NEVER include audio content, transcripts, code
+      // phrases, or legal content (privacy contract).
+      console.warn('[mic-start] recording setup failed:', e?.message ?? String(e));
+      notify('Recording failed', 'Microphone unavailable. Please check permissions and try again.');
     } finally {
       micStartingRef.current = false;
       if (!started) {
@@ -1891,7 +1898,19 @@ export default function ChatScreen() {
       // Android briefly backgrounds the app while the dialog is showing;
       // cancelling here would kill the mic flow before it starts.
       if (permissionPhaseRef.current) return;
-      if (state !== 'active') { onLockedCancel(); stopCloudTTS(); stopNativeTTS(); }
+      if (state !== 'active') {
+        onLockedCancel();
+        stopCloudTTS();
+        stopNativeTTS();
+        // V1-B: mark the speech gate as interrupted so TTS does not
+        // auto-resume after the app returns to the foreground.  Covers
+        // incoming phone calls (AppState → inactive/background on both
+        // platforms) and Android picture-in-picture backgrounds.
+        // Headphone-unplug (ACTION_AUDIO_BECOMING_NOISY) is a separate
+        // native event not surfaced by the current Expo audio layer;
+        // AT40 remains open pending a device build test.
+        noteAudioInterruption();
+      }
     });
     return () => sub.remove();
   }, [onLockedCancel, stopCloudTTS]);

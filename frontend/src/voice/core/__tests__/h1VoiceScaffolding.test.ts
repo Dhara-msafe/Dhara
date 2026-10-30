@@ -333,3 +333,66 @@ test('H1/flags: the repo environment under test has the voice companion OFF', ()
   assert.equal(MIC_ARBITER_ENABLED, true);      // .env: arbiter on
   assert.equal(MIC_LEASE_GUARD_ENABLED, true);  // .env: lease guard on
 });
+
+/* ---------------- 8. V1-B: AppState interruption → speech gate (unit) ------ */
+
+// These tests verify the integration contract between the AppState 'change'
+// event and the speechGateReducer (noteAudioInterruption → canSpeakNow=false).
+// We test at the pure logic layer (reduceGate + maySpeakOn) because speechGate.ts
+// imports react-native / AsyncStorage which cannot load in Node --test.
+// The AppState listener wiring (index.tsx → noteAudioInterruption) is verified
+// by source inspection below (no RN runtime required for that check).
+
+import { reduceGate, INITIAL_GATE, type GateFlags } from '../speechGateReducer';
+
+test('V1-B/gate: audio_interruption event sets interruptedNotResumed=true', () => {
+  const after = reduceGate({ ...INITIAL_GATE }, { type: 'audio_interruption' });
+  assert.equal(after.interruptedNotResumed, true,
+    'audio_interruption must set interruptedNotResumed=true');
+});
+
+test('V1-B/gate: maySpeakOn blocks TTS when interruptedNotResumed=true', () => {
+  const interruptedFlags = reduceGate({ ...INITIAL_GATE }, { type: 'audio_interruption' });
+  const result = maySpeakOn('android', {
+    quiet: false,
+    speakingPreferenceKnown: true,
+    inWomensShield: false,
+    interruptedNotResumed: interruptedFlags.interruptedNotResumed,
+    userGestureThisPageLoad: true,
+  });
+  assert.equal(result.speak, false,
+    'maySpeakOn must return speak=false when interruption flag is set');
+});
+
+test('V1-B/gate: resume_requested clears the interrupted flag', () => {
+  let flags: GateFlags = reduceGate({ ...INITIAL_GATE }, { type: 'audio_interruption' });
+  assert.equal(flags.interruptedNotResumed, true);
+  flags = reduceGate(flags, { type: 'resume_requested' });
+  assert.equal(flags.interruptedNotResumed, false,
+    'resume_requested must clear interruptedNotResumed');
+});
+
+test('V1-B/gate: multiple audio_interruption events do not toggle — stay blocked', () => {
+  let flags: GateFlags = reduceGate({ ...INITIAL_GATE }, { type: 'audio_interruption' });
+  flags = reduceGate(flags, { type: 'audio_interruption' });
+  assert.equal(flags.interruptedNotResumed, true,
+    'second interruption must not toggle back to false');
+});
+
+test('V1-B/source: index.tsx AppState listener calls noteAudioInterruption', () => {
+  // Source-level contract check: the AppState handler that calls onLockedCancel
+  // must also call noteAudioInterruption() so the speech gate records the event.
+  const indexSrc = read(path.join(APP, '(tabs)', 'index.tsx'));
+  // The call must be inside the AppState listener, near stopCloudTTS/stopNativeTTS.
+  assert.match(indexSrc, /noteAudioInterruption\(\)/,
+    'index.tsx must call noteAudioInterruption() — V1-B wiring check');
+  // Also assert the import is present.
+  assert.match(indexSrc, /noteAudioInterruption.*from.*speechGate/,
+    'noteAudioInterruption must be imported from speechGate in index.tsx');
+});
+
+// NOT RUN — requires physical Android + iOS device build:
+// AT40: headphone disconnect (ACTION_AUDIO_BECOMING_NOISY / AVAudioSession route change)
+//   → not surfaced by current Expo audio JS layer; needs a dedicated RN module.
+// AT45: incoming phone call on-device — AppState listener fires in a real build;
+//   unit test above verifies the gate contract; end-to-end device test still open.
