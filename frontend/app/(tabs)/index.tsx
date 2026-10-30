@@ -1473,13 +1473,13 @@ export default function ChatScreen() {
         }
       }
     } catch (e: any) {
-      // V1-C: never surface raw exception text (W-12 defect).
-      // Device-specific strings (e.g. "AVAudioSession error -50") are
-      // not actionable for users and may carry implementation detail.
-      // Log the raw error at warn level for developer diagnostics only —
-      // this log must NEVER include audio content, transcripts, code
-      // phrases, or legal content (privacy contract).
-      console.warn('[mic-start] recording setup failed:', e?.message ?? String(e));
+      // V1-C: never log arbitrary exception text (W-12 defect — FIXED).
+      // Device-specific strings (e.g. "AVAudioSession error -50") may carry
+      // implementation detail and must not appear in device logs.
+      // Log only the exception CLASS name as a fixed diagnostic code;
+      // no message text, no audio content, no transcripts, no phrases.
+      // Diagnostic code: DHARA/W12 — mic setup failure.
+      console.warn('DHARA/W12 MIC_SETUP_FAILED', e?.constructor?.name ?? 'UnknownError');
       notify('Recording failed', 'Microphone unavailable. Please check permissions and try again.');
     } finally {
       micStartingRef.current = false;
