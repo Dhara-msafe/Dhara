@@ -10,9 +10,13 @@
  *     listener in PrivacyCoverGate._layout.tsx.
  *   Both are marked UNVERIFIED until tested on a physical Android device.
  *
- * KNOWN BLOCKER B002 (OPEN):
- *   The 'device' scope flag may persist across sign-out / sign-in for different
- *   users.  No test covers this edge case; it remains an open defect.
+ * B002 STATUS (2026-10-30):
+ *   FIXED (auth.tsx) for scenarios A, B, D, D2:
+ *     guest→login, auth-A→auth-B, auth-logout, guest-logout.
+ *   OPEN — product decision required for scenario C:
+ *     two guest cold-starts without explicit logout between them.
+ *     EXPO_PUBLIC_PRIVACY_COVER_V1 is currently OFF — no visual impact.
+ *     See product decision options at the bottom of this file.
  */
 
 import assert from 'node:assert/strict';
@@ -388,6 +392,74 @@ describe('B002 — Guest scope bleed (assessment only, no code change)', () => {
     // NOTE: This test DOCUMENTS the known defect, not a desired behaviour.
     // Fix: call deactivateCover("device") on sign-in to prevent bleed.
   });
+
+  // ── FIXED scenarios (auth.tsx deactivateCover calls) ──────────────────────
+
+  it('B002-A-fix: guest → login: deactivateCover(device) clears guest cover before user scope loads', async () => {
+    // Mirrors auth.tsx persist(): prevScope='device', newScope=userId
+    await activateCover('device');
+    assert.equal(isCoverActive(), true, 'precondition: guest has active cover');
+    // auth.tsx persist() calls deactivateCover(prevScope) when prevScope !== newScope
+    await deactivateCover('device');
+    assert.equal(isCoverActive(), false, 'in-memory flag cleared');
+    const remaining = await AsyncStorage.getItem(COVER_KEY('device'));
+    assert.equal(remaining, null, 'AsyncStorage entry removed — no bleed into new user session');
+  });
+
+  it('B002-B-fix: auth-A → auth-B: deactivateCover(userA) clears userA cover before userB scope loads', async () => {
+    // Mirrors auth.tsx persist(): prevScope=userA.id, newScope=userB.id
+    await activateCover('user-aaa-111');
+    assert.equal(isCoverActive(), true, 'precondition: user-A has active cover');
+    await deactivateCover('user-aaa-111');
+    assert.equal(isCoverActive(), false, 'user-A cover cleared');
+    const aKey = await AsyncStorage.getItem(COVER_KEY('user-aaa-111'));
+    assert.equal(aKey, null, 'user-A AsyncStorage entry removed');
+    // user-B scope starts clean
+    const bKey = await AsyncStorage.getItem(COVER_KEY('user-bbb-222'));
+    assert.equal(bKey, null, 'user-B scope was never written — no bleed');
+  });
+
+  it('B002-D-fix: authenticated logout: deactivateCover(userId) clears auth cover on sign-out', async () => {
+    // Mirrors auth.tsx logout(): prevScope=userId
+    await activateCover('user-ccc-333');
+    assert.equal(isCoverActive(), true, 'precondition: user has active cover');
+    await deactivateCover('user-ccc-333');
+    assert.equal(isCoverActive(), false, 'cover cleared on logout');
+    const remaining = await AsyncStorage.getItem(COVER_KEY('user-ccc-333'));
+    assert.equal(remaining, null, 'AsyncStorage entry removed — clean handoff to next session');
+  });
+
+  it('B002-D2-fix: guest explicit logout: deactivateCover(device) clears guest cover', async () => {
+    // Mirrors auth.tsx logout() when _activeUserIdCache=null → prevScope='device'
+    await activateCover('device');
+    assert.equal(isCoverActive(), true, 'precondition: guest cover active');
+    await deactivateCover('device');
+    assert.equal(isCoverActive(), false, 'cover cleared on guest logout');
+    const remaining = await AsyncStorage.getItem(COVER_KEY('device'));
+    assert.equal(remaining, null, 'AsyncStorage entry removed');
+  });
 });
+
+// ── B002-C PRODUCT DECISION (recorded, not implemented) ──────────────────────
+// The remaining B002-C gap (two guest cold-starts without explicit logout)
+// requires one of three product choices before code is written:
+//
+//  Option 1 — Accept current behaviour (no code change):
+//    Cover persists across guest cold-starts.  Risk: a second user on a shared
+//    device wakes to a covered screen.  Mitigation: cover is dismissible.
+//    Recommended if the expected device model is single-owner.
+//
+//  Option 2 — Clear guest cover on cold start (one-line fix in _layout.tsx):
+//    Never restore cover for scope='device' on app launch.  Guest users must
+//    re-activate after every cold start.  Safe for shared devices; slight
+//    friction for single-owner guests with repeated restarts.
+//
+//  Option 3 — Session-keyed guest cover (moderate complexity):
+//    Generate a sessionId on each cold start; store it alongside the cover flag.
+//    On restore, reject the flag if the sessionId doesn't match.  Cover survives
+//    in-process restarts (e.g. Expo hot-reload) but not cold starts.
+//
+// EXPO_PUBLIC_PRIVACY_COVER_V1 is currently OFF — B002-C has no visual impact.
+// Record a GO command referencing this option list to implement.
 
 console.log('privacyCoverState tests: done.');

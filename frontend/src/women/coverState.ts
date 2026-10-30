@@ -5,10 +5,27 @@
  * can check isCoverActive() on first render without an async gap.
  * Callers supply a scope string so the persisted key stays account-isolated.
  *
- * KNOWN BLOCKER B002 (OPEN):
- *   The 'device' scope flag persists across sign-out / sign-in when a new
- *   authenticated user follows a guest session on the same device.  The scope
- *   key does not change until a new user ID is established.  Not fixed here.
+ * B002 STATUS (2026-10-30):
+ *
+ *   FIXED (auth.tsx):
+ *     A. Guest → authenticated login:
+ *        persist() calls deactivateCover(prevScope='device') when prevScope≠newScope.
+ *     B. Auth-A → Auth-B (account switch):
+ *        persist() calls deactivateCover(prevScope=userId-A).
+ *     D. Authenticated logout → guest:
+ *        logout() calls deactivateCover(prevScope=userId).
+ *     D2. Guest explicit logout:
+ *        logout() calls deactivateCover(prevScope='device').
+ *
+ *   OPEN — PRODUCT DECISION REQUIRED (see reconciliation §3):
+ *     C. Two guest sessions with no explicit logout between them (e.g. force-close):
+ *        Both use scope='device'. Cover from session 1 persists to cold-start
+ *        of session 2 via AsyncStorage. Cleared only when the user explicitly
+ *        logs in (scenario A) or logs out (D2) — not by a cold start alone.
+ *        Remediation options recorded in V0/V1 reconciliation; the fix depends
+ *        on a product decision about whether cover should survive a guest
+ *        cold-start (user intent) or be cleared (shared-device safety).
+ *        EXPO_PUBLIC_PRIVACY_COVER_V1 is currently OFF; no visual impact.
  *
  * PRIVACY CONTRACT:
  *   No phrase or user data passes through this module — it carries a boolean only.
