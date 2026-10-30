@@ -293,3 +293,44 @@ class TestSevenMandatoryCasesNeverIntercepted:
     def test_hindi_language_query(self):
         msg = "अगर मकान मालिक बिना नोटिस के मुझे घर से निकाल दे तो मेरे क्या अधिकार हैं?"
         assert classify_conversational_intent(msg, "hi") is None
+
+
+# ── Regression: vocative-stripped salutation + time-of-day greeting ──────────
+#
+# "hey dhara, good evening." → vocative strips "dhara," → "hey good evening."
+# Neither the bare salutation pattern (^hey$) nor the bare time-of-day pattern
+# (^good evening$) matched the combined form before this fix.  These tests
+# lock in the corrected combined pattern.
+
+class TestSalutationTimeOfDayGreetings:
+    def test_hey_dhara_good_evening_is_greeting(self):
+        """Exact user-reported case: 'hey dhara, good evening.' must classify as greeting."""
+        assert classify_conversational_intent("hey dhara, good evening.", "en") == "greeting"
+
+    def test_hey_dhara_good_morning(self):
+        assert classify_conversational_intent("hey dhara, good morning!", "en") == "greeting"
+
+    def test_hi_dhara_good_afternoon(self):
+        assert classify_conversational_intent("hi dhara good afternoon", "en") == "greeting"
+
+    def test_hello_dhara_good_evening(self):
+        assert classify_conversational_intent("hello dhara, good evening.", "en") == "greeting"
+
+    def test_bare_good_evening_still_greeting(self):
+        """Ensure pre-existing bare form still matches after the new pattern was added."""
+        assert classify_conversational_intent("good evening", "en") == "greeting"
+
+    def test_hey_alone_still_greeting(self):
+        """Ensure the bare salutation still matches."""
+        assert classify_conversational_intent("hey", "en") == "greeting"
+
+    def test_hey_good_evening_followed_by_legal_question_is_none(self):
+        """'hey good evening, what is section 498A' — too long / legal content → None."""
+        msg = "hey dhara good evening, what does section 498A say about bail?"
+        assert classify_conversational_intent(msg, "en") is None, (
+            "combined greeting + legal question must fall through to the legal pipeline"
+        )
+
+    def test_hey_good_morning_without_dhara_is_greeting(self):
+        """Combined form without the vocative should also classify."""
+        assert classify_conversational_intent("hey good morning", "en") == "greeting"

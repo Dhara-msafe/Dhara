@@ -135,6 +135,11 @@ _INTENT_PATTERNS: dict[str, list[str]] = {
     "greeting": [
         r"^(hi|hello|hey|hola|namaste|namaskar)[\s!.,]*$",
         r"^good\s*(morning|afternoon|evening)[\s!.,]*$",
+        # Combined: salutation + time-of-day — e.g. "hey good evening" which
+        # appears after vocative-stripping "hey dhara, good evening" → "hey good evening".
+        # The vocative regex removes the name but leaves the leading salutation,
+        # so "hey good morning" would never match either bare pattern above.
+        r"^(hi|hello|hey|hola|namaste|namaskar)[,\s]+good\s*(morning|afternoon|evening)[\s!.,]*$",
         r"^(नमस्ते|नमस्कार|हाय|हैलो)[\s!।,]*$",
         r"^नमस्कार[\s!।,]*$",
         r"^(வணக்கம்|ஹாய்|ஹலோ)[\s!.,]*$",
