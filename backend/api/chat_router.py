@@ -1253,6 +1253,10 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                     "successor_act": hit.get("successor_act"),
                     "judicial_flag": hit.get("judicial_flag"),
                     "no_current_text": hit.get("no_current_text", False),
+                    # Graduate Fix 2: surface as a separate field so the
+                    # frontend can render a distinct ℹ️ badge without parsing
+                    # official_text.  Empty-string means "no gap note".
+                    "registry_gap_note": reg_note,
                 },
             })
 

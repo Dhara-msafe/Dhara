@@ -72,6 +72,11 @@ export default function HeadOut() {
   const [loading, setLoading] = useState(true);
   // GO1B: journey token created when session starts (so GPS can start immediately)
   const [journeyToken, setJourneyToken] = useState<string | null>(null);
+  // GPS permission-contract states (handle_permissions_contract)
+  // locationConsentGiven: user tapped "Allow location" on the pre-OS rationale card
+  const [locationConsentGiven, setLocationConsentGiven] = useState(false);
+  // showPermDeniedSettings: hook reported canAskAgain=false — show "Open Settings" prompt
+  const [showPermDeniedSettings, setShowPermDeniedSettings] = useState(false);
   // Part B/P4: accepted Trusted Circle recipients eligible to be alerted for THIS journey
   const [recipients, setRecipients] = useState<InviteLink[]>([]);
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
@@ -188,8 +193,13 @@ export default function HeadOut() {
     }
   }, [authToken, journeyToken]);
 
-  // GO1B: GPS tracking — active only while session is running and flag is on
-  const gps = useJourneyGPS(journeyToken, GO1B_GPS_ENABLED && !!session && !expired);
+  // GO1B: GPS tracking — active only when session running, flag on, AND user
+  // has seen the pre-permission rationale (handle_permissions_contract).
+  const gps = useJourneyGPS(
+    journeyToken,
+    GO1B_GPS_ENABLED && !!session && !expired && locationConsentGiven,
+    () => setShowPermDeniedSettings(true),
+  );
 
   // F2b / F2c: battery-aware upload hook + stable refs for the AppState handler
   const { lastGaspUpload } = useLocationUpload(authToken, journeyToken);
@@ -431,22 +441,71 @@ export default function HeadOut() {
                   <Text style={[styles.buttonText, { color: c.navy }]}>Notify your guardian</Text>
                 </Pressable>
               )}
-              {/* GO1B: GPS live-tracking indicator */}
-              {GO1B_GPS_ENABLED && (
-                <View style={styles.gpsRow} accessibilityLabel={gps.tracking ? `GPS tracking active, last area: ${gps.area}` : 'GPS starting'}>
-                  <Ionicons
-                    name={gps.tracking ? 'location' : 'location-outline'}
-                    size={14}
-                    color={gps.tracking ? '#16a34a' : c.muted}
-                  />
-                  <Text style={[styles.gpsLabel, gps.tracking && { color: '#16a34a' }]}>
-                    {gps.denied
-                      ? 'Location access denied — guardian page will not show your area'
-                      : gps.tracking
-                        ? `Tracking active${gps.area ? ` · ${gps.area}` : ''}`
-                        : 'Starting location tracking…'}
-                  </Text>
-                </View>
+              {/* GO1B: GPS permission-contract UI (handle_permissions_contract) */}
+              {GO1B_GPS_ENABLED && !!session && !expired && (
+                <>
+                  {/* Step 1: pre-OS rationale — shown before any permission is requested */}
+                  {!locationConsentGiven && !gps.denied && (
+                    <View style={styles.gpsRationaleCard} testID="gps-rationale-card">
+                      <Ionicons name="location-outline" size={18} color="#1D4ED8" />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.gpsRationaleTitle}>Share your location with your guardian?</Text>
+                        <Text style={styles.gpsRationaleBody}>
+                          DHARA will share your approximate area with your Trusted Circle while this journey is active. Location stops when you mark yourself safe.
+                        </Text>
+                        <Pressable
+                          testID="gps-allow-btn"
+                          style={styles.gpsAllowBtn}
+                          onPress={() => setLocationConsentGiven(true)}
+                          accessibilityRole="button"
+                          accessibilityLabel="Allow location sharing for this journey"
+                        >
+                          <Text style={styles.gpsAllowBtnText}>Allow for this journey</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Step 2: tracking indicator — shown once consent given */}
+                  {locationConsentGiven && !showPermDeniedSettings && (
+                    <View style={styles.gpsRow} accessibilityLabel={gps.tracking ? `GPS tracking active, last area: ${gps.area}` : 'GPS starting'}>
+                      <Ionicons
+                        name={gps.tracking ? 'location' : 'location-outline'}
+                        size={14}
+                        color={gps.tracking ? '#16a34a' : c.muted}
+                      />
+                      <Text style={[styles.gpsLabel, gps.tracking && { color: '#16a34a' }]}>
+                        {gps.denied
+                          ? 'Location access denied — guardian page will not show your area'
+                          : gps.tracking
+                            ? `Tracking active${gps.area ? ` · ${gps.area}` : ''}`
+                            : 'Starting location tracking…'}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Step 3: permanent denial — canAskAgain=false — show Settings path */}
+                  {(showPermDeniedSettings || (gps.denied && !gps.canAskAgain)) && (
+                    <View style={styles.gpsDeniedCard} testID="gps-denied-settings-card">
+                      <Ionicons name="location-outline" size={18} color="#B91C1C" />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.gpsDeniedTitle}>Location permission blocked</Text>
+                        <Text style={styles.gpsDeniedBody}>
+                          Your device has blocked location access for DHARA. Your guardian&apos;s page will not show your area during this journey. To enable it, open Settings and allow location access.
+                        </Text>
+                        <Pressable
+                          testID="gps-open-settings-btn"
+                          style={styles.gpsSettingsBtn}
+                          onPress={() => Linking.openSettings()}
+                          accessibilityRole="button"
+                          accessibilityLabel="Open device Settings to allow location access"
+                        >
+                          <Text style={styles.gpsSettingsBtnText}>Open Settings</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  )}
+                </>
               )}
               {TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && journeyToken && selectedRecipients.length > 0 && (
                 <Pressable
@@ -602,6 +661,18 @@ const styles = StyleSheet.create({
   },
   gpsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   gpsLabel: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, flex: 1, textAlign: 'center' },
+  // handle_permissions_contract — pre-OS rationale card
+  gpsRationaleCard: { flexDirection: 'row', gap: 10, backgroundColor: '#EFF6FF', borderRadius: 10, padding: 12, marginTop: 10, alignItems: 'flex-start' },
+  gpsRationaleTitle: { fontFamily: theme.fonts.body, fontSize: 13, fontWeight: '600', color: '#1E3A8A', marginBottom: 3 },
+  gpsRationaleBody: { fontFamily: theme.fonts.body, fontSize: 12, color: '#1D4ED8', lineHeight: 17 },
+  gpsAllowBtn: { marginTop: 8, backgroundColor: '#1D4ED8', borderRadius: 8, paddingVertical: 7, paddingHorizontal: 14, alignSelf: 'flex-start' },
+  gpsAllowBtnText: { fontFamily: theme.fonts.body, fontSize: 12, color: '#fff', fontWeight: '600' },
+  // handle_permissions_contract — permanent denial + Settings redirect
+  gpsDeniedCard: { flexDirection: 'row', gap: 10, backgroundColor: '#FEF2F2', borderRadius: 10, padding: 12, marginTop: 10, alignItems: 'flex-start' },
+  gpsDeniedTitle: { fontFamily: theme.fonts.body, fontSize: 13, fontWeight: '600', color: '#B91C1C', marginBottom: 3 },
+  gpsDeniedBody: { fontFamily: theme.fonts.body, fontSize: 12, color: '#7F1D1D', lineHeight: 17 },
+  gpsSettingsBtn: { marginTop: 8, backgroundColor: '#B91C1C', borderRadius: 8, paddingVertical: 7, paddingHorizontal: 14, alignSelf: 'flex-start' },
+  gpsSettingsBtnText: { fontFamily: theme.fonts.body, fontSize: 12, color: '#fff', fontWeight: '600' },
   simOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   simBox: { backgroundColor: '#fff', borderRadius: 18, padding: 22, width: '100%', maxWidth: 400, gap: 6 },
   simBadge: {

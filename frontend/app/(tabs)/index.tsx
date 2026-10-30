@@ -145,6 +145,9 @@ type Citation = {
   official_text: string;
   source_url: string;
   verified_at: string;
+  /** Populated when the act is not yet in the verified law registry.
+   *  Displayed as an info note — does not imply approval or verification. */
+  registry_gap_note?: string;
 };
 
 type Msg = {
@@ -2347,6 +2350,12 @@ export default function ChatScreen() {
                                     <Text style={styles.ipcNoticeText}>This section has been renumbered or replaced under BNS 2023, effective 1 July 2024.</Text>
                                   </View>
                                 )}
+                                {!!c.registry_gap_note && (
+                                  <View style={styles.gapNoteRow} testID={`gap-note-${c.key}`}>
+                                    <Ionicons name="information-circle-outline" size={13} color="#1D4ED8" />
+                                    <Text style={styles.gapNoteText}>{c.registry_gap_note}</Text>
+                                  </View>
+                                )}
                                 <Text style={styles.citationTitle}>{c.citation}</Text>
                                 {c.official_text ? (
                                   <Text style={styles.citationText} numberOfLines={8}>
@@ -2402,6 +2411,12 @@ export default function ChatScreen() {
                           <View style={styles.ipcNoticeRow} testID={`ipc-notice-${c.key}`}>
                             <Ionicons name="information-circle" size={13} color="#92400E" />
                             <Text style={styles.ipcNoticeText}>This section has been renumbered or replaced under BNS 2023, effective 1 July 2024.</Text>
+                          </View>
+                        )}
+                        {!!c.registry_gap_note && (
+                          <View style={styles.gapNoteRow} testID={`gap-note-${c.key}`}>
+                            <Ionicons name="information-circle-outline" size={13} color="#1D4ED8" />
+                            <Text style={styles.gapNoteText}>{c.registry_gap_note}</Text>
                           </View>
                         )}
                         <Text style={styles.citationTitle}>{c.citation}</Text>
@@ -3324,6 +3339,9 @@ const styles = StyleSheet.create({
   staleWarningText: { fontSize: 10, color: theme.colors.warning, fontWeight: '600' },
   ipcNoticeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: '#FEF3C7', borderRadius: 8, padding: 8, marginTop: 6 },
   ipcNoticeText: { flex: 1, fontSize: 11, color: '#92400E', lineHeight: 15, fontWeight: '600' },
+  /** Graduate Fix 2 — registry gap note. Blue tint, distinct from amber ipcNoticeRow. */
+  gapNoteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: '#EFF6FF', borderRadius: 8, padding: 8, marginTop: 6 },
+  gapNoteText: { flex: 1, fontSize: 11, color: '#1E3A8A', lineHeight: 15 },
   citationTitle: { fontSize: 12, fontWeight: '700', color: theme.colors.brand },
   citationText: { fontSize: 12, color: theme.colors.onSurface, lineHeight: 17, fontStyle: 'italic' },
   citationSource: {
