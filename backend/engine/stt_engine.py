@@ -13,18 +13,29 @@ Isolation contract
 
 WHISPER_HINT_SET policy (V1-A, 2026-10-30)
 -------------------------------------------
-Only include codes confirmed working via the Emergent Whisper proxy.
-The following nine codes are NOT in the set because the proxy returns
-HTTP 400 "Language '<code>' is not supported." for them:
-  bn, te, gu, ml, pa, or, as, sa, sd
-Those languages are still available to users — they receive accurate
-transcription via auto-detect (no hint sent).  The retry-without-hint
-path (_should_retry_without_hint) remains as a safety net for any new
-codes that may be added to the set without a fresh proxy probe.
+EVIDENCE BASIS — two distinct groups:
 
-DO NOT add a code to this set without first confirming the proxy
-accepts it in a live probe test (see TestWhisperSupportedSetMismatch
-in tests/test_voice_transcribe.py).
+  PROBE-VERIFIED (confirmed via live Emergent Whisper proxy tests,
+  test_voice_transcribe.py::TestWhisperSupportedSetMismatch):
+    en, hi, ta, mr, kn, ur, ne
+
+  CARRIED FORWARD — present in the original set from the integration
+  playbook; NOT individually probed against the Emergent proxy.
+  Retained because there is no evidence of rejection for them, and
+  removing them without evidence would be overcorrection.  If a future
+  probe rejects any of these, remove it at that point:
+    fr, de, es, pt, it, ja, ko, zh, ar, ru
+
+REMOVED — nine Indian-language codes rejected by the Emergent proxy
+  with HTTP 400 "Language '<code>' is not supported.":
+    bn, te, gu, ml, pa, or, as, sa, sd
+  Those languages are still available to users — they receive
+  transcription via auto-detect (no hint sent on first attempt).
+  The retry-without-hint path remains as a safety net for any code
+  that may be added without a fresh probe.
+
+DO NOT claim a code is "proxy-verified" unless a live probe result
+  is recorded in tests/test_voice_transcribe.py.
 """
 from __future__ import annotations
 
@@ -35,10 +46,11 @@ logger = logging.getLogger(__name__)
 
 # ── Language normalisation ────────────────────────────────────────────────────
 
-# Probe-verified set: Emergent Whisper proxy confirmed accepting these codes.
-# (See policy comment above before adding any code.)
+# See evidence-basis comment in module docstring before changing this set.
 WHISPER_HINT_SET: frozenset[str] = frozenset({
+    # PROBE-VERIFIED Indian/Indic codes
     "en", "hi", "ta", "mr", "kn", "ur", "ne",
+    # CARRIED-FORWARD international codes (not individually probe-tested)
     "fr", "de", "es", "pt", "it", "ja", "ko", "zh", "ar", "ru",
 })
 
