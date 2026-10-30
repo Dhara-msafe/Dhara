@@ -196,8 +196,9 @@ export default function CodePhrase() {
         )}
 
         <Text style={styles.note}>
-          Choose a normal-sounding sentence. When you type it in Ask DHARA, it can quietly start
-          the Evidence Recorder and prepare your Silent Alert \u2014 without anyone noticing.
+          Choose a normal-sounding sentence. When you type it in Ask DHARA, it will
+          request microphone permission if not already granted, then immediately begin
+          local recording \u2014 and prepare your Silent Alert without anyone noticing.
           Stored only on this phone, encrypted.
         </Text>
 
