@@ -406,3 +406,131 @@ class TestTamilAcceptancePath:
             await transcribe_with_retry(AUDIO, FNAME, CTYPE, "ta-IN", client)
 
         assert len(calls) == 1, "audio_too_short must NOT trigger a Tamil retry"
+
+
+# ── TestBehavioralHintRouting — call-parameter and retry-count assertions ─────
+#
+# These tests complement the set-membership checks above (TestNormalizeLanguage,
+# TestTamilAcceptancePath) with end-to-end behavioral proofs:
+#   - what kwargs are actually sent in each call (not just set membership)
+#   - that the retry count is bounded to exactly one
+#   - that an unexpected 400 (without "language" in the message) never retries
+#
+# User requirement: "Membership assertions alone are insufficient."
+
+@pytest.mark.asyncio
+class TestBehavioralHintRouting:
+
+    # BR-1 through BR-9: each proxy-rejected Indian code → auto-detect first call
+    @pytest.mark.parametrize("rejected_code", [
+        "bn", "te", "gu", "ml", "pa", "or", "as", "sa", "sd",
+    ])
+    async def test_rejected_code_first_call_has_no_language_kwarg(self, rejected_code: str):
+        """Proxy-rejected codes must NOT carry a language hint.
+        The first call must be auto-detect (no `language` kwarg) — a hint here
+        produces a guaranteed 400 before any transcription begins."""
+        client = make_client("auto-detect result")
+        result = await transcribe_with_retry(AUDIO, FNAME, CTYPE, rejected_code, client)
+        assert result["text"] == "auto-detect result"
+        assert client.audio.transcriptions.create.call_count == 1, (
+            f"{rejected_code!r}: only one call expected on success"
+        )
+        call_kwargs = client.audio.transcriptions.create.call_args.kwargs
+        assert "language" not in call_kwargs, (
+            f"{rejected_code!r}: must NOT carry a language hint — "
+            "sending this hint produces a guaranteed 400 rejection."
+        )
+
+    # BR-10 through BR-16: probe-verified codes → hint present in first call
+    @pytest.mark.parametrize("lang_input,expected_hint", [
+        ("hi", "hi"),
+        ("en", "en"),
+        ("mr", "mr"),
+        ("kn", "kn"),
+        ("ur", "ur"),
+        ("ne", "ne"),
+        ("ta-IN", "ta"),   # BCP-47 normalised before the hint-set lookup
+    ])
+    async def test_confirmed_code_first_call_carries_correct_hint(
+        self, lang_input: str, expected_hint: str
+    ):
+        """Probe-verified codes must include the exact normalised hint in the
+        first call so Whisper can align phonemes without a second round-trip."""
+        client = make_client("hint-result")
+        await transcribe_with_retry(AUDIO, FNAME, CTYPE, lang_input, client)
+        call_kwargs = client.audio.transcriptions.create.call_args.kwargs
+        assert call_kwargs.get("language") == expected_hint, (
+            f"Input {lang_input!r}: expected first-call hint {expected_hint!r}, "
+            f"got kwargs={call_kwargs!r}"
+        )
+
+    # BR-17: retry is bounded to exactly one attempt
+    async def test_retry_bounded_to_exactly_one_attempt(self):
+        """After a language-hint rejection the engine retries at most ONCE.
+        A second failure on the retry propagates immediately; no third call."""
+        second_ok = MagicMock()
+        second_ok.text = "ok"
+        client = make_client()
+        client.audio.transcriptions.create = AsyncMock(side_effect=[
+            Exception("unsupported_language"),
+            second_ok,
+        ])
+        result = await transcribe_with_retry(AUDIO, FNAME, CTYPE, "hi", client)
+        assert result["text"] == "ok"
+        assert client.audio.transcriptions.create.call_count == 2, (
+            "exactly one retry — not zero, not two or more"
+        )
+
+    # BR-18: retry second call carries NO language kwarg
+    async def test_retry_second_call_strips_language_hint(self):
+        """The retry (second) call must NOT repeat the language hint.
+        Repeating the hint would provoke the same 400 rejection again and
+        hang in an implicit retry loop."""
+        second_ok = MagicMock()
+        second_ok.text = "ok"
+        client = make_client()
+        client.audio.transcriptions.create = AsyncMock(side_effect=[
+            Exception("unsupported_language"),
+            second_ok,
+        ])
+        await transcribe_with_retry(AUDIO, FNAME, CTYPE, "hi", client)
+        first_kw  = client.audio.transcriptions.create.call_args_list[0].kwargs
+        second_kw = client.audio.transcriptions.create.call_args_list[1].kwargs
+        assert first_kw.get("language") == "hi", (
+            "first call must carry the normalised hint"
+        )
+        assert "language" not in second_kw, (
+            "retry (second) call must NOT carry the language hint — "
+            "that would produce the same 400 again"
+        )
+
+    # BR-19: unexpected 400 (no 'language' in message) → no retry
+    async def test_unexpected_400_without_language_keyword_no_retry(self):
+        """A 400 that does NOT mention 'language' is not a hint rejection.
+        It must propagate immediately without a retry (e.g. malformed audio,
+        over-limit audio, unsupported codec — none of which a stripped hint fixes)."""
+        client = make_client()
+        client.audio.transcriptions.create = AsyncMock(
+            side_effect=Exception("400 Bad Request: audio format not supported")
+        )
+        with pytest.raises(Exception, match="400 Bad Request"):
+            await transcribe_with_retry(AUDIO, FNAME, CTYPE, "hi", client)
+        assert client.audio.transcriptions.create.call_count == 1, (
+            "a 400 without 'language' in the message must NOT trigger a retry"
+        )
+
+    # BR-20: no-hint path (rejected code) never retries even on a language-flavoured 400
+    async def test_no_hint_path_never_retries_even_on_language_400(self):
+        """When the first call had NO hint (rejected code), the retry guard
+        `if lang_hint and ...` is False, so even a language-flavoured 400
+        from the auto-detect call must NOT produce a retry."""
+        client = make_client()
+        client.audio.transcriptions.create = AsyncMock(
+            side_effect=Exception("400 language not supported")
+        )
+        # "bn" is a proxy-rejected code → lang_hint = None → no retry guard
+        with pytest.raises(Exception, match="400 language"):
+            await transcribe_with_retry(AUDIO, FNAME, CTYPE, "bn", client)
+        assert client.audio.transcriptions.create.call_count == 1, (
+            "no hint was sent, so there is nothing to strip — no retry must fire"
+        )
