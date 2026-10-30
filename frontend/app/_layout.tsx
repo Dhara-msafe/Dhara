@@ -2,7 +2,7 @@ import { Stack, useRouter, useSegments, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { Component, ErrorInfo, ReactNode, useCallback, useEffect, useRef } from "react";
 import { LogBox, Pressable, Text, View, useWindowDimensions, Platform, Modal, AppState } from "react-native";
-import { activateCover, isCoverActive, subscribeCover, syncCoverFromStorage, deactivateCover } from "@/src/women/coverState";
+import { activateCover, isCoverActive, subscribeCover, syncCoverFromStorage, deactivateCover, setGuestSessionId } from "@/src/women/coverState";
 import { PrivacyCover } from "@/src/women/PrivacyCover";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -318,6 +318,17 @@ export default function RootLayout() {
   // Talk to DHARA — load persisted Quiet + attach lifecycle listeners. Inert
   // (canSpeakNow() returns true) while the voice-companion flag is OFF.
   useEffect(() => { void initSpeechGate(); }, []);
+
+  // B002-C Option 3: generate an ephemeral session ID on this cold start.
+  // Scopes the guest privacy-cover flag to this specific app launch so that
+  // a force-close and restart begins without inheriting the previous session's
+  // cover.  Authenticated users use scope=user.id in all coverState calls, so
+  // this has zero effect on their settings.
+  // EXPO_PUBLIC_PRIVACY_COVER_V1 is currently OFF; safe to call unconditionally.
+  useEffect(() => {
+    const guestSid = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    setGuestSessionId(guestSid);
+  }, []);
 
   useEffect(() => {
     if (loaded || error || timedOut) SplashScreen.hideAsync();

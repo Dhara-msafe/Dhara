@@ -13,10 +13,10 @@
  * B002 STATUS (2026-10-30):
  *   FIXED (auth.tsx) for scenarios A, B, D, D2:
  *     guest→login, auth-A→auth-B, auth-logout, guest-logout.
- *   OPEN — product decision required for scenario C:
- *     two guest cold-starts without explicit logout between them.
- *     EXPO_PUBLIC_PRIVACY_COVER_V1 is currently OFF — no visual impact.
- *     See product decision options at the bottom of this file.
+ *   RESOLVED — B002-C Option 3 (this file + coverState.ts + _layout.tsx):
+ *     Two guest cold-starts without explicit logout — ephemeral session ID
+ *     generated on cold start; stale guest cover rejected on sync.
+ *   EXPO_PUBLIC_PRIVACY_COVER_V1 is currently OFF — no visual impact.
  */
 
 import assert from 'node:assert/strict';
@@ -37,14 +37,41 @@ const AsyncStorage = {
 let _active = false;
 const _listeners = [];
 const COVER_KEY = (scope) => `ws_discreet_active_v1_${scope}`;
+const GUEST_SESSION_ASYNC_KEY = 'ws_guest_session_v1';
+
+// B002-C Option 3: ephemeral guest session ID — set once per cold start.
+let _guestSessionId = null;
+const setGuestSessionId = (id) => { _guestSessionId = id; };
+const getGuestSessionId = ()    => _guestSessionId;
 
 const isCoverActive    = ()       => _active;
 const subscribeCover   = (fn)     => { _listeners.push(fn); return () => { const i = _listeners.indexOf(fn); if (i >= 0) _listeners.splice(i, 1); }; };
 const _emit = (v) => _listeners.forEach(fn => { try { fn(v); } catch { /* mirror production behaviour */ } });
-const activateCover    = async (scope) => { _active = true;  _emit(true);  try { await AsyncStorage.setItem(COVER_KEY(scope), 'true'); } catch { /* best-effort */ } };
+
+// activateCover: writes session ID to storage for guest scope (B002-C Option 3).
+const activateCover = async (scope) => {
+  _active = true;
+  _emit(true);
+  try { await AsyncStorage.setItem(COVER_KEY(scope), 'true'); } catch { /* best-effort */ }
+  if (scope === 'device' && _guestSessionId !== null) {
+    try { await AsyncStorage.setItem(GUEST_SESSION_ASYNC_KEY, _guestSessionId); } catch {}
+  }
+};
+
 const deactivateCover  = async (scope) => { _active = false; _emit(false); try { await AsyncStorage.removeItem(COVER_KEY(scope)); } catch { /* best-effort */ } };
-const syncFromStorage  = async (scope) => {
+
+// syncFromStorage: rejects stale guest cover if session IDs differ (B002-C Option 3).
+const syncFromStorage = async (scope) => {
   try {
+    if (scope === 'device' && _guestSessionId !== null) {
+      const storedSession = await AsyncStorage.getItem(GUEST_SESSION_ASYNC_KEY);
+      if (storedSession !== null && storedSession !== _guestSessionId) {
+        _active = false;
+        try { await AsyncStorage.removeItem(COVER_KEY(scope)); } catch {}
+        try { await AsyncStorage.removeItem(GUEST_SESSION_ASYNC_KEY); } catch {}
+        return false;
+      }
+    }
     const v = await AsyncStorage.getItem(COVER_KEY(scope));
     _active = v === 'true';
     return _active;
@@ -57,6 +84,7 @@ function resetState() {
   _active = false;
   _listeners.length = 0;
   _store.clear();
+  _guestSessionId = null;
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -440,26 +468,119 @@ describe('B002 — Guest scope bleed (assessment only, no code change)', () => {
   });
 });
 
-// ── B002-C PRODUCT DECISION (recorded, not implemented) ──────────────────────
-// The remaining B002-C gap (two guest cold-starts without explicit logout)
-// requires one of three product choices before code is written:
-//
-//  Option 1 — Accept current behaviour (no code change):
-//    Cover persists across guest cold-starts.  Risk: a second user on a shared
-//    device wakes to a covered screen.  Mitigation: cover is dismissible.
-//    Recommended if the expected device model is single-owner.
-//
-//  Option 2 — Clear guest cover on cold start (one-line fix in _layout.tsx):
-//    Never restore cover for scope='device' on app launch.  Guest users must
-//    re-activate after every cold start.  Safe for shared devices; slight
-//    friction for single-owner guests with repeated restarts.
-//
-//  Option 3 — Session-keyed guest cover (moderate complexity):
-//    Generate a sessionId on each cold start; store it alongside the cover flag.
-//    On restore, reject the flag if the sessionId doesn't match.  Cover survives
-//    in-process restarts (e.g. Expo hot-reload) but not cold starts.
-//
-// EXPO_PUBLIC_PRIVACY_COVER_V1 is currently OFF — B002-C has no visual impact.
-// Record a GO command referencing this option list to implement.
+// ── B002-C Option 3: session-keyed guest privacy-cover tests ─────────────────
+// Behavioral tests for the ephemeral session ID added to coverState.ts.
+// The cover flag (EXPO_PUBLIC_PRIVACY_COVER_V1) remains OFF; these tests
+// verify the isolation logic regardless.
+
+describe('B002-C Option 3 — session-keyed guest cover', () => {
+  beforeEach(resetState);
+
+  // ── Test 1: same cold-start session → cover is preserved ──────────────────
+  it('BC-1: same-session: cover is preserved across navigation', async () => {
+    setGuestSessionId('session-abc');
+    await activateCover('device');
+    // Simulate in-session navigation (re-sync from storage with same session ID)
+    const active = await syncFromStorage('device');
+    assert.equal(active, true, 'cover must be preserved within the same cold-start session');
+    assert.equal(isCoverActive(), true);
+  });
+
+  // ── Test 2: new cold-start (different session ID) → cover is rejected ──────
+  it('BC-2: guest cold restart: stale cover from previous session is rejected', async () => {
+    // Session 1: activate cover
+    setGuestSessionId('session-1');
+    await activateCover('device');
+    assert.equal(await AsyncStorage.getItem(GUEST_SESSION_ASYNC_KEY), 'session-1',
+      'session ID must be persisted alongside the cover flag');
+
+    // Session 2: new cold start generates a different session ID
+    setGuestSessionId('session-2');  // simulates RootLayout useEffect on cold start
+    const active = await syncFromStorage('device');
+    assert.equal(active, false, 'stale cover from session-1 must be rejected in session-2');
+    assert.equal(isCoverActive(), false);
+    // Storage must be cleaned up
+    assert.equal(await AsyncStorage.getItem(COVER_KEY('device')), null,
+      'stale cover flag must be removed from AsyncStorage');
+    assert.equal(await AsyncStorage.getItem(GUEST_SESSION_ASYNC_KEY), null,
+      'stale session ID must be removed from AsyncStorage');
+  });
+
+  // ── Test 3: no session ID registered yet → no session check, restore as normal
+  it('BC-3: no session ID registered → sync behaves as before (no session check)', async () => {
+    // Do NOT call setGuestSessionId — simulates early cold-start before RootLayout mounts
+    await activateCover('device');
+    // _guestSessionId = null → session check is skipped
+    const active = await syncFromStorage('device');
+    assert.equal(active, true, 'without a session ID, sync must behave as before (no rejection)');
+  });
+
+  // ── Test 4: authenticated scope bypasses session check entirely ────────────
+  it('BC-4: auth scope: session check does not apply to non-device scopes', async () => {
+    setGuestSessionId('session-guest');
+    await activateCover('user-id-789');   // authenticated scope, not 'device'
+    // Even with a different session ID, auth scope must restore normally
+    setGuestSessionId('session-different');
+    const active = await syncFromStorage('user-id-789');
+    assert.equal(active, true, 'authenticated scope must not be affected by session ID logic');
+  });
+
+  // ── Test 5: guest → auth login clears guest cover (scenario A — existing) ──
+  it('BC-5: guest-to-auth: deactivateCover(device) is called at login, clearing guest cover', async () => {
+    setGuestSessionId('session-guest');
+    await activateCover('device');
+    assert.equal(isCoverActive(), true, 'precondition: guest cover active');
+
+    // auth.tsx persist() calls deactivateCover('device') on login
+    await deactivateCover('device');
+    assert.equal(isCoverActive(), false, 'cover cleared when user logs in');
+    assert.equal(await AsyncStorage.getItem(COVER_KEY('device')), null, 'storage cleared');
+  });
+
+  // ── Test 6: logout returns to guest, new cold start rejects session-1 cover ─
+  it('BC-6: auth logout + app restart: logout clears auth cover; new guest session has no cover', async () => {
+    // Auth user activates cover
+    await activateCover('user-id-456');
+    assert.equal(isCoverActive(), true);
+    // Logout clears auth cover
+    await deactivateCover('user-id-456');
+    assert.equal(isCoverActive(), false);
+    assert.equal(await AsyncStorage.getItem(COVER_KEY('user-id-456')), null);
+    // New cold-start as guest
+    setGuestSessionId('new-guest-session');
+    const active = await syncFromStorage('device');
+    assert.equal(active, false, 'new guest session starts with no cover');
+  });
+
+  // ── Test 7: activateCover writes session ID to storage for guest scope ─────
+  it('BC-7: activateCover writes guest session ID to storage alongside cover flag', async () => {
+    setGuestSessionId('session-xyz');
+    await activateCover('device');
+    assert.equal(await AsyncStorage.getItem(COVER_KEY('device')), 'true',
+      'cover flag must be written');
+    assert.equal(await AsyncStorage.getItem(GUEST_SESSION_ASYNC_KEY), 'session-xyz',
+      'guest session ID must be written alongside cover flag');
+  });
+
+  // ── Test 8: activateCover for auth scope does NOT write guest session ID ───
+  it('BC-8: activateCover for auth scope does NOT write guest session ID to storage', async () => {
+    setGuestSessionId('session-xyz');
+    await activateCover('user-id-123');   // authenticated scope
+    assert.equal(await AsyncStorage.getItem(GUEST_SESSION_ASYNC_KEY), null,
+      'authenticated scope must NOT write GUEST_SESSION_ASYNC_KEY');
+  });
+
+  // ── Test 9: cover with no session ID written (legacy data) → no rejection ──
+  it('BC-9: stored cover without session ID (legacy) → not rejected — treated as current session', async () => {
+    // Legacy data: cover flag exists but no session ID was ever written
+    await AsyncStorage.setItem(COVER_KEY('device'), 'true');
+    // No session ID in storage → storedSession = null → condition
+    // `storedSession !== null && storedSession !== _guestSessionId` is false
+    setGuestSessionId('session-new');
+    const active = await syncFromStorage('device');
+    assert.equal(active, true,
+      'legacy cover with no stored session ID must not be rejected (storedSession===null skips check)');
+  });
+});
 
 console.log('privacyCoverState tests: done.');
