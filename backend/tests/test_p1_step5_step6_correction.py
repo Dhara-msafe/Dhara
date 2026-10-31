@@ -566,12 +566,27 @@ class TestStructuralWithholdingContract:
 
     # ── v0 hash backward-compat: REGISTRY-001 still approves ─────────────
 
-    def test_711_registry001_v0_compat_still_approves(self):
-        """REGISTRY-001 uses v0 hash and must still pass the gate after the
-        v1 canonical hash scheme was introduced (backward compatibility)."""
+    def test_711_registry001_v1_approves_with_canonical_record(self):
+        """REGISTRY-001-v1 (v1 canonical hash) must approve when correct
+        canonical_record is supplied.  REGISTRY-001 (v0) was revoked
+        2026-10-31 after the v1 re-issue."""
         from engine.approval_evidence import check_section_correspondence_approval as _gate
-        result = _gate("IPC:166A", "BNS:199")  # uses real registry
+        canonical = {
+            "schema_version": "v1",
+            "source_act": "IPC",
+            "source_section": "166A",
+            "target_act": "BNS",
+            "target_section": "199",
+            "offence_text": "Public servant disobeying direction under law",
+            "punishment_text": (
+                "Rigorous imprisonment of at least six months and up to two years, and fine"
+            ),
+        }
+        result = _gate("IPC:166A", "BNS:199", canonical_record=canonical)
         assert result.approved is True, (
-            f"REGISTRY-001 (v0 hash) must still pass after v1 scheme introduced: {result}"
+            f"REGISTRY-001-v1 (v1 canonical hash) must approve: {result}"
+        )
+        assert result.approval_id == "REGISTRY-001-v1-IPC166A-BNS199", (
+            f"Unexpected approval_id: {result.approval_id}"
         )
         assert result.reason == "approved"

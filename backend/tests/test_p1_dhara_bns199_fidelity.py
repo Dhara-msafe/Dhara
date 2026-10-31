@@ -255,23 +255,39 @@ class TestCorrectPunishmentMismatchExactOutput:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestRegistry001CorrespondenceGateBinding:
-    """The one active approval (REGISTRY-001-IPC166A-BNS199) must grant
-    approval for IPC:166A → BNS:199 using the real on-disk registry,
-    and must fail closed for every other pair or every mutation of the pair."""
+    """The active v1 approval (REGISTRY-001-v1-IPC166A-BNS199) must grant
+    approval for IPC:166A → BNS:199 using the real on-disk registry.
+    v0 record (REGISTRY-001-IPC166A-BNS199) was revoked on 2026-10-31;
+    the v1 record requires canonical_record to be supplied.
+    Every other pair and every mutation must fail closed."""
+
+    # v1 canonical record for IPC:166A → BNS:199 (must match ipc_bns_mapping.json entry)
+    _CR = {
+        "schema_version":  "v1",
+        "source_act":      "IPC",
+        "source_section":  "166A",
+        "target_act":      "BNS",
+        "target_section":  "199",
+        "offence_text":    "Public servant disobeying direction under law",
+        "punishment_text": "Rigorous imprisonment of at least six months and up to two years, and fine",
+    }
 
     def test_401_ipc_166a_bns_199_approved_from_real_registry(self):
         from engine.approval_evidence import check_section_correspondence_approval as _gate
-        result = _gate("IPC:166A", "BNS:199")
+        result = _gate("IPC:166A", "BNS:199", canonical_record=self._CR)
         assert result.approved is True, (
-            f"REGISTRY-001 must approve IPC:166A→BNS:199 from the real registry: {result}"
+            f"REGISTRY-001-v1 must approve IPC:166A→BNS:199 with canonical_record: {result}"
         )
         assert result.reviewer_id == "callistus-moses-founder", (
             f"Reviewer ID mismatch: {result.reviewer_id}"
         )
+        assert result.approval_id == "REGISTRY-001-v1-IPC166A-BNS199", (
+            f"Unexpected approval_id (v0 was revoked): {result.approval_id}"
+        )
 
     def test_402_ipc_166a_bns_199_reason_is_approved(self):
         from engine.approval_evidence import check_section_correspondence_approval as _gate
-        assert _gate("IPC:166A", "BNS:199").reason == "approved"
+        assert _gate("IPC:166A", "BNS:199", canonical_record=self._CR).reason == "approved"
 
     def test_403_unregistered_pair_fails_closed(self):
         from engine.approval_evidence import check_section_correspondence_approval as _gate

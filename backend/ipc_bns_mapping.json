@@ -5567,6 +5567,7 @@
       "ipc_section": "166A",
       "bns_section": "199",
       "offence": "Public servant disobeying direction under law",
+      "punishment_note": "Rigorous imprisonment of at least six months and up to two years, and fine",
       "change_type": "renumbering_only",
       "what_changed": "P0-A correction (2026-06): previous value 'BNS 202' was incorrect. Correct correspondence is BNS Section 199, per NCRB BNS correspondence table and the official BNS Act text. Covers police officers failing to record FIR for rape/acid attack victims. Rigorous imprisonment 6 months to 2 years + fine.",
       "verified": false,

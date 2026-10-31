@@ -23,12 +23,38 @@
       "content_hash": "eedb095a3250ac8ca0c5929c4fabe4076c9ef43342801683ee88b64db8ee401b",
       "reviewer_id": "callistus-moses-founder",
       "approved_by": "callistus-moses-founder",
+      "status": "revoked",
+      "revoked": true,
+      "revoked_at": "2026-10-31T00:00:00Z",
+      "approved_at": "2026-10-28T00:00:00Z",
+      "go_instruction": "GO: Populate the approval registry for IPC 166A -> BNS 199 — Batch REGISTRY-001",
+      "_content_hash_note": "SHA-256 of canonical subject_key string \"IPC:166A->BNS:199\" (UTF-8, stripped). SUPERSEDED — this v0 hash binds only the section-pair string, not the substantive record fields. Revoked in favour of REGISTRY-001-v1-IPC166A-BNS199 which uses the v1 canonical record hash (schema_version='v1'). Preserved as immutable audit trail.",
+      "_revocation_note": "Superseded by REGISTRY-001-v1-IPC166A-BNS199 (v1 canonical hash, 2026-10-31). The v1 hash binds offence_text and punishment_text in addition to the section pair. This v0 record is retained as audit history and must never be deleted."
+    },
+    {
+      "approval_id": "REGISTRY-001-v1-IPC166A-BNS199",
+      "batch": "REGISTRY-001-v1",
+      "record_type": "correspondence",
+      "subject_key": "IPC:166A->BNS:199",
+      "section_from": "IPC:166A",
+      "section_to": "BNS:199",
+      "schema_version": "v1",
+      "source_act": "IPC",
+      "source_section": "166A",
+      "target_act": "BNS",
+      "target_section": "199",
+      "offence_text": "Public servant disobeying direction under law",
+      "punishment_text": "Rigorous imprisonment of at least six months and up to two years, and fine",
+      "what_changed": "P0-A correction (2026-06): previous value 'BNS 202' was incorrect. Correct correspondence is BNS Section 199, per NCRB BNS correspondence table and the official BNS Act text. Covers police officers failing to record FIR for rape/acid attack victims. Rigorous imprisonment 6 months to 2 years + fine.",
+      "content_hash": "1787743a993d9df1f94c1addad280016fc1b565781d8a790d51fb273068f16f8",
+      "reviewer_id": "callistus-moses-founder",
+      "approved_by": "callistus-moses-founder",
       "status": "active",
       "revoked": false,
       "revoked_at": null,
-      "approved_at": "2026-10-28T00:00:00Z",
-      "go_instruction": "GO: Populate the approval registry for IPC 166A -> BNS 199 — Batch REGISTRY-001",
-      "_content_hash_note": "SHA-256 of canonical subject_key string \"IPC:166A->BNS:199\" (UTF-8, stripped). The approval_evidence gate computes compute_content_hash(subject_key) at call time to get this value. Any change to the subject_key string requires a new GO."
+      "approved_at": "2026-10-31T00:00:00Z",
+      "go_instruction": "GO: Re-issue REGISTRY-001 with v1 canonical hash — user authorised 2026-10-31. Supersedes REGISTRY-001-IPC166A-BNS199 (v0, revoked same date).",
+      "_content_hash_note": "SHA-256 of json.dumps({'offence_text':'Public servant disobeying direction under law','punishment_text':'Rigorous imprisonment of at least six months and up to two years, and fine','schema_version':'v1','source_act':'IPC','source_section':'166A','target_act':'BNS','target_section':'199'}, sort_keys=True, separators=(',',':'), ensure_ascii=True). Hash binds all seven canonical fields. Any change to offence_text, punishment_text, source_section, target_section, source_act, target_act, or schema_version requires a new GO and a new hash computation."
     }
   ]
 }
