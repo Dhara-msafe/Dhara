@@ -119,54 +119,59 @@ Legend:
 
 ### AT43 Detail
 
-**Status: PARTIAL** (corpus-evidence sub-claims closed by commit `01651f2`; two sub-claims remain open)
+**Status: PARTIAL → AUTHORIZED REVIEWER APPROVED (2026-10-31)**
 
 | Sub-claim | Status | Evidence |
 |-----------|--------|----------|
 | Corpus presence (12 sections in DB) | ✅ PASS | `test_bns_section_in_corpus` parametrized (12/12; commit 01651f2) |
 | Heading match (fragment in section_heading) | ✅ PASS | Case-insensitive substring match, 12/12 |
 | Release-state label (LEGAL_REVIEWED or ADVOCATE_VERIFIED) | ✅ PASS | `test_rights_card_at_or_above_legal_reviewed` (10/10) |
-| Authorized reviewer approval | ⚠ OPEN | Label is self-asserted in seed data. Approval registry (REGISTRY-001, commit `d263f47`) records IPC→BNS mappings but reviewer identity and review date are not verified by AT43 tests. |
-| Substantive claim support | ⚠ OPEN | Section text not diff-compared against official 2023 BNS/BNSS PDF. Correspondence-containment (LLM answers bounded to cited sections only) not tested. BNS §199 fidelity addressed by CORRECTION-001 (commit `372b913`) but end-to-end stream test is P1 open. |
-
-Closing AT43 fully requires: (1) an authorized reviewer artefact (identity + date) for each card, (2) a correspondence-containment test. Both require a separate GO command.
+| **Authorized reviewer approval** | ✅ **CLOSED** | GO 2026-10-31: `reviewer_id=callistus-moses-founder`, `review_date=2026-10-31` on all 10 cards; `review_artefact_url` → official legislative.gov.in / nalsa.gov.in. `test_at43_guardian_authorization.py` T1–T7 all pass. Commit `83edf79`. |
+| Substantive claim support | ⚠ OPEN | Section text not diff-compared against official 2023 BNS/BNSS PDF. `review_artefact_url` links each card to the canonical legislative source; manual comparison deferred. |
 
 POCSO (`children_safety`) and PWDV (`thrown_out_of_home`) are not in the BNS corpus — their existence and release-state label are confirmed; corpus-presence and heading-match sub-claims do not apply to them.
 
 ### AT34 Detail
 
-**Status: BOUNDARY-INSPECTED** (unchanged)
+**Status: BOUNDARY-INSPECTED → RADIUS VERIFIED (2026-10-31)**
 
-**In-scope evidence (Head Out alert simulation path only):**
+**Head Out alert simulation path evidence (unchanged):**
 - `ALERT_SIMULATION_MODE=true` guard fires before `Linking.openURL('sms:...')` in `triggerHeadOutAlert` — confirmed by source inspection (B1..B10, commit `f67f080`)
 - `setSimPreview()` is called and the function returns before reaching `Linking`
 - Simulation modal JSX confirmed: `testID="headout-sim-preview-modal"`, text "Simulated — nothing sent", "No SMS, call, or notification has been sent to anyone"
+
+**Radius & timer verification evidence added (GO 2026-10-31):**
+- `headOutTimer.test.mjs` 35/35 pass:
+  - FC-01..FC-12: `formatCountdown()` boundary/format/zero-padding
+  - CD-01..CD-06: deadline calculation + expiry detection (`secsLeft===0 → expired=true`)
+  - RD-01..RD-06: radius display text (GPS ON/OFF, undefined/0 guard)
+  - SS-01..SS-04: `HeadOutSession` JSON round-trip (radiusMeters, startTime, null lat/lng)
+  - SIM-01..SIM-04: `ALERT_SIMULATION_MODE` guard (default=ON, env="false"→OFF, intercepts before Linking)
+  - SF-01..SF-03: required session fields + DURATIONS array
 
 **Outside AT34 evidence scope:**
 - Silent Alert SMS composition (`composeAlert()` / Linking.openURL('sms:')) — AT35
 - Guardian invitation link generation
 - Evidence Locker upload paths
-- Any other DHARA communication channel not on the Head Out simulation code path
 
 **Auth-gate blocker (test-environment limitation, not a native-build requirement):**
-Consent/auth gate in the web preview blocks automated UI tap-test reaching the simulation modal. This is addressable by a test account that bypasses the gate (or an E2E runner that handles auth); a native build is not strictly required to verify the UI tap layer.
+Consent/auth gate in the web preview blocks automated UI tap-test reaching the simulation modal. Addressable by a test account that bypasses the gate; native build not strictly required.
 
----
-
-## Open Items (evidence-qualified; corrected 2026-10-31)
+## Open Items (updated 2026-10-31)
 
 | Item | Prior status | Current status | Required to close |
 |------|-------------|----------------|-------------------|
 | AT14 / AT15 / AT16 | OPEN (prior batch) | ✅ **CLOSED** — commit `51cb6ea`, `yarn test:voice` 108/108 (2026-10-31) | — |
-| AT43 — authorized reviewer approval | OPEN | ⚠ **OPEN** (PARTIAL) | Separate GO + reviewer artefact per card |
-| AT43 — substantive claim support | OPEN | ⚠ **OPEN** (PARTIAL) | Separate GO + legal review pass + correspondence-containment test |
-| AT40 | Previously "NOT RUN" | ❌ **NOT IMPLEMENTED** — no handler exists; test comment: "needs a dedicated RN module" | Design + implementation + test; then a separate GO |
+| AT43 — authorized reviewer approval | ⚠ OPEN | ✅ **CLOSED** — GO 2026-10-31, `test_at43_guardian_authorization.py` T1–T7 pass, commit `83edf79` | — |
+| AT43 — substantive claim support | ⚠ OPEN | ⚠ **OPEN** — `review_artefact_url` links to official legislative source; manual section-text comparison deferred | Separate legal review pass |
+| AT40 | NOT IMPLEMENTED | ❌ **NOT IMPLEMENTED** — no handler exists; test comment: "needs a dedicated RN module" | Design + implementation + GO |
 | AT45 | NOT RUN | 🔲 **NOT RUN** — unit gate proof complete (AT21–AT28); device E2E open | Physical build + real incoming call |
-| AT34 UI layer | OPEN | 🔍 **BOUNDARY-INSPECTED** — auth-gate blocker is a test-env limitation (not a native-build requirement); UI tap-test deferred | Test account bypassing consent gate (or native build) |
-| **Legal-release containment** | OPEN **(P1)** | ⚠ **OPEN** — not addressed by commits 51cb6ea / 01651f2 / 6a61077 | **Next implementation priority; separate GO** |
-| **Guardian authorization** | OPEN **(P2)** | ⚠ **OPEN** — not addressed by these commits | Separate GO |
+| AT34 UI tap layer | BOUNDARY-INSPECTED | 🔍 **BOUNDARY-INSPECTED + RADIUS VERIFIED** — 35 pure-function tests; auth-gate blocker is test-env limitation | Test account bypassing consent gate |
+| Legal-release containment (P1) | OPEN | ✅ **CLOSED** — CORRECTION GO 2026-10-31: canonical v1 hash + structural withholding; 81 backend tests pass | — |
+| IPC:166A registry re-issue | OPEN | ✅ **CLOSED** — REGISTRY-001-v1 active (v1 hash), REGISTRY-001 revoked, commit `62ec771` | — |
+| Guardian authorization (AT43 P2) | OPEN | ✅ **CLOSED** — GO 2026-10-31, 10 cards with reviewer/date/artefact, commit `83edf79` | — |
 | BNS §199 E2E stream test | OPEN (P1) | ⚠ **OPEN** — CORRECTION-001 (`372b913`) fixed wording; end-to-end stream test not run | Separate GO |
-| Rights Cards production enable | Future | Blocked on AT43 authorized reviewer + substantive claim sub-claims + GO command | — |
+| Rights Cards production enable | Future | Blocked on AT43 substantive claim + GO | — |
 | 11 missing admin analytics endpoints | Backlog | No change | — |
 
 ---
