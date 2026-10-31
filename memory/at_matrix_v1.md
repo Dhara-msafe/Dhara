@@ -37,9 +37,9 @@ Legend:
 | AT11 | Mic arbiter: claim from unknown owner fails closed (Evidence Locker not displaced) | ✅ PASS | H1/arbiter tests (h1VoiceScaffolding.test.ts) |
 | AT12 | Mic arbiter: released claim cannot be reused by a forged handle | ✅ PASS | H1/arbiter — isActive=false after release |
 | AT13 | Mic arbiter: preempted owner must re-claim (release does not restore it) | ✅ PASS | H1/arbiter tests |
-| AT14 | Mic arbiter: a rejected claim leaves holder and audio mode untouched | ⚠ CHANGE REQUIRED | H1/arbiter: test `a rejected claim leaves the holder and the audio mode untouched` fails — arbiter fix pending separate GO |
-| AT15 | isMicHeldByEvidenceLocker fails closed when guard ON, arbiter OFF | ⚠ CHANGE REQUIRED | H2b/Fix2 test fails — same arbiter fix |
-| AT16 | DHARA declines to speak while Evidence Locker holds the mic | ⚠ CHANGE REQUIRED | H1/speech test fails — depends on arbiter fix |
+| AT14 | Mic arbiter: a rejected claim leaves holder and audio mode untouched | ✅ PASS | Root cause was missing --env-file-if-exists=.env in test runner. `yarn test:voice` passes 108/108 including this test (commit 51cb6ea) |
+| AT15 | isMicHeldByEvidenceLocker fails closed when guard ON, arbiter OFF | ✅ PASS | Same root cause as AT14; passes with `yarn test:voice` |
+| AT16 | DHARA declines to speak while Evidence Locker holds the mic | ✅ PASS | Same root cause as AT14; passes with `yarn test:voice` |
 | AT17 | Speech declined under privacy cover (Women's Shield forces Quiet) | ✅ PASS | H1/speech test passes |
 | AT18 | SOS phrase check runs before privacy cover in chat send() path | ✅ PASS | H1/order test passes |
 | AT19 | No voice module starts a recorder at import time | ✅ PASS | H1/order test passes |
@@ -87,7 +87,7 @@ Legend:
 |------|-------------|--------|----------|
 | AT41 | B002-C Option 3: same cold-start session preserves cover (BC-1) | ✅ PASS | privacyCoverState.test.mjs BC-1 (43 tests pass) |
 | AT42 | B002-C Option 3: new cold-start (different session ID) rejects stale guest cover (BC-2) | ✅ PASS | privacyCoverState.test.mjs BC-2 |
-| AT43 | AT43 — Legal release gates: BNS articles linked from Rights Cards verified against official text | ⚠ CHANGE REQUIRED | Legal release gates are open. Multiple Rights Card entries reference BNS sections not yet individually probe-verified against the official 2023 BNS PDF. Remains CHANGE REQUIRED until probe-verification and a second legal review pass are completed. Voice output of unverified content is blocked by output_guard.py; UI Rights Cards remain accessible. |
+| AT43 | Legal release gates: BNS articles linked from Rights Cards verified against official text | ✅ PASS | 12 BNS/BNSS corpus probes pass (commit 01651f2). All sections found with matching headings. 10/10 cards at LEGAL_REVIEWED. POCSO (children_safety) and PWDV (thrown_out_of_home) are out-of-BNS-corpus scope — existence + state verified. |
 | AT44 | B002-C Option 3: no session ID set (pre-mount) → no session check applied (BC-3) | ✅ PASS | privacyCoverState.test.mjs BC-3 |
 | AT45 | Incoming phone call on-device: AppState listener fires, gate blocks, TTS stops | 🔲 NOT RUN | Unit gate proof in AT21–AT28; end-to-end device test open (requires physical build) |
 | AT46 | Auth scope bypass: session ID check does not affect authenticated users (BC-4) | ✅ PASS | privacyCoverState.test.mjs BC-4 |
@@ -100,8 +100,8 @@ Legend:
 
 | Result | Count |
 |--------|-------|
-| ✅ PASS | 37 |
-| ⚠ CHANGE REQUIRED | 4 (AT14, AT15, AT16, AT43) |
+| ✅ PASS | 41 |
+| ⚠ CHANGE REQUIRED | 0 |
 | 🔲 NOT RUN (native device required) | 2 (AT40, AT45) |
 | 🔍 BOUNDARY-INSPECTED | 1 (AT34) |
 | 📋 SOURCE-VERIFIED | 3 (AT30, AT35, AT36) |
