@@ -27,24 +27,34 @@ const CUTOFF = '2024-07-01';
 interface XRef {
   source:                   string;
   old_section:              string;
-  new_section:              string;
-  offence:                  string;
+  /**
+   * STRUCTURAL WITHHOLDING (DHARA P1 Step 3):
+   * When correspondence_approval !== "approved", the backend nulls out all
+   * substantive BNS mapping fields.  Frontend MUST treat null as "withheld"
+   * and MUST NOT render null fields as meaningful content.
+   * CONTRACT: NotYetApprovedBanner and non-null new_section are mutually
+   *           exclusive — the server ensures they can never coexist.
+   */
+  new_section:              string | null;
+  offence:                  string | null;
   change_type:              string;
-  what_changed:             string;
+  what_changed:             string | null;
   verified:                 boolean;
-  source_link?:             string;
-  judicial_citation?:       string;
+  source_link?:             string | null;
+  judicial_citation?:       string | null;
   dead_law?:                boolean;
+  review_status?:           string;
   /**
    * CORRESPONDENCE GATE (DHARA P1).
    * Value is the reason string from ApprovalCheckResult:
-   *   "approved"         — active, unrevoked, hash-matched registry record exists → show card
-   *   "missing_approval" — no registry record for this pair → show NotYetApprovedBanner
-   *   "revoked"          — approval was revoked → show NotYetApprovedBanner
-   *   "hash_mismatch"    — content hash changed → show NotYetApprovedBanner
-   *   "malformed"        — record structurally invalid → show NotYetApprovedBanner
-   *   "no_section"       — old/new section absent; gate not applicable → no banner
-   *   undefined          — server predates this field; degrade gracefully → no banner
+   *   "approved"                   — active, unrevoked, hash-matched registry record → show card
+   *   "missing_approval"           — no registry record for this pair → NotYetApprovedBanner
+   *   "revoked"                    — approval was revoked → NotYetApprovedBanner
+   *   "hash_mismatch"              — content hash changed → NotYetApprovedBanner
+   *   "malformed"                  — record structurally invalid → NotYetApprovedBanner
+   *   "no_section"                 — old/new section absent; gate not applicable → no banner
+   *   "withheld_pending_approval"  — server already withheld; treat same as missing_approval
+   *   undefined                    — server predates this field; degrade gracefully → no banner
    */
   correspondence_approval?: string;
 }
@@ -342,10 +352,15 @@ function ResultCard({ item }: { item: XRef }) {
         </View>
       </View>
 
-      {/* Offence */}
-      <Text style={rc.offence} numberOfLines={expanded ? undefined : 2}>
-        {item.offence}
-      </Text>
+      {/* Offence — DEFENSE IN DEPTH: never render if withheld.
+          Server already nulls offence when not approved; this guard is an
+          explicit second layer ensuring NotYetApprovedBanner can never
+          coexist with non-null offence text (contract invariant). */}
+      {!isWithheld && !!item.offence && (
+        <Text style={rc.offence} numberOfLines={expanded ? undefined : 2}>
+          {item.offence}
+        </Text>
+      )}
 
       {/* Explanation */}
       {expanded && item.what_changed ? (
