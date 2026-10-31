@@ -272,22 +272,34 @@ class TestRegistry001CorrespondenceGateBinding:
         "punishment_text": "Rigorous imprisonment of at least six months and up to two years, and fine",
     }
 
-    def test_401_ipc_166a_bns_199_approved_from_real_registry(self):
-        from engine.approval_evidence import check_section_correspondence_approval as _gate
+    def test_401_ipc_166a_bns_199_pending_since_p2_correction(self):
+        """P2 correction (2026-10-31): REGISTRY-001-v1 status changed from 'active'
+        to 'pending_human_review'.  The gate must NOT approve until a real human
+        reviewer completes out-of-band review and sets status='active'.
+
+        This test was previously test_401_ipc_166a_bns_199_approved_from_real_registry
+        (P1 batch: registry was active, expected approved=True).  Updated to reflect
+        the P2 correction state: pending_human_review → gate returns approved=False.
+        """
+        from engine.approval_evidence import check_section_correspondence_approval as _gate, _load_registry_data
+        _load_registry_data.cache_clear()
         result = _gate("IPC:166A", "BNS:199", canonical_record=self._CR)
-        assert result.approved is True, (
-            f"REGISTRY-001-v1 must approve IPC:166A→BNS:199 with canonical_record: {result}"
+        assert result.approved is False, (
+            f"REGISTRY-001-v1 is pending_human_review — must NOT approve: {result}"
         )
-        assert result.reviewer_id == "callistus-moses-founder", (
-            f"Reviewer ID mismatch: {result.reviewer_id}"
-        )
-        assert result.approval_id == "REGISTRY-001-v1-IPC166A-BNS199", (
-            f"Unexpected approval_id (v0 was revoked): {result.approval_id}"
+        assert result.reason == "pending_human_review", (
+            f"Expected reason='pending_human_review' (P2 correction), got {result.reason!r}"
         )
 
-    def test_402_ipc_166a_bns_199_reason_is_approved(self):
-        from engine.approval_evidence import check_section_correspondence_approval as _gate
-        assert _gate("IPC:166A", "BNS:199", canonical_record=self._CR).reason == "approved"
+    def test_402_ipc_166a_bns_199_reason_is_pending_human_review(self):
+        """P2 correction: reason must be 'pending_human_review', not 'approved'.
+        Was: test_402_ipc_166a_bns_199_reason_is_approved (P1 batch, now obsolete)."""
+        from engine.approval_evidence import check_section_correspondence_approval as _gate, _load_registry_data
+        _load_registry_data.cache_clear()
+        r = _gate("IPC:166A", "BNS:199", canonical_record=self._CR)
+        assert r.reason == "pending_human_review", (
+            f"Expected 'pending_human_review' (P2 correction), got {r.reason!r}"
+        )
 
     def test_403_unregistered_pair_fails_closed(self):
         from engine.approval_evidence import check_section_correspondence_approval as _gate
@@ -348,14 +360,19 @@ class TestCrossReferenceEndpointApprovalField:
     annotates each result with the correct correspondence_approval value.
     Uses the server module's internal function — no live HTTP call needed."""
 
-    def test_501_ipc_166a_result_has_approved_status(self):
-        """When IPC:166A is searched, the BNS:199 result must carry
-        correspondence_approval == 'approved'."""
-        import importlib, sys as _sys
-        # Reload server module with path already set
+    def test_501_ipc_166a_result_has_pending_status(self):
+        """P2 correction (2026-10-31): REGISTRY-001-v1 is pending_human_review.
+        The xref result for IPC:166A must show 'pending_human_review' for
+        correspondence_approval, NOT 'approved'.
+
+        Was: test_501_ipc_166a_result_has_approved_status (P1 batch, now obsolete).
+        """
+        import sys as _sys
         if "server" not in _sys.modules:
             import server  # noqa: F401
         import server as _srv  # noqa: F811
+        from engine.approval_evidence import _load_registry_data
+        _load_registry_data.cache_clear()
         results = _srv._xref_search(ipc="166A")
         matching = [r for r in results if r.get("old_section") == "166A"]
         assert matching, "IPC:166A must be in the cross-reference data"
@@ -363,8 +380,8 @@ class TestCrossReferenceEndpointApprovalField:
         assert "correspondence_approval" in r, (
             "correspondence_approval field missing from result"
         )
-        assert r["correspondence_approval"] == "approved", (
-            f"IPC:166A→BNS:199 should be 'approved' in the registry, "
+        assert r["correspondence_approval"] == "pending_human_review", (
+            f"IPC:166A→BNS:199 is pending_human_review (P2 correction); "
             f"got: {r['correspondence_approval']!r}"
         )
 
