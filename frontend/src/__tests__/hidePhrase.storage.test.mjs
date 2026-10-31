@@ -75,11 +75,18 @@ async function run() {
   if (failed) process.exit(1);
 }
 
-// ── PH-1: normalizePhrase trims and lowercases ────────────────────────────────
-test('PH-1: normalizePhrase trims whitespace and lowercases', () => {
+// ── PH-1: normalizePhrase trims, lowercases, and strips punctuation ──────────
+test('PH-1: normalizePhrase trims whitespace, lowercases, and strips punctuation', () => {
   assert.equal(normalizePhrase('  Blue Umbrella  '), 'blue umbrella');
-  assert.equal(normalizePhrase('CAN YOU BRING IT?'), 'can you bring it?');
+  // Question mark and other punctuation must be stripped (not preserved)
+  assert.equal(normalizePhrase('CAN YOU BRING IT?'), 'can you bring it');
   assert.equal(normalizePhrase('  '), '');
+  // Repeated spaces collapsed to one
+  assert.equal(normalizePhrase('blue  moon'), 'blue moon');
+  // Hyphens removed (no space substituted — this is a documented non-match)
+  assert.equal(normalizePhrase('blue-moon'), 'bluemoon');
+  // Unicode smart apostrophe stripped
+  assert.equal(normalizePhrase("didn\u2019t you?"), 'didnt you');
 });
 
 // ── PH-2: phrasesConflict is case-insensitive ─────────────────────────────────

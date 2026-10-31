@@ -49,7 +49,7 @@ import { t } from '@/src/i18n';
 import { MarqueeBanner } from '@/src/components/MarqueeBanner';
 import { verifiedLabel, isStale, STALE_WARNING_TEXT } from '@/src/citationStaleness';
 // ── Phase 1 + D1-V: Code-phrase and discreet-screen intercepts ───────────────
-import { getStoredPhrase, getHidePhrase, normalizePhrase } from '@/src/women/codePhraseStore';
+import { getStoredPhrase, getHidePhrase } from '@/src/women/codePhraseStore';
 import { isCodePhraseMatch } from '@/src/women/codePhraseMatcher';
 import { triggerSafetySequence } from '@/src/women/safetyTriggerCoordinator';
 import { useEvidenceRecorder } from '@/src/women/EvidenceRecorderProvider';
@@ -677,7 +677,7 @@ export default function ChatScreen() {
       if (process.env.EXPO_PUBLIC_SAFE_WORD_V1 === 'true') {
         try {
           const storedHide = await getHidePhrase();
-          if (storedHide && normalizePhrase(q) === normalizePhrase(storedHide)) {
+          if (storedHide && isCodePhraseMatch(q, storedHide)) {
             const d1Scope = user?.id || 'device';
             // activateCover() sets the in-memory flag IMMEDIATELY (synchronous
             // _active = true + listener emit) then persists to AsyncStorage

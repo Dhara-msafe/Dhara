@@ -91,7 +91,11 @@ export default function CodePhrase() {
   }, [scope]);
 
   // ── SOS phrase actions ───────────────────────────────────────────────────────
+  const [saveStorageError, setSaveStorageError] = useState<string | null>(null);
+
   const save = async () => {
+    // Web: double-guard — the Save button is replaced on web, but defend here too.
+    if (Platform.OS === 'web') return;
     const trimmedPhrase = phrase.trim();
     // Reverse bidirectional guard: compare the new SOS input against the
     // PERSISTED hide phrase (not the in-state hidePhrase, which may be unsaved).
@@ -103,19 +107,49 @@ export default function CodePhrase() {
       }
     }
     setSosConflictsWithHide(false);
-    await storePhrase(trimmedPhrase);
-    setArmed(trimmedPhrase.length > 0);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaveStorageError(null);
+
+    const result = await storePhrase(trimmedPhrase);
+
+    switch (result.outcome) {
+      case 'saved':
+        // Only set ARMED after the store confirms the phrase was written AND
+        // verified via immediate readback. Never set ARMED on any other outcome.
+        setArmed(trimmedPhrase.length > 0);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+        return;
+
+      case 'unsupported_platform':
+        // Should not reach here (web guard above), but be defensive.
+        return;
+
+      case 'no_identity':
+        setSaveStorageError('Sign in to save your phrase securely on this device.');
+        return;
+
+      case 'storage_failure':
+        setSaveStorageError('Could not save. Please check available storage and try again.');
+        return;
+
+      case 'verification_failure':
+        setSaveStorageError('Phrase saved but readback failed — please try again.');
+        return;
+    }
   };
 
   const clear = async () => {
+    if (Platform.OS === 'web') return;
     setPhrase('');
-    await storePhrase('');
-    setArmed(false);
+    setSaveStorageError(null);
     setSosConflictsWithHide(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    const result = await storePhrase('');
+    // Always clear UI state regardless of storage outcome — the user's intent is clear.
+    setArmed(false);
+    if (result.outcome === 'saved') {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }
   };
 
   // ── Discreet-screen phrase actions ──────────────────────────────────────────
@@ -198,7 +232,7 @@ export default function CodePhrase() {
         <Text style={styles.note}>
           Choose a normal-sounding sentence. When you type it in Ask DHARA, it will
           request microphone permission if not already granted, then immediately begin
-          local recording \u2014 and prepare your Silent Alert without anyone noticing.
+          local recording {'—'} and prepare your Silent Alert without anyone noticing.
           Stored only on this phone, encrypted.
         </Text>
 
@@ -206,7 +240,8 @@ export default function CodePhrase() {
           <View style={styles.webNotice}>
             <Ionicons name="phone-portrait-outline" size={16} color={c.muted} />
             <Text style={styles.webNoticeTxt}>
-              Secure on-device storage for the code phrase needs the DHARA mobile app \u2014 it cannot be saved from this web preview.
+              Secure on-device phrase storage is only available in the DHARA mobile app.
+              The phrase cannot be saved or activated from a web browser.
             </Text>
           </View>
         )}
@@ -222,19 +257,39 @@ export default function CodePhrase() {
           </View>
         )}
 
+        {/* Storage error notice */}
+        {saveStorageError && (
+          <View style={[styles.conflictNotice, { borderColor: c.emergencyRed }]}>
+            <Ionicons name="warning-outline" size={16} color={c.emergencyRed} />
+            <Text style={[styles.conflictNoticeTxt, { color: c.emergencyRed }]}>{saveStorageError}</Text>
+          </View>
+        )}
+
         <TextInput
           value={phrase}
-          onChangeText={v => { setPhrase(v); setSosConflictsWithHide(false); }}
-          placeholder="Type your code phrase"
+          onChangeText={v => { if (Platform.OS !== 'web') { setPhrase(v); setSosConflictsWithHide(false); setSaveStorageError(null); } }}
+          placeholder={Platform.OS === 'web' ? 'Phrase input unavailable on web' : 'Type your code phrase'}
           placeholderTextColor={c.muted}
-          style={[styles.input, sosConflictsWithHide && styles.inputConflict]}
+          style={[styles.input, sosConflictsWithHide && styles.inputConflict, Platform.OS === 'web' && { opacity: 0.45 }]}
           multiline
+          editable={Platform.OS !== 'web'}
         />
-        <Pressable style={styles.saveBtn} onPress={save}>
-          <Ionicons name={saved ? 'checkmark-circle' : 'lock-closed-outline'} size={18} color="#fff" />
-          <Text style={styles.saveTxt}>{saved ? 'Saved' : 'Save code phrase'}</Text>
-        </Pressable>
-        {armed && (
+
+        {/* On web: replace Save with a capability notice — do NOT show ARMED */}
+        {Platform.OS === 'web' ? (
+          <View style={styles.webSaveReplace}>
+            <Ionicons name="phone-portrait-outline" size={16} color={c.muted} />
+            <Text style={styles.webSaveReplaceTxt}>Available in the DHARA mobile app</Text>
+          </View>
+        ) : (
+          <Pressable style={styles.saveBtn} onPress={save}>
+            <Ionicons name={saved ? 'checkmark-circle' : 'lock-closed-outline'} size={18} color="#fff" />
+            <Text style={styles.saveTxt}>{saved ? 'Saved' : 'Save code phrase'}</Text>
+          </Pressable>
+        )}
+
+        {/* Remove phrase — only shown when truly armed (storage confirmed) and on native */}
+        {armed && Platform.OS !== 'web' && (
           <Pressable style={styles.clearBtn} onPress={clear}>
             <Ionicons name="trash-outline" size={16} color={c.emergencyRed} />
             <Text style={styles.clearTxt}>Remove code phrase</Text>
@@ -279,7 +334,7 @@ export default function CodePhrase() {
 
         <Text style={styles.note}>
           A normal-sounding sentence. When you type it in Ask DHARA, the screen instantly switches
-          to private view \u2014 hiding any sensitive content. Nothing is sent to the chat or legal
+          to private view {'—'} hiding any sensitive content. Nothing is sent to the chat or legal
           engine.
         </Text>
 
@@ -287,7 +342,7 @@ export default function CodePhrase() {
           <View style={styles.webNotice}>
             <Ionicons name="phone-portrait-outline" size={16} color={c.muted} />
             <Text style={styles.webNoticeTxt}>
-              Privacy phrase storage requires the DHARA mobile app \u2014 it cannot be saved from this web preview.
+              Privacy phrase storage requires the DHARA mobile app. It cannot be saved from a web browser.
             </Text>
           </View>
         )}
@@ -348,7 +403,7 @@ export default function CodePhrase() {
           <Ionicons name="lock-closed-outline" size={18} color={c.onBrandPrimary} />
           <Text style={[styles.tipTxt, { color: c.onBrandPrimary }]}>
             Stored in OS-protected device storage (authenticated users) or device memory only (guest).
-            Phrase matching happens entirely on this phone \u2014 never logged, never sent to any server.
+            Phrase matching happens entirely on this phone {'—'} never logged, never sent to any server.
           </Text>
         </View>
 
@@ -386,6 +441,8 @@ const styles = StyleSheet.create({
   // Web / error / conflict notices
   webNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 12, padding: 12, marginBottom: 14 },
   webNoticeTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 17 },
+  webSaveReplace: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 12, paddingVertical: 15, marginTop: 14 },
+  webSaveReplaceTxt: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted },
   errorNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#fff5f5', borderWidth: 1, borderColor: '#fecaca', borderRadius: 12, padding: 12, marginBottom: 14 },
   errorNoticeTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12, color: c.emergencyRed, lineHeight: 17 },
   conflictNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fcd34d', borderRadius: 12, padding: 12, marginBottom: 14 },

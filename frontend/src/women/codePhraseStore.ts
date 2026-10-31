@@ -120,6 +120,9 @@ async function _quarantineLegacyOnce(): Promise<void> {
 }
 
 export async function getStoredPhrase(): Promise<string> {
+  // expo-secure-store has no web implementation — return '' early so we never
+  // waste multiple failed SecureStore calls on web.
+  if (Platform.OS === 'web') return '';
   await _quarantineLegacyOnce();
   try {
     const key = await _scopedKeyOrNull();
@@ -130,32 +133,79 @@ export async function getStoredPhrase(): Promise<string> {
   }
 }
 
-export async function storePhrase(phrase: string): Promise<void> {
+// ── StorePhraseResult ─────────────────────────────────────────────────────────
+
+/**
+ * Explicit result type returned by storePhrase().
+ *
+ *  saved                — phrase written AND immediately read back from the
+ *                         secure store; normalised readback matches the input.
+ *  unsupported_platform — SecureStore has no web implementation; the phrase
+ *                         was NOT persisted; the UI must NOT show ARMED.
+ *  no_identity          — No signed-in user and no device key: saving fails
+ *                         closed. The UI must NOT show ARMED.
+ *  storage_failure      — SecureStore threw an unexpected error.
+ *  verification_failure — Wrote successfully but the immediate readback did
+ *                         not match the normalised input; indicates a corrupt
+ *                         or race-condition write. The UI must NOT show ARMED.
+ */
+export type StorePhraseResult =
+  | { outcome: 'saved'; stored: string }
+  | { outcome: 'unsupported_platform' }
+  | { outcome: 'no_identity' }
+  | { outcome: 'storage_failure' }
+  | { outcome: 'verification_failure' };
+
+export async function storePhrase(phrase: string): Promise<StorePhraseResult> {
+  // expo-secure-store has NO web implementation.  Return an explicit result so
+  // the UI can show a capability notice instead of silently showing ARMED.
+  if (Platform.OS === 'web') {
+    return { outcome: 'unsupported_platform' };
+  }
+
   const trimmed = phrase.trim();
   const key = await _scopedKeyOrNull();
-  if (!key) return;   // fail closed — refuse to persist without a known identity
-  // expo-secure-store has NO web implementation — every SecureStore call below is
-  // wrapped so this fails SOFT (silently does not persist) on web instead of
-  // throwing an uncaught rejection that crashes the screen.
+
+  if (!key) {
+    // Clearing with no identity is a no-op (nothing was stored), treat as success.
+    if (!trimmed) return { outcome: 'saved', stored: '' };
+    // Saving without an identity fails closed.
+    return { outcome: 'no_identity' };
+  }
+
   try {
     if (!trimmed) {
+      // ── Clearing ───────────────────────────────────────────────────────────
       await SecureStore.deleteItemAsync(key);
       await appendAuditEntry('CODE_PHRASE_CLEARED');
       await appendAuditEntry('CODE_PHRASE_DISARMED');
-      return;
+      return { outcome: 'saved', stored: '' };
     }
-    // Distinguish first-time config from update
+
+    // ── Saving ───────────────────────────────────────────────────────────────
+    // Distinguish first-time config from update (for audit log granularity).
     let isFirst = false;
     try {
       const existing = await SecureStore.getItemAsync(key);
       isFirst = !existing || !existing.trim();
     } catch { isFirst = false; }
+
     await SecureStore.setItemAsync(key, trimmed);
+
+    // Immediate read-back verification: the phrase is only considered saved —
+    // and the UI may only show ARMED — when the readback matches the input
+    // after normalisation.  This catches write failures that do not throw
+    // (e.g. Keychain quota exceeded on some iOS versions).
+    const readBack = await SecureStore.getItemAsync(key);
+    if (!readBack || normalizePhrase(readBack) !== normalizePhrase(trimmed)) {
+      return { outcome: 'verification_failure' };
+    }
+
     await appendAuditEntry(isFirst ? 'CODE_PHRASE_CONFIGURED' : 'CODE_PHRASE_CHANGED');
     await appendAuditEntry('CODE_PHRASE_ARMED');
+    return { outcome: 'saved', stored: trimmed };
   } catch {
-    // Web-preview-only no-op (see comment above). Native builds do not hit
-    // this catch under normal operation.
+    return { outcome: 'storage_failure' };
   }
 }
 
