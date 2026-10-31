@@ -25,16 +25,28 @@ const CUTOFF = '2024-07-01';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface XRef {
-  source:            string;
-  old_section:       string;
-  new_section:       string;
-  offence:           string;
-  change_type:       string;
-  what_changed:      string;
-  verified:          boolean;
-  source_link?:      string;
-  judicial_citation?: string;
-  dead_law?:         boolean;
+  source:                   string;
+  old_section:              string;
+  new_section:              string;
+  offence:                  string;
+  change_type:              string;
+  what_changed:             string;
+  verified:                 boolean;
+  source_link?:             string;
+  judicial_citation?:       string;
+  dead_law?:                boolean;
+  /**
+   * CORRESPONDENCE GATE (DHARA P1).
+   * Value is the reason string from ApprovalCheckResult:
+   *   "approved"         — active, unrevoked, hash-matched registry record exists → show card
+   *   "missing_approval" — no registry record for this pair → show NotYetApprovedBanner
+   *   "revoked"          — approval was revoked → show NotYetApprovedBanner
+   *   "hash_mismatch"    — content hash changed → show NotYetApprovedBanner
+   *   "malformed"        — record structurally invalid → show NotYetApprovedBanner
+   *   "no_section"       — old/new section absent; gate not applicable → no banner
+   *   undefined          — server predates this field; degrade gracefully → no banner
+   */
+  correspondence_approval?: string;
 }
 interface CitationGuard {
   database_only:        boolean;
@@ -228,6 +240,38 @@ function UnverifiedBanner() {
   );
 }
 
+// ── Guard E: "Not yet approved" banner (DHARA P1 legal-release containment) ──
+// Rendered whenever correspondence_approval is a non-empty value OTHER THAN
+// "approved" or "no_section".  The card body is still rendered so the user
+// sees what section is being discussed; only the correspondence CLAIM is flagged
+// as withheld — consistent with the server returning the record but marking it
+// unapproved, rather than deleting it entirely.
+function _needsApprovalBanner(ca: string | undefined): boolean {
+  if (!ca || ca === 'approved' || ca === 'no_section') return false;
+  return true;
+}
+
+function NotYetApprovedBanner({ reason }: { reason: string }) {
+  const isRevoked = reason === 'revoked';
+  return (
+    <View style={na.banner}>
+      <View style={na.iconWrap}>
+        <Ionicons name="lock-closed-outline" size={14} color="#3730A3" />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={na.title}>
+          {isRevoked ? 'Approval revoked' : 'Not yet approved'}
+        </Text>
+        <Text style={na.sub}>
+          {isRevoked
+            ? 'The legal reviewer\'s approval for this correspondence was revoked. This claim is withheld pending re-review.'
+            : 'This IPC → BNS correspondence has not yet been approved by an authorized legal reviewer. The correspondence claim is withheld until sign-off is obtained.'}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 // ── Result card ───────────────────────────────────────────────────────────────
 function ResultCard({ item }: { item: XRef }) {
   // Hook must be called unconditionally (Rules of Hooks)
@@ -237,13 +281,24 @@ function ResultCard({ item }: { item: XRef }) {
   if (item.change_type === 'dead_law' || item.dead_law) {
     return <DeadLawBanner item={item} />;
   }
+
+  // Guard E: correspondence not yet approved — render card frame but withhold
+  // the section claim (replace new_section with withheld placeholder).
+  const corrApproval = item.correspondence_approval;
+  const isWithheld   = _needsApprovalBanner(corrApproval);
+
   const meta      = changeMeta(item.change_type);
-  const hasNewSec = hasBnsEquivalent(item.new_section); // Guard B
+  // Guard B: a withheld card has no trustworthy new_section to display
+  const hasNewSec = !isWithheld && hasBnsEquivalent(item.new_section);
 
   return (
     <Pressable style={rc.card} onPress={() => setExpanded(e => !e)}>
-      {/* Guard C: unverified banner */}
-      {!item.verified && <UnverifiedBanner />}
+      {/* Guard E: not-yet-approved — rendered FIRST so it is always visible */}
+      {isWithheld && <NotYetApprovedBanner reason={corrApproval!} />}
+
+      {/* Guard C: unverified banner — only shown when NOT withheld, to avoid
+          stacking two warning banners on the same card */}
+      {!item.verified && !isWithheld && <UnverifiedBanner />}
 
       {/* Source + change-type badges */}
       <View style={rc.sourceRow}>
@@ -261,24 +316,28 @@ function ResultCard({ item }: { item: XRef }) {
         </View>
       </View>
 
-      {/* Section numbers — Guard B */}
+      {/* Section numbers — Guard B + Guard E */}
       <View style={rc.secRow}>
         <View style={rc.secBox}>
           <Text style={rc.secLabel}>Old Section</Text>
           <Text style={rc.secNum}>{item.old_section || '—'}</Text>
         </View>
         <Ionicons
-          name="arrow-forward" size={18}
-          color={hasNewSec ? NAVY : '#B91C1C'}
+          name={isWithheld ? 'lock-closed' : 'arrow-forward'} size={18}
+          color={isWithheld ? '#6366F1' : hasNewSec ? NAVY : '#B91C1C'}
           style={{ marginTop: 14 }}
         />
-        <View style={[rc.secBox, !hasNewSec && rc.secBoxDeleted]}>
-          <Text style={rc.secLabel}>{hasNewSec ? 'New Section' : 'Status'}</Text>
-          {hasNewSec
-            ? <Text style={rc.secNum}>{item.new_section}</Text>
-            : <Text style={[rc.secNum, { color: '#B91C1C', fontSize: 13, lineHeight: 18 }]}>
-                Deleted{'\n'}No BNS equiv.
+        <View style={[rc.secBox, !hasNewSec && !isWithheld && rc.secBoxDeleted, isWithheld && rc.secBoxWithheld]}>
+          <Text style={rc.secLabel}>{isWithheld ? 'Status' : hasNewSec ? 'New Section' : 'Status'}</Text>
+          {isWithheld
+            ? <Text style={[rc.secNum, { color: '#6366F1', fontSize: 11, lineHeight: 16 }]}>
+                Not yet{'\n'}approved
               </Text>
+            : hasNewSec
+              ? <Text style={rc.secNum}>{item.new_section}</Text>
+              : <Text style={[rc.secNum, { color: '#B91C1C', fontSize: 13, lineHeight: 18 }]}>
+                  Deleted{'\n'}No BNS equiv.
+                </Text>
           }
         </View>
       </View>
@@ -717,6 +776,7 @@ const rc = StyleSheet.create({
     padding: 10, alignItems: 'center',
   },
   secBoxDeleted: { backgroundColor: '#FEF2F2' },
+  secBoxWithheld: { backgroundColor: '#EEF2FF' },
   secLabel: {
     fontSize: 10, color: '#9CA3AF', fontWeight: '600',
     textTransform: 'uppercase', marginBottom: 3,
@@ -735,6 +795,24 @@ const rc = StyleSheet.create({
     marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#F3F4F6',
   },
   srcLinkTxt: { fontSize: 11, color: theme.colors.primary, textDecorationLine: 'underline' },
+});
+
+// ── Not-yet-approved banner styles (Guard E, DHARA P1) ────────────────────────
+const na = StyleSheet.create({
+  banner: {
+    flexDirection: 'row', gap: 8, alignItems: 'flex-start',
+    backgroundColor: '#EEF2FF',
+    borderRadius: 8, padding: 10,
+    borderLeftWidth: 3, borderLeftColor: '#6366F1', marginBottom: 8,
+  },
+  iconWrap: {
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: '#C7D2FE',
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    marginTop: 1,
+  },
+  title: { fontSize: 12, fontWeight: '800', color: '#3730A3', marginBottom: 2 },
+  sub:   { fontSize: 11, color: '#4338CA', lineHeight: 16 },
 });
 
 // ── Dead-Law banner styles ─────────────────────────────────────────────────────
