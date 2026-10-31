@@ -76,39 +76,47 @@ _V1_HASH = compute_canonical_record_hash(_CANONICAL_166A_199)  # 1787743a...
 
 
 def _make_v0_record(**overrides) -> dict:
-    """Factory for a syntactically valid v0 (string-hash) correspondence record."""
+    """Factory for a syntactically valid v0 (string-hash) correspondence record.
+    Includes all active-approval required fields (approved_at, artifact)."""
     base = {
-        "approval_id":   "SYNTHETIC-V0-166A-199",
-        "batch":         "SYNTHETIC",
-        "record_type":   "correspondence",
-        "subject_key":   "IPC:166A->BNS:199",
-        "section_from":  "IPC:166A",
-        "section_to":    "BNS:199",
-        "content_hash":  _V0_HASH,
-        "reviewer_id":   "callistus-moses-founder",
-        "status":        "active",
-        "revoked":       False,
-        "revoked_at":    None,
+        "approval_id":          "SYNTHETIC-V0-166A-199",
+        "batch":                "SYNTHETIC",
+        "record_type":          "correspondence",
+        "subject_key":          "IPC:166A->BNS:199",
+        "section_from":         "IPC:166A",
+        "section_to":           "BNS:199",
+        "content_hash":         _V0_HASH,
+        "reviewer_id":          "callistus-moses-founder",
+        "status":               "active",
+        "revoked":              False,
+        "revoked_at":           None,
+        "approved_at":          "2026-10-31T00:00:00+00:00",
+        "review_artifact_id":   "SYNTH-ART-V0-001",
+        "review_artifact_digest": "sha256:000000000000000000000000000000000000000000000000000000000000cafe",
     }
     base.update(overrides)
     return base
 
 
 def _make_v1_record(**overrides) -> dict:
-    """Factory for a syntactically valid v1 (canonical-hash) correspondence record."""
+    """Factory for a syntactically valid v1 (canonical-hash) correspondence record.
+    Includes all active-approval required fields (approved_at, artifact)."""
     base = {
-        "approval_id":    "SYNTHETIC-V1-166A-199",
-        "batch":          "SYNTHETIC",
-        "record_type":    "correspondence",
-        "subject_key":    "IPC:166A->BNS:199",
-        "section_from":   "IPC:166A",
-        "section_to":     "BNS:199",
-        "schema_version": "v1",
-        "content_hash":   _V1_HASH,
-        "reviewer_id":    "callistus-moses-founder",
-        "status":         "active",
-        "revoked":        False,
-        "revoked_at":     None,
+        "approval_id":          "SYNTHETIC-V1-166A-199",
+        "batch":                "SYNTHETIC",
+        "record_type":          "correspondence",
+        "subject_key":          "IPC:166A->BNS:199",
+        "section_from":         "IPC:166A",
+        "section_to":           "BNS:199",
+        "schema_version":       "v1",
+        "content_hash":         _V1_HASH,
+        "reviewer_id":          "callistus-moses-founder",
+        "status":               "active",
+        "revoked":              False,
+        "revoked_at":           None,
+        "approved_at":          "2026-10-31T00:00:00+00:00",
+        "review_artifact_id":   "SYNTH-ART-V1-001",
+        "review_artifact_digest": "sha256:000000000000000000000000000000000000000000000000000000000000cafe",
     }
     base.update(overrides)
     return base
@@ -288,8 +296,7 @@ class TestFailClosedMatrix:
             "IPC:166A", "BNS:199", registry=[rec]
         )
         assert result.approved is False, "revoked_at set must fail closed"
-        assert result.reason == "revoked", f"Expected 'revoked', got {result.reason!r}"
-
+        assert result.reason == "revoked_approval", f"Expected 'revoked_approval', got {result.reason!r}"
     # ── 603: Revoked approval (status = "revoked") ─────────────────────────
 
     def test_603_status_revoked_fails_closed(self):
@@ -298,8 +305,7 @@ class TestFailClosedMatrix:
             "IPC:166A", "BNS:199", registry=[rec]
         )
         assert result.approved is False, "status='revoked' must fail closed"
-        assert result.reason == "revoked", f"Expected 'revoked', got {result.reason!r}"
-
+        assert result.reason == "revoked_approval", f"Expected 'revoked_approval', got {result.reason!r}"
     # ── 604: v0 hash mismatch ─────────────────────────────────────────────
 
     def test_604_v0_hash_mismatch_fails_closed(self):
@@ -555,8 +561,8 @@ class TestStructuralWithholdingContract:
             f"IPC:302 must have missing_approval, got {r302['correspondence_approval']!r}"
         )
         # IPC:166A: REGISTRY-001-v1 status = pending_human_review → gate returns "revoked"
-        assert r166a["correspondence_approval"] == "revoked", (
-            f"IPC:166A must have 'revoked' (pending_human_review status), "
+        assert r166a["correspondence_approval"] == "pending_human_review", (
+            f"IPC:166A must have 'pending_human_review' (pending status), "
             f"got {r166a['correspondence_approval']!r}"
         )
 
@@ -615,6 +621,6 @@ class TestStructuralWithholdingContract:
         assert result.approved is False, (
             f"REGISTRY-001-v1 (pending_human_review) must NOT approve: {result}"
         )
-        assert result.reason == "revoked", (
-            f"Expected reason='revoked' (status != active), got {result.reason!r}"
+        assert result.reason == "pending_human_review", (
+            f"Expected reason='pending_human_review' (status != active), got {result.reason!r}"
         )

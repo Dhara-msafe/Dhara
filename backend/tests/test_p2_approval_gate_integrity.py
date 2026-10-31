@@ -9,19 +9,19 @@ Test IDs
 A01 — active authorized reviewer, correct hash          → approved
 A02 — UNKNOWN_REVIEWER (not in allowlist)               → unauthorized_reviewer
 A03 — reviewer absent from allowlist                    → unauthorized_reviewer
-A04 — inactive reviewer (status != 'active')            → unauthorized_reviewer
-A05 — revoked reviewer (revoked=True)                   → unauthorized_reviewer
-A06 — revoked reviewer (status='revoked')               → unauthorized_reviewer
+A04 — inactive reviewer (status != 'active')            → inactive_reviewer
+A05 — revoked reviewer (revoked=True)                   → revoked_reviewer
+A06 — revoked reviewer (status='revoked')               → revoked_reviewer
 A07 — empty allowlist                                    → unauthorized_reviewer
 A08 — allowlist with only malformed entries              → unauthorized_reviewer
-A09 — duplicate reviewer entries                         → unauthorized_reviewer
-A10 — active approval with inactive reviewer             → unauthorized_reviewer
-A11 — active approval with revoked reviewer              → unauthorized_reviewer
-A12 — pending_human_review status (correct hash+AR)     → revoked
-A13 — revoked approval (authorized reviewer)             → revoked
+A09 — duplicate reviewer entries                         → conflicting_registry_records
+A10 — active approval with inactive reviewer             → inactive_reviewer
+A11 — active approval with revoked reviewer              → revoked_reviewer
+A12 — pending_human_review status (correct hash+AR)     → pending_human_review
+A13 — revoked approval (authorized reviewer)             → revoked_approval
 A14 — correct v1 hash + authorized reviewer              → approved
 A15 — incorrect v1 hash + authorized reviewer            → hash_mismatch
-A16 — _load_registry_data load_error path               → unauthorized_reviewer
+A16 — _load_registry_data load_error path               → registry_unavailable
 
 Structural withholding (REGISTRY-001-v1 is pending_human_review):
 A17 — IPC:166A new_section withheld (null) via _xref_search
@@ -93,17 +93,20 @@ _STATUS_REVOKED_REVIEWER = {**_ACTIVE_REVIEWER, "status": "revoked"}
 
 def _base_v0_rec(**overrides) -> dict:
     base = {
-        "approval_id":  "SYNTH-V0",
-        "batch":        "SYNTH",
-        "record_type":  "correspondence",
-        "subject_key":  "IPC:166A->BNS:199",
-        "section_from": "IPC:166A",
-        "section_to":   "BNS:199",
-        "content_hash": _V0_HASH,
-        "reviewer_id":  "callistus-moses-founder",
-        "status":       "active",
-        "revoked":      False,
-        "revoked_at":   None,
+        "approval_id":          "SYNTH-V0",
+        "batch":                "SYNTH",
+        "record_type":          "correspondence",
+        "subject_key":          "IPC:166A->BNS:199",
+        "section_from":         "IPC:166A",
+        "section_to":           "BNS:199",
+        "content_hash":         _V0_HASH,
+        "reviewer_id":          "callistus-moses-founder",
+        "status":               "active",
+        "revoked":              False,
+        "revoked_at":           None,
+        "approved_at":          "2026-10-31T00:00:00+00:00",
+        "review_artifact_id":   "SYNTH-ART-001",
+        "review_artifact_digest": "sha256:deadbeef00000000000000000000000000000000000000000000000000001234",
     }
     base.update(overrides)
     return base
@@ -111,18 +114,21 @@ def _base_v0_rec(**overrides) -> dict:
 
 def _base_v1_rec(**overrides) -> dict:
     base = {
-        "approval_id":    "SYNTH-V1",
-        "batch":          "SYNTH",
-        "record_type":    "correspondence",
-        "subject_key":    "IPC:166A->BNS:199",
-        "section_from":   "IPC:166A",
-        "section_to":     "BNS:199",
-        "schema_version": "v1",
-        "content_hash":   _V1_HASH,
-        "reviewer_id":    "callistus-moses-founder",
-        "status":         "active",
-        "revoked":        False,
-        "revoked_at":     None,
+        "approval_id":          "SYNTH-V1",
+        "batch":                "SYNTH",
+        "record_type":          "correspondence",
+        "subject_key":          "IPC:166A->BNS:199",
+        "section_from":         "IPC:166A",
+        "section_to":           "BNS:199",
+        "schema_version":       "v1",
+        "content_hash":         _V1_HASH,
+        "reviewer_id":          "callistus-moses-founder",
+        "status":               "active",
+        "revoked":              False,
+        "revoked_at":           None,
+        "approved_at":          "2026-10-31T00:00:00+00:00",
+        "review_artifact_id":   "SYNTH-ART-V1-001",
+        "review_artifact_digest": "sha256:deadbeef00000000000000000000000000000000000000000000000000005678",
     }
     base.update(overrides)
     return base
@@ -179,7 +185,7 @@ class TestReviewerIdentityGate:
         """A reviewer whose status != 'active' must fail."""
         r = _gate(_base_v0_rec(), [_INACTIVE_REVIEWER])
         assert r.approved is False, "A04: inactive reviewer must fail closed"
-        assert r.reason == "unauthorized_reviewer"
+        assert r.reason == "inactive_reviewer"
 
     # ── A05: revoked reviewer (revoked=True) ──────────────────────────────
 
@@ -187,7 +193,7 @@ class TestReviewerIdentityGate:
         """A reviewer with revoked=True must fail."""
         r = _gate(_base_v0_rec(), [_REVOKED_REVIEWER])
         assert r.approved is False, "A05: revoked reviewer must fail closed"
-        assert r.reason == "unauthorized_reviewer"
+        assert r.reason == "revoked_reviewer"
 
     # ── A06: revoked reviewer (status='revoked') ──────────────────────────
 
@@ -195,7 +201,7 @@ class TestReviewerIdentityGate:
         """A reviewer with status='revoked' must fail."""
         r = _gate(_base_v0_rec(), [_STATUS_REVOKED_REVIEWER])
         assert r.approved is False, "A06: reviewer status=revoked must fail"
-        assert r.reason == "unauthorized_reviewer"
+        assert r.reason == "revoked_reviewer"
 
     # ── A07: empty allowlist → unauthorized_reviewer ──────────────────────
 
@@ -220,7 +226,7 @@ class TestReviewerIdentityGate:
         duplicate_ar = [_ACTIVE_REVIEWER, {**_ACTIVE_REVIEWER}]  # two identical
         r = _gate(_base_v0_rec(), duplicate_ar)
         assert r.approved is False, "A09: duplicate reviewer entries must fail closed"
-        assert r.reason == "unauthorized_reviewer"
+        assert r.reason == "conflicting_registry_records"
 
     # ── A10: active approval + inactive reviewer → unauthorized_reviewer ──
 
@@ -228,7 +234,7 @@ class TestReviewerIdentityGate:
         """Active approval record but inactive reviewer must fail."""
         r = _gate(_base_v0_rec(status="active"), [_INACTIVE_REVIEWER])
         assert r.approved is False, "A10: active approval + inactive reviewer must fail"
-        assert r.reason == "unauthorized_reviewer"
+        assert r.reason == "inactive_reviewer"
 
     # ── A11: active approval + revoked reviewer → unauthorized_reviewer ───
 
@@ -236,7 +242,7 @@ class TestReviewerIdentityGate:
         """Active approval record but revoked reviewer must fail."""
         r = _gate(_base_v0_rec(status="active"), [_REVOKED_REVIEWER])
         assert r.approved is False, "A11: active approval + revoked reviewer must fail"
-        assert r.reason == "unauthorized_reviewer"
+        assert r.reason == "revoked_reviewer"
 
     # ── A12: pending status → revoked ─────────────────────────────────────
 
@@ -244,8 +250,8 @@ class TestReviewerIdentityGate:
         """An approval with status='pending_human_review' must fail closed."""
         r = _gate(_base_v0_rec(status="pending_human_review"), [_ACTIVE_REVIEWER])
         assert r.approved is False, "A12: pending_human_review must fail closed"
-        assert r.reason == "revoked", (
-            f"A12: expected 'revoked' (status != active), got {r.reason!r}"
+        assert r.reason == "pending_human_review", (
+            f"A12: expected 'pending_human_review', got {r.reason!r}"
         )
 
     # ── A13: revoked approval (authorized reviewer) → revoked ─────────────
@@ -254,7 +260,7 @@ class TestReviewerIdentityGate:
         """Even an authorized reviewer's approval that is revoked must fail."""
         r = _gate(_base_v0_rec(status="revoked"), [_ACTIVE_REVIEWER])
         assert r.approved is False, "A13: revoked approval must fail"
-        assert r.reason == "revoked"
+        assert r.reason == "revoked_approval"
 
     # ── A14: correct v1 hash + authorized reviewer → approved ─────────────
 
@@ -290,7 +296,8 @@ class TestReviewerIdentityGate:
     def test_A16_registry_load_error_fails_closed(self, monkeypatch):
         """When _load_registry_data() returns a load_error, all checks fail closed."""
         bad_data = RegistryData(
-            approvals=[], authorized_reviewers=[], load_error="simulated I/O failure"
+            approvals=[], authorized_reviewers=[], load_error="simulated I/O failure",
+            load_error_reason="registry_unavailable"
         )
         _load_registry_data.cache_clear()
         monkeypatch.setattr(
@@ -300,8 +307,8 @@ class TestReviewerIdentityGate:
         # Call WITHOUT registry override so production path is used
         r = check_section_correspondence_approval("IPC:166A", "BNS:199")
         assert r.approved is False, "A16: load_error must fail closed"
-        assert r.reason == "unauthorized_reviewer", (
-            f"A16: expected 'unauthorized_reviewer', got {r.reason!r}"
+        assert r.reason == "registry_unavailable", (
+            f"A16: expected 'registry_unavailable', got {r.reason!r}"
         )
         _load_registry_data.cache_clear()  # restore for subsequent tests
 
@@ -354,12 +361,13 @@ class TestStructuralWithholdingPending:
             f"A20: expected 'withheld_pending_approval', got {r.get('review_status')!r}"
         )
 
-    def test_A21_ipc166a_correspondence_approval_is_revoked(self):
-        """A21: correspondence_approval must be 'revoked' (status=pending_human_review)."""
+    def test_A21_ipc166a_correspondence_approval_is_pending(self):
+        """A21: correspondence_approval must be 'pending_human_review'
+        (REGISTRY-001-v1 status=pending_human_review → gate returns pending_human_review, not revoked)."""
         r = self._166a()
         ca = r.get("correspondence_approval")
-        assert ca == "revoked", (
-            f"A21: expected 'revoked', got {ca!r}"
+        assert ca == "pending_human_review", (
+            f"A21: expected 'pending_human_review', got {ca!r}"
         )
 
     def test_A22_contract_no_unapproved_pair_leaks_new_section(self):

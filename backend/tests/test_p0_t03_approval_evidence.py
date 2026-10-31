@@ -65,19 +65,20 @@ class TestRevokedApprovalFailsClosed:
         registry = [_valid_record(status="revoked", revoked_at="2026-10-27T00:00:00Z")]
         result = check_approval("historical_applicability", "ipc_34", compute_content_hash("the exact approved text"), registry=registry)
         assert result.approved is False
-        assert result.reason == "revoked"
+        assert result.reason == "revoked_approval"
 
     def test_revoked_at_present_denies_even_if_status_field_wrong(self):
         registry = [_valid_record(revoked_at="2026-10-27T00:00:00Z")]  # status still says "active"
         result = check_approval("historical_applicability", "ipc_34", compute_content_hash("the exact approved text"), registry=registry)
         assert result.approved is False
-        assert result.reason == "revoked"
+        assert result.reason == "revoked_approval"
 
     def test_inactive_status_denies(self):
         registry = [_valid_record(status="pending")]
         result = check_approval("historical_applicability", "ipc_34", compute_content_hash("the exact approved text"), registry=registry)
         assert result.approved is False
-        assert result.reason == "revoked"
+        # "pending" is not a known pending_human_review value — falls to inactive_approval
+        assert result.reason == "inactive_approval"
 
 
 class TestHashMismatchFailsClosed:
