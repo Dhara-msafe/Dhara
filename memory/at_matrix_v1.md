@@ -2,6 +2,7 @@
 
 Generated: 2026-10-30 (row evidence)  
 Corrected: 2026-10-31 (arithmetic fix; AT40/AT43/AT15/AT34 re-classification; footer reconciliation; commits 51cb6ea · 01651f2 · 6a61077)  
+Updated: 2026-10-31 (DHARA approval-gate completion GO — Steps 2–7; commits 3de2e57 · 4704e8b · 81974ba)  
 Batch: V1 correction and verification (commits a396260..277ba66 + ba17351)  
 Total tests: **48** (unique IDs, no duplicates)
 
@@ -94,7 +95,7 @@ Legend:
 |------|-------------|--------|----------|
 | AT41 | B002-C Option 3: same cold-start session preserves cover (BC-1) | ✅ PASS | privacyCoverState.test.mjs BC-1 (43 tests pass; source rev 3d85217). |
 | AT42 | B002-C Option 3: new cold-start (different session ID) rejects stale guest cover (BC-2) | ✅ PASS | privacyCoverState.test.mjs BC-2 (source rev 3d85217). |
-| AT43 | BNS/BNSS corpus sections cited in Rights Cards | 🔶 PARTIAL | **Corpus presence** ✅ — 12/12 BNS/BNSS sections found in `bns-know-your-rights-gandhikar_db.legal_sections` (source rev 01651f2; 2026-10-31). **Heading match** ✅ — all 12 pass case-insensitive substring check. **Release-state label** ✅ — 10/10 cards at `LEGAL_REVIEWED` or `ADVOCATE_VERIFIED` in `gandhikar_db.rights_cards`. **Authorized reviewer approval** ⚠ OPEN — label is self-asserted in seed data; no reviewer identity, date, or independent artefact verified by these tests. **Substantive claim support** ⚠ OPEN — section text not compared against official 2023 BNS/BNSS PDF; correspondence-containment (LLM answers bounded to cited sections only) not tested. See AT43 Detail. |
+| AT43 | BNS/BNSS corpus sections cited in Rights Cards | 🔶 PARTIAL | **Corpus presence** ✅ — 12/12 BNS/BNSS sections found in `bns-know-your-rights-gandhikar_db.legal_sections` (source rev 01651f2; 2026-10-31). **Heading match** ✅ — all 12 pass case-insensitive substring check. **Release-state label** ✅ — 10/10 cards at `LEGAL_REVIEWED` or `ADVOCATE_VERIFIED` in `gandhikar_db.rights_cards`. **Legal annex prepared** 🟦 — `LEGAL_REVIEW_ANNEX.md` (commit `4704e8b`) provides field-by-field comparison of IPC §166A / BNS §199 official text vs. DHARA canonical record and lists all 10 Guardian card scenarios; marked PENDING HUMAN REVIEW throughout. **Authorized reviewer approval** ⚠ OPEN — label is self-asserted in seed data; no reviewer identity, date, or independent artefact verified by these tests. **Substantive claim support** ⚠ OPEN — annex prepared (PENDING HUMAN REVIEW); official text not independently verified by a human reviewer; correspondence-containment not tested. See AT43 Detail. |
 | AT44 | B002-C Option 3: no session ID set (pre-mount) → no session check applied (BC-3) | ✅ PASS | privacyCoverState.test.mjs BC-3 (source rev 3d85217). |
 | AT45 | Incoming phone call on-device: AppState listener fires, gate blocks, TTS stops | 🔲 NOT RUN | Unit gate contract proven in AT21–AT28 (pure logic); end-to-end device test requires physical build and a real incoming call. |
 | AT46 | Auth scope bypass: session ID check does not affect authenticated users (BC-4) | ✅ PASS | privacyCoverState.test.mjs BC-4 (source rev 3d85217). |
@@ -126,8 +127,9 @@ Legend:
 | Corpus presence (12 sections in DB) | ✅ PASS | `test_bns_section_in_corpus` parametrized (12/12; commit 01651f2) |
 | Heading match (fragment in section_heading) | ✅ PASS | Case-insensitive substring match, 12/12 |
 | Release-state label (LEGAL_REVIEWED or ADVOCATE_VERIFIED) | ✅ PASS | `test_rights_card_at_or_above_legal_reviewed` (10/10) |
+| Legal annex prepared (IPC §166A / BNS §199 + Guardian cards) | 🟦 PENDING HUMAN REVIEW | `LEGAL_REVIEW_ANNEX.md` (commit `4704e8b`): field-by-field comparison of official statutory text vs. DHARA canonical record; 10 Guardian card scenarios; elevated risk note for `cyber_harassment` (Shreya Singhal §66A). All conclusions PENDING HUMAN REVIEW. |
 | Authorized reviewer approval | ⚠ OPEN | Label is self-asserted in seed data. REGISTRY-001-v1 (commit `62ec771`) records the IPC→BNS mapping hash but reviewer identity and review date for individual rights cards are not independently verified. Commit `83edf79` injected agent-generated reviewer metadata and was reverted by P2 audit (2026-10-31): `3aee73b`. A real authorized-reviewer artefact (identity + date + out-of-band signature) per the DHARA Guardian Authorization protocol is required. |
-| Substantive claim support | ⚠ OPEN | Section text not diff-compared against official 2023 BNS/BNSS PDF. Correspondence-containment (LLM answers bounded to cited sections only) not tested. |
+| Substantive claim support | ⚠ OPEN | Legal annex prepared (PENDING HUMAN REVIEW, commit `4704e8b`). Official statutory text reproduced from public sources but not independently verified by a qualified human reviewer. Correspondence-containment (LLM answers bounded to cited sections only) not tested. |
 
 Closing AT43 fully requires: (1) an authorized reviewer artefact (identity + date + out-of-band signature) for each card, (2) a correspondence-containment test. Both require a separate GO command.
 
@@ -159,20 +161,23 @@ POCSO (`children_safety`) and PWDV (`thrown_out_of_home`) are not in the BNS cor
 **Auth-gate blocker (test-environment limitation, not a native-build requirement):**
 Consent/auth gate in the web preview blocks automated UI tap-test reaching the simulation modal. Addressable by a test account that bypasses the gate; native build not strictly required.
 
-## Open Items (updated 2026-10-31)
+## Open Items (updated 2026-10-31 — DHARA approval-gate completion GO)
 
 | Item | Prior status | Current status | Required to close |
 |------|-------------|----------------|-------------------|
 | AT14 / AT15 / AT16 | OPEN (prior batch) | ✅ **CLOSED** — commit `51cb6ea`, `yarn test:voice` 108/108 (2026-10-31) | — |
+| Activation boundary (Steps 2 & 3) | IN PROGRESS | ✅ **CLOSED** — `activation_boundary.py` fully implemented (commit `3de2e57`); validates all 10 prerequisites (A–J); appends append-only audit events; architecture limitation documented (JSON file, not transactional store). | — |
+| Activation boundary tests (Step 4) | NOT STARTED | ✅ **CLOSED** — `test_activation_boundary.py` (B01–B24 + BS01–BS02, 50+ tests, commit `3de2e57`); all pass. | — |
+| Legal review annex (Step 5) | NOT STARTED | 🟦 **PENDING HUMAN REVIEW** — `LEGAL_REVIEW_ANNEX.md` (commit `4704e8b`): IPC §166A / BNS §199 official text comparison + 10 Guardian card scenarios + Shreya Singhal risk note. All conclusions PENDING HUMAN REVIEW. | Separate qualified human legal reviewer + GO to activate |
+| BNS §199 E2E stream test (Step 6) | OPEN (P1) | ✅ **CLOSED** — `test_bns199_stream_release.py` (S01–S20, commit `81974ba`): 19 tests pass (1 skip). Covers English/Hindi transliterated queries, ipc= / bns= / q= paths, isolated approved-fixture path, global contract invariant. | — |
 | AT43 — authorized reviewer approval | ⚠ OPEN | ⚠ **OPEN** — Commit `83edf79` reverted (P2 audit 2026-10-31, revert `3aee73b`): agent-generated reviewer metadata is not valid authorization. Real human artefact required. | Real reviewer artefact (identity + date + out-of-band signature) + separate GO |
-| AT43 — substantive claim support | ⚠ OPEN | ⚠ **OPEN** — Section text not diff-compared against official 2023 BNS/BNSS PDF; manual comparison deferred | Separate legal review pass |
+| AT43 — substantive claim support | ⚠ OPEN | 🟦 **PARTIAL** — Legal annex prepared (commit `4704e8b`), PENDING HUMAN REVIEW; official text not independently verified; correspondence-containment not tested. | Qualified human legal reviewer to verify annex + separate GO |
 | AT40 | NOT IMPLEMENTED | ❌ **NOT IMPLEMENTED** — no handler exists; test comment: "needs a dedicated RN module" | Design + implementation + GO |
 | AT45 | NOT RUN | 🔲 **NOT RUN** — unit gate proof complete (AT21–AT28); device E2E open | Physical build + real incoming call |
 | AT34 UI tap layer | BOUNDARY-INSPECTED | 🔍 **BOUNDARY-INSPECTED + RADIUS VERIFIED** — 35 pure-function tests; auth-gate blocker is test-env limitation | Test account bypassing consent gate |
 | Legal-release containment (P1) | OPEN | ✅ **CLOSED** — CORRECTION GO 2026-10-31: canonical v1 hash + structural withholding; 81 backend tests pass | — |
-| IPC:166A registry re-issue | OPEN | 🟦 **PENDING HUMAN REVIEW** — REGISTRY-001-v1 hash verified correct (commit `62ec771`); status changed to `pending_human_review` (P2 correction): gate now rejects until human legal review is completed out-of-band. | Separate human legal review + GO to activate |
+| IPC:166A registry re-issue | OPEN | 🟦 **PENDING HUMAN REVIEW** — REGISTRY-001-v1 hash verified correct (commit `62ec771`); status `pending_human_review` (P2 correction); gate rejects until human legal review completed out-of-band; activation_boundary validates all 10 prerequisites before manual write. | Separate human legal review + GO to activate |
 | Guardian authorization (AT43 P2) | OPEN | ⚠ **OPEN** — Commit `83edf79` reverted (P2 audit). | Real reviewer artefact (identity + date + out-of-band signature) + separate GO |
-| BNS §199 E2E stream test | OPEN (P1) | ⚠ **OPEN** — CORRECTION-001 (`372b913`) fixed wording; end-to-end stream test not run | Separate GO |
 | Rights Cards production enable | Future | Blocked on AT43 substantive claim + GO | — |
 | 11 missing admin analytics endpoints | Backlog | No change | — |
 
