@@ -1056,7 +1056,7 @@ async def admin_overview(
     making it more accurate than counting distinct user_id in messages.
 
     Guest exclusion:    is_guest != true
-    Test exclusion:     email does not match TEST_ / safety_test_ / @guest.dhara.local
+    Test exclusion:     email does not match ^TEST_ / ^safety_test_ / @guest.dhara.local
     Deleted exclusion:  hard-delete only — no soft-delete field exists in this
                         schema; deleted users are absent from the collection.
     Closed ticket set:  ["resolved", "closed", "rejected"]
@@ -1086,7 +1086,7 @@ async def admin_overview(
         "is_guest": {"$ne": True},
         "email": {
             "$not": {
-                "$regex": r"TEST_|safety_test_|@guest\.dhara\.local",
+                "$regex": r"^TEST_|^safety_test_|@guest\.dhara\.local",
                 "$options": "i",
             }
         },
@@ -1142,7 +1142,7 @@ async def admin_overview(
             "since_utc_naive": since_utc_naive,
             "closed_statuses": _closed_statuses,
             "guest_field":     "is_guest",
-            "test_email_regex": r"TEST_|safety_test_|@guest\.dhara\.local",
+            "test_email_regex": r"^TEST_|^safety_test_|@guest\.dhara\.local",
             "deleted_field":   "none — hard-delete only",
         },
     }
