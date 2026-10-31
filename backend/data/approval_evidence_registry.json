@@ -49,11 +49,12 @@
       "content_hash": "1787743a993d9df1f94c1addad280016fc1b565781d8a790d51fb273068f16f8",
       "reviewer_id": "callistus-moses-founder",
       "approved_by": "callistus-moses-founder",
-      "status": "active",
+      "status": "pending_human_review",
       "revoked": false,
       "revoked_at": null,
-      "approved_at": "2026-10-31T00:00:00Z",
+      "approved_at": null,
       "go_instruction": "GO: Re-issue REGISTRY-001 with v1 canonical hash — user authorised 2026-10-31. Supersedes REGISTRY-001-IPC166A-BNS199 (v0, revoked same date).",
+      "_pending_note": "P2 correction (2026-10-31): hash is mathematically verified correct (1787743a...) but no valid out-of-band human legal review has been demonstrated. Status changed from 'active' to 'pending_human_review' to fail the release gate closed until a real authorized reviewer completes and documents their review. When completed, the reviewer must: set status='active', populate approved_at with an explicit timezone (ISO-8601 with offset), and supply their reviewer_id, review_date, and an independently reachable review artefact URL. Do not change canonical content fields, approval_id, content_hash, schema_version, or any section identifiers — only the status, approved_at, and review evidence fields.",
       "_content_hash_note": "SHA-256 of json.dumps({'offence_text':'Public servant disobeying direction under law','punishment_text':'Rigorous imprisonment of at least six months and up to two years, and fine','schema_version':'v1','source_act':'IPC','source_section':'166A','target_act':'BNS','target_section':'199'}, sort_keys=True, separators=(',',':'), ensure_ascii=True). Hash binds all seven canonical fields. Any change to offence_text, punishment_text, source_section, target_section, source_act, target_act, or schema_version requires a new GO and a new hash computation."
     }
   ]
