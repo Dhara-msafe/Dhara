@@ -8,11 +8,6 @@ citations, practical steps, and the relevant emergency number from the
 service directory. Content is marked LEGAL_REVIEWED pending final advocate
 sign-off (verified_by).
 
-Guardian authorization (AT43 sub-claim, GO 2026-10-31):
-Each card now carries reviewer_id, review_date, and per-card artefact_url
-pointing to the official legislative source on indiacode.gov.in / nalsa.gov.in.
-Closes the 'Authorized reviewer approval' sub-claim in AT43.
-
 Run: python /app/backend/seed_women_cards.py
 """
 import asyncio
@@ -20,37 +15,7 @@ from datetime import datetime, timezone
 from dependencies import db
 
 NOW = datetime.now(timezone.utc).isoformat()
-
-# ── Guardian authorization evidence (AT43, GO 2026-10-31) ────────────────────
-# reviewer_id MUST match an active entry in approval_evidence_registry.json
-# authorized_reviewers.  Content sourced from official public statutes.
-REVIEWER = {
-    "reviewer_id":   "callistus-moses-founder",
-    "reviewer_name": "Callistus Moses",
-    "role":          "founder-ceo",
-    "review_date":   "2026-10-31",
-    "go_instruction": "GO: Guardian authorization evidence for AT43 — user authorised 2026-10-31",
-    "note": (
-        "Authorized reviewer sign-off under DHARA Guardian Authorization protocol. "
-        "Section text sourced from official public statutes; each card carries a "
-        "review_artefact_url linking to the canonical legislative source."
-    ),
-}
-
-# Per-card artefact URLs — official Government of India / statutory body pages.
-# These are the primary sources for each card's primary Act citation.
-_ARTEFACT = {
-    "police_wont_file":    "https://legislative.gov.in/acts/bharatiya-nagarik-suraksha-sanhita-2023",
-    "violence_at_home":    "https://legislative.gov.in/acts/protection-of-women-from-domestic-violence-act-2005",
-    "thrown_out_of_home":  "https://legislative.gov.in/acts/protection-of-women-from-domestic-violence-act-2005",
-    "dowry_demands":       "https://legislative.gov.in/acts/dowry-prohibition-act-1961",
-    "harassment_at_work":  "https://legislative.gov.in/acts/sexual-harassment-of-women-at-workplace-prevention-prohibition-and-redressal-act-2013",
-    "stalking_online_abuse": "https://legislative.gov.in/acts/bharatiya-nyaya-sanhita-2023",
-    "private_photos_leaked": "https://legislative.gov.in/acts/information-technology-act-2000",
-    "after_assault":       "https://legislative.gov.in/acts/bharatiya-nyaya-sanhita-2023",
-    "woman_arrested":      "https://legislative.gov.in/acts/bharatiya-nagarik-suraksha-sanhita-2023",
-    "children_safety":     "https://legislative.gov.in/acts/protection-of-children-from-sexual-offences-act-2012",
-}
+REVIEWER = {"name": "DHARA legal desk", "note": "pending final advocate sign-off"}
 
 CARDS = {
     "police_wont_file": {
@@ -193,14 +158,10 @@ async def main():
         if not existing:
             print(f"  ! missing card for {scenario_key} (run seed_women_shield.py first)")
             continue
-        artefact_url = _ARTEFACT.get(scenario_key, "")
         payload = {
             **content,
             "release_state": "LEGAL_REVIEWED",
-            # ── Guardian authorization evidence (AT43, GO 2026-10-31) ──────
             "verified_by": REVIEWER,
-            "review_artefact_url": artefact_url,
-            # ─────────────────────────────────────────────────────────────
             "updated_at": NOW,
         }
         await db.rights_cards.update_one(
@@ -208,7 +169,7 @@ async def main():
             {"$set": payload, "$inc": {"version": 1}},
         )
         updated += 1
-    print(f"rights_cards: {updated} filled + released to LEGAL_REVIEWED with guardian authorization")
+    print(f"rights_cards: {updated} filled + released to LEGAL_REVIEWED")
 
 
 if __name__ == "__main__":
