@@ -1577,35 +1577,88 @@ def _xref_search(q: str = "", ipc: str = "", bns: str = "") -> list[dict]:
                 f"an advocate or the official BNS text for the current position."
             )
 
-        return {
+        # ── CORRESPONDENCE GATE + STRUCTURAL WITHHOLDING (P1 correction) ────
+        # Step 1: build canonical v1 record object from this entry's fields.
+        #         This is passed to the gate so a v1 registry record can bind
+        #         its hash to the SUBSTANTIVE content, not just the pair string.
+        #         For the current REGISTRY-001 (v0 record) the canonical_record
+        #         parameter is ignored and the v0 string hash is used instead.
+        _offence_text   = str(entry.get("offence") or entry.get("procedure") or entry.get("provision") or "")
+        _punishment_text = str(entry.get("punishment_note") or "")
+        _has_both_sections = bool(str(old_sec) and str(new_sec) and str(new_sec) != "—")
+        if _has_both_sections:
+            try:
+                from engine.approval_evidence import _CANONICAL_SCHEMA_VERSION  # noqa: F401
+                _canonical_record: dict | None = {
+                    "schema_version":  "v1",
+                    "source_act":      "IPC",
+                    "source_section":  str(old_sec).upper(),
+                    "target_act":      "BNS",
+                    "target_section":  str(new_sec).upper(),
+                    "offence_text":    _offence_text,
+                    "punishment_text": _punishment_text,
+                }
+            except Exception:
+                _canonical_record = None
+            _gate_result = _xref_check_corr(
+                f"IPC:{str(old_sec).upper()}",
+                f"BNS:{str(new_sec).upper()}",
+                canonical_record=_canonical_record,
+            )
+            _corr_approval = _gate_result.reason
+        else:
+            _corr_approval = "no_section"
+
+        # Step 2: assemble the full record object.
+        _result = {
             "source":             source,
             "old_section":        str(old_sec),
             "new_section":        str(new_sec),
-            "offence":            entry.get("offence") or entry.get("procedure") or entry.get("provision") or "",
+            "offence":            _offence_text,
             "change_type":        ct,
             "what_changed":       what_changed,
             "verified":           entry.get("verified", False),
             "source_link":        entry.get("source_link", ""),
             "judicial_citation":  entry.get("judicial_citation", ""),
             "dead_law":           bool(entry.get("dead_law", False)),
-            # P0-A additive provenance fields (see docstring) — never breaks
-            # an existing consumer that doesn't look for these keys.
             "review_status":      entry.get("review_status", "unreviewed_draft"),
             "review_source":      entry.get("review_source", ""),
             "reviewed_at":        entry.get("reviewed_at"),
             "reviewed_by":        entry.get("reviewed_by"),
             "mapping_version":    entry.get("mapping_version", ""),
             "new_subsection":     entry.get("bns_subsection") or entry.get("bnss_subsection") or entry.get("bsa_subsection") or "",
-            # CORRESPONDENCE GATE (Batch P2): approval status from registry.
-            # Checked here on every request — never cached.  The frontend
-            # MUST surface "approval_status": "approved" before treating a
-            # result as a confirmed claim.  Any other value means the
-            # correspondence has not been independently verified in the registry.
-            "correspondence_approval": _xref_check_corr(
-                f"IPC:{str(old_sec).upper()}",
-                f"BNS:{str(new_sec).upper()}",
-            ).reason if str(old_sec) and str(new_sec) and str(new_sec) != "—" else "no_section",
+            # CORRESPONDENCE GATE: checked on every request — never cached.
+            # Anything other than "approved" means the claim is withheld.
+            "correspondence_approval": _corr_approval,
         }
+
+        # Step 3: STRUCTURAL WITHHOLDING — if the gate did NOT return "approved",
+        # null out every field that would reveal the substantive BNS mapping.
+        # A boolean flag or UI banner is INSUFFICIENT: the data must not leave
+        # the server.  Callers receive old_section, source, change_type, and the
+        # approval status so they can display a "pending approval" placeholder,
+        # but nothing else.
+        if _corr_approval != "approved":
+            _WITHHELD_FIELDS = (
+                "new_section",
+                "offence",
+                "what_changed",
+                "source_link",
+                "judicial_citation",
+                "review_source",
+                "reviewed_at",
+                "reviewed_by",
+                "mapping_version",
+                "new_subsection",
+            )
+            for _f in _WITHHELD_FIELDS:
+                _result[_f] = None
+            # Replace review_status with an honest "withheld" label so the
+            # frontend can distinguish between "approved data absent" and
+            # "data present but unapproved".
+            _result["review_status"] = "withheld_pending_approval"
+
+        return _result
 
     seen: set[str] = set()
     # (key, label, is_dead_law_section)
