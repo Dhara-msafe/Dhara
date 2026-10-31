@@ -63,7 +63,10 @@ _REGISTRY_PATH = Path(__file__).parent.parent / "data" / "approval_evidence_regi
 
 # Every candidate record must carry all of these, non-empty, to even be
 # considered — anything missing is treated as malformed, never as approved.
-_REQUIRED_FIELDS = ("approval_id", "record_type", "subject_key", "content_hash", "reviewer_id", "status")
+# NOTE: reviewer_id is NOT in this list — it is pre-checked separately before
+# the generic malformed check so the specific "missing_reviewer" reason code
+# can be returned instead of the generic "malformed" in production mode.
+_REQUIRED_FIELDS = ("approval_id", "record_type", "subject_key", "content_hash", "status")
 
 # ── Canonical v1 record hash spec ─────────────────────────────────────────────
 
@@ -85,7 +88,24 @@ _CANONICAL_V1_REQUIRED_FIELDS = (
 @dataclass(frozen=True)
 class ApprovalCheckResult:
     approved: bool
-    reason: str  # "approved" | "missing_approval" | "revoked" | "hash_mismatch" | "malformed" | "unauthorized_reviewer"
+    reason: str  # one of the 14 defined reason codes:
+    # "approved"                   — all checks passed
+    # "missing_approval"           — no record found for the pair
+    # "pending_human_review"       — approval record status is pending_human_review
+    # "inactive_approval"          — approval record has non-active, non-revoked, non-pending status
+    # "revoked_approval"           — approval record has revoked_at set or status=="revoked"
+    # "missing_reviewer"           — reviewer_id field is absent or empty
+    # "unauthorized_reviewer"      — reviewer_id present but not in the authorized allowlist
+    # "inactive_reviewer"          — reviewer is in allowlist but status != "active"
+    # "revoked_reviewer"           — reviewer is in allowlist but revoked == True
+    # "missing_review_artifact"    — review_artifact_id or review_artifact_digest absent/empty
+    # "invalid_approved_at"        — approved_at absent, no timezone, or beyond clock-skew tolerance
+    # "hash_mismatch"              — content_hash does not match (re)computed value
+    # "record_mismatch"            — section_from/section_to cross-check fails
+    # "registry_unavailable"       — registry file unreadable (I/O / file-not-found error)
+    # "malformed_registry"         — registry JSON unparseable or structurally invalid
+    # "conflicting_registry_records" — duplicate approval_id within subject_key candidates
+    # "malformed"                  — required fields missing or empty in a candidate record
     reviewer_id: Optional[str] = None
     approval_id: Optional[str] = None
 
@@ -94,11 +114,12 @@ class ApprovalCheckResult:
 class RegistryData:
     """Parsed content of the on-disk registry: both approvals and the authorized-
     reviewer allowlist.  load_error is set (non-None) when the file could not be
-    read or was structurally invalid; callers must treat any non-None load_error
-    as a signal to fail closed immediately."""
+    read or was structurally invalid; load_error_reason is the specific reason code.
+    Callers must treat any non-None load_error as a signal to fail closed."""
     approvals: List[dict] = field(default_factory=list)
     authorized_reviewers: List[dict] = field(default_factory=list)
     load_error: Optional[str] = None
+    load_error_reason: Optional[str] = None  # "registry_unavailable" | "malformed_registry"
 
 
 def compute_content_hash(text: str) -> str:
@@ -168,18 +189,50 @@ def compute_canonical_record_hash(canonical_obj: dict) -> str:
 def _load_registry_data() -> RegistryData:
     """Load BOTH approvals AND the authorized-reviewer allowlist from the registry.
 
-    Fail-closed loading rules:
-    • JSON parse error / file unreadable → load_error set, empty lists returned.
-    • authorized_reviewers missing or not a list → load_error set.
-    • authorized_reviewers list is empty → load_error set (no reviewer can authorize).
-    • Duplicate reviewer_id entries → load_error set (ambiguous).
-    Any of these conditions causes EVERY gate call to fail closed via the
-    load_error check in check_approval / check_section_correspondence_approval.
+    Fail-closed loading rules — each produces a distinct load_error_reason:
+
+    registry_unavailable:
+    • File not found, permission denied, or any I/O error reading the file.
+
+    malformed_registry:
+    • JSON parse error.
+    • authorized_reviewers missing or not a list.
+    • authorized_reviewers list is empty (no reviewer can authorize).
+    • Duplicate reviewer_id entries in authorized_reviewers.
+    • Duplicate approval_id entries across the approvals list.
+
+    Any load_error causes EVERY gate call to fail closed with the stored
+    load_error_reason via the early-exit check in check_approval /
+    check_section_correspondence_approval.
     """
     try:
-        raw = json.loads(_REGISTRY_PATH.read_text(encoding="utf-8"))
+        raw_text = _REGISTRY_PATH.read_text(encoding="utf-8")
+    except (FileNotFoundError, PermissionError, OSError, IOError) as exc:
+        logger.error("[approval_evidence] registry file unavailable: %s", exc)
+        return RegistryData(
+            load_error=str(exc),
+            load_error_reason="registry_unavailable",
+        )
+
+    try:
+        raw = json.loads(raw_text)
+    except json.JSONDecodeError as exc:
+        logger.error("[approval_evidence] registry JSON parse error: %s", exc)
+        return RegistryData(
+            load_error=str(exc),
+            load_error_reason="malformed_registry",
+        )
+
+    try:
         approvals = raw.get("approvals", [])
 
+        # ── Duplicate approval_id check ───────────────────────────────────────
+        appr_ids = [a.get("approval_id") for a in approvals if isinstance(a, dict) and a.get("approval_id")]
+        appr_dupes = [aid for aid, cnt in Counter(appr_ids).items() if cnt > 1]
+        if appr_dupes:
+            raise ValueError(f"Duplicate approval_id entries in approvals: {appr_dupes}")
+
+        # ── authorized_reviewers validation ───────────────────────────────────
         ar_raw = raw.get("authorized_reviewers")
         if not isinstance(ar_raw, list):
             raise ValueError(
@@ -202,11 +255,12 @@ def _load_registry_data() -> RegistryData:
             len(approvals), len(ar_raw),
         )
         return RegistryData(approvals=approvals, authorized_reviewers=ar_raw)
-    except Exception as exc:
-        logger.error(
-            "[approval_evidence] failed to load registry, failing closed: %s", exc
+    except ValueError as exc:
+        logger.error("[approval_evidence] registry structure invalid: %s", exc)
+        return RegistryData(
+            load_error=str(exc),
+            load_error_reason="malformed_registry",
         )
-        return RegistryData(approvals=[], authorized_reviewers=[], load_error=str(exc))
 
 
 @lru_cache(maxsize=1)
@@ -222,33 +276,99 @@ def _load_registry() -> List[dict]:
 
 
 def _is_reviewer_authorized(reviewer_id: str, authorized_reviewers: List[dict]) -> bool:
-    """Return True iff reviewer_id names exactly one active, non-revoked reviewer.
+    """Backward-compat shim — returns True only when _check_reviewer_identity returns None."""
+    return _check_reviewer_identity(reviewer_id, authorized_reviewers) is None
 
-    Fail-closed conditions (all return False):
-    • reviewer_id is empty or None.
-    • authorized_reviewers list is empty.
-    • reviewer_id matches zero entries (unknown reviewer).
-    • reviewer_id matches two or more entries (duplicate/ambiguous).
-    • The matching reviewer's status != 'active'.
-    • The matching reviewer has revoked=True.
+
+# ── Clock-skew tolerance for approved_at timestamps ────────────────────────
+_APPROVED_AT_CLOCK_SKEW_TOLERANCE_MINUTES: int = 60
+"""Maximum future tolerance for approved_at timestamps (minutes).
+Approvals with approved_at more than this far in the future are rejected with
+'invalid_approved_at'.  Documented here so operators and tests can reference it."""
+
+
+def _check_reviewer_identity(
+    reviewer_id: Optional[str],
+    authorized_reviewers: List[dict],
+) -> Optional[str]:
+    """Return None if the reviewer is fully authorized, or a specific reason code.
+
+    None                          = authorized
+    "missing_reviewer"            = reviewer_id is absent or empty
+    "unauthorized_reviewer"       = reviewer_id not found in allowlist (incl. empty list)
+    "inactive_reviewer"           = found in allowlist but status != "active"
+    "revoked_reviewer"            = found in allowlist but revoked == True
+    "conflicting_registry_records"= duplicate reviewer_id entries (ambiguous)
     """
     if not reviewer_id:
-        return False
+        return "missing_reviewer"
     if not authorized_reviewers:
-        return False
+        return "unauthorized_reviewer"
     matches = [
         r for r in authorized_reviewers
         if isinstance(r, dict) and r.get("reviewer_id") == reviewer_id
     ]
-    if len(matches) != 1:
-        # 0 = unknown reviewer; 2+ = ambiguous duplicate — both fail closed
-        return False
+    if len(matches) == 0:
+        return "unauthorized_reviewer"
+    if len(matches) > 1:
+        return "conflicting_registry_records"
     reviewer = matches[0]
-    if reviewer.get("status") != "active":
-        return False
     if reviewer.get("revoked"):
-        return False
-    return True
+        return "revoked_reviewer"
+    if reviewer.get("status") == "revoked":
+        return "revoked_reviewer"
+    if reviewer.get("status") != "active":
+        return "inactive_reviewer"
+    return None  # fully authorized
+
+
+def _validate_approved_at(approved_at: Optional[str]) -> Optional[str]:
+    """Return None if approved_at is a valid ISO 8601 datetime with timezone,
+    or 'invalid_approved_at' if not.
+
+    Validation rules:
+    • Non-empty string required.
+    • Must be parseable as ISO 8601 (Python datetime.fromisoformat after Z → +00:00).
+    • Parsed result must carry timezone info (no naive datetimes).
+    • Must NOT be more than _APPROVED_AT_CLOCK_SKEW_TOLERANCE_MINUTES in the future
+      (clock-skew tolerance is explicitly documented above).
+    """
+    if not approved_at:
+        return "invalid_approved_at"
+    try:
+        from datetime import datetime, timezone, timedelta
+        # Z (UTC shorthand) normalised for Python 3.10 compat
+        normalized = approved_at.replace("Z", "+00:00") if approved_at else ""
+        dt = datetime.fromisoformat(normalized)
+        if dt.tzinfo is None:
+            return "invalid_approved_at"
+        now = datetime.now(timezone.utc)
+        tolerance = timedelta(minutes=_APPROVED_AT_CLOCK_SKEW_TOLERANCE_MINUTES)
+        if dt > now + tolerance:
+            logger.warning(
+                "[approval_evidence] approved_at %r is more than %d minutes in the "
+                "future — rejecting as invalid_approved_at",
+                approved_at, _APPROVED_AT_CLOCK_SKEW_TOLERANCE_MINUTES,
+            )
+            return "invalid_approved_at"
+        return None
+    except (ValueError, AttributeError, TypeError):
+        return "invalid_approved_at"
+
+
+def _validate_artifact_fields(rec: dict) -> Optional[str]:
+    """Return None if artifact evidence fields are present, or 'missing_review_artifact'.
+
+    Active approvals must carry both:
+    • review_artifact_id   — immutable identifier for the review artefact
+    • review_artifact_digest — cryptographic digest binding the artefact to this record
+
+    A Markdown template in the repository (HUMAN_REVIEW_PACKAGE.md) does NOT satisfy
+    this requirement; only a real, completed review with an out-of-band artefact does.
+    """
+    if not rec.get("review_artifact_id") or not rec.get("review_artifact_digest"):
+        return "missing_review_artifact"
+    return None
 
 
 def check_approval(
@@ -261,23 +381,14 @@ def check_approval(
     """Fail-closed approval lookup (v0 hash only).
 
     `registry` is normally left as None, which loads the real on-disk registry.
-    Tests MAY pass an explicit in-memory list of synthetic records to exercise the
+    Tests MAY pass an explicit in-memory list of synthetic records to exercise
     approved/revoked/hash-mismatch paths — this never reads or writes the real
     registry file, so test code can never create a real approval.
 
-    Reviewer identity enforcement:
-    • Production mode (registry=None): load RegistryData from file; apply reviewer
-      identity check against authorized_reviewers.  A load error fails ALL calls
-      closed immediately.
-    • Test mode with authorized_reviewers explicitly provided: apply reviewer check
-      against the provided list (may be empty — fails closed if so).
-    • Test mode with registry provided but authorized_reviewers=None: reviewer
-      identity check is SKIPPED for backward compatibility with existing tests that
-      only inject approval records.
+    Reviewer identity enforcement — same three modes as check_section_correspondence_approval.
 
-    NOTE: This function only supports the v0 string hash.  For section-
-    correspondence claims use check_section_correspondence_approval which
-    is schema-version-aware (v0 and v1 canonical).
+    NOTE: This function only supports v0 string hashes.  For section-correspondence
+    claims use check_section_correspondence_approval (schema-version-aware).
     """
     # ── Load registry data ────────────────────────────────────────────────────
     if registry is None:
@@ -287,51 +398,78 @@ def check_approval(
                 "[approval_evidence] registry load error — approval check fails closed: %s",
                 reg_data.load_error,
             )
-            return ApprovalCheckResult(False, "unauthorized_reviewer")
+            return ApprovalCheckResult(False, reg_data.load_error_reason or "registry_unavailable")
         records = reg_data.approvals
         effective_reviewers: Optional[List[dict]] = reg_data.authorized_reviewers
     else:
         records = registry
-        effective_reviewers = authorized_reviewers  # None → reviewer check skipped (compat)
+        effective_reviewers = authorized_reviewers
 
     candidates = [
         r for r in records
-        if isinstance(r, dict) and r.get("record_type") == record_type and r.get("subject_key") == subject_key
+        if isinstance(r, dict)
+        and r.get("record_type") == record_type
+        and r.get("subject_key") == subject_key
     ]
     if not candidates:
         return ApprovalCheckResult(False, "missing_approval")
 
-    saw_unauthorized_reviewer = False
-    saw_malformed = saw_revoked = saw_hash_mismatch = False
+    # Duplicate approval_id within candidates
+    cand_ids = [r.get("approval_id") for r in candidates if isinstance(r, dict) and r.get("approval_id")]
+    if len(cand_ids) != len(set(cand_ids)):
+        return ApprovalCheckResult(False, "conflicting_registry_records")
+
+    saw_pending = saw_revoked_appr = saw_inactive_appr = False
+    saw_reviewer_reason: Optional[str] = None
+    saw_hash_mismatch = saw_malformed = False
+
     for rec in candidates:
+        # 0. reviewer_id presence (specific code in production mode)
+        if not rec.get("reviewer_id"):
+            if effective_reviewers is not None:
+                saw_reviewer_reason = saw_reviewer_reason or "missing_reviewer"
+            else:
+                saw_malformed = True
+            continue
         # 1. Required-fields check (malformed)
         if any(not rec.get(f) for f in _REQUIRED_FIELDS):
             saw_malformed = True
             continue
-        # 2. Reviewer identity check (production and explicit-override modes only)
-        if effective_reviewers is not None:
-            if not _is_reviewer_authorized(rec.get("reviewer_id", ""), effective_reviewers):
-                logger.warning(
-                    "[approval_evidence] reviewer identity check failed: reviewer_id=%r "
-                    "not authorized for record_type=%r subject_key=%r",
-                    rec.get("reviewer_id"), record_type, subject_key,
-                )
-                saw_unauthorized_reviewer = True
-                continue
-        # 3. Active/revoked check
-        if rec.get("status") != "active" or rec.get("revoked_at"):
-            saw_revoked = True
+        # 2. Status check
+        status = rec.get("status")
+        if status == "pending_human_review":
+            saw_pending = True
             continue
+        if rec.get("revoked_at") or status == "revoked":
+            saw_revoked_appr = True
+            continue
+        if status != "active":
+            saw_inactive_appr = True
+            continue
+        # 3. Reviewer identity check (production and explicit-AR modes)
+        if effective_reviewers is not None:
+            reviewer_reason = _check_reviewer_identity(rec.get("reviewer_id", ""), effective_reviewers)
+            if reviewer_reason is not None:
+                logger.warning(
+                    "[approval_evidence] reviewer identity check: %s for record_type=%r subject_key=%r",
+                    reviewer_reason, record_type, subject_key,
+                )
+                saw_reviewer_reason = saw_reviewer_reason or reviewer_reason
+                continue
         # 4. Hash check
         if rec.get("content_hash") != content_hash:
             saw_hash_mismatch = True
             continue
         return ApprovalCheckResult(True, "approved", rec.get("reviewer_id"), rec.get("approval_id"))
 
-    if saw_unauthorized_reviewer:
-        return ApprovalCheckResult(False, "unauthorized_reviewer")
-    if saw_revoked:
-        return ApprovalCheckResult(False, "revoked")
+    if saw_reviewer_reason:
+        return ApprovalCheckResult(False, saw_reviewer_reason)
+    if saw_pending:
+        return ApprovalCheckResult(False, "pending_human_review")
+    if saw_revoked_appr:
+        return ApprovalCheckResult(False, "revoked_approval")
+    if saw_inactive_appr:
+        return ApprovalCheckResult(False, "inactive_approval")
     if saw_hash_mismatch:
         return ApprovalCheckResult(False, "hash_mismatch")
     if saw_malformed:
@@ -342,48 +480,41 @@ def check_approval(
 # ── Section-correspondence gate ───────────────────────────────────────────────
 
 def check_section_correspondence_approval(
-    from_act_and_section: str,              # e.g. "IPC:166A"
-    to_act_and_section: str,               # e.g. "BNS:199"
-    canonical_record: Optional[dict] = None, # v1 canonical object (see below)
+    from_act_and_section: str,
+    to_act_and_section: str,
+    canonical_record: Optional[dict] = None,
     registry: Optional[List[dict]] = None,
     authorized_reviewers: Optional[List[dict]] = None,
 ) -> ApprovalCheckResult:
-    """Fail-closed check for a specific section-to-section correspondence claim.
+    """Fail-closed correspondence-claim gate (schema-version-aware).
 
     Schema-version-aware hash verification:
 
-    v0 records (schema_version absent or "v0", e.g. REGISTRY-001):
-        content_hash expected = compute_content_hash(subject_key)
-        i.e. SHA-256 of the plain subject_key string "IPC:166A->BNS:199".
-        The canonical_record parameter is ignored for v0 records.
+    v0 records (schema_version absent or "v0"):
+        expected hash = compute_content_hash(subject_key)
+        canonical_record is ignored.
 
     v1 records (schema_version == "v1"):
-        content_hash expected = compute_canonical_record_hash(canonical_record)
-        canonical_record MUST be a fully-populated dict with all seven
-        fields from _CANONICAL_V1_REQUIRED_FIELDS.  If canonical_record is
-        None when a v1 record is found, the check fails closed with
-        "hash_mismatch" — the caller MUST supply the canonical object or
-        the gate will not open.
+        expected hash = compute_canonical_record_hash(canonical_record)
+        canonical_record MUST be supplied; if absent → "hash_mismatch".
 
-    Reviewer identity enforcement (P2 correction):
-    • Production mode (registry=None): load RegistryData from file; apply reviewer
-      identity check against authorized_reviewers.  A load error fails ALL calls
-      closed immediately with "unauthorized_reviewer".
-    • Test mode with authorized_reviewers explicitly provided: apply reviewer check
-      against the provided list.  An empty list fails closed.
-    • Test mode with registry provided but authorized_reviewers=None: reviewer
-      identity check is SKIPPED for backward compatibility with existing tests that
-      only inject approval records without an authorized-reviewer list.
+    Reviewer identity enforcement:
+    • Production (registry=None): full 7-check pipeline enforced; load errors
+      fail closed with the registry-specific reason code.
+    • Test with authorized_reviewers explicitly provided: reviewer check applied.
+    • Backward-compat test (registry provided, authorized_reviewers=None): reviewer
+      check SKIPPED — existing tests that only inject approval records still work.
 
-    Five checks per candidate record (each fail-closed):
-      1. Required-fields check  → "malformed"
-      2. Reviewer identity check → "unauthorized_reviewer"  (skipped in compat mode)
-      3. Active/revoked check    → "revoked"
-      4. Canonical hash check    → "hash_mismatch"
-      5. section_from/section_to cross-check → "malformed"
-
-    Rechecked on every call: callers MUST NOT cache the return value between
-    requests.
+    Seven checks per active candidate (each fail-closed):
+      0. reviewer_id presence      → "missing_reviewer" (prod) / "malformed" (compat)
+      1. Required-fields check     → "malformed"
+      2. Status check              → "pending_human_review" / "revoked_approval" / "inactive_approval"
+      3. Reviewer identity check   → "missing_reviewer" / "unauthorized_reviewer" / "inactive_reviewer"
+                                      "revoked_reviewer" / "conflicting_registry_records"
+      4. Hash check                → "hash_mismatch"
+      5. Structural cross-check    → "record_mismatch"
+      6. approved_at validation    → "invalid_approved_at"
+      7. Artifact evidence check   → "missing_review_artifact"
     """
     subject_key = f"{from_act_and_section}->{to_act_and_section}"
 
@@ -392,15 +523,17 @@ def check_section_correspondence_approval(
         reg_data = _load_registry_data()
         if reg_data.load_error:
             logger.error(
-                "[approval_evidence] registry load error — correspondence check fails closed: %s",
-                reg_data.load_error,
+                "[approval_evidence] registry load error — correspondence check fails closed "
+                "(%s): %s", reg_data.load_error_reason, reg_data.load_error,
             )
-            return ApprovalCheckResult(False, "unauthorized_reviewer")
+            return ApprovalCheckResult(
+                False, reg_data.load_error_reason or "registry_unavailable"
+            )
         records = reg_data.approvals
         effective_reviewers: Optional[List[dict]] = reg_data.authorized_reviewers
     else:
         records = registry
-        effective_reviewers = authorized_reviewers  # None → reviewer check skipped (compat)
+        effective_reviewers = authorized_reviewers
 
     candidates = [
         r for r in records
@@ -411,40 +544,67 @@ def check_section_correspondence_approval(
     if not candidates:
         return ApprovalCheckResult(False, "missing_approval")
 
-    saw_unauthorized_reviewer = False
-    saw_malformed = saw_revoked = saw_hash_mismatch = False
+    # ── Duplicate approval_id within candidates ───────────────────────────────
+    cand_ids = [r.get("approval_id") for r in candidates if isinstance(r, dict) and r.get("approval_id")]
+    if len(cand_ids) != len(set(cand_ids)):
+        logger.error(
+            "[approval_evidence] conflicting_registry_records: duplicate approval_id "
+            "for %s — failing closed", subject_key,
+        )
+        return ApprovalCheckResult(False, "conflicting_registry_records")
+
+    saw_pending = saw_revoked_appr = saw_inactive_appr = False
+    saw_reviewer_reason: Optional[str] = None
+    saw_hash_mismatch = saw_record_mismatch = saw_invalid_at = saw_missing_artifact = False
+    saw_malformed = False
+
     for rec in candidates:
+        # ── 0. reviewer_id presence ───────────────────────────────────────────
+        if not rec.get("reviewer_id"):
+            if effective_reviewers is not None:
+                saw_reviewer_reason = saw_reviewer_reason or "missing_reviewer"
+            else:
+                saw_malformed = True
+            continue
+
         # ── 1. Required-fields check (malformed) ─────────────────────────────
         if any(not rec.get(f) for f in _REQUIRED_FIELDS):
             saw_malformed = True
             continue
 
-        # ── 2. Reviewer identity check ────────────────────────────────────────
-        #    Skipped only when the caller is in backward-compat test mode
-        #    (registry provided, authorized_reviewers not provided).
-        if effective_reviewers is not None:
-            if not _is_reviewer_authorized(rec.get("reviewer_id", ""), effective_reviewers):
-                logger.warning(
-                    "[approval_evidence] reviewer identity check failed: reviewer_id=%r "
-                    "not authorized for correspondence %r — failing closed",
-                    rec.get("reviewer_id"), subject_key,
-                )
-                saw_unauthorized_reviewer = True
-                continue
-
-        # ── 3. Active/revoked check ───────────────────────────────────────────
-        if rec.get("status") != "active" or rec.get("revoked_at"):
-            saw_revoked = True
+        # ── 2. Status check ───────────────────────────────────────────────────
+        status = rec.get("status")
+        if status == "pending_human_review":
+            saw_pending = True
+            continue  # do NOT apply reviewer / artifact checks to pending records
+        if rec.get("revoked_at") or status == "revoked":
+            saw_revoked_appr = True
+            continue
+        if status != "active":
+            saw_inactive_appr = True
             continue
 
-        # ── 4. Schema-version-aware hash check ───────────────────────────────
-        rec_schema = rec.get("schema_version", "v0")  # REGISTRY-001 has no field → v0
+        # ── 3. Reviewer identity check ────────────────────────────────────────
+        if effective_reviewers is not None:
+            reviewer_reason = _check_reviewer_identity(
+                rec.get("reviewer_id", ""), effective_reviewers
+            )
+            if reviewer_reason is not None:
+                logger.warning(
+                    "[approval_evidence] reviewer identity check: %s for "
+                    "correspondence %r — failing closed",
+                    reviewer_reason, subject_key,
+                )
+                saw_reviewer_reason = saw_reviewer_reason or reviewer_reason
+                continue
 
-        if rec_schema == _CANONICAL_SCHEMA_VERSION:   # "v1"
+        # ── 4. Schema-version-aware hash check ───────────────────────────────
+        rec_schema = rec.get("schema_version", "v0")
+        if rec_schema == _CANONICAL_SCHEMA_VERSION:
             if canonical_record is None:
                 logger.warning(
                     "[approval_evidence] v1 record %s requires canonical_record "
-                    "but none supplied — failing closed with hash_mismatch",
+                    "but none supplied — hash_mismatch",
                     rec.get("approval_id"),
                 )
                 saw_hash_mismatch = True
@@ -458,40 +618,70 @@ def check_section_correspondence_approval(
                 saw_malformed = True
                 continue
         else:
-            # v0 backward compat (includes REGISTRY-001): hash the subject_key string
             expected_hash = compute_content_hash(subject_key)
 
         if rec.get("content_hash") != expected_hash:
             saw_hash_mismatch = True
             continue
 
-        # ── 5. Secondary structural guard ────────────────────────────────────
+        # ── 5. Secondary structural guard (record_mismatch) ───────────────────
         rec_from = (rec.get("section_from") or "").strip()
         rec_to   = (rec.get("section_to")   or "").strip()
         if rec_from != from_act_and_section or rec_to != to_act_and_section:
             logger.warning(
-                "[approval_evidence] section_correspondence structural mismatch: "
-                "record %s claims from=%r to=%r but check requested from=%r to=%r "
-                "— failing closed",
+                "[approval_evidence] record_mismatch: record %s claims from=%r to=%r "
+                "but check requested from=%r to=%r — failing closed",
                 rec.get("approval_id"), rec_from, rec_to,
                 from_act_and_section, to_act_and_section,
             )
-            saw_malformed = True
+            saw_record_mismatch = True
             continue
 
-        # ── All five checks passed ────────────────────────────────────────────
+        # ── 6. approved_at validation ─────────────────────────────────────────
+        at_reason = _validate_approved_at(rec.get("approved_at"))
+        if at_reason is not None:
+            logger.warning(
+                "[approval_evidence] invalid_approved_at for record %s: "
+                "approved_at=%r — failing closed",
+                rec.get("approval_id"), rec.get("approved_at"),
+            )
+            saw_invalid_at = True
+            continue
+
+        # ── 7. Artifact evidence check ────────────────────────────────────────
+        artifact_reason = _validate_artifact_fields(rec)
+        if artifact_reason is not None:
+            logger.warning(
+                "[approval_evidence] missing_review_artifact for record %s — "
+                "failing closed",
+                rec.get("approval_id"),
+            )
+            saw_missing_artifact = True
+            continue
+
+        # ── All seven checks passed ───────────────────────────────────────────
         return ApprovalCheckResult(
             True, "approved",
             rec.get("reviewer_id"), rec.get("approval_id"),
         )
 
-    # No record passed all checks — return the most informative failure reason.
-    if saw_unauthorized_reviewer:
-        return ApprovalCheckResult(False, "unauthorized_reviewer")
-    if saw_revoked:
-        return ApprovalCheckResult(False, "revoked")
+    # Priority: most actionable / most fundamental first.
+    if saw_pending:
+        return ApprovalCheckResult(False, "pending_human_review")
+    if saw_reviewer_reason:
+        return ApprovalCheckResult(False, saw_reviewer_reason)
+    if saw_revoked_appr:
+        return ApprovalCheckResult(False, "revoked_approval")
+    if saw_inactive_appr:
+        return ApprovalCheckResult(False, "inactive_approval")
     if saw_hash_mismatch:
         return ApprovalCheckResult(False, "hash_mismatch")
+    if saw_record_mismatch:
+        return ApprovalCheckResult(False, "record_mismatch")
+    if saw_invalid_at:
+        return ApprovalCheckResult(False, "invalid_approved_at")
+    if saw_missing_artifact:
+        return ApprovalCheckResult(False, "missing_review_artifact")
     if saw_malformed:
         return ApprovalCheckResult(False, "malformed")
     return ApprovalCheckResult(False, "missing_approval")
