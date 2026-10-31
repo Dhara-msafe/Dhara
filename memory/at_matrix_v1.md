@@ -119,15 +119,17 @@ Legend:
 
 ### AT43 Detail
 
-**Status: PARTIAL → AUTHORIZED REVIEWER APPROVED (2026-10-31)**
+**Status: PARTIAL** (corpus-evidence sub-claims closed by commit `01651f2`; two sub-claims remain open)
 
 | Sub-claim | Status | Evidence |
 |-----------|--------|----------|
 | Corpus presence (12 sections in DB) | ✅ PASS | `test_bns_section_in_corpus` parametrized (12/12; commit 01651f2) |
 | Heading match (fragment in section_heading) | ✅ PASS | Case-insensitive substring match, 12/12 |
 | Release-state label (LEGAL_REVIEWED or ADVOCATE_VERIFIED) | ✅ PASS | `test_rights_card_at_or_above_legal_reviewed` (10/10) |
-| **Authorized reviewer approval** | ✅ **CLOSED** | GO 2026-10-31: `reviewer_id=callistus-moses-founder`, `review_date=2026-10-31` on all 10 cards; `review_artefact_url` → official legislative.gov.in / nalsa.gov.in. `test_at43_guardian_authorization.py` T1–T7 all pass. Commit `83edf79`. |
-| Substantive claim support | ⚠ OPEN | Section text not diff-compared against official 2023 BNS/BNSS PDF. `review_artefact_url` links each card to the canonical legislative source; manual comparison deferred. |
+| Authorized reviewer approval | ⚠ OPEN | Label is self-asserted in seed data. REGISTRY-001-v1 (commit `62ec771`) records the IPC→BNS mapping hash but reviewer identity and review date for individual rights cards are not independently verified. Commit `83edf79` injected agent-generated reviewer metadata and was reverted by P2 audit (2026-10-31): `3aee73b`. A real authorized-reviewer artefact (identity + date + out-of-band signature) per the DHARA Guardian Authorization protocol is required. |
+| Substantive claim support | ⚠ OPEN | Section text not diff-compared against official 2023 BNS/BNSS PDF. Correspondence-containment (LLM answers bounded to cited sections only) not tested. |
+
+Closing AT43 fully requires: (1) an authorized reviewer artefact (identity + date + out-of-band signature) for each card, (2) a correspondence-containment test. Both require a separate GO command.
 
 POCSO (`children_safety`) and PWDV (`thrown_out_of_home`) are not in the BNS corpus — their existence and release-state label are confirmed; corpus-presence and heading-match sub-claims do not apply to them.
 
@@ -162,14 +164,14 @@ Consent/auth gate in the web preview blocks automated UI tap-test reaching the s
 | Item | Prior status | Current status | Required to close |
 |------|-------------|----------------|-------------------|
 | AT14 / AT15 / AT16 | OPEN (prior batch) | ✅ **CLOSED** — commit `51cb6ea`, `yarn test:voice` 108/108 (2026-10-31) | — |
-| AT43 — authorized reviewer approval | ⚠ OPEN | ✅ **CLOSED** — GO 2026-10-31, `test_at43_guardian_authorization.py` T1–T7 pass, commit `83edf79` | — |
-| AT43 — substantive claim support | ⚠ OPEN | ⚠ **OPEN** — `review_artefact_url` links to official legislative source; manual section-text comparison deferred | Separate legal review pass |
+| AT43 — authorized reviewer approval | ⚠ OPEN | ⚠ **OPEN** — Commit `83edf79` reverted (P2 audit 2026-10-31, revert `3aee73b`): agent-generated reviewer metadata is not valid authorization. Real human artefact required. | Real reviewer artefact (identity + date + out-of-band signature) + separate GO |
+| AT43 — substantive claim support | ⚠ OPEN | ⚠ **OPEN** — Section text not diff-compared against official 2023 BNS/BNSS PDF; manual comparison deferred | Separate legal review pass |
 | AT40 | NOT IMPLEMENTED | ❌ **NOT IMPLEMENTED** — no handler exists; test comment: "needs a dedicated RN module" | Design + implementation + GO |
 | AT45 | NOT RUN | 🔲 **NOT RUN** — unit gate proof complete (AT21–AT28); device E2E open | Physical build + real incoming call |
 | AT34 UI tap layer | BOUNDARY-INSPECTED | 🔍 **BOUNDARY-INSPECTED + RADIUS VERIFIED** — 35 pure-function tests; auth-gate blocker is test-env limitation | Test account bypassing consent gate |
 | Legal-release containment (P1) | OPEN | ✅ **CLOSED** — CORRECTION GO 2026-10-31: canonical v1 hash + structural withholding; 81 backend tests pass | — |
-| IPC:166A registry re-issue | OPEN | ✅ **CLOSED** — REGISTRY-001-v1 active (v1 hash), REGISTRY-001 revoked, commit `62ec771` | — |
-| Guardian authorization (AT43 P2) | OPEN | ✅ **CLOSED** — GO 2026-10-31, 10 cards with reviewer/date/artefact, commit `83edf79` | — |
+| IPC:166A registry re-issue | OPEN | 🟦 **PENDING HUMAN REVIEW** — REGISTRY-001-v1 hash verified correct (commit `62ec771`); status changed to `pending_human_review` (P2 correction): gate now rejects until human legal review is completed out-of-band. | Separate human legal review + GO to activate |
+| Guardian authorization (AT43 P2) | OPEN | ⚠ **OPEN** — Commit `83edf79` reverted (P2 audit). | Real reviewer artefact (identity + date + out-of-band signature) + separate GO |
 | BNS §199 E2E stream test | OPEN (P1) | ⚠ **OPEN** — CORRECTION-001 (`372b913`) fixed wording; end-to-end stream test not run | Separate GO |
 | Rights Cards production enable | Future | Blocked on AT43 substantive claim + GO | — |
 | 11 missing admin analytics endpoints | Backlog | No change | — |
