@@ -45,8 +45,11 @@ sys.path.insert(0, BACKEND_DIR)
 
 from engine.approval_evidence import (   # noqa: E402
     ApprovalCheckResult,
+    RegistryData,
     _CANONICAL_SCHEMA_VERSION,
     _CANONICAL_V1_REQUIRED_FIELDS,
+    _is_reviewer_authorized,
+    _load_registry_data,
     check_section_correspondence_approval,
     compute_canonical_record_hash,
     compute_content_hash,
@@ -230,38 +233,51 @@ class TestFailClosedMatrix:
 
     # ── 601: Unauthorized reviewer ────────────────────────────────────────────
 
-    def test_601_unauthorized_reviewer_fails_closed(self):
-        """A record from an unrecognized reviewer_id must fail closed.
+    def test_601_unknown_reviewer_with_allowlist_fails_closed(self):
+        """UNKNOWN_REVIEWER must fail closed when an allowlist is supplied.
 
-        The registry authorized_reviewers list is NOT checked by the gate
-        function itself — the gate only validates the record's own fields.
-        However, if a record is crafted with an unknown reviewer_id and that
-        reviewer_id is not the one in the real registry, the real registry
-        has no matching record for that subject_key / reviewer combo.
-        This test simulates passing a synthetic registry with an unauthorized
-        reviewer — the gate still finds the record (subject_key matches) and
-        still fails if the hash is wrong."""
-        # Unauthorized reviewer: correct subject_key but wrong reviewer_id
-        # and therefore no matching real record in the registry.
-        # Pass a synthetic registry containing ONLY the unauthorized record.
-        rec = _make_v0_record(reviewer_id="unauthorized-reviewer-X")
+        P2 correction: the gate now enforces reviewer identity.  A record that
+        carries a reviewer_id not present in the provided authorized_reviewers
+        list must return 'unauthorized_reviewer', regardless of hash correctness.
+        """
+        rec = _make_v0_record(reviewer_id="UNKNOWN_REVIEWER")
+        ar = [{"reviewer_id": "callistus-moses-founder", "status": "active", "revoked": False}]
         result = check_section_correspondence_approval(
-            "IPC:166A", "BNS:199", registry=[rec]
+            "IPC:166A", "BNS:199",
+            registry=[rec],
+            authorized_reviewers=ar,
         )
-        # The record has a VALID hash and matching subject_key — it passes
-        # the gate. The registry doesn't currently validate reviewer identity
-        # inside the gate (that is a registry-population concern). So this
-        # case actually passes — document this as expected behavior.
-        # The defense is at registry population time, not gate evaluation time.
-        # (Gate only checks hash, status, revoked_at, and structural fields.)
-        assert isinstance(result, ApprovalCheckResult), "Must return an ApprovalCheckResult"
-        # The gate approves this because the structural checks all pass.
-        # Document the expected behavior: an unauthorized reviewer who
-        # physically writes to the registry file could bypass the gate.
-        # The defense is physical access control on the registry JSON file.
-        # This test confirms the gate does NOT silently crash on unknown reviewers.
-        assert result.reason in ("approved", "missing_approval", "hash_mismatch", "malformed", "revoked"), (
-            f"Unexpected reason: {result.reason}"
+        assert result.approved is False, "UNKNOWN_REVIEWER must fail closed"
+        assert result.reason == "unauthorized_reviewer", (
+            f"Expected 'unauthorized_reviewer', got {result.reason!r}"
+        )
+
+    def test_601b_authorized_reviewer_with_correct_hash_approves(self):
+        """A record with an authorized, active reviewer and correct hash must approve."""
+        rec = _make_v0_record(reviewer_id="callistus-moses-founder")
+        ar = [{"reviewer_id": "callistus-moses-founder", "status": "active", "revoked": False}]
+        result = check_section_correspondence_approval(
+            "IPC:166A", "BNS:199",
+            registry=[rec],
+            authorized_reviewers=ar,
+        )
+        assert result.approved is True, f"Authorized reviewer must approve: {result}"
+        assert result.reason == "approved"
+
+    def test_601c_backward_compat_no_allowlist_param_passes(self):
+        """When registry is supplied without authorized_reviewers, reviewer check is
+        SKIPPED for backward compatibility.  Pre-P2 callers continue to work."""
+        rec = _make_v0_record(reviewer_id="any-string-here")
+        # No authorized_reviewers param → reviewer check skipped
+        result = check_section_correspondence_approval(
+            "IPC:166A", "BNS:199",
+            registry=[rec],
+            # authorized_reviewers intentionally omitted
+        )
+        assert isinstance(result, ApprovalCheckResult), "Must return ApprovalCheckResult"
+        # Reviewer check skipped → proceeds to hash check → approved
+        assert result.approved is True, (
+            f"Backward-compat mode (no AR param) should still approve on hash match: {result}"
         )
 
     # ── 602: Revoked approval (revoked_at set) ─────────────────────────────
@@ -437,6 +453,8 @@ class TestStructuralWithholdingContract:
     @classmethod
     def setup_class(cls):
         import server as _srv
+        from engine.approval_evidence import _load_registry_data
+        _load_registry_data.cache_clear()  # ensure tests see current registry state
         cls.srv = _srv
 
     def _get_302_result(self):
@@ -506,26 +524,29 @@ class TestStructuralWithholdingContract:
             f"Unapproved pair IPC:302 must have review_source=null"
         )
 
-    # ── IPC:166A (approved) — substantive fields must NOT be null ──────────
+    # ── IPC:166A (pending_human_review since P2 correction) ─────────────────
+    # REGISTRY-001-v1 status changed to pending_human_review (commit 5709957).
+    # The gate now returns 'revoked' (status != 'active'), so IPC:166A is
+    # structurally withheld identically to any other unapproved pair.
 
-    def test_706_ipc166a_new_section_is_not_null(self):
+    def test_706_ipc166a_new_section_is_withheld(self):
+        """P2 correction: REGISTRY-001-v1 is pending_human_review.
+        IPC:166A new_section must be null (withheld) until real human review."""
         r = self._get_166a_result()
-        assert r.get("new_section") is not None and r.get("new_section") != "", (
-            f"Approved IPC:166A must have non-null new_section, "
+        assert r.get("new_section") is None, (
+            f"Pending pair IPC:166A must have new_section=null (withheld), "
             f"got: {r.get('new_section')!r}"
         )
-        assert r.get("new_section") == "199", (
-            f"IPC:166A new_section should be '199', got {r.get('new_section')!r}"
-        )
 
-    def test_707_ipc166a_offence_is_not_null(self):
+    def test_707_ipc166a_offence_is_withheld(self):
+        """P2 correction: IPC:166A offence text must be withheld."""
         r = self._get_166a_result()
-        assert r.get("offence") is not None and r.get("offence") != "", (
-            f"Approved IPC:166A must have non-null offence text, "
+        assert r.get("offence") is None, (
+            f"Pending pair IPC:166A must have offence=null (withheld), "
             f"got: {r.get('offence')!r}"
         )
 
-    def test_708_correspondence_approval_field_present_on_both(self):
+    def test_708_correspondence_approval_field_correct_on_both(self):
         r302  = self._get_302_result()
         r166a = self._get_166a_result()
         assert "correspondence_approval" in r302, "IPC:302 result must have correspondence_approval field"
@@ -533,8 +554,10 @@ class TestStructuralWithholdingContract:
         assert r302["correspondence_approval"] == "missing_approval", (
             f"IPC:302 must have missing_approval, got {r302['correspondence_approval']!r}"
         )
-        assert r166a["correspondence_approval"] == "approved", (
-            f"IPC:166A must have approved, got {r166a['correspondence_approval']!r}"
+        # IPC:166A: REGISTRY-001-v1 status = pending_human_review → gate returns "revoked"
+        assert r166a["correspondence_approval"] == "revoked", (
+            f"IPC:166A must have 'revoked' (pending_human_review status), "
+            f"got {r166a['correspondence_approval']!r}"
         )
 
     # ── CONTRACT: NotYetApprovedBanner ↔ non-null new_section are mutually exclusive
@@ -556,21 +579,27 @@ class TestStructuralWithholdingContract:
                     f"old_section={r.get('old_section')!r}"
                 )
 
-    def test_710_contract_approved_has_nonnull_new_section(self):
-        """Approved pairs MUST have a non-null new_section (they should not be withheld)."""
+    def test_710_contract_withheld_pair_has_null_new_section(self):
+        """P2 update: IPC:166A is now pending_human_review (withheld).
+        Verify the contract: correspondence_approval != 'approved' → new_section null."""
         r = self._get_166a_result()
-        assert r.get("correspondence_approval") == "approved"
-        assert r.get("new_section") is not None and r.get("new_section") != "", (
-            "Approved pair must not have withheld new_section"
+        corr = r.get("correspondence_approval")
+        new_sec = r.get("new_section")
+        assert corr != "approved", (
+            f"IPC:166A must not be approved (REGISTRY-001-v1 is pending_human_review), got {corr!r}"
+        )
+        assert new_sec is None, (
+            f"Withheld IPC:166A must have new_section=null, got {new_sec!r}"
         )
 
-    # ── v0 hash backward-compat: REGISTRY-001 still approves ─────────────
+    # ── v1 hash backward-compat: REGISTRY-001-v1 now pending_human_review ────
 
-    def test_711_registry001_v1_approves_with_canonical_record(self):
-        """REGISTRY-001-v1 (v1 canonical hash) must approve when correct
-        canonical_record is supplied.  REGISTRY-001 (v0) was revoked
-        2026-10-31 after the v1 re-issue."""
-        from engine.approval_evidence import check_section_correspondence_approval as _gate
+    def test_711_registry001_v1_is_pending_not_approved(self):
+        """P2 correction: REGISTRY-001-v1 status is now pending_human_review.
+        The gate must return approved=False until a human review is completed
+        out-of-band and the status is changed to 'active' with a valid approved_at."""
+        from engine.approval_evidence import check_section_correspondence_approval as _gate, _load_registry_data
+        _load_registry_data.cache_clear()  # ensure fresh load after registry change
         canonical = {
             "schema_version": "v1",
             "source_act": "IPC",
@@ -583,10 +612,9 @@ class TestStructuralWithholdingContract:
             ),
         }
         result = _gate("IPC:166A", "BNS:199", canonical_record=canonical)
-        assert result.approved is True, (
-            f"REGISTRY-001-v1 (v1 canonical hash) must approve: {result}"
+        assert result.approved is False, (
+            f"REGISTRY-001-v1 (pending_human_review) must NOT approve: {result}"
         )
-        assert result.approval_id == "REGISTRY-001-v1-IPC166A-BNS199", (
-            f"Unexpected approval_id: {result.approval_id}"
+        assert result.reason == "revoked", (
+            f"Expected reason='revoked' (status != active), got {result.reason!r}"
         )
-        assert result.reason == "approved"
