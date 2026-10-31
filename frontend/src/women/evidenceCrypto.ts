@@ -14,20 +14,82 @@ import * as aesjs from 'aes-js';
  * bytes at rest even if someone reads the app's storage directly. Keeping
  * them separate means changing/resetting the PIN never locks out old
  * evidence. The key is generated once per scope (per logged-in user, or
- * "device" for guests) and persisted in SecureStore (native) /
- * AsyncStorage (web — SecureStore has no web implementation, same fallback
- * pattern already used by evidenceLock.ts).
+ * "device" for guests) and persisted in:
+ *   Native  → SecureStore (hardware-backed on supported devices)
+ *   Web NEW → IndexedDB   (origin-scoped, not accessible via document.cookie
+ *                          or localStorage APIs — harder to exfiltrate than
+ *                          localStorage via XSS)
+ *   Web OLD → AsyncStorage / localStorage (legacy fallback — existing users'
+ *             keys remain readable; no migration forces data loss)
+ *
+ * B1-web-idb strategy (2026):
+ *   New key writes go to IndexedDB only.
+ *   Reads check IndexedDB first, then fall back to AsyncStorage (localStorage)
+ *   so existing users' evidence remains decryptable indefinitely.
+ *   Old localStorage keys are never touched (no migration, no data loss).
  */
 
 const KEY_STORE_PREFIX = 'dhara_evidence_aes_key_v1_';
 const isWeb = Platform.OS === 'web';
 
-async function storeGet(key: string): Promise<string | null> {
-  return isWeb ? AsyncStorage.getItem(key) : SecureStore.getItemAsync(key);
+// ── IndexedDB helpers (web only) ──────────────────────────────────────────────
+const IDB_DB_NAME    = 'dhara_evidence_v2';
+const IDB_STORE_NAME = 'keys';
+
+function _idbOpen(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_DB_NAME, 1);
+    req.onupgradeneeded = (e: IDBVersionChangeEvent) => {
+      (e.target as IDBOpenDBRequest).result.createObjectStore(IDB_STORE_NAME);
+    };
+    req.onsuccess = (e: Event) => resolve((e.target as IDBOpenDBRequest).result);
+    req.onerror  = (e: Event) => reject((e.target as IDBOpenDBRequest).error);
+  });
 }
+
+async function idbGet(key: string): Promise<string | null> {
+  try {
+    const db = await _idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx    = db.transaction(IDB_STORE_NAME, 'readonly');
+      const store = tx.objectStore(IDB_STORE_NAME);
+      const req   = store.get(key);
+      req.onsuccess = () => resolve((req.result as string | undefined) ?? null);
+      req.onerror  = () => reject(req.error);
+    });
+  } catch {
+    return null; // graceful degradation — falls through to localStorage below
+  }
+}
+
+async function idbSet(key: string, value: string): Promise<void> {
+  const db = await _idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx    = db.transaction(IDB_STORE_NAME, 'readwrite');
+    const store = tx.objectStore(IDB_STORE_NAME);
+    const req   = store.put(value, key);
+    req.onsuccess = () => resolve();
+    req.onerror  = () => reject(req.error);
+  });
+}
+
+// ── Unified storage read/write ────────────────────────────────────────────────
+
+async function storeGet(key: string): Promise<string | null> {
+  if (!isWeb) return SecureStore.getItemAsync(key);
+  // B1-web-idb: check IndexedDB (new-key store) first.
+  // Fall back to AsyncStorage (localStorage) so existing users' keys are
+  // still readable without any migration or data loss.
+  const idbVal = await idbGet(key);
+  if (idbVal !== null) return idbVal;
+  return AsyncStorage.getItem(key); // legacy localStorage fallback
+}
+
 async function storeSet(key: string, value: string): Promise<void> {
-  if (isWeb) { await AsyncStorage.setItem(key, value); return; }
-  await SecureStore.setItemAsync(key, value);
+  if (!isWeb) { await SecureStore.setItemAsync(key, value); return; }
+  // B1-web-idb: all new key writes go to IndexedDB only.
+  // Never writes to localStorage — old keys in localStorage are undisturbed.
+  await idbSet(key, value);
 }
 
 function toHex(bytes: Uint8Array): string { return aesjs.utils.hex.fromBytes(bytes); }
