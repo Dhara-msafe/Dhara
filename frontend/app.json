@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "Calc Pro",
+    "name": "DHARA",
     "slug": "msafe-legal-aid",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/calcpro_icon.png",
+    "icon": "./assets/images/dhara_icon.png",
     "scheme": [
       "dhara",
       "msafelegalaid"
@@ -28,7 +28,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/calcpro_adaptive.png",
+        "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#48627E"
       },
       "edgeToEdgeEnabled": true,
@@ -91,7 +91,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/calcpro_icon_small.png",
+          "icon": "./assets/images/dhara_icon.png",
           "color": "#48627E",
           "defaultChannel": "default"
         }
