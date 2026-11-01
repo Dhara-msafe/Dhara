@@ -43,7 +43,39 @@ they reach the corpus, returning friendly built-in replies instantly.
 - P0 code-phrase native verification: still requires user to generate APK and test on physical
   Android device (N-1 to N-6 matrix).  JS tests (55/55) pass; static logic verified in container.
 
-## November 2026 (Session 2) — "help me" Safety Reply + Adaptive Chips (Phase 3)
+## November 2026 (Session 3) — Corpus Prefix Stripping
+
+### Imperative-prefix stripper in query_parser.py
+
+**Problem**: Queries phrased as imperatives ("help me file an FIR", "please help me understand
+domestic violence law") caused the LLM query parser to produce weaker rewrites and — on timeout —
+the raw imperatively-phrased query hit the corpus directly, returning sparse or empty results.
+
+**Fix**:
+
+#### `engine/query_parser.py` — new `strip_imperative_prefix(query)` + `_IMPERATIVE_PREFIX_RE`
+- Strips common imperative prefixes deterministically before sending to the LLM.
+- Both the LLM prompt and the fallback `normalized_query` use the clean stripped text.
+- `original_query` always records the raw user message unchanged.
+- Patterns covered: "help me [to/with/understand]", "please help me …", "can/could you
+  [help/explain/tell me about]", "i want/need to [know/understand]", "i need help with".
+- Safety guards: `"help desk"`, `"help line"` are NOT stripped (requires "me/us/to/with" after
+  "help"); bare phrases like "help me" (2 words) fall back to the original.
+- Edge-case fix (round 2): `"please help me, my husband beats me"` → comma-aware `[,\s]+`
+  in the regex → correctly strips to `"my husband beats me"`.
+
+#### Test Results
+- 20/20 new backend tests pass + 32/32 regression tests pass (iteration_67).
+- 12/12 unit tests for `strip_imperative_prefix` including edge cases.
+- Live API: "help me file an FIR" → 602-char FIR registration answer ✅
+- Live API: "please help me understand domestic violence law" → PWDVA answer ✅
+- Live API: "help me" still → SOS distress reply with 112/1091 ✅
+
+#### Notes
+- P0 APK test (safety code-phrase N-1 to N-6 matrix) still requires user to generate APK
+  via Publish button and test on a physical Android device.
+
+
 
 ### "help me" / Bare Distress Reply (Feature C1-SOS)
 

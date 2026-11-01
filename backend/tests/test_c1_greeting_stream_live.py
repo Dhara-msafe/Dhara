@@ -81,12 +81,14 @@ def test_c1_template_reply(token, msg, lang, intent):
     assert "citation" not in types
 
 
-# Deny list: 'help me' must NOT get a C1 template
+# 'help me' is bare distress: since C1-SOS it must get ONLY the distress_sos template
+# (not a greeting/capability C1 template).
 def test_help_me_not_intercepted(token):
     frames, text, elapsed = stream(token, "help me")
     print(f"\n[help me] {elapsed:.1f}s types={[f.get('type') for f in frames]} text={text[:200]!r}")
-    all_templates = {v for b in TEMPLATES.values() for v in b.values()}
-    assert text not in all_templates
+    non_sos = {v for k, b in TEMPLATES.items() if k != "distress_sos" for v in b.values()}
+    assert text not in non_sos
+    assert text == TEMPLATES["distress_sos"]["en"]
 
 
 # Real legal question still goes through legal pipeline
