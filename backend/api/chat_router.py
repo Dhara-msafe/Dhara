@@ -365,13 +365,27 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                 _guest_limit_gen(), media_type="text/event-stream",
                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
             )
-        updated = await db.users.find_one_and_update(
-            {"id": user["id"]},
-            {"$inc": {"guest_question_count": 1}},
-            return_document=True,
+        # C1 guard: conversational greetings / capability queries are free —
+        # a guest saying "hi" or "thanks" should not consume a free question.
+        # The deny-list check runs first (deny always wins over the allowlist),
+        # so "help me" or "danger" messages are never treated as free C1 turns.
+        _c1_pre = (
+            FEATURE_C1_CONVERSATIONAL_REPLIES
+            and not is_denylisted(body.message)
+            and bool(classify_conversational_intent(body.message, body.language))
         )
-        guest_question_count = int((updated or {}).get("guest_question_count", current_count + 1))
-        guest_warning = guest_question_count == guest_question_limit - 1
+        if not _c1_pre:
+            updated = await db.users.find_one_and_update(
+                {"id": user["id"]},
+                {"$inc": {"guest_question_count": 1}},
+                return_document=True,
+            )
+            guest_question_count = int((updated or {}).get("guest_question_count", current_count + 1))
+            guest_warning = guest_question_count == guest_question_limit - 1
+        else:
+            # C1 turn: report the current count unchanged (no increment).
+            guest_question_count = current_count
+            guest_warning = False
 
     # -------- Paywall enforcement for Pro-mode capabilities --------
     # Basic mode → always allowed, unlimited.

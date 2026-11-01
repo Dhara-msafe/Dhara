@@ -1,6 +1,48 @@
 # Dhara (formerly Gandhikar) — PRD
 
-## 16 October 2026 — Sprint Activation + Compliance + S3 Guardian Journey
+## November 2026 — DHARA Greeting & Suggested-Question Fix (Phase 1 MVP)
+
+### C1 Conversational Intent Layer (FEATURE_C1_CONVERSATIONAL_REPLIES=true)
+
+**Problem**: DHARA sent every message — including greetings ("hi", "namaste") and its own follow-up
+suggestion chips — through the legal-corpus search, returning "I cannot confirm from official text"
+for non-legal queries. This broke onboarding UX.
+
+**Fix**: A deterministic (no-LLM) intent matcher that intercepts conversational messages before
+they reach the corpus, returning friendly built-in replies instantly.
+
+#### Backend Changes
+- **`/app/backend/engine/conversational_intents.py`** — intent classifier covers `greeting`,
+  `what_can_you_do`, `who_are_you`, `how_are_you`, `thanks`, `goodbye` across 10 languages
+  (en, hi, mr, ta, bn, te, kn, pa, ml, gu).  Full capability-description template per language.
+  Deny-list (`is_denylisted`) blocks danger/help phrases from ever getting a canned reply.
+- **`/app/backend/api/chat_router.py`** — C1 early gate wired at line ~1373 inside `event_gen()`.
+  Bug fix (this session): vocative-stripper patch — `classify_conversational_intent()` now also
+  matches against `raw.lower()` so "what is dhara" correctly returns the capability reply
+  (previously the vocative stripper removed "dhara" from the normalised text before the pattern
+  match, causing a miss).
+- **Guest-counter guard** — C1 intent turns (greetings, thanks, etc.) no longer consume a guest
+  user's free question quota.  The `$inc` on `guest_question_count` is skipped when `_c1_pre` is
+  true.  Verified: "hi" keeps count=0; a real legal question increments to 1.
+
+#### Frontend — Suggestion Chips
+- Initial chip set (`home.suggestion1-4`) and Pro chip set (`home.proSuggestion1-4`) contain
+  only answerable legal questions (cheque bounce, UPI fraud, helmet fine, RTI, domestic violence).
+  No meta-capability chips ("what can you do?") were ever in the i18n keys. Confirmed.
+- Chip routing: `getBasicSuggestions(lang)` and `getProSuggestions(lang)` (i18n-backed) are the
+  live paths; `BASIC_SUGGESTIONS` / `PRO_SUGGESTIONS` const arrays are unused dead code.
+
+#### Test Results (all green)
+- 8/8 new live-API tests pass (greeting replies, deny-list pass-through, legal pipeline intact)
+- 50/50 existing unit tests unaffected
+- Guest-counter verified: C1 turn keeps count=0; legal turn increments to 1.
+
+#### Pending Items
+- Phase 2: Multilingual capability-reply expansion (10 languages already in templates — verify
+  non-Latin scripts render correctly in native build).
+- P0 code-phrase native verification: still requires user to generate APK and test on physical
+  Android device (N-1 to N-6 matrix).  JS tests (55/55) pass; static logic verified in container.
+
 
 ### All sprint flags turned ON
 - `EXPO_PUBLIC_SAFETY_SESSION_V1=true` — Head Out row visible in Women's Shield

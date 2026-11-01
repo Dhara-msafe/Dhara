@@ -1,0 +1,45 @@
+{
+  "summary": "DHARA C1 greeting/capability fix + suggestion chips verified. Backend live SSE (public URL, authenticated): 'hi', 'what is dhara', 'thanks', 'who are you', 'नमस्ते'(hi), 'what can you do' all return the exact C1 template in 3 frames [session, delta, done] in 1.3-4.2s, with no status/LLM path, no citations and no 'cannot confirm' refusal. Extra edge cases also pass: 'Hi Dhara', 'hey dhara, good evening', 'What is DHARA?', 'धारा क्या है'(hi), 'Hello'(hi), 'hi'(ta). Deny list works: 'help me' is NOT intercepted and falls through to the legal pipeline. The helmet question returns a real answer (Rs 1,000 fine + 3-month licence suspension) with 2-3 citations. All 4 basic chips were sent to the backend in EN and 2 in HI. All are answerable with citations and none are refused. Unit suite tests/test_c1_conversational_intents.py: 50/50 pass. Frontend (375x667): language -> consent -> login -> Home -> 'Type' -> chat. The empty state shows exactly 4 legal chips (cheque bounce, UPI fraud, helmet fine, child pillion helmet) and no meta-questions. Typing 'hi' and 'what is dhara' renders the template in a chat bubble with no refusal. Tapping chip suggestion-2 gives a real helmet answer. Profile-specific and pro chip sources (userProfile.ts, PRO_SUGGESTIONS) also contain only legal questions. No deprecated Expo packages detected.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/chat/stream ('help me')", "issue": "Deny list works as designed, but the fall-through reply is non-deterministic and often cold. Across 3 runs, 2 replies were 'I cannot confirm this from the official text. Please consult an advocate.' and 1 was an LLM clarification ('I need more information to help you...'). 'help me' can be a distress cue, so a refusal is poor UX. Consider a deterministic safety/clarify reply for deny-listed short messages (e.g. emergency numbers 112/1091 plus 'tell me what happened') rather than the corpus refusal."},
+      {"endpoint": "POST /api/chat/stream (guest users)", "issue": "guest_question_count is incremented (chat_router.py ~line 368) before the C1 gate (~line 1358). A guest saying 'hi' or 'thanks' therefore uses up one of their 5 free questions. Move the increment after the C1 short-circuit, or skip it when a C1 template is returned."},
+      {"endpoint": "POST /api/chat/stream (C1 latency)", "issue": "The C1 gate runs only after the full pre-retrieval and retrieval pipeline, so a canned greeting still takes 1.3-4.2s. It is functionally correct, but the gate could run earlier for speed (after the emergency check)."},
+      {"endpoint": "POST /api/chat/stream (UPI chip answer)", "issue": "Not C1-related. The answer to 'Money gone in a UPI fraud — what do I do first?' has the wrong actor: 'the perpetrator must file a complaint immediately with your bank and the police.' It should be the victim (you). Possibly an actor-conduct reframing bug."},
+      {"endpoint": "POST /api/chat/stream (mixed greeting + legal)", "issue": "Not C1-related. 'hi, my cheque bounced what can I do' is correctly NOT intercepted, but it returns the 'cannot confirm from the official text' refusal, while the cheque-bounce chip question is answered fine. A greeting prefix seems to hurt retrieval."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Ask tab", "issues": ["Tapping tab-ask auto-starts mic recording (URL ?autostartMic=). The locked-rec-bar then covers the chip list (chips 1-3 sit underneath it) and hides chat-input until cancelled. This is pre-existing behaviour and not part of this change; text chat is reachable via the Home 'Type' button."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_c1_greeting_stream_live.py",
+    "/app/backend/tests/test_c1_conversational_intents.py",
+    "/app/test_reports/pytest/pytest_c1_live.xml"
+  ],
+  "action_items": [
+    "(Optional/UX) Give deny-listed short messages like 'help me' a deterministic safety/clarification reply instead of the corpus 'cannot confirm' refusal.",
+    "Do not count C1 template replies against the guest_question_count quota.",
+    "Investigate the actor error in the UPI-fraud answer ('the perpetrator must file a complaint...').",
+    "(Optional) Strip a leading greeting before retrieval so 'hi, my cheque bounced...' is answered rather than refused."
+  ],
+  "critical_code_review_comments": [
+    "conversational_intents.py: the raw_lower fallback is safe. It runs under the same length cap, action veto and anchored patterns, and only adds matches where the vocative stripper removed 'dhara' as an object.",
+    "The C1 gate correctly sits after the _emergency check and the is_denylisted() check, and returns before early_refusal and the LLM path.",
+    "frontend i18n home.suggestion1-4 has no 'gu' translation, although gu is a C1-verified language. It presumably falls back to English.",
+    "Live test file reads EXPO_PUBLIC_BACKEND_URL. frontend/.env has no EXPO_BACKEND_URL key, only EXPO_PUBLIC_BACKEND_URL."
+  ],
+  "updated_files": ["/app/backend/tests/test_c1_greeting_stream_live.py (new test file only)"],
+  "success_rate": {"backend": "100% (8/8 live + 50/50 unit)", "frontend": "100% (chips, greeting, what-is-dhara, chip tap)"},
+  "seed_data_creation": "None. Chat sessions were created under voicetest2026@example.com.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run the live tests with: cd /app/backend && python -m pytest tests/test_c1_greeting_stream_live.py -n 0 -v (pytest.ini adds -n xdist). CITATION_GUARD_ENABLED=true, so legal answers arrive in a 'final' frame, not in deltas. UI path: language-screen (lang-en, language-continue) -> consent (consent-age-adult, consent-terms-checkbox, consent-data-checkbox, consent-continue-button) -> login -> /home. Dismiss the 'Continue in English' sheet, then tap the 'Type' text to open chat with chat-input and suggestion-0..3. tab-ask auto-starts the mic.",
+  "rca_of_issue": "The original bug was that greetings went to corpus retrieval and got refused. It is fixed by the C1 gate. The 'what is dhara' miss happened because the _VOCATIVE_RE stripper removed 'dhara', leaving 'what is'. The raw_lower fallback match fixes this, and it was verified live."
+}

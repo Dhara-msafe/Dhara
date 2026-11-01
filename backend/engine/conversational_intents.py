@@ -270,9 +270,16 @@ def classify_conversational_intent(message: str, language: str = "en") -> Option
     if _ACTION_VETO_RE.search(raw):
         return None
     norm = _normalize(raw)
+    raw_lower = raw.lower()
     for intent, patterns in _COMPILED.items():
         for pat in patterns:
-            if pat.match(norm):
+            # Try the vocative-stripped+lowercased form first (primary path),
+            # then fall back to the plain-lowercased raw message.  This ensures
+            # queries like "what is dhara" are not accidentally broken by the
+            # vocative stripper (which removes the word even when it is the
+            # OBJECT of the question, not an address).  Both paths are guarded
+            # by the same length cap and action-word veto above.
+            if pat.match(norm) or pat.match(raw_lower):
                 return intent
     return None
 
