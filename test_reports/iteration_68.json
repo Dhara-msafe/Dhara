@@ -1,0 +1,51 @@
+{
+  "summary": "Tested SOS fast-path, c1_sos SSE flag, the in-chat SOS banner and property-hint tuning. Backend: 8/8 pytest pass. 'help me' took 106ms and 'bachao' (hi) took 91ms end-to-end through the public ingress. Both have c1_sos=true in delta, the Hindi Devanagari template, and the assistant message saved to DB. 'help me file an FIR' went to the legal pipeline (no c1_sos, BNSS citation). RERA, land dispute and tenant eviction returned real legal answers, not refusals, and the 'property-hint injected' log fired for land and tenant. Two problems: (1) the property hint matches substrings, so it fires on unrelated queries. Confirmed: 'my parents are harassing me for dowry' injected the hint because 'rent' is inside 'parents'. (2) The citations shown for property queries are poor: Cantonments Act 2006 and the Waqf Act for land and tenant queries, and PWDVA (domestic violence law) for the RERA query. Frontend (375x667): the banner appears after 'help me' and 'bachao', has 112, 1091 and 100 buttons, stays visible after a follow-up message, and ✕ hides it. A legal query does not show the banner. Smaller issues: raw '**112**' markdown in the SOS reply bubble, touch targets under 44px, and the banner is not cleared on New Chat.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/chat/stream (property hint)", "issue": "_PROP_TRIGGERS matches substrings via `w in _rt_lower`. 'rent' matches parents/current/different/torrent, 'land' matches England/island, 'title', 'transfer' (money transfer), 'registration' (FIR/vehicle registration), 'flat', 'plot'. Confirmed in the log: `property-hint injected | q='my parents are harassing me for dowry'`. This adds property acts to retrieval for non-property queries. Reference: /app/backend/api/chat_router.py:629-646"},
+      {"endpoint": "POST /api/chat/stream (citations for property queries)", "issue": "Wrong citations are sent to the UI. 'land dispute with neighbour' cites Cantonments Act 2006, Transfer of Property Act 1882 and the Waqf Act 1995. 'tenant eviction notice' cites Cantonments Act, Waqf Act and Indian Stamp Act. 'RERA complaint against builder for delay' cites PWDVA (domestic violence law) and CPA. Every citation has section=None. The answer text is good, but the citation chips are irrelevant or wrong. The likely cause is keyword retrieval matching the generic words in the hint, and RERA seems to be missing from the corpus."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SOS assistant reply bubble", "issue": "The distress template is shown with raw markdown asterisks: '• **112** — Emergency (Police / Ambulance)'. The delta-only C1 reply is not rendered as markdown, or the template should not use **.", "testID": "chat-reading-area", "priority": "medium"},
+      {"component": "SosEmergencyBanner", "issue": "The banner stays after tapping New Chat. startNewChat (index.tsx:2088) does not call setHasSosBanner(false), and neither does session load from History. The code comment at index.tsx:284 says 'Stays until dismissed or session clears', which does not match. Decide on the behaviour and make the code and comment agree.", "testID": "sos-emergency-banner", "priority": "low"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Chat - SOS banner", "issues": [
+        "The call buttons are 52-65 x 35px, below the 44pt minimum touch target. For emergency dialing, use paddingVertical of at least 10 so they are 44px or taller.",
+        "The dismiss ✕ is 23x30px. hitSlop helps on native but has no effect on web. Add a minWidth/minHeight of 44.",
+        "The desc labels are 9px text at 0.8 opacity, which is too small to read easily."
+      ]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_sos_fastpath_property_hint.py", "/app/test_reports/pytest/pytest_iter68.xml"],
+  "action_items": [
+    "Make the property trigger match whole words: re.search(r'\\b(property|land|rera|tenant|rent|eviction|lease|...)\\b'). Consider dropping overly generic triggers such as 'title', 'transfer', 'registration' and 'flat', or requiring two hits.",
+    "Fix the property citations: stop Cantonments Act and Waqf Act from ranking top-3 for generic land and tenant queries, add RERA 2016 to the corpus or map it there, and make sure PWDVA is not cited for RERA builder-delay complaints.",
+    "Render markdown (bold) in the C1/SOS delta reply bubble, or strip ** from the distress_sos templates.",
+    "Make the SOS banner call buttons and the ✕ dismiss at least 44x44.",
+    "Decide whether New Chat or loading a history session should clear hasSosBanner, and update the code or the comment to match."
+  ],
+  "critical_code_review_comments": [
+    "The SOS fast-path in chat_router.py:483-530 is correct. It runs after the session and user-message inserts and before run_pre_retrieval. Guests do not use up their quota because _c1_pre includes is_bare_distress.",
+    "The old SOS gate inside event_gen (chat_router.py:1459) is now effectively unreachable. It only runs if get_conversational_template returns empty. Keeping it as a fallback is harmless.",
+    "chat_router.py is 1897 lines and index.tsx is about 3910 lines, far above the 700-line guideline.",
+    "The SosEmergencyBanner uses inline style objects rather than StyleSheet.create.",
+    "The SosEmergencyBanner headline covers en/hi/mr/ta/te/bn only. gu/kn/ml/pa fall back to English even though the backend has distress phrases for those languages."
+  ],
+  "updated_files": [
+    "/app/frontend/app/(tabs)/index.tsx (added testIDs: sos-emergency-banner, sos-call-112/1091/100, sos-banner-dismiss)",
+    "/app/frontend/app/(tabs)/home.tsx (added testID home-type-button)",
+    "/app/backend/tests/test_sos_fastpath_property_hint.py (new)"
+  ],
+  "success_rate": {"backend": "100% (8/8 tests); 2 quality issues found in the property hint", "frontend": "90% (banner shows, has 3 call buttons, dismiss works, no false trigger on a legal query; markdown and touch-target issues)"},
+  "seed_data_creation": "None. Chat sessions were created under voicetest2026@example.com.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && EXPO_PUBLIC_BACKEND_URL=<frontend/.env value> pytest tests/test_sos_fastpath_property_hint.py -n0 -s. UI flow at 375x667: consent screen (consent-age-adult, consent-terms-checkbox, consent-data-checkbox, consent-continue-button), then language (lang-en, language-continue), then login, then the LanguageOnboardModal on home (no testIDs; click text 'English' then 'Continue in'), then home-type-button, then the chat screen (chat-input, send-button). The SOS banner testIDs are sos-emergency-banner, sos-call-{112,1091,100} and sos-banner-dismiss.",
+  "rca_of_issue": "Property-hint false positive: `any(w in _rt_lower for w in _PROP_TRIGGERS)` is a substring test, so 'rent' matches inside 'parents'. Reproduce by POSTing /api/chat/stream with 'my parents are harassing me for dowry' and grepping the backend log for 'property-hint injected'. Fix with word-boundary regex matching."
+}

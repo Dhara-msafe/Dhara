@@ -141,7 +141,7 @@ export default function Home() {
           </Pressable>
           <Text style={styles.holdTxt}>{tr('home.holdToSpeak', lang)}</Text>
           <View style={styles.askActions}>
-            <Pressable style={styles.askAction} onPress={() => router.push('/(tabs)')}>
+            <Pressable style={styles.askAction} onPress={() => router.push('/(tabs)')} testID="home-type-button">
               <Ionicons name="create-outline" size={18} color={c.navy} />
               <Text style={styles.askActionTxt}>{tr('home.type', lang)}</Text>
             </Pressable>

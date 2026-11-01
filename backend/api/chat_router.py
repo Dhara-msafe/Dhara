@@ -475,6 +475,60 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
         "timestamp": now,  # explicit alias for CSV clarity
     })
 
+    # ── SOS fast-path: bypass the ~2.5 s LLM+corpus call entirely ──────────
+    # is_bare_distress matches ONLY very short bare phrases ("help", "help me",
+    # "bachao", "মদ্দ করুন") — longer messages with legal context go through
+    # the normal pipeline unchanged.  At this point mode / tier / guest data
+    # are all settled so we can emit a complete SSE session frame immediately.
+    if FEATURE_C1_CONVERSATIONAL_REPLIES and is_bare_distress(body.message):
+        _sos_reply = get_conversational_template("distress_sos", body.language)
+        if _sos_reply:
+            def _sse_sos(obj: dict) -> bytes:
+                return f"data: {json.dumps(obj, ensure_ascii=False)}\n\n".encode("utf-8")
+
+            async def _sos_fast_gen():
+                yield _sse_sos({
+                    "type": "session",
+                    "session_id": session_id,
+                    "tier": "guest" if is_guest else ("pro" if is_pro_user else "free"),
+                    "mode": mode,
+                    "sample_consumed": False,
+                    "samples_remaining_after": max(0, PRO_FREE_SAMPLES - samples_used),
+                    "guest": is_guest,
+                    "guest_question_count": guest_question_count,
+                    "guest_question_limit": guest_question_limit,
+                    "guest_warning": guest_warning,
+                })
+                # c1_sos flag tells the frontend to show the persistent emergency banner
+                yield _sse_sos({"type": "delta", "content": _sos_reply, "c1_sos": True})
+                _ts = datetime.now(timezone.utc).isoformat()
+                await db.messages.insert_one({
+                    "id": str(uuid.uuid4()),
+                    "session_id": session_id,
+                    "user_id": user["id"],
+                    "role": "assistant",
+                    "content": _sos_reply,
+                    "language": body.language,
+                    "mode": mode,
+                    "model_provider": "dhara_c1",
+                    "model_name": "distress_sos",
+                    "tier": "guest" if is_guest else ("pro" if is_pro_user else "free"),
+                    "sample_consumed": False,
+                    "status": "ok",
+                    "created_at": _ts,
+                    "timestamp": _ts,
+                })
+                await db.sessions.update_one(
+                    {"id": session_id}, {"$set": {"updated_at": _ts}}
+                )
+                yield _sse_sos({"type": "done"})
+
+            return StreamingResponse(
+                _sos_fast_gen(),
+                media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+            )
+
     # -------- Gate 2: Pre-retrieval pipeline (A → B → C) --------
     _current_session = await db.sessions.find_one({"id": session_id, "user_id": user["id"]})
     _v2_lq, _v2_classify, _v2_fact, _v2_state = await run_pre_retrieval(
@@ -564,6 +618,34 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                 if hint:
                     retrieval_text = f"{retrieval_text} ({hint})"
                 personal_law_note = act_disclaimer(personal_law_ctx, personal_law_topic, body.language)
+
+    # ── Property-domain hint ────────────────────────────────────────────────
+    # Generic property queries ("property rights", "land dispute", "RERA
+    # complaint") have low corpus recall because the embedding needs specific
+    # act names to match.  Append act hints when the query looks like a
+    # property topic but doesn't already name a relevant statute.
+    # IMPORTANT: use whole-word matching (\b) to avoid matching sub-strings
+    # like "rent" inside "parents" or "transfer" inside "transferred".
+    if not early_refusal:
+        _PROP_TRIGGERS_RE = re.compile(
+            r"\b(?:property|land|rera|real\s+estate|lease|tenant|rent(?:al)?|eviction|"
+            r"possession|registration|stamp\s+duty|mutation|ownership|title(?:\s+deed)?|"
+            r"easement|mortgage|flat|builder|plot|landlord|occupancy|trespass)\b",
+            re.IGNORECASE,
+        )
+        _PROP_ACTS = (
+            "transfer of property act", "rera", "real estate regulation",
+            "registration act", "rent control", "land acquisition",
+        )
+        _rt_lower = (retrieval_text or "").lower()
+        _has_prop_trigger = bool(_PROP_TRIGGERS_RE.search(retrieval_text or ""))
+        _has_prop_act = any(a in _rt_lower for a in _PROP_ACTS)
+        if _has_prop_trigger and not _has_prop_act:
+            retrieval_text = (
+                f"{retrieval_text} "
+                "(Transfer of Property Act 1882, RERA 2016, Registration Act 1908)"
+            )
+            logger.info("property-hint injected | q=%r", body.message[:80])
 
     # (b) Corpus retrieval — deterministic keyword match against verified statutes
     retrieved = [] if early_refusal else corpus_retrieve(retrieval_text, limit=3)
@@ -1373,16 +1455,13 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                     ),
                 })
 
-        # DHARA C1-SOS: bare distress gate.  Runs BEFORE the deny-list check
-        # because bare panic phrases ("help", "help me", "bachao", "மடத்தை")
-        # ARE on the deny-list — but for those specific 1-3 word messages a
-        # caring reply with emergency numbers is better than a corpus miss.
-        # Longer messages with context ("help me file an FIR") do NOT match
-        # _BARE_DISTRESS_RE and flow unchanged to the legal pipeline.
+        # DHARA C1-SOS: bare distress gate (fallback — fast-path above handles
+        # most cases before run_pre_retrieval; this catches any edge-case that
+        # reaches event_gen).  Runs BEFORE the deny-list check.
         if FEATURE_C1_CONVERSATIONAL_REPLIES and not _emergency and is_bare_distress(body.message):
             _sos_reply = get_conversational_template("distress_sos", body.language)
             if _sos_reply:
-                yield sse({"type": "delta", "content": _sos_reply})
+                yield sse({"type": "delta", "content": _sos_reply, "c1_sos": True})
                 await save_assistant(_sos_reply, error=None)
                 await save_case_state(db, session_id, _v2_state)
                 yield sse({"type": "done"})

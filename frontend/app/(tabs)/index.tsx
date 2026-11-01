@@ -12,6 +12,7 @@ import {
   Animated,
   PanResponder,
   AppState,
+  Linking,
   type GestureResponderEvent,
   type PanResponderGestureState,
 } from 'react-native';
@@ -278,6 +279,75 @@ const TOPIC_SUGGESTIONS: Record<string, { text: string; icon: React.ComponentPro
 const isIpcCitation = (c: { act?: string; citation?: string } | null | undefined) =>
   !!c && (/\bIPC\b|Indian Penal Code/i.test(c.act || '') || /\bIPC\b/i.test(c.citation || ''));
 
+// ── SOS Emergency Banner ────────────────────────────────────────────────────
+// Appears after a bare-distress reply (c1_sos SSE flag). Tap any number to
+// dial directly. Dismissible with ×. Stays until dismissed or session clears.
+const SOS_NUMBERS = [
+  { label: '112', desc: 'Emergency' },
+  { label: '1091', desc: 'Women' },
+  { label: '100', desc: 'Police' },
+] as const;
+
+function SosEmergencyBanner({ onDismiss, language }: { onDismiss: () => void; language: string }) {
+  const headline =
+    language === 'hi' ? 'तुरंत खतरा? अभी कॉल करें' :
+    language === 'mr' ? 'त्वरित धोका? कॉल करा' :
+    language === 'ta' ? 'உடனடி ஆபத்து? இப்போது அழைக்கவும்' :
+    language === 'te' ? 'అత్యవసరం? ఇప్పుడు కాల్ చేయండి' :
+    language === 'bn' ? 'জরুরি বিপদ? এখনই ফোন করুন' :
+    'In immediate danger? Call now';
+
+  return (
+    <View testID="sos-emergency-banner" style={{
+      backgroundColor: theme.colors.emergencyRed,
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.sm + 2,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing.sm,
+    }}>
+      <Text style={{ fontSize: 18 }}>🆘</Text>
+      <View style={{ flex: 1, gap: 4 }}>
+        <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 12 }}>{headline}</Text>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {SOS_NUMBERS.map(({ label, desc }) => (
+            <Pressable
+              key={label}
+              testID={`sos-call-${label}`}
+              onPress={() => Linking.openURL(`tel:${label}`)}
+              style={{
+                backgroundColor: theme.colors.emergencyDeep,
+                borderRadius: 6,
+                paddingHorizontal: 10,
+                paddingVertical: 10,
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: 52,
+                minHeight: 44,
+              }}
+              accessibilityLabel={`Call ${label} — ${desc}`}
+              accessibilityRole="button"
+            >
+              <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15, letterSpacing: 0.5 }}>{label}</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 9, fontWeight: '500' }}>{desc}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+      <Pressable
+        testID="sos-banner-dismiss"
+        onPress={onDismiss}
+        hitSlop={12}
+        accessibilityLabel="Dismiss emergency banner"
+        accessibilityRole="button"
+        style={{ padding: 4 }}
+      >
+        <Text style={{ color: '#FFFFFF', fontSize: 20, fontWeight: '300', lineHeight: 22 }}>✕</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export default function ChatScreen() {
   const { token, user, language, autoSpeak, ttsVolume, ttsVoiceMode, refreshUser, forceLogout } = useAuth();
   const { primaryInterest } = useUserProfile();
@@ -366,6 +436,8 @@ export default function ChatScreen() {
    * `notify()` below.
    */
   const [voiceBanner, setVoiceBanner] = useState<{ title: string; message: string } | null>(null);
+  // SOS emergency banner: shown after a bare-distress reply (c1_sos SSE flag)
+  const [hasSosBanner, setHasSosBanner] = useState(false);
   const voiceBannerTimerRef = useRef<any>(null);
   const notify = useCallback((title: string, message: string) => {
     if (Platform.OS === 'web') {
@@ -805,6 +877,7 @@ export default function ChatScreen() {
         // SSE session-frame update against a stale in-flight response.
         const capturedConvKey = convKeyRef.current;
         const stateMeta: { prompt: string | null; note: string | null } = { prompt: null, note: null };
+        const sosMeta: { triggered: boolean } = { triggered: false };
         const guestMeta: {
           count: number | null; limit: number | null; warning: boolean;
           limitReached: boolean; limitMessage: string | null;
@@ -866,6 +939,7 @@ export default function ChatScreen() {
                 break;
               case 'delta':
                 if (typeof payload.content === 'string') acc += payload.content;
+                if (payload.c1_sos === true) sosMeta.triggered = true;
                 break;
               case 'final':
                 // Sanitized full text — overwrites any accumulated delta output.
@@ -967,7 +1041,7 @@ export default function ChatScreen() {
           hadError = true;
         }
 
-        const displayText = finalText !== null ? finalText : acc;
+        const displayText = finalText !== null ? finalText : stripStreamMarkdown(acc);
 
         setMessages((prev) =>
           prev.map((m) =>
@@ -999,6 +1073,11 @@ export default function ChatScreen() {
           }));
           if (guestMeta.warning) trackEvent('guest_limit_warning');
           if (guestMeta.limitReached) trackEvent('guest_limit_reached');
+        }
+
+        // SOS emergency banner: show when the backend flagged c1_sos
+        if (sosMeta.triggered) {
+          setHasSosBanner(true);
         }
 
         // Auto-speak the reply if the user has that setting on and we got real text
@@ -2019,6 +2098,8 @@ export default function ChatScreen() {
     setInput('');
     setExpandedDetails({});
     setSamplesRemaining(null);
+    // Clear the SOS emergency banner when starting a fresh conversation.
+    setHasSosBanner(false);
   }, []);
 
   const activeSuggestions = (() => {
@@ -2179,6 +2260,10 @@ export default function ChatScreen() {
         behavior="translate-with-padding"
         keyboardVerticalOffset={0}
       >
+        {/* SOS Emergency Banner — shown after a distress reply, dismissible */}
+        {hasSosBanner && (
+          <SosEmergencyBanner onDismiss={() => setHasSosBanner(false)} language={language.code} />
+        )}
         <ScrollView
           testID="chat-reading-area"
           ref={scrollRef}
