@@ -39,9 +39,53 @@ they reach the corpus, returning friendly built-in replies instantly.
 
 #### Pending Items
 - Phase 2: Multilingual capability-reply expansion (10 languages already in templates — verify
-  non-Latin scripts render correctly in native build).
+  non-Latin scripts render correctly in native build — **requires user to generate APK**).
 - P0 code-phrase native verification: still requires user to generate APK and test on physical
   Android device (N-1 to N-6 matrix).  JS tests (55/55) pass; static logic verified in container.
+
+## November 2026 (Session 2) — "help me" Safety Reply + Adaptive Chips (Phase 3)
+
+### "help me" / Bare Distress Reply (Feature C1-SOS)
+
+**Problem**: Bare short panic phrases ("help", "help me", "bachao", "मदद करो") hit the deny-list,
+fell through to the legal corpus, and returned a cold "I cannot confirm from official text" refusal
+— exactly the wrong response for someone in distress.
+
+**Fix (backend only)**:
+
+#### `conversational_intents.py`
+- Added `_BARE_DISTRESS_PHRASES` — exact short phrases in all 10 languages.
+- Compiled `_BARE_DISTRESS_RE` anchored `^…$` regex; internal whitespace normalised so "help  me"
+  (double space) matches identically to "help me".
+- Added `is_bare_distress(message)` — returns True ONLY for these bare phrases; "help me file
+  an FIR" returns False and is routed to the legal pipeline as before.
+- Added `TEMPLATES["distress_sos"]` — caring reply in all 10 languages with emergency numbers
+  (112, 100, 1091, 181, 1930) and an invitation to describe the situation.
+- Script bug-fixed: Marathi first-line had Arabic Unicode escapes (copy-paste error) → corrected
+  to Devanagari. Kannada had U+0BBE (Tamil vowel) → corrected to U+0CBE (Kannada vowel).
+
+#### `chat_router.py`
+- Import: `is_bare_distress` added.
+- Guest counter `_c1_pre`: distress phrases now also bypass the guest-question increment.
+- `event_gen()`: distress SOS gate runs BEFORE the deny-list check (after `_emergency` active-
+  danger check). "help me file an FIR" (longer → `is_bare_distress` False) still goes to legal
+  pipeline.
+
+### Adaptive Chips (Phase 3)
+
+**`/api/chat/followup` changes**:
+- Skip guard: C1 intents (greeting/thanks/capability) and bare distress turns return `[]` — no
+  wasted LLM call, no nonsensical chips after "hi" or "help me".
+- Updated prompt: "Generate exactly 3 short follow-up chips … all corpus-answerable … Chip 1:
+  immediate next step / Chip 2: process / Chip 3: enforcement/penalty". Verified output e.g.
+  cheque-bounce → ["What details must the legal notice include?", "How do I file the complaint in
+  court?", "What penalty does the drawer face under Section 138?"].
+
+#### Test Results
+- 24/24 backend tests pass (including 3 new script-check tests for mr/kn/other languages).
+- Marathi, Kannada, all 10 language templates start with correct Unicode script.
+- Double-space normalisation verified.
+
 
 
 ### All sprint flags turned ON

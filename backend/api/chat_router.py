@@ -118,6 +118,7 @@ from engine.conversational_intents import (
     classify_conversational_intent,
     get_conversational_template,
     is_denylisted,
+    is_bare_distress,
 )
 
 
@@ -369,10 +370,18 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
         # a guest saying "hi" or "thanks" should not consume a free question.
         # The deny-list check runs first (deny always wins over the allowlist),
         # so "help me" or "danger" messages are never treated as free C1 turns.
+        # Exception: bare distress phrases ("help", "bachao") DO bypass the
+        # deny-list and return the caring SOS reply — they must also not
+        # consume a guest question.
         _c1_pre = (
             FEATURE_C1_CONVERSATIONAL_REPLIES
-            and not is_denylisted(body.message)
-            and bool(classify_conversational_intent(body.message, body.language))
+            and (
+                is_bare_distress(body.message)
+                or (
+                    not is_denylisted(body.message)
+                    and bool(classify_conversational_intent(body.message, body.language))
+                )
+            )
         )
         if not _c1_pre:
             updated = await db.users.find_one_and_update(
@@ -1364,6 +1373,21 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                     ),
                 })
 
+        # DHARA C1-SOS: bare distress gate.  Runs BEFORE the deny-list check
+        # because bare panic phrases ("help", "help me", "bachao", "மடத்தை")
+        # ARE on the deny-list — but for those specific 1-3 word messages a
+        # caring reply with emergency numbers is better than a corpus miss.
+        # Longer messages with context ("help me file an FIR") do NOT match
+        # _BARE_DISTRESS_RE and flow unchanged to the legal pipeline.
+        if FEATURE_C1_CONVERSATIONAL_REPLIES and not _emergency and is_bare_distress(body.message):
+            _sos_reply = get_conversational_template("distress_sos", body.language)
+            if _sos_reply:
+                yield sse({"type": "delta", "content": _sos_reply})
+                await save_assistant(_sos_reply, error=None)
+                await save_case_state(db, session_id, _v2_state)
+                yield sse({"type": "done"})
+                return
+
         # DHARA C1 (GO amendment 1/2): conversational-intent gate. Runs
         # strictly AFTER the backend immediate-danger check above (_emergency)
         # and only when the message is not on the explicit deny list — a
@@ -1737,32 +1761,47 @@ async def tts(body: TTSIn, user: dict = Depends(current_user)):
 
 @router.post("/chat/followup")
 async def chat_followup(body: ChatFollowupIn, user: dict = Depends(current_user)):
-    """Generate 2-3 short follow-up question chips after an AI chat answer."""
+    """Generate 3 short follow-up question chips after an AI chat answer."""
     if not body.answer or len(body.answer.strip()) < 20:
         return {"questions": []}
 
+    # Skip for C1 / distress turns — greetings, thanks and SOS replies have
+    # no legal topic to follow up on, and generating chips wastes an LLM call.
+    if FEATURE_C1_CONVERSATIONAL_REPLIES and (
+        is_bare_distress(body.message)
+        or (
+            not is_denylisted(body.message)
+            and bool(classify_conversational_intent(body.message, body.language))
+        )
+    ):
+        return {"questions": []}
+
     lang_instruction = f"in {body.language_name}" if body.language_name.lower() != "english" else "in English"
-    prompt = f"""A citizen asked a legal question.
+    prompt = f"""A citizen consulted an Indian legal assistant about a specific legal matter.
 
-Question: "{body.message[:200]}"
-Answer summary: "{body.answer[:400]}"
+Original question: "{body.message[:200]}"
+Assistant's answer (first 400 chars): "{body.answer[:400]}"
 
-Generate exactly 2-3 SHORT natural follow-up questions the citizen might ask next, {lang_instruction}.
+Generate exactly 3 SHORT follow-up question chips {lang_instruction} that represent the citizen's NEXT LOGICAL STEPS for this specific legal topic.
 
-Rules:
-- Each question must be under 9 words
-- Must be directly relevant to the topic
-- Phrased as a brief question (not statements)
-- No duplicates of the original question
+Strict rules:
+- Each chip must be under 9 words
+- All 3 chips must be directly answerable from Indian law, statutes, or official procedures — never meta-questions about app features or capabilities
+- Focus on: time limits / deadlines mentioned, the filing or escalation process, penalties or enforcement, related rights or remedies
+- Chip 1: the most immediate next practical step (e.g. "What is the 30-day notice period?")
+- Chip 2: the process / how to take action (e.g. "Can I file the FIR online?")  
+- Chip 3: consequences or enforcement (e.g. "What court handles cheque-bounce cases?")
+- Phrased as a brief question — not statements
+- No duplicate of the original question
 
-Reply ONLY with a valid JSON array of strings, nothing else:
-["question 1", "question 2", "question 3"]"""
+Reply ONLY with a valid JSON array of 3 strings, nothing else:
+["chip 1", "chip 2", "chip 3"]"""
 
     try:
         import json as _json
         chat_llm = _ai_build_chat(
             session_id=f"chat-followup-{id(body)}",
-            system_message="Generate short follow-up questions as a JSON array only.",
+            system_message="Generate exactly 3 short follow-up legal question chips as a JSON array only. All chips must be answerable from Indian law.",
         )
 
         result = await chat_llm.send_message(UserMessage(text=prompt))

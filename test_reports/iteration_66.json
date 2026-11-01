@@ -1,0 +1,34 @@
+{
+  "summary": "Backend-only test of C1-SOS bare-distress reply + Phase 3 adaptive follow-up chips via public URL. 21/24 pytest pass. All 10 requested scenarios PASS: 'help', 'help me', 'bachao', 'Help!!', 'please help', 'sos' return the English SOS reply (112/100/1091/181/1930, 'You're not alone'), with stream events session->delta->done (no citations or refusal). 'मदद करो' returns the Hindi template; 'உதவி' returns the Tamil one. 'help me file an FIR' and 'help me understand domestic violence law' go to the legal pipeline ('final' event with BNSS 173 / PWDVA citations, no '112', no 'not alone'). /chat/followup returns exactly 3 legal next-step chips for cheque-bounce (also checked for arrest rights and Hindi). It returns [] for hi/thanks/what can you do/help/bachao, and 401 without auth. A guest saying 'help me' keeps guest_question_count at 0 (checked via the session event and /auth/me). 'help me file an FIR' counts as 1. 3 failures, all template data bugs: the Marathi SOS template's first line is in Arabic/Urdu script, and the Kannada template has a stray Tamil vowel sign.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/chat/stream (language=mr, e.g. 'मदत करा')", "issue": "Marathi distress_sos template's first line is in Arabic/Urdu script: 'تـمّنی اکٹے ناہیت.' (U+062A, U+0640, U+0645...). It should be Devanagari, e.g. 'तुम्ही एकटे नाही.' A Marathi user in distress sees unreadable text. Reference: /app/backend/engine/conversational_intents.py line ~488 (TEMPLATES['distress_sos']['mr']).", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/chat/stream (language=kn)", "issue": "Kannada distress_sos first line 'ನೀವು ಒಂಟಿಯாಗಿಲ್ಲ' contains the Tamil vowel sign U+0BBE (ா) instead of the Kannada one U+0CBE (ಾ). It should read 'ನೀವು ಒಂಟಿಯಾಗಿಲ್ಲ'. Reference: conversational_intents.py TEMPLATES['distress_sos']['kn']."},
+      {"endpoint": "is_bare_distress()", "issue": "Internal whitespace is not normalised: 'help  me' (double space) or 'help\\tme' does not match _BARE_DISTRESS_RE, so it falls through to the deny-list/legal path. Consider collapsing whitespace with re.sub(r'\\s+',' ', msg) before matching."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": [], "react_native_issues": []},
+  "test_report_links": ["/app/backend/tests/test_c1_sos_distress_and_adaptive_chips.py", "/app/test_reports/pytest/pytest_iter66.xml"],
+  "action_items": [
+    "Fix TEMPLATES['distress_sos']['mr'] first line: replace the Arabic-script text with Devanagari 'तुम्ही एकटे नाही. 🙏'",
+    "Fix TEMPLATES['distress_sos']['kn']: replace U+0BBE with U+0CBE ('ಒಂಟಿಯಾಗಿಲ್ಲ')",
+    "Optional: normalise internal whitespace in is_bare_distress()",
+    "Optional: audit the other C1 TEMPLATES for mixed scripts with a unicodedata script check (TestSOSTemplateScripts in the new test file shows how)"
+  ],
+  "critical_code_review_comments": [
+    "chat_router.py is 1819 lines (>700). Split chat_stream pre-processing, TTS/transcribe and followup into separate modules.",
+    "The SOS gate runs inside event_gen() after all retrieval and citation-candidate work (lines ~600-1340), so a bare 'help' still pays the full retrieval cost. Short-circuit before retrieval, as the guest pre-check does, for lower SOS latency.",
+    "The C1 pre-check logic (is_bare_distress OR (not denylisted AND classify_intent)) is duplicated three times: the guest counter, event_gen and /chat/followup. Extract it into one helper, e.g. is_c1_free_turn(msg, lang).",
+    "The comments mention 'மடத்தை' as a Tamil distress phrase. It is not in _BARE_DISTRESS_PHRASES and is not Tamil for 'help' (உதவி is). Cosmetic only.",
+    "The /chat/followup prompt puts the user message and answer straight into an f-string (prompt-injection surface). Output is limited to 3 strings, so the risk is low."
+  ],
+  "updated_files": ["/app/backend/tests/test_c1_sos_distress_and_adaptive_chips.py (new)"],
+  "success_rate": {"backend": "87.5% (21/24); 100% of requested functional scenarios pass, and the 3 failures are template script bugs (mr, kn)", "frontend": "N/A - not tested"},
+  "seed_data_creation": "Throwaway guest users created via POST /api/auth/guest; chat sessions created under voicetest2026@example.com",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "In the legal pipeline the answer arrives as an SSE event of type 'final' (not 'delta'). C1/SOS replies use 'delta'. The EXPO_BACKEND_URL env var is not exported, so the test reads EXPO_PUBLIC_BACKEND_URL from /app/frontend/.env. Run: pytest /app/backend/tests/test_c1_sos_distress_and_adaptive_chips.py -v",
+  "rca_of_issue": "The mr/kn SOS templates were written as \\u escapes with wrong code points: Arabic block U+06xx for the Marathi first line, and Tamil U+0BBE inside the Kannada word. Nothing checks template scripts, so this went unnoticed. The new TestSOSTemplateScripts test catches it."
+}
