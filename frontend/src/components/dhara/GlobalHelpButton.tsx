@@ -27,7 +27,7 @@ export function GlobalHelpButton() {
   const isHome = pathname === '/(tabs)/home' || pathname === '/home' || pathname === '/(tabs)' || pathname === '/';
   // Hide on screens where the FAB would overlap primary controls or sensitive content
   const hideScan = pathname === '/scan' || pathname?.startsWith('/scan/');
-  if (pathname === '/emergency' || pathname?.startsWith('/oauth') || isHome || hideScan) return null;
+  if (pathname === '/emergency' || pathname?.startsWith('/oauth') || pathname?.startsWith('/women') || isHome || hideScan) return null;
 
   return (
     <Pressable

@@ -788,3 +788,13 @@ approved. Legal and authorization blockers (T03–T12) remain open per the track
 | G3 — Native device QA | OPEN |
 | G4 — Deployment/pilot approval | OPEN |
 
+
+---
+
+## Iteration 69 — UI fixes + code-phrase reliability (2026-11-02)
+- **Composer gap fix**: `(tabs)/index.tsx` input bar no longer adds `insets.bottom` padding (the parent `(tabs)` SafeAreaView `edges=['bottom']` already handles the safe area). Removed the double safe-area that left a dead gap under "Ask in …" above the disclaimer. Removed now-unused `useSafeAreaInsets`.
+- **Help button overlap fix**: `GlobalHelpButton.tsx` now also hides on any `/women/*` route (added `pathname.startsWith('/women')`), so the floating red Help FAB no longer overlaps the Safety-phrase screen content.
+- **Code-phrase reliability (default-ON safety gates)**:
+  - `(tabs)/index.tsx`: SOS + hide-phrase intercepts now gate on `EXPO_PUBLIC_SAFE_WORD_V1 !== 'false'` (was `=== 'true'`) so a missing build-time env var can't silently disable the safety feature (mirrors the greeting FEATURE flag fix).
+  - `safetyTriggerCoordinator.ts`: entry gate is now `=== 'false'` early-return (default-ON). Navigation to `/women/silent-alert` ALWAYS happens on an SOS phrase match (decoupled from `EXPO_PUBLIC_SILENT_ALERT_EVIDENCE_V1`) so the user always lands on a reachable Silent Alert screen even if the optional evidence recorder fails. All 5 `safetyTriggerCoordinator.test.ts` cases pass.
+- **Native-only note**: SecureStore phrase storage, mic recording, and the full code-phrase→SilentAlert flow are only verifiable on a real APK/dev build, not Expo Go/web preview.

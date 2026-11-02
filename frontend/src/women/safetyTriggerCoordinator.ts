@@ -31,7 +31,10 @@ export interface TriggerResult {
 export async function triggerSafetySequence(
   callbacks: TriggerCallbacks,
 ): Promise<TriggerResult> {
-  if (process.env.EXPO_PUBLIC_SAFE_WORD_V1 !== 'true') {
+  // Default-ON safety gate: the SOS code phrase is a shipped safety feature, so
+  // it stays active unless a build EXPLICITLY sets the flag to 'false'. A missing
+  // build-time env var must NEVER silently disable it.
+  if (process.env.EXPO_PUBLIC_SAFE_WORD_V1 === 'false') {
     return { evidenceStarted: false, alertNavigated: false, flagOff: true };
   }
   await appendAuditEntry('CODE_PHRASE_TRIGGERED');
@@ -47,11 +50,12 @@ export async function triggerSafetySequence(
     }
   }
 
+  // Navigation to the (silent, non-PIN) Silent Alert screen is the core visible
+  // outcome of an SOS phrase match — it must happen regardless of whether the
+  // optional evidence recorder started, so the user always gets a reachable
+  // screen to prepare their alert from.
   let alertNavigated = false;
-  if (
-    process.env.EXPO_PUBLIC_SILENT_ALERT_EVIDENCE_V1 === 'true' &&
-    callbacks.navigateToSilentAlert
-  ) {
+  if (callbacks.navigateToSilentAlert) {
     try { callbacks.navigateToSilentAlert(); alertNavigated = true; } catch {}
   }
 

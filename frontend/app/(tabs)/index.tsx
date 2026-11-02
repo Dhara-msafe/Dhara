@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { crossAlert } from '@/src/utils/crossAlert';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
@@ -359,7 +359,7 @@ export default function ChatScreen() {
   const lastMicEntry = useRef<string | undefined>(undefined);
   const micStartingRef = useRef(false);
   const lastEntry = useRef<string | undefined>(undefined);
-  const insets = useSafeAreaInsets();
+
   const [messages, setMessages] = useState<Msg[]>([]);
   // Per-message toggle for the "View Legal Details" summary-first disclosure.
   const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({});
@@ -725,7 +725,7 @@ export default function ChatScreen() {
       // accidentally consumed by the D1-V hide-phrase check.
       // This MUST run before trackEvent / setMessages so the phrase is never
       // sent to analytics, the backend, or rendered in the chat history.
-      if (process.env.EXPO_PUBLIC_SAFE_WORD_V1 === 'true') {
+      if (process.env.EXPO_PUBLIC_SAFE_WORD_V1 !== 'false') {
         try {
           const stored = await getStoredPhrase();
           if (stored && isCodePhraseMatch(q, stored)) {
@@ -746,7 +746,7 @@ export default function ChatScreen() {
 
       // ── D1-V: Discreet-screen phrase check (runs after SOS — amendment 1) ──
       // screen's conflict gate so matching is always consistent.
-      if (process.env.EXPO_PUBLIC_SAFE_WORD_V1 === 'true') {
+      if (process.env.EXPO_PUBLIC_SAFE_WORD_V1 !== 'false') {
         try {
           const storedHide = await getHidePhrase();
           if (storedHide && isCodePhraseMatch(q, storedHide)) {
@@ -2676,7 +2676,7 @@ export default function ChatScreen() {
           </View>
         ) : (
           <View
-            style={[recording ? styles.recordingBar : styles.inputBar, { paddingBottom: Math.max(theme.spacing.md, insets.bottom) }]}
+            style={[recording ? styles.recordingBar : styles.inputBar]}
             testID={recording ? 'rec-bar' : 'input-bar'}
           >
             {recording ? (
