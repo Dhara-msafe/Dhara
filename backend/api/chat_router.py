@@ -113,7 +113,7 @@ router = APIRouter()
 # ── DHARA C1 — conversational replies (non-legal allowlist) ──────────────────
 # Default OFF. Deterministic matcher, no LLM, deny-list always wins, EN/HI
 # templates only. Full contract: engine/conversational_intents.py.
-FEATURE_C1_CONVERSATIONAL_REPLIES = os.getenv("FEATURE_C1_CONVERSATIONAL_REPLIES", "false").lower() == "true"
+FEATURE_C1_CONVERSATIONAL_REPLIES = os.getenv("FEATURE_C1_CONVERSATIONAL_REPLIES", "true").lower() == "true"
 from engine.conversational_intents import (
     classify_conversational_intent,
     get_conversational_template,
