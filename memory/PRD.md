@@ -798,3 +798,10 @@ approved. Legal and authorization blockers (T03–T12) remain open per the track
   - `(tabs)/index.tsx`: SOS + hide-phrase intercepts now gate on `EXPO_PUBLIC_SAFE_WORD_V1 !== 'false'` (was `=== 'true'`) so a missing build-time env var can't silently disable the safety feature (mirrors the greeting FEATURE flag fix).
   - `safetyTriggerCoordinator.ts`: entry gate is now `=== 'false'` early-return (default-ON). Navigation to `/women/silent-alert` ALWAYS happens on an SOS phrase match (decoupled from `EXPO_PUBLIC_SILENT_ALERT_EVIDENCE_V1`) so the user always lands on a reachable Silent Alert screen even if the optional evidence recorder fails. All 5 `safetyTriggerCoordinator.test.ts` cases pass.
 - **Native-only note**: SecureStore phrase storage, mic recording, and the full code-phrase→SilentAlert flow are only verifiable on a real APK/dev build, not Expo Go/web preview.
+
+## Iteration 70 — Release planning + Gate 1 (2026-11-02)
+- Founder decisions: legal correction + rights cards ship WITHHELD; AT40 DEFERRED; Head Out alert = per-environment (CT-1 build value TO CONFIRM).
+- Fixed stale map test (B-07) — frontend 7/7 files pass; voice 108/108.
+- Gate 1 isolated QA run (QA DB `dhara_qa_g1`, port 8002): 1254 pass / 50 fail — see `memory/gate1_qa_report.md`.
+- New docs: `memory/release_flag_manifest_ct1.md`, `memory/closed_test_tester_guide.md`.
+- Open real issues: guardian HTML page tests (14), danger-before-C1 ordering test, Gujarati SOS script, RTI §18 ranking, stream citations.

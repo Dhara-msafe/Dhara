@@ -229,14 +229,16 @@ test('followsUserLocation is false', () => {
 test('showsMyLocationButton is false', () => {
   assert.ok(src.includes('showsMyLocationButton={false}'));
 });
-test('PROVIDER_GOOGLE is used on Android via Platform.OS check', () => {
-  assert.ok(src.includes('PROVIDER_GOOGLE'));
-  assert.ok(src.includes("Platform.OS === 'android'"));
+// Commit 9e737b9 ("Google Maps — All Three Platforms Wired") intentionally
+// switched to Google Maps on every platform; app.config.js injects the
+// Android (googleMaps.apiKey) and iOS (googleMapsApiKey) keys at build time.
+test('PROVIDER_GOOGLE is used on all platforms', () => {
+  assert.ok(src.includes('provider={PROVIDER_GOOGLE}'));
 });
-test('provider is undefined on iOS (Apple Maps default)', () => {
-  // The ternary `Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined`
-  // must be present, not PROVIDER_GOOGLE unconditionally.
-  assert.ok(src.includes(': undefined'));
+test('app.config.js wires Google Maps keys for both Android and iOS', () => {
+  const cfg = readFileSync('/app/frontend/app.config.js', 'utf8');
+  assert.ok(cfg.includes('googleMaps: { apiKey'), 'android googleMaps.apiKey must be wired');
+  assert.ok(cfg.includes('googleMapsApiKey'), 'ios googleMapsApiKey must be wired');
 });
 test('no requestPermissionsAsync or Location import', () => {
   assert.ok(!src.includes('requestPermissions'), 'must not request any permissions');
