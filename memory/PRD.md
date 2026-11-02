@@ -805,3 +805,4 @@ approved. Legal and authorization blockers (T03–T12) remain open per the track
 - Gate 1 isolated QA run (QA DB `dhara_qa_g1`, port 8002): 1254 pass / 50 fail — see `memory/gate1_qa_report.md`.
 - New docs: `memory/release_flag_manifest_ct1.md`, `memory/closed_test_tester_guide.md`.
 - Open real issues: guardian HTML page tests (14), danger-before-C1 ordering test, Gujarati SOS script, RTI §18 ranking, stream citations.
+- Iteration 70b: read-only report `memory/ct1_security_and_intercepts.md` (external-action intercepts, Guardian link review, 45 TS errors listed not fixed, T-17 risk assessment). T-01 blocked: no git remote in container.
