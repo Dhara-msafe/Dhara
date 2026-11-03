@@ -190,6 +190,41 @@ _EMERGENCY_BANNER = {
 }
 
 
+# ── IT Act §66A struck-down guard (Layer S, section-level) ────────────────────
+# Section 66A of the IT Act, 2000 was struck down in its entirety as
+# unconstitutional in Shreya Singhal v. Union of India (2015) 5 SCC 1. The
+# act-level status registry (data/law_status_registry.json, act_id "IT_2000",
+# review_status SOURCED, source_url present) records this fact, but §66A has no
+# section-level record — so a direct / indirect / historical query about it
+# otherwise falls through to a generic "could not find active law" refusal that
+# never tells the user it was struck down. This deterministic guard answers such
+# queries authoritatively: no LLM call, no fabricated replacement section or
+# punishment. The wording restates the sourced Supreme Court holding only and,
+# like all legal content in DHARA, remains pending qualified advocate approval.
+# The regex uses \b before "66" so "166A" (IPC 166A — a different provision,
+# handled by the BNS-supersession path) is NOT matched.
+_IT66A_RE = re.compile(r"\b66\s*-?\s*a\b", re.I)
+
+
+def _is_it_66a_query(text: str) -> bool:
+    return bool(_IT66A_RE.search(text or ""))
+
+
+_IT66A_NOTICE = {
+    "en": (
+        "Section 66A of the Information Technology Act, 2000 was struck down in its "
+        "entirety as unconstitutional by the Supreme Court in Shreya Singhal v. Union of "
+        "India (2015) 5 SCC 1.\n\n"
+        "This means Section 66A is no longer valid law. You cannot be arrested, charged or "
+        "prosecuted under Section 66A for any online post, message or comment — the police "
+        "cannot invoke it, and any FIR or case registered under it is liable to be quashed.\n\n"
+        "Depending on the exact facts, other provisions of the IT Act or the Bharatiya Nyaya "
+        "Sanhita, 2023 may apply to specific online conduct — speak to a lawyer about your "
+        "situation."
+    ),
+}
+
+
 class ChatIn(BaseModel):
     message: str
     session_id: Optional[str] = None
@@ -1536,6 +1571,19 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                     await save_case_state(db, session_id, _v2_state)
                     yield sse({"type": "done"})
                     return
+
+        # DHARA Layer-S (section-level): IT Act §66A was struck down (Shreya
+        # Singhal, 2015). Answer authoritatively instead of letting it fall
+        # through to a generic "no active law" refusal. Runs after the
+        # danger / SOS / C1 shortcuts and before the refusal / LLM path. No LLM
+        # call, no fabricated replacement provision.
+        if _is_it_66a_query(body.message):
+            _66a_reply = _IT66A_NOTICE.get(body.language, _IT66A_NOTICE["en"])
+            yield sse({"type": "delta", "content": _66a_reply, "law_status": "struck_down", "provision": "IT Act §66A"})
+            await save_assistant(_66a_reply, error=None)
+            await save_case_state(db, session_id, _v2_state)
+            yield sse({"type": "done"})
+            return
 
         # Refusal path — do not call the LLM. Send the refusal as a delta so the frontend
         # shows it in the normal chat bubble.

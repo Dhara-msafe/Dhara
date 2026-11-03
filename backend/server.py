@@ -81,7 +81,7 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
 # QA Outbound Guard — refuse to boot without an explicit OUTBOUND_MODE.
-from services.outbound_guard import validate_outbound_config, outbound_live, outbound_mode  # noqa: E402
+from services.outbound_guard import validate_outbound_config, outbound_live, outbound_mode, policy_snapshot  # noqa: E402
 validate_outbound_config()
 
 MONGO_URL = os.environ["MONGO_URL"]
@@ -835,6 +835,7 @@ async def health():
         "company": "Msafe",
         "terms_version": TERMS_VERSION,
         "outbound_mode": outbound_mode(),
+        "outbound": policy_snapshot(),
     }
 
 

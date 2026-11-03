@@ -109,9 +109,10 @@ async def send_email(*, to: str, subject: str, html: str) -> str | None:
     if not email_configured():
         raise HTTPException(503, "Email is not configured on this server.")
     _assert_safe_email(subject, html)
-    from services.outbound_guard import outbound_live, record_simulated
-    if not outbound_live():
-        # QA: the message is kept only in this DB's qa_outbox (isolated QA inbox).
+    from services.outbound_guard import record_simulated, should_send, RESET_EMAIL
+    if not should_send(RESET_EMAIL):
+        # QA / closed-testing-not-live: the message is kept only in this DB's
+        # qa_outbox (isolated QA inbox) — nothing is sent.
         return await record_simulated("email", to, {"subject": subject, "html": html})
     payload = {"to": [to], "subject": subject, "html": html, "from_name": EMAIL_FROM_NAME}
     if EMAIL_REPLY_TO:

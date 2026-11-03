@@ -333,6 +333,67 @@ function SosEmergencyBanner({ onDismiss, language }: { onDismiss: () => void; la
   );
 }
 
+// ── Emergency Call Shortcut (quota-independent) ───────────────────────────────
+// T5: always-available Call 112 / Call 181 buttons for quota-exhausted guests.
+// Routed through openExternal (native dialler; the USER initiates the call).
+// Does NOT depend on any LLM response or remaining guest quota.
+const EMERGENCY_SHORTCUT_NUMBERS = [
+  { label: '112', desc: 'Emergency' },
+  { label: '181', desc: 'Women Helpline' },
+] as const;
+
+function EmergencyCallShortcut({ language }: { language: string }) {
+  const title =
+    language === 'hi' ? 'आपात स्थिति में कॉल करें' :
+    language === 'mr' ? 'आपत्कालीन स्थितीत कॉल करा' :
+    language === 'ta' ? 'அவசரத்தில் அழைக்கவும்' :
+    'In an emergency, call';
+  return (
+    <View testID="emergency-call-shortcut" style={{ gap: 6, marginTop: theme.spacing.sm }}>
+      <Text style={{ color: theme.dhara.navy, fontSize: 12, fontWeight: '600' }}>{title}</Text>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        {EMERGENCY_SHORTCUT_NUMBERS.map(({ label, desc }) => (
+          <Pressable
+            key={label}
+            testID={`emergency-call-${label}`}
+            onPress={() => openExternal(`tel:${label}`)}
+            accessibilityRole="button"
+            accessibilityLabel={`Call ${label} — ${desc}`}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              backgroundColor: theme.colors.emergencyRed,
+              borderRadius: 8,
+              paddingHorizontal: 14,
+              minHeight: 44,
+            }}
+          >
+            <Ionicons name="call" size={16} color="#FFFFFF" />
+            <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>{label}</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 10 }}>{desc}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+
+// T1: broad client-side danger/distress heuristic. A quota-exhausted guest is
+// normally blocked from sending, but a message that looks like present danger
+// (or a bare distress call) must still reach the backend, which makes the final
+// decision: danger → 112 safety reply (no quota consumed), ordinary → paywall.
+// Intentionally broad — a false positive just reaches the backend and gets the
+// normal limit response, while a miss would suppress a real safety reply.
+const _GUEST_DANGER_RE =
+  /(help\s*me|save\s*me|in\s*danger|not\s*safe|unsafe|kill|hurt|attack|beat|hitting|weapon|knife|gun|threat|abus|violen|chasing|following\s*me|stalk|rape|bachao|bachaao|maar|jaan\s*se|वाचवा|बचाओ|मार|खतरा|खतरे|धमकी|हमला|धोक्यात|आपत्|காப்பாற்|ஆபத்து|అపాయం|కాపాడ)/i;
+
+function looksLikeDanger(text: string): boolean {
+  return _GUEST_DANGER_RE.test(text || '');
+}
+
+
 export default function ChatScreen() {
   const { token, user, language, autoSpeak, ttsVolume, ttsVoiceMode, refreshUser, forceLogout } = useAuth();
   const { primaryInterest } = useUserProfile();
@@ -700,7 +761,10 @@ export default function ChatScreen() {
     async (text: string) => {
       const q = text.trim();
       if (!q || streaming || !token) return;
-      if (user?.is_guest && guestQuota.limitReached) return;
+      // T1: a guest at the quota limit is normally blocked, BUT a present-danger
+      // / distress message must still reach the backend (it replies with 112 and
+      // consumes no quota). Ordinary messages at the limit stay blocked.
+      if (user?.is_guest && guestQuota.limitReached && !looksLikeDanger(q)) { setInput(''); return; }
 
       // D1-V: Foreground voice-phrase => screen-privacy activation.
       // Reads the hide phrase from codePhraseStore (SecureStore for auth users,
@@ -2640,6 +2704,7 @@ export default function ChatScreen() {
                 <Text style={styles.guestLimitSecondaryBtnText}>Sign In</Text>
               </Pressable>
             </View>
+            <EmergencyCallShortcut language={language.code} />
           </View>
         )}
 
@@ -2746,7 +2811,7 @@ export default function ChatScreen() {
                   placeholder={`Ask in ${language.native}…`}
                   placeholderTextColor={theme.colors.onSurfaceTertiary}
                   multiline
-                  editable={!streaming && !transcribing && !(user?.is_guest && guestQuota.limitReached)}
+                  editable={!streaming && !transcribing}
                   returnKeyType={Platform.OS !== 'web' ? 'send' : 'default'}
                   blurOnSubmit={false}
                   onSubmitEditing={

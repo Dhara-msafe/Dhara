@@ -11,7 +11,7 @@ import os
 import logging
 import httpx
 
-from services.outbound_guard import outbound_live, record_simulated
+from services.outbound_guard import outbound_live, record_simulated, should_send, PUSH
 
 logger = logging.getLogger("push")
 
@@ -27,7 +27,7 @@ _client = httpx.AsyncClient(
 
 async def register_device(user_id: str, platform: str, device_token: str) -> dict:
     """Upsert a device token with the relay. Called by POST /api/register-push."""
-    if not outbound_live():
+    if not should_send(PUSH):
         await record_simulated("push_register", user_id, {"platform": platform})
         return {"status": "simulated"}
     resp = await _client.post(
@@ -49,7 +49,7 @@ async def unregister_device(user_id: str) -> None:
     DB. Same contract as register_device/send_push: callers MUST wrap this
     in try/except — a relay hiccup must never block the deletion itself.
     """
-    if not outbound_live():
+    if not should_send(PUSH):
         await record_simulated("push_unregister", user_id, {})
         return
     resp = await _client.post(
@@ -76,7 +76,7 @@ async def send_push(recipients: list[str], data: dict, idempotency_key: str | No
         return
     if "title" not in data or "message" not in data:
         raise ValueError("data must include title and message")
-    if not outbound_live():
+    if not should_send(PUSH):
         await record_simulated("push", ",".join(recipients), {"data": data, "idempotency_key": idempotency_key})
         return
     for i in range(0, len(recipients), 100):

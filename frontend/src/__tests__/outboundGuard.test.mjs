@@ -38,20 +38,25 @@ test('live only on the exact string "live" (missing/misspelt => simulate)', () =
   assert.equal(resolve('live'), true);
 });
 
-test('every dispatch entry point checks OUTBOUND_LIVE before calling the OS', () => {
+test('every dispatch entry point checks shouldDispatch() before calling the OS', () => {
   for (const fn of ['openExternal', 'composeSms', 'shareExternal']) {
     const body = src.slice(src.indexOf(`function ${fn}`));
-    const guardAt = body.indexOf('OUTBOUND_LIVE');
+    const guardAt = body.indexOf('shouldDispatch');
     const callAt = Math.min(...['Linking.openURL(', 'sendSMSAsync(', 'Share.share('].map(s => body.indexOf(s)).filter(i => i >= 0));
-    assert.ok(guardAt >= 0 && guardAt < callAt, `${fn} must check OUTBOUND_LIVE first`);
+    assert.ok(guardAt >= 0 && guardAt < callAt, `${fn} must check shouldDispatch first`);
   }
   assert.ok(src.includes("Simulated — nothing sent"));
+  // shouldDispatch can only go live when the master switch is live (profile restricts, never enables).
+  assert.ok(/OUTBOUND_LIVE\s*&&\s*channelDecision\(channel\)\s*===\s*'live'/.test(src));
 });
 
 test('dispatch URL classification', () => {
-  const m = src.match(/const DISPATCH_SCHEME = (\/.*\/i);/); const h = src.match(/const DISPATCH_HOST = (\/.*\/i);/);
-  const scheme = eval(m[1]); const host = eval(h[1]);
-  const isD = u => scheme.test(u) || host.test(u);
+  const grab = (name) => { const m = src.match(new RegExp(`const ${name} = (/.*/i);`)); return m ? eval(m[1]) : null; };
+  const dial = grab('DIALLER_SCHEME'), sms = grab('SMS_SCHEME'), share = grab('SHARE_SCHEME'), host = grab('SHARE_HOST');
+  const isD = u => dial.test(u) || sms.test(u) || share.test(u) || host.test(u);
   for (const u of ['tel:112', 'TEL:181', 'sms:+919000000001?body=x', 'smsto:1', 'mailto:a@b.c', 'whatsapp://send?text=x', 'https://wa.me/91900', 'intent://x']) assert.ok(isD(u), u);
   for (const u of ['https://maps.google.com/?q=1,2', 'https://voters.eci.gov.in', 'https://indiacode.nic.in/x']) assert.ok(!isD(u), u);
+  // channel routing: tel → dialler, sms → sms, the rest → external_share.
+  assert.ok(dial.test('tel:112') && !sms.test('tel:112'));
+  assert.ok(sms.test('sms:1') && !dial.test('sms:1'));
 });

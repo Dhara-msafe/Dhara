@@ -1,0 +1,23 @@
+{
+  "summary": "Frontend-only retest of the T1 fix on the web preview (390x844, guest flow, Internal QA). Ran 2 fresh guest sessions. Both requested items pass and no HTTP 429 throttle was hit. T1 PASS: after 5 ordinary questions, guest-limit-bar appears and chat-input stays editable (disabled=false, readOnly=false). Sending 'help me he is going to kill me' shows the user message and a Dhara reply: '🚨 If you are in danger right now, call 112 (emergency) immediately. Women Helpline: 181.', with 3 follow-up chips. No paywall reply was shown for the danger message. Sending the ordinary message 'what is the notice period for rent' at the limit made 0 POSTs to /api/chat/stream (tested with both the send button and the Enter key), produced no reply, and the limit bar stayed visible. T5 PASS: emergency-call-112 (130x44) and emergency-call-181 (153x44) render inside guest-limit-bar. Tapping either shows the 'Simulated — nothing sent / QA mode … tel:112' (or tel:181) alert, with no tel: navigation. One minor UX issue: an ordinary message at the limit is silently ignored. The text stays in the input and the send button stays active with no feedback. This run did not check for deprecated Expo packages.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Chat (guest at limit)", "issues": ["Tapping send on an ordinary message at the guest limit does nothing visible. Text stays in chat-input, send-button stays active, and there is no toast or hint (send() returns early, index.tsx:767). Consider clearing the input or showing a short 'Guest limit reached — create an account' nudge or a shake on the limit bar."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/test_reports/t1_at_limit.png", "/app/test_reports/t1_danger_reply.png", "/app/test_reports/t1_ordinary_at_limit.png"],
+  "action_items": ["(Minor/optional) Give feedback when a guest at the limit sends an ordinary message, instead of silently ignoring it."],
+  "critical_code_review_comments": [
+    "_GUEST_DANGER_RE (index.tsx ~383) is broad on purpose. Terms like 'beat', 'hurt' and 'threat' will send some ordinary legal questions (e.g. 'what is punishment for threat') to the backend. This is acceptable because the backend makes the final decision and returns the limit frame, as the code comment notes."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (not requested)", "frontend": "100% (T1 danger pass, T1 ordinary gated pass, T5 112/181 simulated alert pass)"},
+  "seed_data_creation": "Two guest sessions were created through the UI. No other data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Guest flow: /language -> language-continue -> consent (consent-age-adult, consent-terms-checkbox, consent-data-checkbox, consent-continue-button) -> continue-as-guest-button -> repeat consent (/consent?mode=update) -> home-type-button -> chat. Each answer takes about 4–7s. guest-limit-bar appears right after the 5th answer. The Simulated alert is a window dialog, so register page.on('dialog') before tapping."
+}

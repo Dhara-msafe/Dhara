@@ -47,9 +47,9 @@ async def _mark_ran(db, job: str, day: str) -> None:
 
 
 async def _run_daily_nudge(db) -> None:
-    from services.outbound_guard import outbound_live
-    if not outbound_live():
-        logger.info("[push_jobs] daily_nudge skipped — OUTBOUND_MODE is not live")
+    from services.outbound_guard import should_send, REMINDER
+    if not should_send(REMINDER):
+        logger.info("[push_jobs] daily_nudge skipped — reminders not enabled for this profile/mode")
         return
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     if await _already_ran_today(db, "daily_nudge", day):

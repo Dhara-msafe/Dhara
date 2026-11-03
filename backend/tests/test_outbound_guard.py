@@ -54,6 +54,11 @@ def recorded(monkeypatch):
 
 
 def _set(monkeypatch, value):
+    # These legacy unit tests pin OUTBOUND_MODE only and assume the profile is
+    # DERIVED from the mode (live→production, else→internal_qa). Clear any
+    # explicit OUTBOUND_PROFILE from the environment so that contract holds;
+    # per-profile behaviour is covered separately in test_outbound_policy.py.
+    monkeypatch.delenv("OUTBOUND_PROFILE", raising=False)
     if value is None:
         monkeypatch.delenv("OUTBOUND_MODE", raising=False)
     else:

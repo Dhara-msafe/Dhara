@@ -1,0 +1,30 @@
+{
+  "summary": "Frontend run on the web preview at 390x844. 5 of 6 requested items pass; T1 fails in the UI. PASS: T5 (the guest-limit bar shows the emergency-call shortcut with 112 and 181, both 44px tall, and tapping either shows 'Simulated — nothing sent'), T3 (the 66A answer says the section was struck down as unconstitutional in Shreya Singhal), T2 (the 'RTI 18' citation appears after tapping View Legal Details), the outbound guard (sos-call-112 shows the Simulated alert; no tel: or sms: navigation), and the regression check (email login and normal chat streaming, no page errors). FAIL: T1. The UI never lets a guest send a 6th message, so the backend's danger-before-quota reply cannot be reached. The backend sends guest_limit_reached at the end of the 5th answer, and the frontend then disables chat-input and send() returns early. I confirmed the backend path works through the API. No deprecated Expo packages were checked or reported in this run.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "T1 Guest safety before quota", "issue": "After the 5th guest answer, the backend sends guest_limit_reached (api/chat_router.py ~line 1721). The frontend then sets limitReached, disables the input (app/(tabs)/index.tsx:2797, editable=false) and returns early in send() (index.tsx:750, `if (user?.is_guest && guestQuota.limitReached) return;`). computeGuestQuota (index.tsx:420) also locks the input after a reload when count>=limit. As a result, a quota-exhausted guest cannot type or speak 'help me he is going to kill me', and the backend _guest_limit_gen branch that returns the 112 banner (chat_router.py:420-428) is never reached from the UI. In the live run, chat-input was not editable before the 6th message, so no 112 reply was possible. The 112/181 shortcut buttons are the only safety path left.", "affected_testIDs": ["chat-input", "send-button", "guest-limit-bar"]}
+    ],
+    "design_issues": [
+      {"screen": "Chat SOS banner / guest-limit shortcut", "issues": ["The SOS banner shows 112 / 1091 / 100, but the guest-limit shortcut shows 112 / 181. The helpline numbers are inconsistent between the two.", "The text under the SOS buttons is 9px and the shortcut description is 10px, both on red. These are below readable minimums; use at least 11-12px."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_guest_danger_at_limit.py", "/app/test_reports/pytest/pytest_iter71.xml"],
+  "action_items": [
+    "HIGH (T1): Let a guest at the limit still send a message so the backend's danger/distress-before-quota reply can be reached. Option (a): keep chat-input editable when limitReached and remove the early return at index.tsx:750, letting the backend decide; it already returns guest_limit_reached for benign messages and 112 for danger. Option (b): run a client-side danger/distress check in send() before the limitReached return. Then re-test as a guest: 5 questions, then 'help me he is going to kill me' must show a 112 reply and the SOS banner.",
+    "LOW: Align the helpline numbers between SosEmergencyBanner (112/1091/100) and EmergencyCallShortcut (112/181), and raise the description font size to at least 11px."
+  ],
+  "critical_code_review_comments": [
+    "app/(tabs)/index.tsx is 3955 lines. Split it into modules: SosEmergencyBanner, EmergencyCallShortcut, guest-quota hook, SSE stream parser.",
+    "outbound.ts policy is correct: internal_qa + simulate makes dialler, SMS and share all simulate; showSimulated uses window.alert on web and Alert.alert on native."
+  ],
+  "updated_files": ["/app/backend/tests/test_guest_danger_at_limit.py"],
+  "success_rate": {"backend": "100% (2/2 targeted API checks for T1 backend path)", "frontend": "83% (5/6 requested items)"},
+  "seed_data_creation": "The API test creates a throwaway guest, sets guest_question_count=5 in Mongo, then deletes the guest. The UI run created one guest session through POST /api/auth/guest. No 429 throttle was hit.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Guest flow: /language -> language-continue -> consent (consent-age-adult, consent-terms-checkbox, consent-data-checkbox, consent-continue-button) -> /login -> continue-as-guest-button. This redirects to /consent?mode=update, so repeat the consent steps; you then land on /home. Tap home-type-button to reach chat. The guest-limit-bar appears right after the 5th answer. Register the Playwright dialog handler before tapping call buttons. Avoid backslash-escaped quotes inside f-strings in browser scripts (they cause a SyntaxError). The registered user voicetest2026@example.com / TestPass123! works.",
+  "rca_of_issue": "T1: the quota is enforced in two places. The backend marks the limit at the end of answer 5 (guest_question_count == limit), and the frontend locks the composer as soon as it sees that frame. The backend safety branch only runs on a 6th request, which the frontend never sends. Reproduce: as a guest, ask 5 questions; chat-input becomes non-editable. Mitigation: let the request reach the backend, or check for danger on the client before the quota gate."
+}

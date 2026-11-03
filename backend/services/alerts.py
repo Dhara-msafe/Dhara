@@ -45,8 +45,8 @@ async def send_ops_alert(title: str, detail: str, *, severity: str = "warning") 
         logger.info("[ops_alerts] no channel configured — skip (%s)", title)
         return
 
-    from services.outbound_guard import outbound_live, record_simulated
-    if not outbound_live():
+    from services.outbound_guard import record_simulated, should_send, OPS_ALERT
+    if not should_send(OPS_ALERT):
         await record_simulated("ops_alert", "ops", {"title": title, "detail": detail, "severity": severity})
         return
 
