@@ -198,6 +198,43 @@ _EMERGENCY_BANNER = {
 }
 
 
+# ── B-04b / B-04c: safety before access gates ────────────────────────────────
+# An expired guest session (401) and an exhausted Pro sample quota (402) are
+# ACCESS gates, not safety gates. A person in immediate danger — or sending a
+# bare distress call — must still receive the deterministic 112 banner / SOS
+# reply instead of a hard error, exactly like the quota-exhausted guest path
+# (B-04a). This helper returns that deterministic SSE stream, or None when the
+# message is an ordinary one (caller then raises its 401/402 unchanged).
+# No LLM call, no guest-question increment, no Pro-sample consumption.
+def _gate_safety_stream(message: str, language: str, emergency: bool, session_frame: dict):
+    _sos_text = None
+    _flag = None
+    if emergency:
+        _sos_text = _EMERGENCY_BANNER.get(language, _EMERGENCY_BANNER["en"])
+        _flag = "emergency"
+    elif FEATURE_C1_CONVERSATIONAL_REPLIES and is_bare_distress(message):
+        _sos_text = (
+            get_conversational_template("distress_sos", language)
+            or _EMERGENCY_BANNER.get(language, _EMERGENCY_BANNER["en"])
+        )
+        _flag = "c1_sos"
+    if not _sos_text:
+        return None
+
+    def _sse(obj: dict) -> bytes:
+        return f"data: {json.dumps(obj, ensure_ascii=False)}\n\n".encode("utf-8")
+
+    async def _gen():
+        yield _sse(session_frame)
+        yield _sse({"type": "delta", "content": _sos_text, _flag: True})
+        yield _sse({"type": "done"})
+
+    return StreamingResponse(
+        _gen(), media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 # ── IT Act §66A struck-down guard (Layer S, section-level) ────────────────────
 # Section 66A of the IT Act, 2000 was struck down in its entirety as
 # unconstitutional in Shreya Singhal v. Union of India (2015) 5 SCC 1. The
@@ -403,6 +440,20 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
         except Exception:
             expires_dt = None
         if expires_dt and datetime.now(timezone.utc) > expires_dt:
+            # B-04b: safety before the expiry gate.
+            _safety = _gate_safety_stream(
+                body.message, body.language, _emergency,
+                {
+                    "type": "session", "session_id": session_id, "tier": "guest",
+                    "mode": "basic", "sample_consumed": False,
+                    "samples_remaining_after": 0, "guest": True,
+                    "guest_expired": True,
+                    "guest_question_count": int(user.get("guest_question_count", 0)),
+                    "guest_question_limit": guest_question_limit,
+                },
+            )
+            if _safety is not None:
+                return _safety
             raise HTTPException(401, {
                 "guest_expired": True,
                 "message": "Your guest session has expired. Create a free account to keep using Dhara.",
@@ -490,6 +541,18 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
 
     if mode == "pro" and not is_pro_user and not is_advocate_mode:
         if samples_used >= PRO_FREE_SAMPLES:
+            # B-04c: safety before the paywall gate.
+            _safety = _gate_safety_stream(
+                body.message, body.language, _emergency,
+                {
+                    "type": "session", "session_id": session_id,
+                    "tier": "pro" if is_pro_user else "free", "mode": mode,
+                    "sample_consumed": False, "samples_remaining_after": 0,
+                    "guest": False, "paywall_blocked": True,
+                },
+            )
+            if _safety is not None:
+                return _safety
             # Log the blocked attempt so the operator sees who's hitting the paywall
             # and what they were trying to ask. Otherwise the query vanishes from the DB.
             try:
