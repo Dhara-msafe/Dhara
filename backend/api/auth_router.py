@@ -22,6 +22,10 @@ from states import is_valid_state, state_name
 from mailer import send_email, password_reset_otp_email, account_deletion_otp_email, email_configured
 from account_deletion import hard_delete_user
 from push import unregister_device
+from services.login_guard import (
+    check_lock, register_failure, clear_attempts, lock_detail,
+    normalize_email, client_ip,
+)
 
 router = APIRouter()
 
@@ -123,10 +127,27 @@ async def register(body: RegisterIn):
     return {"token": make_token(uid), "user": public_user(doc)}
 
 @router.post("/auth/login", response_model=AuthOut)
-async def login(body: LoginIn):
+async def login(body: LoginIn, request: Request):
+    # B-16 — login attempt protection. The lock is checked BEFORE any password
+    # hashing, so a locked attacker burns no CPU. Counters live in MongoDB
+    # (services/login_guard.py), never in process memory.
+    email_key = normalize_email(body.email)
+    ip = client_ip(request)
+
+    wait = await check_lock(db, email_key, ip)
+    if wait:
+        raise HTTPException(429, lock_detail(wait), headers={"Retry-After": str(max(1, wait))})
+
     user = await db.users.find_one({"email": body.email.lower()})
     if not user or not check_pw(body.password, user.get("password_hash", "")):
+        # Counted for unknown emails too — otherwise the attempt counter itself
+        # would leak which addresses are registered. The 401 stays identical.
+        wait = await register_failure(db, email_key, ip)
+        if wait:
+            raise HTTPException(429, lock_detail(wait), headers={"Retry-After": str(max(1, wait))})
         raise HTTPException(401, "Invalid credentials")
+
+    await clear_attempts(db, email_key, ip)
     return {"token": make_token(user["id"]), "user": public_user(user)}
 
 

@@ -163,6 +163,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (ct.includes('application/json')) {
         const err = await r.json();
         if (typeof err?.detail === 'string' && err.detail) return err.detail;
+        // Structured detail object (e.g. B-16 login lockout: { code, message,
+        // retry_after_seconds }) — show its message verbatim.
+        if (err?.detail && typeof err.detail === 'object' && !Array.isArray(err.detail)
+            && typeof err.detail.message === 'string' && err.detail.message) {
+          return err.detail.message;
+        }
         if (Array.isArray(err?.detail) && err.detail.length > 0) {
           const first = err.detail[0];
           const field = Array.isArray(first?.loc) ? String(first.loc[first.loc.length - 1] ?? '') : '';

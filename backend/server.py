@@ -82,6 +82,7 @@ load_dotenv(ROOT_DIR / ".env")
 
 # QA Outbound Guard — refuse to boot without an explicit OUTBOUND_MODE.
 from services.outbound_guard import validate_outbound_config, outbound_live, outbound_mode, policy_snapshot  # noqa: E402
+from services.login_guard import ensure_indexes as _login_guard_indexes  # noqa: E402
 validate_outbound_config()
 
 MONGO_URL = os.environ["MONGO_URL"]
@@ -1878,6 +1879,12 @@ async def _startup():
         await db.scan_history.create_index([("user_id", 1), ("created_at", -1)])
     except Exception as e:
         logger.warning(f"[startup] scan_history index creation warning: {e}")
+
+    # B-16 login attempt protection — TTL index for lockout records (idempotent)
+    try:
+        await _login_guard_indexes(db)
+    except Exception as e:
+        logger.warning(f"[startup] login_attempts index creation warning: {e}")
 
     # Fire-and-forget: initialise Emergent Object Storage for evidence uploads
     asyncio.create_task(_init_fir_storage())

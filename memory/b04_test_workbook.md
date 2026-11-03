@@ -65,3 +65,70 @@ the B-04b fixture was changed to stop depending on `/api/auth/guest` for this re
 ## Outstanding for B-04
 - Real-device (Android build) verification of the 112 banner / SOS reply on the
   expired-guest and exhausted-Pro paths → required before ANDROID VERIFIED.
+
+---
+
+# B-16 Login Attempt Protection — Test Workbook
+
+Status: **IMPLEMENTED + AUTOMATED TESTED (backend) + UI VERIFIED (web preview)** —
+*not* ANDROID VERIFIED.
+
+Approved behaviour: progressive delay on every failure; lock after 5 failures in
+a 15-minute window with auto-unlock; counted per account AND per client IP;
+clear 429 message with the wait time; email/password login only.
+
+## Files
+- `backend/services/login_guard.py` (new) — Mongo-backed counters, TTL index,
+  atomic per-document increments (multi-worker safe), progressive delay.
+- `backend/api/auth_router.py` — `POST /auth/login` gate only.
+- `backend/server.py` — one idempotent TTL-index call at startup.
+- `frontend/src/auth.tsx` — `_extractError` now reads a structured
+  `detail {code, message, retry_after_seconds}` object (one block).
+- `backend/tests/test_b16_login_attempt_protection.py` (new) — 10 tests.
+
+## Backend results — 10/10 passed
+1. 4 failures → 401, 5th → 429 with `retry_after_seconds` + `Retry-After` header.
+2. Locked account refuses even the CORRECT password → gate runs before `check_pw`.
+3. Lock persisted in MongoDB (`failures`, `lock_until`, `expires_at`), not memory.
+4. Per-IP record written alongside the account record.
+5. Successful login clears BOTH counters; next wrong password is 401, not 429.
+6. Unknown email counted but response byte-identical to a known-email failure
+   (no user enumeration).
+7. Progressive delay measurably grows across attempts.
+8. Ageing the window past 15 minutes auto-unlocks (correct password → 200).
+9. The per-IP key is the forwarded client address, never the shared in-cluster
+   pod IP (see finding below).
+10. 5 failures sprayed across 5 different accounts from one address trips the
+    per-IP lock, which the account counter alone would never catch.
+
+## Finding during implementation — shared proxy IP (fixed before sign-off)
+`request.client.host` inside this cluster is the ingress pod address (10.9.x.x),
+which **every user shares** and which rotates between pods per request. The
+playbook's "use request.client.host, never trust X-Forwarded-For" rule would
+therefore have (a) locked out the entire user base after any 5 failures and
+(b) leaked attempts across rotating pod IPs. Observed headers confirm the edge
+sets `x-forwarded-for: <real client>,<cloudflare>,<gclb>`. `client_ip()` now
+takes the left-most forwarded entry and returns `None` (IP dimension skipped)
+when no forwarded header exists. Trade-off recorded in the module docstring: a
+spoofed left-most entry only evades the per-IP counter, while the per-account
+counter still stops the brute force.
+
+## Frontend results (testing agent, report `/app/test_reports/iteration_73.json`)
+All 6 requested checks passed: tries 1–4 show "Invalid credentials" with
+growing delay (1.1s → 1.6s → 2.6s → 4.6s); try 5 shows exactly "Too many failed
+sign-in attempts. Please try again in 15 minutes." (not the generic fallback);
+correct password while locked is refused identically; message readable and
+wrapped; normal sign-in unaffected; guest and Google buttons unaffected.
+
+## Open items from the frontend pass — NOT B-16 regressions, not fixed
+- **Medium:** on a 375px-wide screen the floating Help button overlaps the
+  show/hide-password eye icon on the login screen; tapping the eye opens Help.
+- **Minor:** the 8.6s delayed 5th attempt shows only a dimmed button — a spinner
+  would stop it reading as a hang.
+- **Minor:** the Google sign-in path reads `(await r.json()).detail` directly
+  instead of `_extractError`, so a structured error there would render
+  "[object Object]". Not reachable today.
+
+## Outstanding
+- Real-device (Android build) verification of the lockout message.
+- 15-minute auto-unlock is covered by backend test 8 only; not observed in UI.
