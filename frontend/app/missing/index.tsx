@@ -7,9 +7,7 @@
  * Route: /missing
  */
 import { useEffect } from 'react';
-import {
-  View, Text, Pressable, ScrollView, StyleSheet, Linking,
-} from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/src/auth';
@@ -18,6 +16,7 @@ import { theme } from '@/src/theme';
 import interviewData from '@/src/content/missing_interview.json';
 import { trackEvent } from '@/src/analytics';
 
+import { openExternal } from '@/src/outbound';
 type Lang = 'en' | 'hi' | 'mr';
 
 const NAVY = theme.colors.primary;
@@ -41,8 +40,8 @@ export default function MissingEntryScreen() {
   const first = interviewData.entry_screens.first_screen;
 
   const makeCall = (number: string) => {
-    Linking.openURL(`tel:${number}`).catch(() => {
-      Linking.openURL(`https://en.wikipedia.org/wiki/Emergency_telephone_number`);
+    openExternal(`tel:${number}`).catch(() => {
+      openExternal(`https://en.wikipedia.org/wiki/Emergency_telephone_number`);
     });
   };
 

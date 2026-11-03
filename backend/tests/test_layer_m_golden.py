@@ -649,6 +649,12 @@ def _make_corr_record(
         "revoked":        revoked,
         "revoked_at":     revoked_at,
         "reviewer_id":    reviewer_id,
+        # Required for an ACTIVE approval since 9e0a9b2 (gate-reason semantics):
+        # timezone-aware approved_at + out-of-band review artefact binding.
+        # Synthetic, in-memory only — never written to the real registry.
+        "approved_at":            "2026-01-15T10:00:00+00:00",
+        "review_artifact_id":     "TEST-ARTIFACT-001",
+        "review_artifact_digest": "sha256:" + "0" * 64,
     }
 
 
@@ -698,7 +704,8 @@ class TestSectionCorrespondenceApprovalGate:
         rec = _make_corr_record(status="revoked", revoked=True, revoked_at="2026-01-01T00:00:00Z")
         result = check_section_correspondence_approval("IPC:166A", "BNS:199", registry=[rec])
         assert result.approved is False
-        assert result.reason == "revoked"
+        # Reason code renamed in 9e0a9b2 (14 distinct reason codes).
+        assert result.reason == "revoked_approval"
 
     def test_207_active_status_but_revoked_at_set_fails_closed(self):
         """status='active' + revoked_at set is still revoked."""
@@ -763,7 +770,9 @@ class TestSectionCorrespondenceApprovalGate:
 
     def test_214_multiple_records_only_one_valid_still_approves(self):
         """When several records for the same key exist, the first valid one wins."""
-        bad_rec = _make_corr_record(content_hash="badhash" + "0" * 57)
+        # Distinct approval_id: duplicate ids are now (correctly) rejected as
+        # conflicting_registry_records since 9e0a9b2.
+        bad_rec = _make_corr_record(approval_id="TEST-CORR-BAD", content_hash="badhash" + "0" * 57)
         good_rec = _make_corr_record()
         result = check_section_correspondence_approval(
             "IPC:166A", "BNS:199", registry=[bad_rec, good_rec]

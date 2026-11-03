@@ -36,6 +36,7 @@ import { theme } from '@/src/theme';
 import FirSectionDrawer, { SectionItem, DroppedSection } from '@/src/components/FirSectionDrawer';
 import { MarqueeBanner } from '@/src/components/MarqueeBanner';
 
+import { openExternal } from '@/src/outbound';
 // Native location is optional; importing it on web fails in the installed version.
 const Location: typeof import('expo-location') | null =
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -2170,7 +2171,7 @@ function EmergencyOverlay({
   numbers, onContinue, onExit,
 }: { numbers: Array<{label: string; number: string}>; onContinue: () => void; onExit: () => void }) {
   const handleCall = (num: string) => {
-    Linking.openURL(`tel:${num}`).catch(() =>
+    openExternal(`tel:${num}`).catch(() =>
       Alert.alert('Cannot call', `Please manually dial ${num}`)
     );
   };

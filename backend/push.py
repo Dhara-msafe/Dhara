@@ -11,6 +11,8 @@ import os
 import logging
 import httpx
 
+from services.outbound_guard import outbound_live, record_simulated
+
 logger = logging.getLogger("push")
 
 PUSH_BASE_URL = "https://integrations.emergentagent.com"
@@ -25,6 +27,9 @@ _client = httpx.AsyncClient(
 
 async def register_device(user_id: str, platform: str, device_token: str) -> dict:
     """Upsert a device token with the relay. Called by POST /api/register-push."""
+    if not outbound_live():
+        await record_simulated("push_register", user_id, {"platform": platform})
+        return {"status": "simulated"}
     resp = await _client.post(
         "/api/v1/push/users/register",
         json={"user_id": user_id, "platform": platform, "device_token": device_token},
@@ -44,6 +49,9 @@ async def unregister_device(user_id: str) -> None:
     DB. Same contract as register_device/send_push: callers MUST wrap this
     in try/except — a relay hiccup must never block the deletion itself.
     """
+    if not outbound_live():
+        await record_simulated("push_unregister", user_id, {})
+        return
     resp = await _client.post(
         "/api/v1/push/users/unregister",
         json={"user_id": user_id},
@@ -68,6 +76,9 @@ async def send_push(recipients: list[str], data: dict, idempotency_key: str | No
         return
     if "title" not in data or "message" not in data:
         raise ValueError("data must include title and message")
+    if not outbound_live():
+        await record_simulated("push", ",".join(recipients), {"data": data, "idempotency_key": idempotency_key})
+        return
     for i in range(0, len(recipients), 100):
         chunk = recipients[i : i + 100]
         payload: dict = {"recipients": chunk, "data": data}

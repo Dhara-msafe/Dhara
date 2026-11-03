@@ -10,6 +10,7 @@ import { getCircle, type Contact, getSilentAlertEvidencePref, setSilentAlertEvid
 import { composeAlert } from '@/src/women/helpActions';
 import { useEvidenceRecorder } from '@/src/women/EvidenceRecorderProvider';
 import { triggerFromSilentAlert } from '@/src/women/safetyTriggerCoordinator';
+import { OUTBOUND_LIVE, SIMULATED_TEXT } from '@/src/outbound';
 import { useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
 
@@ -85,7 +86,7 @@ export default function SilentAlert() {
     <View style={styles.root} testID="silent-alert-screen">
       <ScreenHeader title="Silent alert" subtitle="Prepare a message · you choose when to send" />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
-        <Text testID="silent-alert-disclosure" style={styles.note}>This opens your SMS app, not an automatic emergency alert. Review the message and press Send there, separately for each person. SMS service may be required. Your phone or their phone may make sounds; DHARA cannot guarantee silence or delivery.</Text>
+        <Text testID="silent-alert-disclosure" style={styles.note}>{OUTBOUND_LIVE ? 'This opens your SMS app, not an automatic emergency alert. Review the message and press Send there, separately for each person. SMS service may be required. Your phone or their phone may make sounds; DHARA cannot guarantee silence or delivery.' : `QA mode — ${SIMULATED_TEXT}. Your SMS app will not open and no alert will leave this device.`}</Text>
         <Text testID="silent-alert-message" selectable style={styles.message}>{body}</Text>
         <Pressable testID="alert-add-location" style={styles.button} disabled={busy} onPress={addLocation}>{busy ? <ActivityIndicator color={c.onBrandPrimary} /> : <Text style={styles.buttonText}>{location ? 'Update location (optional)' : 'Add my location (optional)'}</Text>}</Pressable>
         {(!!location || busy) && <Pressable testID="alert-remove-location" style={styles.secondary} onPress={() => { request.current++; setBusy(false); setLocation(''); }}><Text style={styles.label}>{busy ? 'Continue without location' : 'Remove location'}</Text></Pressable>}

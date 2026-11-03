@@ -8,10 +8,7 @@
  * Route: /missing/result
  */
 import { useState, useCallback } from 'react';
-import {
-  View, Text, Pressable, ScrollView, StyleSheet, Platform,
-  ActivityIndicator, Alert, Linking,
-} from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, Platform, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -22,6 +19,7 @@ import { answersKey, clearSupport, loadSupport, mapUrl, MissingPhoto, MissingSup
 import rightsData    from '@/src/content/missing_rights.json';
 import { indiaEntity } from '@/src/operatorIdentity';
 
+import { openExternal } from '@/src/outbound';
 type Lang = 'en' | 'hi' | 'mr';
 
 const NAVY = theme.colors.primary;
@@ -119,7 +117,7 @@ function RightsCard({ lang, onShare }: { lang: Lang; onShare: () => void }) {
   const card = rightsData.card;
 
   const makeCall = (number: string) => {
-    Linking.openURL(`tel:${number}`).catch(() => {});
+    openExternal(`tel:${number}`).catch(() => {});
   };
 
   return (

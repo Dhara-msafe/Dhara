@@ -4,10 +4,7 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
-import {
-  View, Text, ScrollView, Pressable, StyleSheet,
-  ActivityIndicator, Share, Platform, Alert, Clipboard, Linking,
-} from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Platform, Alert, Clipboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +15,7 @@ import { API_BASE, useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
 import FirSectionDrawer, { SectionItem, DroppedSection } from '@/src/components/FirSectionDrawer';
 
+import { openExternal, shareExternal } from '@/src/outbound';
 // ── Theme ─────────────────────────────────────────────────────────────────────
 const NAVY   = theme.colors.primary;
 const GOLD   = theme.colors.gold;
@@ -154,7 +152,7 @@ pre{white-space:pre-wrap;font-size:13px;line-height:1.7;font-family:'Courier New
     if (!draftText) return;
     setSharing(true);
     try {
-      await Share.share({ message: draftText, title: 'FIR Complaint Draft (DHARA)' });
+      await shareExternal({ message: draftText, title: 'FIR Complaint Draft (DHARA)' });
     } catch {
       Alert.alert('Share failed', 'Could not share the draft.');
     } finally {
@@ -206,7 +204,7 @@ pre{white-space:pre-wrap;font-size:13px;line-height:1.7;font-family:'Courier New
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
         const blobUrl = URL.createObjectURL(blob);
-        Linking.openURL(blobUrl);
+        openExternal(blobUrl);
         return;
       }
       const dir = FileSystem.cacheDirectory || FileSystem.documentDirectory;

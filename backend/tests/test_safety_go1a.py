@@ -22,7 +22,7 @@ from pathlib import Path
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
-BASE = "http://localhost:8001/api"
+BASE = (os.environ.get("EXPO_BACKEND_URL") or "http://localhost:8001").rstrip("/") + "/api"
 
 # ── DB helper (for soft-delete verification) ──────────────────────────────────
 

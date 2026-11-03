@@ -3,15 +3,14 @@
  * Asks VT1 → VT2 → VT3 and routes to Form 6, Form 8, Status Check, or Legal Help.
  */
 import { useState, useCallback } from 'react';
-import {
-  View, Text, Pressable, ScrollView, StyleSheet, Linking,
-} from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
 import triageData from '@/src/content/voter_triage.json';
 
+import { openExternal } from '@/src/outbound';
 type Lang = 'en' | 'hi' | 'mr';
 type OutcomeId = 'FORM6' | 'FORM8' | 'STATUS_CHECK' | 'LEGAL_HELP';
 
@@ -94,7 +93,7 @@ export default function VoterRollTab() {
           <Pressable
             testID="voter-status-shortcut"
             style={s.secondaryBtn}
-            onPress={() => Linking.openURL('https://voters.eci.gov.in')}
+            onPress={() => openExternal('https://voters.eci.gov.in')}
           >
             <Text style={s.secondaryBtnText}>
               {lang === 'hi'
@@ -161,7 +160,7 @@ export default function VoterRollTab() {
                 <Text style={s.outcomeBody}>{t(outcomeData.note, lang)}</Text>
                 <Pressable
                   style={s.primaryBtn}
-                  onPress={() => Linking.openURL(outcomeData.url ?? 'https://voters.eci.gov.in')}
+                  onPress={() => openExternal(outcomeData.url ?? 'https://voters.eci.gov.in')}
                 >
                   <Text style={s.primaryBtnText}>
                     {lang === 'hi'

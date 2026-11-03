@@ -1,8 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import {
-  View, Text, Pressable, FlatList, StyleSheet, ActivityIndicator,
-  Share, Platform, Modal,
-} from 'react-native';
+import { View, Text, Pressable, FlatList, StyleSheet, ActivityIndicator, Platform, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
@@ -11,6 +8,7 @@ import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { INTAKE_TEMPLATES, IntakeTemplate } from '@/src/intakeTemplates';
 
+import { shareExternal } from '@/src/outbound';
 const NAVY = theme.colors.primary;
 const GOLD = theme.colors.gold;
 
@@ -72,7 +70,7 @@ export default function Intakes() {
       const { intake_url } = await r.json();
       await loadIntakes();
       if (Platform.OS !== 'web') {
-        await Share.share({ message: `Please fill in your case details using this secure link:\n${intake_url}`, url: intake_url });
+        await shareExternal({ message: `Please fill in your case details using this secure link:\n${intake_url}`, url: intake_url });
       } else {
         await Clipboard.setStringAsync(intake_url);
         alert(`Link copied!\n${intake_url}`);

@@ -44,11 +44,29 @@ assert BASE_URL, "EXPO_PUBLIC_BACKEND_URL not configured"
 TEST_EMAIL = "protest@gandhikar.in"
 TEST_PASSWORD = "test1234"
 
-AUDIO_TONE_PATH = "/tmp/test_audio.m4a"       # 440Hz sine, 2s AAC
-AUDIO_SILENCE_PATH = "/tmp/test_silence.m4a"  # silence, 2s AAC
+AUDIO_TONE_PATH = "/tmp/test_audio.wav"       # 440Hz sine, 2s PCM WAV (generated below)
+AUDIO_SILENCE_PATH = "/tmp/test_silence.wav"  # silence, 2s PCM WAV (generated below)
 
 
 # ---------- Fixtures ----------
+def _write_wav(path: str, freq: float, seconds: float = 2.0, rate: int = 16000) -> None:
+    """Self-contained fixture: the m4a files these tests used to need were
+    never in the repo (environment-only), so generate WAVs (a Whisper-
+    supported format) deterministically instead."""
+    import math, struct, wave
+    with wave.open(path, "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(rate)
+        w.writeframes(b"".join(
+            struct.pack("<h", int(12000 * math.sin(2 * math.pi * freq * i / rate)) if freq else 0)
+            for i in range(int(rate * seconds))))
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _audio_fixtures():
+    _write_wav(AUDIO_TONE_PATH, 440.0)
+    _write_wav(AUDIO_SILENCE_PATH, 0.0)
+
+
 @pytest.fixture(scope="module")
 def token() -> str:
     """Login and return a bearer token."""
@@ -72,7 +90,7 @@ def auth_headers(token: str) -> dict:
 class TestTranscribeBackwardCompat:
     def test_no_language_field_returns_text_shape(self, auth_headers):
         with open(AUDIO_TONE_PATH, "rb") as f:
-            files = {"audio": ("audio.m4a", f, "audio/m4a")}
+            files = {"audio": ("audio.wav", f, "audio/wav")}
             r = requests.post(
                 f"{BASE_URL}/api/voice/transcribe",
                 headers=auth_headers,
@@ -95,7 +113,7 @@ class TestTranscribeWithLanguageHint:
     @pytest.mark.parametrize("lang", ["en", "hi", "ta", "mr", "kn", "ur", "ne"])
     def test_supported_language_accepted(self, auth_headers, lang):
         with open(AUDIO_TONE_PATH, "rb") as f:
-            files = {"audio": ("audio.m4a", f, "audio/m4a")}
+            files = {"audio": ("audio.wav", f, "audio/wav")}
             data = {"language": lang}
             r = requests.post(
                 f"{BASE_URL}/api/voice/transcribe",
@@ -118,7 +136,7 @@ class TestTranscribeUnsupportedLanguage:
         """'sat' (Santali) is not in Whisper's supported set → backend must
         drop the hint and auto-detect. Should NOT 500 or reject the request."""
         with open(AUDIO_TONE_PATH, "rb") as f:
-            files = {"audio": ("audio.m4a", f, "audio/m4a")}
+            files = {"audio": ("audio.wav", f, "audio/wav")}
             data = {"language": "sat"}
             r = requests.post(
                 f"{BASE_URL}/api/voice/transcribe",
@@ -135,7 +153,7 @@ class TestTranscribeUnsupportedLanguage:
 
     def test_garbage_language_code_ignored(self, auth_headers):
         with open(AUDIO_TONE_PATH, "rb") as f:
-            files = {"audio": ("audio.m4a", f, "audio/m4a")}
+            files = {"audio": ("audio.wav", f, "audio/wav")}
             data = {"language": "xyzzy"}
             r = requests.post(
                 f"{BASE_URL}/api/voice/transcribe",
@@ -165,7 +183,7 @@ class TestWhisperSupportedSetMismatch:
     @pytest.mark.parametrize("lang", PROXY_REJECTED_CODES)
     def test_proxy_rejected_codes_must_not_500(self, auth_headers, lang):
         with open(AUDIO_TONE_PATH, "rb") as f:
-            files = {"audio": ("audio.m4a", f, "audio/m4a")}
+            files = {"audio": ("audio.wav", f, "audio/wav")}
             data = {"language": lang}
             r = requests.post(
                 f"{BASE_URL}/api/voice/transcribe",
@@ -185,7 +203,7 @@ class TestWhisperSupportedSetMismatch:
 
 # ---------- 4) Invalid / empty audio ----------
 class TestTranscribeInvalidAudio:
-    def test_empty_audio_bytes_returns_500(self, auth_headers):
+    def test_empty_audio_bytes_returns_400(self, auth_headers):
         files = {"audio": ("audio.m4a", io.BytesIO(b""), "audio/m4a")}
         r = requests.post(
             f"{BASE_URL}/api/voice/transcribe",
@@ -193,15 +211,16 @@ class TestTranscribeInvalidAudio:
             files=files,
             timeout=30,
         )
-        # Spec expects 500 with "Transcription failed" — must not crash.
-        assert r.status_code == 500, (
-            f"Expected 500 for empty audio, got {r.status_code}: {r.text}"
+        # Approved voice-upload validation (Round 5): empty files are rejected
+        # up-front with a clean 400 (and never billed) instead of reaching
+        # Whisper and failing as a 500.
+        assert r.status_code == 400, (
+            f"Expected 400 for empty audio, got {r.status_code}: {r.text}"
         )
-        # Body must be JSON (not an HTML 500 page) and mention 'Transcription failed'
         body = r.json()
         detail = body.get("detail", "")
-        assert "Transcription failed" in str(detail) or "transcrib" in str(detail).lower(), (
-            f"Detail should mention Transcription failed, got: {detail}"
+        assert "empty or too short" in str(detail), (
+            f"Detail should explain the empty recording, got: {detail}"
         )
 
 
@@ -209,7 +228,7 @@ class TestTranscribeInvalidAudio:
 class TestTranscribeAuth:
     def test_missing_auth_returns_401(self):
         with open(AUDIO_TONE_PATH, "rb") as f:
-            files = {"audio": ("audio.m4a", f, "audio/m4a")}
+            files = {"audio": ("audio.wav", f, "audio/wav")}
             r = requests.post(
                 f"{BASE_URL}/api/voice/transcribe",
                 files=files,

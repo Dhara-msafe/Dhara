@@ -1,15 +1,5 @@
 import { useMemo, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  TextInput,
-  ActivityIndicator,
-  Share,
-  Platform,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator, Platform } from 'react-native';
 import { crossAlert } from '@/src/utils/crossAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -21,6 +11,7 @@ import { theme } from '@/src/theme';
 import { draftByType } from '@/src/drafts';
 import { addToHistory } from '@/src/draftHistory';
 
+import { shareExternal } from '@/src/outbound';
 export default function DraftForm() {
   const { type, prefill } = useLocalSearchParams<{ type: string; prefill?: string }>();
   const router = useRouter();
@@ -96,7 +87,7 @@ export default function DraftForm() {
   const onShare = async () => {
     if (!generated) return;
     try {
-      await Share.share({ message: generated });
+      await shareExternal({ message: generated });
     } catch {}
   };
 

@@ -2,10 +2,7 @@
  * Visitor Mode — V4: Emergency Workflow + V3: Speak For Me
  */
 import React, { useEffect, useState, useCallback } from 'react';
-import {
-  View, Text, ScrollView, Pressable, StyleSheet,
-  ActivityIndicator, Alert, Linking,
-} from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
@@ -14,6 +11,7 @@ import { EMERGENCY_STEPS, WorkflowStep } from '@/src/visitor/content';
 import { useAuth } from '@/src/auth';
 import { speakLangFor, phraseIn, playPhrase } from '@/src/visitor/speakForMe';
 
+import { openExternal } from '@/src/outbound';
 const C = theme.colors;
 
 export default function VisitorEmergency() {
@@ -106,7 +104,7 @@ export default function VisitorEmergency() {
                 onPress={() => {
                   const num = step.callNumber!;
                   const url = num.startsWith('http') ? num : `tel:${num}`;
-                  Linking.openURL(url).catch(() => {});
+                  openExternal(url).catch(() => {});
                 }}
               >
                 <Ionicons name="call" size={18} color="#fff" />

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Modal, Linking } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 
+import { openExternal } from '@/src/outbound';
 type Helpline = {
   label: string;
   number: string;
@@ -34,7 +35,7 @@ export function SOSButton({
 
   const dial = (number: string) => {
     setOpen(false);
-    Linking.openURL(`tel:${number}`).catch(() => {});
+    openExternal(`tel:${number}`).catch(() => {});
   };
 
   return (

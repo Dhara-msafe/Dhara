@@ -1,0 +1,33 @@
+{
+  "summary": "Release-audit check, web preview at 390x844. Every requested item passed. (1) Women's Shield > Campus security > 'Ask DHARA' opens the Ask tab at /?draft=...&entry=... and fills the chat-input with exactly 'How do I contact campus security or file a complaint?'. (2) QA Outbound Guard: on /emergency, tapping call-112 shows a window.alert reading 'Simulated — nothing sent ... tel:112', the URL stays on /emergency, and the status text says the dialler was not opened. The same notice appears with no tel: navigation for Women's Shield hl-181 and Anti-Ragging 'Call'. The Silent alert SMS path (alert-contact-*) shows the notice with the full SMS body, and no sms: navigation happened. (3) Ask DHARA: 'how do I complain if my RTI is ignored' returns an answer that points to the Information Commission. Its citations (under 'View Legal Details') list RTI 18 first. (4) Backend: 4/4 pytest passed. /api/health returns outbound_mode=simulate. A PNG sent as audio/m4a returns 415. An empty file returns 400 'empty or too short'. A request without auth returns 401/403. No deprecated expo packages found (expo-av, expo-barcode-scanner, expo-background-fetch). No file outside src/outbound.ts calls Linking.openURL, sendSMSAsync or Share.share directly.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Women's Shield rights cards", "issue": "accessibilityLabel={r.label} but the rights items have no 'label' field, so screen readers get no label (also reported by tsc as TS2339). Reference: /app/frontend/app/women-shield.tsx:233", "testID": "ws-*", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Silent alert (QA simulate mode)", "issues": ["The disclosure still says 'This opens your SMS app...' while simulate mode is on. Not wrong for live builds; it is only a QA copy mismatch."]},
+      {"screen": "Ask DHARA citations", "issues": ["Labels for the same Act are inconsistent: 'RTI 18' and 'RTI 3' vs '§ 6' (RTI s.6 shown without the Act prefix).", "RTI 18 shows 'May be outdated — last checked over 90 days ago' (verified_at 2026-06-01)."]},
+      {"screen": "LanguageOnboardModal", "issues": ["The modal has no testIDs; 'Continue in English' can only be found by its text. Reference: /app/frontend/src/components/LanguageOnboardModal.tsx"]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_iter70_release_audit.py", "/app/test_reports/pytest/pytest_iter70.xml"],
+  "action_items": [
+    "Optional: fix the women-shield.tsx:233 accessibilityLabel (use tr(r.key, lang)).",
+    "Optional: 42 tsc --noEmit errors remain across the repo (17 in src/trustedCircle/api.ts, 5 in app/edit-profile.tsx, (tabs)/me.tsx photo_url/errorSoft, and others). None of them block the web bundle.",
+    "Optional: add testIDs to LanguageOnboardModal buttons."
+  ],
+  "critical_code_review_comments": [
+    "outbound.ts is fail-closed: anything other than exactly 'live' is simulated. helpActions.openPhone/composeAlert return the simulated status text.",
+    "read_validated_audio checks size, emptiness, declared type and file signature before meter_llm_use, so rejected uploads are never billed (confirmed by the 415/400 tests).",
+    "chat_router.py is 1986 lines and (tabs)/index.tsx is 3907 lines, far over the 700-line guideline."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter70_release_audit.py"],
+  "success_rate": {"backend": "100% (4/4)", "frontend": "100% (campus prefill, 112/181/anti-ragging call guard, silent-alert SMS guard, RTI 18 citation)"},
+  "seed_data_creation": "Added a device-local trusted contact 'TEST_QA Contact' (+919999900001) in the throwaway browser context only. Nothing was sent.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login: voicetest2026@example.com / TestPass123! (testpass_alpha@msafe.in returns Invalid credentials). Web pre-login flow: /language (language-continue) -> /consent (consent-age-adult, consent-terms-checkbox, consent-data-checkbox, consent-continue-button) -> /login. After login a language bottom sheet may appear; tap text 'Continue in English'. On first visit /women-shield auto-redirects to /women/panic-lesson; navigate to /women-shield again. '/' redirects to /home; reach Ask via the 'Type' button. Citations only render after tapping 'View Legal Details'. Register the Playwright dialog handler before tapping so you can capture the 'Simulated — nothing sent' alert."
+}

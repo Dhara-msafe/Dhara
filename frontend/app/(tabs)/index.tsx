@@ -1,21 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  StyleSheet,
-  ScrollView,
-  Platform,
-  ActivityIndicator,
-  Modal,
-  Animated,
-  PanResponder,
-  AppState,
-  Linking,
-  type GestureResponderEvent,
-  type PanResponderGestureState,
-} from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Platform, ActivityIndicator, Modal, Animated, PanResponder, AppState, type GestureResponderEvent, type PanResponderGestureState } from 'react-native';
 import { crossAlert } from '@/src/utils/crossAlert';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -39,7 +23,7 @@ import { useAuth, API_BASE, logClientError } from '@/src/auth';
 import { useUserProfile } from '@/src/userProfile';
 import { theme } from '@/src/theme';
 import { trackEvent } from '@/src/analytics';
-import { getConfiguredSTT, whisperTranscribeFile, sttErrorToMessage } from '@/src/voice/stt';
+import { getConfiguredSTT, whisperTranscribeFile, sttErrorToMessage, MAX_AUDIO_BYTES, AUDIO_TOO_LARGE_MESSAGE } from '@/src/voice/stt';
 import { claimMic, MIC_BUSY_MESSAGE, withMicLease, isMicHeldByEvidenceLocker, TTS_BLOCKED_BY_LOCKER_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
 import { canSpeakNow, noteAudioInterruption, noteSpeakIntent, VOICE_COMPANION_ENABLED } from '@/src/voice/speechGate';
 import { VoiceStateMachine } from '@/src/voice/core/voiceStateMachine';
@@ -56,6 +40,7 @@ import { triggerSafetySequence } from '@/src/women/safetyTriggerCoordinator';
 import { useEvidenceRecorder } from '@/src/women/EvidenceRecorderProvider';
 import { activateCover } from '@/src/women/coverState';
 
+import { openExternal } from '@/src/outbound';
 /** Strip raw markdown markers from streaming text so asterisks/hashes never
  *  flash in the UI while the LLM is still mid-sentence. Called only on the
  *  accumulated delta text; the sanitized `final` frame is displayed as-is. */
@@ -314,7 +299,7 @@ function SosEmergencyBanner({ onDismiss, language }: { onDismiss: () => void; la
             <Pressable
               key={label}
               testID={`sos-call-${label}`}
-              onPress={() => Linking.openURL(`tel:${label}`)}
+              onPress={() => openExternal(`tel:${label}`)}
               style={{
                 backgroundColor: theme.colors.emergencyDeep,
                 borderRadius: 6,
@@ -1710,6 +1695,11 @@ export default function ChatScreen() {
           return;
         }
         if (!token) { setTranscribing(false); return; }
+        if (audioBlob.size > MAX_AUDIO_BYTES) {
+          setTranscribing(false);
+          notify('Recording too long', AUDIO_TOO_LARGE_MESSAGE);
+          return;
+        }
         lastAudioForRetryRef.current = { platform: 'web', blob: audioBlob }; // Fix A: enable Retry with the same recording
         // Upload blob to Whisper endpoint
         const form = new FormData();

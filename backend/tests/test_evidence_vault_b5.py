@@ -16,7 +16,7 @@ import pytest
 import requests
 
 BASE_URL = os.environ.get("EXPO_PUBLIC_BACKEND_URL", "").rstrip("/")
-ADMIN_KEY = "gz9cap1QPTVbzeHjHKpxhlykJQxJfr64kcrDwJL3BkE"  # from backend/.env ADMIN_KEY
+ADMIN_KEY = os.environ.get("ADMIN_KEY", "")  # injected by the isolated QA runner; never hard-code
 
 GENESIS = "0" * 64
 
@@ -29,6 +29,10 @@ def _hexhash(s: str) -> str:
 def api_client():
     session = requests.Session()
     session.headers.update({"Content-Type": "application/json"})
+    # E1 hardening: /evidence/* now requires a signed-in user (scope = user id).
+    r = session.post(f"{BASE_URL}/api/auth/login", json={"email": "protest@gandhikar.in", "password": "test1234"})
+    assert r.status_code == 200, r.text
+    session.headers["Authorization"] = f"Bearer {r.json()['token']}"
     return session
 
 

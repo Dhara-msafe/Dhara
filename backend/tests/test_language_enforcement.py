@@ -299,12 +299,19 @@ def test_citations_present_and_precede_deltas(auth_headers):
         f"No citation frames emitted for arrest-rights query in Tamil: {types}"
     )
     first_citation_idx = types.index("citation")
-    assert "delta" in types, "No delta frames emitted at all"
-    first_delta_idx = types.index("delta")
-    assert first_citation_idx < first_delta_idx, (
-        f"Citations ({first_citation_idx}) did NOT precede deltas "
-        f"({first_delta_idx}) in the SSE stream"
-    )
+    # Contract since the Phase-1 citation-after-answer gate (18e7881): with
+    # CITATION_GUARD_ENABLED the answer is BUFFERED and released as one
+    # "final" frame after the output guard passes; citations follow it.
+    # Without the guard, streamed "delta" frames precede citations.
+    content_types = [t for t in types if t in ("delta", "final")]
+    assert content_types, f"No answer content frames emitted at all: {types}"
+    first_content_idx = types.index(content_types[0])
+    if os.environ.get("CITATION_GUARD_ENABLED", "true").lower() == "true":
+        assert "final" in types, f"guard ON: expected buffered final frame: {types}"
+        assert first_content_idx < first_citation_idx, (
+            f"guard ON: citations ({first_citation_idx}) must follow the answer ({first_content_idx})")
+    else:
+        assert first_citation_idx < first_content_idx
     # Citation payload sanity
     cit_events = [e for e in events if e.get("type") == "citation"]
     for c in cit_events:

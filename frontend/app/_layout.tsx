@@ -220,13 +220,13 @@ function NotificationTapBridge() {
   const router = useRouter();
   useEffect(() => {
     if (!TRUSTED_CIRCLE_RECIPIENT) return;
-    let remove: (() => void) | undefined;
+    let sub: { remove: () => void } | undefined;
     import("@/src/push").then(({ addNotificationTapListener }) => {
-      remove = addNotificationTapListener((actionUrl) => {
+      sub = addNotificationTapListener((actionUrl) => {
         if (actionUrl) router.push(actionUrl as any);
       });
     }).catch(() => {});
-    return () => remove?.();
+    return () => sub?.remove();
   }, [router]);
   return null;
 }

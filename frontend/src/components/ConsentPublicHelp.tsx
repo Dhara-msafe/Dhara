@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { API_BASE } from '../auth';
 import { theme } from '../theme';
 import type { ConsentCopy } from '../consentCopy';
 
+import { openExternal } from '@/src/outbound';
 type Citation = { label: string; url: string };
 type Topic = {
   id: string; title: string; summary: string; law: string; points: string[];
@@ -35,7 +36,7 @@ export function ConsentPublicHelp({ mode, onClose, copy, lang }: {
     return () => { active = false; clearTimeout(timer); controller.abort(); };
   }, [mode, attempt, lang]);
   const call = (number: string) => {
-    void Linking.openURL(`tel:${number}`).catch(() => setError(`Please dial ${number} on your phone.`));
+    void openExternal(`tel:${number}`).catch(() => setError(`Please dial ${number} on your phone.`));
   };
   return (
     <Modal visible={mode !== null} animationType="slide" onRequestClose={onClose} testID="consent-help-modal">
@@ -61,7 +62,7 @@ export function ConsentPublicHelp({ mode, onClose, copy, lang }: {
                 <View style={styles.citeWrap}>
                   <Text style={styles.citeHeading}>Official sources</Text>
                   {topic.citations.map((c, i) => (
-                    <Pressable key={i} testID={`consent-citation-${topic.id}-${i}`} onPress={() => Linking.openURL(c.url)} style={styles.citeRow}>
+                    <Pressable key={i} testID={`consent-citation-${topic.id}-${i}`} onPress={() => openExternal(c.url)} style={styles.citeRow}>
                       <Ionicons name="open-outline" size={13} color={colors.primary} />
                       <Text style={styles.citeText}>{c.label}</Text>
                     </Pressable>

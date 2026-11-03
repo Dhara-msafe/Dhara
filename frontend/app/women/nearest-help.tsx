@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { View, Text, Pressable, ScrollView, Linking, StyleSheet } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { theme } from '@/src/theme';
 import { openPhone } from '@/src/women/helpActions';
 
+import { openExternal } from '@/src/outbound';
 const c = theme.colors;
 const places = [
   { id: 'police', name: 'Police station', query: 'police station near me' },
@@ -18,7 +19,7 @@ export default function NearestHelp() {
   const insets = useSafeAreaInsets();
   const openMap = async (query: string) => {
     try {
-      await Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`);
+      await openExternal(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`);
       setStatus('Continue in Maps. Allow location there or enter your area. Check opening hours and call the service before travelling.');
     } catch { setStatus('Maps could not open. Open your map app and search for the service near your area, or call 112 in an emergency.'); }
   };

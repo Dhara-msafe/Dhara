@@ -12,15 +12,7 @@
  *            Adds destination, last-known area, and live coordinates for map.
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  StyleSheet,
-  ActivityIndicator,
-  Linking,
-} from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,6 +21,7 @@ import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { useAuth } from '@/src/auth';
 import { API_BASE } from '@/src/apiBase';
 
+import { openExternal } from '@/src/outbound';
 const c = theme.colors;
 
 // Auto-refresh interval for active journeys (30 s)
@@ -227,7 +220,7 @@ export default function GuardianScreen() {
             </Text>
             <Text style={styles.cardBody}>{state.message}</Text>
             {state.code === 0 && (
-              <Pressable style={styles.outlineBtn} onPress={fetchJourney} accessibilityRole="button">
+              <Pressable style={styles.outlineBtn} onPress={() => fetchJourney()} accessibilityRole="button">
                 <Ionicons name="refresh-outline" size={16} color={c.navy} />
                 <Text style={styles.outlineBtnTxt}>Try again</Text>
               </Pressable>
@@ -333,7 +326,7 @@ export default function GuardianScreen() {
 
                   <Pressable
                     style={styles.mapsBtn}
-                    onPress={() => Linking.openURL(_mapsUrl(data.last_location!.lat, data.last_location!.lng))}
+                    onPress={() => openExternal(_mapsUrl(data.last_location!.lat, data.last_location!.lng))}
                     accessibilityRole="link"
                     accessibilityLabel="Open in Google Maps"
                   >

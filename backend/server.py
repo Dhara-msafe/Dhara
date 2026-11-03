@@ -80,6 +80,10 @@ from personal_law import (
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
+# QA Outbound Guard — refuse to boot without an explicit OUTBOUND_MODE.
+from services.outbound_guard import validate_outbound_config, outbound_live, outbound_mode  # noqa: E402
+validate_outbound_config()
+
 MONGO_URL = os.environ["MONGO_URL"]
 DB_NAME = os.environ["DB_NAME"]
 CORPUS_DB_NAME = os.environ.get("CORPUS_DB_NAME", "bns-know-your-rights-gandhikar_db")
@@ -208,7 +212,7 @@ api = APIRouter(prefix="/api")
 # db/corpus_db/current_user and shared utilities live in dependencies.py (single connection)
 from dependencies import db, corpus_db, current_user, current_user_optional, hash_pw, check_pw, make_token, public_user, meter_llm_use, build_system_prompt, translate_for_retrieval, logger, check_admin_key as _check_admin_key  # noqa: E501
 from api.auth_router     import router as auth_router
-from api.chat_router     import router as chat_router, whisper_transcribe
+from api.chat_router     import router as chat_router, whisper_transcribe, read_validated_audio
 from api.fir_router      import router as fir_router
 from api.visitor_router  import router as visitor_router
 from api.journeys_router import router as journeys_router
@@ -830,7 +834,29 @@ async def health():
         "copyright": "© Callistus Moses",
         "company": "Msafe",
         "terms_version": TERMS_VERSION,
+        "outbound_mode": outbound_mode(),
     }
+
+
+@api.get("/qa/outbox")
+async def qa_outbox(
+    to: Optional[str] = None,
+    kind: Optional[str] = None,
+    limit: int = 20,
+    x_admin_key: Optional[str] = Header(None),
+):
+    """QA-only isolated inbox: simulated emails / pushes recorded by the
+    Outbound Guard. Disabled (404) whenever OUTBOUND_MODE=live."""
+    if outbound_live():
+        raise HTTPException(404, "Not found")
+    _check_admin_key(x_admin_key)
+    q: dict = {}
+    if to:
+        q["target"] = to
+    if kind:
+        q["kind"] = kind
+    items = await db.qa_outbox.find(q, {"_id": 0}).sort("created_at", -1).to_list(max(1, min(limit, 100)))
+    return {"outbound_mode": outbound_mode(), "items": items}
 
 # ---------- Admin CSV export ----------
 # Key-protected read-only export for the app operator. The key MUST be sent in
@@ -1433,8 +1459,9 @@ async def intake_transcribe(
     advocate = await db.users.find_one({"id": intake.get("advocate_id")})
     if not advocate:
         raise HTTPException(404, "Advocate account not found")
+    clip = await read_validated_audio(audio)   # validate first — rejected files are never billed
     await meter_llm_use(advocate, "voice")
-    return await whisper_transcribe(audio, language)
+    return await whisper_transcribe(clip, language)
 
 
 @api.get("/advocate/intakes/{advocate_id}")
@@ -1871,7 +1898,11 @@ async def _startup():
     # Fire-and-forget: the daily push-notification loop (re-engagement nudge
     # + dead-law bookmark sweep — see push_jobs.py). Sleeps until the next
     # scheduled run internally; costs nothing at boot.
-    asyncio.create_task(run_push_jobs_loop(db, corpus_db))
+    # QA Outbound Guard: scheduled push jobs never start unless OUTBOUND_MODE=live.
+    if outbound_live():
+        asyncio.create_task(run_push_jobs_loop(db, corpus_db))
+    else:
+        logger.warning("[push_jobs] NOT started — OUTBOUND_MODE=%s", outbound_mode())
 
     # F1 — Missed check-in deadline worker (scans every 2 min; 5-min grace period)
     try:

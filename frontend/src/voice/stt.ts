@@ -176,6 +176,10 @@ async function defaultPlatformOS(): Promise<string> {
   return Platform.OS;
 }
 
+/** Mirrors backend read_validated_audio (api/chat_router.py): 10 MB cap. */
+export const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
+export const AUDIO_TOO_LARGE_MESSAGE = 'Recording is too long (max 10 MB). Please record a shorter message.';
+
 export async function whisperTranscribeFile(
   apiBase: string,
   token: string,

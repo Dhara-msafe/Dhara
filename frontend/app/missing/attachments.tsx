@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { theme } from '@/src/theme';
 import { loadSupport, mapUrl, MissingLocation, MissingPhoto, MissingSupport, photoRequest, saveSupport } from '@/src/missing/support';
 import { PrivatePhoto } from '@/src/missing/PrivatePhoto';
 
+import { openExternal } from '@/src/outbound';
 const colors = theme.colors;
 function Action({ id, label, icon, onPress, disabled = false }: { id: string; label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void; disabled?: boolean }) {
   return <Pressable testID={id} accessibilityRole="button" disabled={disabled} onPress={onPress} style={({ pressed }) => [s.button, (disabled || pressed) && s.dim]}><Ionicons name={icon} size={19} color={colors.primary} /><Text style={s.buttonText}>{label}</Text></Pressable>;
@@ -106,7 +107,7 @@ export default function MissingAttachments() {
     catch { setError('Location could not be saved on this device. Please retry.'); }
     finally { setBusy(false); }
   }
-  const openMap = (location: MissingLocation) => Linking.openURL(mapUrl(location)).catch(() => setError('Could not open Maps. Please use the coordinates shown.'));
+  const openMap = (location: MissingLocation) => openExternal(mapUrl(location)).catch(() => setError('Could not open Maps. Please use the coordinates shown.'));
   return <SafeAreaView edges={['top', 'bottom']} style={s.safe} testID="missing-attachments-screen">
     <View style={s.header}><Action id="missing-attachments-back" icon="arrow-back" label="Back" onPress={() => router.back()} disabled={busy} /><Text testID="missing-attachments-title" style={s.title}>Photos & location</Text></View>
     <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

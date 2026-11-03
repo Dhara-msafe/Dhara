@@ -10,10 +10,7 @@
  *   result     — structured legal or non-legal result
  */
 import React, { useState, useRef, useCallback } from 'react';
-import {
-  View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator,
-  Linking, Share, Image, Platform, TextInput,
-} from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Linking, Image, Platform, TextInput } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useRouter } from 'expo-router';
@@ -24,6 +21,7 @@ import { useAuth } from '@/src/auth';
 import { API_BASE } from '@/src/apiBase';
 import { draftByType } from '@/src/drafts';
 
+import { shareExternal } from '@/src/outbound';
 const c = theme.colors;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -421,10 +419,10 @@ export default function Scan() {
           dialogTitle: result.mode === 'draft' ? 'Share drafted reply' : 'Share document summary',
         });
       } else {
-        await Share.share({ message: `${result.summary}\n\nNext step: ${result.action}` });
+        await shareExternal({ message: `${result.summary}\n\nNext step: ${result.action}` });
       }
     } catch {
-      try { if (result) await Share.share({ message: `${result.summary}\n\nNext step: ${result.action}` }); } catch { /* */ }
+      try { if (result) await shareExternal({ message: `${result.summary}\n\nNext step: ${result.action}` }); } catch { /* */ }
     } finally {
       setSharing(false);
     }

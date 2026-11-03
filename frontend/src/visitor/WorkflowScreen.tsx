@@ -3,16 +3,14 @@
  * Renders a list of steps with Speak-For-Me per step.
  */
 import React, { useCallback, useState } from 'react';
-import {
-  View, Text, ScrollView, Pressable, StyleSheet,
-  ActivityIndicator, Alert, Linking,
-} from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { WorkflowStep } from '@/src/visitor/content';
 import { API_BASE, useAuth } from '@/src/auth';
 
+import { openExternal } from '@/src/outbound';
 const C = theme.colors;
 
 type Props = {
@@ -88,7 +86,7 @@ export default function WorkflowScreen({
                 style={[s.actionBtn, { backgroundColor: headerColor }]}
                 onPress={() => {
                   const n = step.callNumber!;
-                  Linking.openURL(n.startsWith('http') ? n : `tel:${n}`).catch(() => {});
+                  openExternal(n.startsWith('http') ? n : `tel:${n}`).catch(() => {});
                 }}
               >
                 <Ionicons

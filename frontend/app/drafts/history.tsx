@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, Share } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable } from 'react-native';
 import { crossAlert } from '@/src/utils/crossAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { theme } from '@/src/theme';
 import { draftByType } from '@/src/drafts';
 import { DraftHistoryItem, loadHistory, removeFromHistory } from '@/src/draftHistory';
 
+import { shareExternal } from '@/src/outbound';
 /** Every notice a user generated, kept on-device so it can be reopened,
  * edited (copy → paste into a fresh form) and re-sent later without
  * spending another draft from the free/Pro quota. */
@@ -31,7 +32,7 @@ export default function DraftHistoryScreen() {
   };
 
   const onShare = async (item: DraftHistoryItem) => {
-    try { await Share.share({ message: item.text }); } catch {}
+    try { await shareExternal({ message: item.text }); } catch {}
   };
 
   const onDelete = (item: DraftHistoryItem) => {

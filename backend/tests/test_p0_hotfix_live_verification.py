@@ -52,16 +52,17 @@ def _create_invite(owner_token, temp_location: bool):
 async def _insert_synthetic_alert(link_id, recipient_user_id, owner_id):
     # Use the same DB name the running app uses (read from backend/.env DB_NAME).
     import re
-    db_name = "dhara"
+    db_name = os.environ.get("DB_NAME", "")  # isolated QA run sets DB_NAME
     try:
         with open(os.path.join(os.path.dirname(__file__), "..", ".env")) as f:
             for line in f:
                 m = re.match(r'^DB_NAME=["\']?([^"\'\n]+)', line)
-                if m:
+                if m and not db_name:
                     db_name = m.group(1)
                     break
     except Exception:
         pass
+    db_name = db_name or "dhara"
     client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URL)
     db = client[db_name]
     alert_id = str(uuid.uuid4())
@@ -104,7 +105,7 @@ class TestLiveHotfix_NoLocationPermission:
         requests.post(f"{BASE_URL}/api/trusted-circle/invitations/{link_id}/respond",
                       json={"action": "accept"}, headers=headers_r)
 
-        alert_id, db_name = asyncio.get_event_loop().run_until_complete(
+        alert_id, db_name = asyncio.run(
             _insert_synthetic_alert(link_id, recipient_id, owner_id))
 
         list_resp = requests.get(f"{BASE_URL}/api/alerts?filter=all", headers=headers_r)
@@ -139,7 +140,7 @@ class TestLiveHotfix_WithLocationPermission:
         headers_r = {"Authorization": f"Bearer {recipient['token']}"}
         requests.post(f"{BASE_URL}/api/trusted-circle/invitations/{link_id}/respond",
                       json={"action": "accept"}, headers=headers_r)
-        alert_id, _ = asyncio.get_event_loop().run_until_complete(
+        alert_id, _ = asyncio.run(
             _insert_synthetic_alert(link_id, recipient_id, owner_id))
 
         detail_resp = requests.get(f"{BASE_URL}/api/alerts/{alert_id}", headers=headers_r)
@@ -161,7 +162,7 @@ class TestLiveHotfix_RevokedRelationship:
         headers_o = {"Authorization": f"Bearer {owner['token']}"}
         requests.post(f"{BASE_URL}/api/trusted-circle/invitations/{link_id}/respond",
                       json={"action": "accept"}, headers=headers_r)
-        alert_id, _ = asyncio.get_event_loop().run_until_complete(
+        alert_id, _ = asyncio.run(
             _insert_synthetic_alert(link_id, recipient_id, owner_id))
         requests.post(f"{BASE_URL}/api/trusted-circle/invitations/{link_id}/revoke", headers=headers_o)
 

@@ -3,13 +3,14 @@
  * Selects between Emergency and Lost Passport workflows.
  */
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { loadVisitorSession, VisitorSession, getStateLocalLang, HINDI_LANG } from '@/src/visitor/session';
 
+import { openExternal } from '@/src/outbound';
 const C = theme.colors;
 
 const WORKFLOWS = [
@@ -126,7 +127,7 @@ export default function VisitorIntent() {
         </Text>
 
         <Pressable style={s.callBtn} onPress={() => {
-          Linking.openURL('tel:112');
+          openExternal('tel:112');
         }}>
           <Ionicons name="call" size={20} color="#fff" />
           <Text style={s.callBtnText}>Call 112 — Emergency</Text>

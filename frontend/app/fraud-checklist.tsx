@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Linking, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { crossAlert } from '@/src/utils/crossAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '@/src/theme';
 
+import { openExternal } from '@/src/outbound';
 /**
  * Golden-hour cyber fraud checklist.
  *
@@ -165,7 +166,7 @@ export default function FraudChecklist() {
 
   const open = async (url: string) => {
     try {
-      await Linking.openURL(url);
+      await openExternal(url);
     } catch {
       crossAlert('Could not open', url);
     }

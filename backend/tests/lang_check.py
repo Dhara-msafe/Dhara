@@ -1,6 +1,7 @@
+import os
 import requests, json, unicodedata, re, sys
 
-BASE = "http://localhost:8001"
+BASE = (os.environ.get("EXPO_BACKEND_URL") or "http://localhost:8001").rstrip("/")
 
 r = requests.post(f"{BASE}/api/auth/login", json={"email":"protest@gandhikar.in","password":"test1234"})
 TOKEN = r.json()["token"]

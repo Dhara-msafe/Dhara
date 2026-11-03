@@ -16,6 +16,7 @@ import { getLastLocation } from '@/src/safety/locationCache';
 import { formatLocationFix } from '@/src/safety/locationPresentation';
 import { useLocationUpload } from '@/src/hooks/useLocationUpload';
 
+import { openExternal } from '@/src/outbound';
 const c = theme.colors;
 const GUARDIAN_SHARE_ENABLED   = process.env.EXPO_PUBLIC_GUARDIAN_SHARE === 'true';
 const DESTINATION_PICKER_ENABLED = process.env.EXPO_PUBLIC_DESTINATION_PICKER === 'true';
@@ -285,11 +286,11 @@ export default function HeadOut() {
     }
     if (notifyContacts.length > 0) {
       const phones = notifyContacts.map(ct => ct.phone).join(',');
-      Linking.openURL(`sms:${phones}?body=${encodeURIComponent(body)}`).catch(() =>
-        Linking.openURL(`sms:&body=${encodeURIComponent(body)}`).catch(() => {}),
+      openExternal(`sms:${phones}?body=${encodeURIComponent(body)}`).catch(() =>
+        openExternal(`sms:&body=${encodeURIComponent(body)}`).catch(() => {}),
       );
     } else {
-      Linking.openURL(`sms:&body=${encodeURIComponent(body)}`).catch(() => {});
+      openExternal(`sms:&body=${encodeURIComponent(body)}`).catch(() => {});
     }
   }, [circle, session, user]);
 

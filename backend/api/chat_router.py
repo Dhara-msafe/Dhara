@@ -149,10 +149,26 @@ _DOMESTIC_FACT_RE = re.compile(
 )
 _DV_ACT_RE = re.compile(r"(PWDVA|Domestic Violence)", re.I)
 
+# Acute-danger phrases that indicate present danger ON THEIR OWN (no separate
+# time/state phrase needed): an armed person, being followed/chased right now,
+# or a direct "will kill / save me" in Hindi (Devanagari + romanised).
+# Kept narrow on purpose: legal hypotheticals ("punishment for carrying a
+# knife") and "my case is being followed up" must NOT match.
+_ACUTE_DANGER_RE = re.compile(
+    r"(\b(he|she|they|someone|somebody|a man|a woman|a guy|my husband|husband|boyfriend)\s+"
+    r"(has|have|had|is holding|is carrying|pulled out|took out|is waving)\s+(a |an )?(knife|gun|pistol|weapon|acid|blade)\b"
+    r"|\b(i am|i'm|im|i am being|i'm being)\s+(being\s+)?(followed|stalked|chased)\b(?!\s+up)"
+    r"|\b(someone|somebody|a man|he|they|a car|a bike)\s+(is|are|has been|keeps)\s+(following|chasing|stalking)\s+me\b"
+    r"|\bmaar\s*(dega|degi|denge|dalega|dalegi|daalega|daalegi|daalenge)\b|\bjaan\s+se\s+maar"
+    r"|\bmujhe\s+bachao\b|मुझे\s*बचाओ|मार\s*डालेगा|मार\s*डालेगी"
+    r"|\bmala\s+vachva\b|मला\s*वाचवा)",
+    re.I,
+)
+
 
 def _is_immediate_danger(text: str) -> bool:
     t = text or ""
-    return bool(_DANGER_RE.search(t) and _THREAT_RE.search(t))
+    return bool((_DANGER_RE.search(t) and _THREAT_RE.search(t)) or _ACUTE_DANGER_RE.search(t))
 
 
 _EMERGENCY_PROMPT = """
@@ -324,6 +340,9 @@ async def push_self_test(user: dict = Depends(current_user)):
 async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
     session_id = body.session_id or str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
+    # DHARA-P0-4: immediate-danger assessment runs FIRST — before the guest
+    # C1 counter, the SOS fast-path and every conversational shortcut below.
+    _emergency = _is_immediate_danger(body.message)
 
     # -------- Guest Mode: 24h expiry + 5-question quota --------
     # Guests are real `users` docs (is_guest=True, minted by POST /api/auth/guest)
@@ -375,6 +394,7 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
         # consume a guest question.
         _c1_pre = (
             FEATURE_C1_CONVERSATIONAL_REPLIES
+            and not _emergency
             and (
                 is_bare_distress(body.message)
                 or (
@@ -480,7 +500,7 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
     # "bachao", "মদ্দ করুন") — longer messages with legal context go through
     # the normal pipeline unchanged.  At this point mode / tier / guest data
     # are all settled so we can emit a complete SSE session frame immediately.
-    if FEATURE_C1_CONVERSATIONAL_REPLIES and is_bare_distress(body.message):
+    if FEATURE_C1_CONVERSATIONAL_REPLIES and not _emergency and is_bare_distress(body.message):
         _sos_reply = get_conversational_template("distress_sos", body.language)
         if _sos_reply:
             def _sse_sos(obj: dict) -> bytes:
@@ -649,6 +669,21 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
 
     # (b) Corpus retrieval — deterministic keyword match against verified statutes
     retrieved = [] if early_refusal else corpus_retrieve(retrieval_text, limit=3)
+
+    # (b-own) RTI-"ignored" fix: for a NEW query (not a clarification-answer
+    # restore) the LLM query-parser's rewritten normalized_query can drop the
+    # user's own decisive words ("complain", "ignored"), so the verified
+    # complaint/appeal sections (RTI 18/19) lost to generic RTI 6/3. Keep the
+    # user's own top hits FIRST, then the rewrite's, capped at three.
+    _last_turn = ((_v2_state.turn_type_history or [None])[-1]) if _v2_state else None
+    if (
+        retrieved is not None and not early_refusal and not _is_indic
+        and _retrieval_override and _retrieval_override == _v2_lq.normalized_query
+        and _last_turn != "CLARIFICATION_ANSWER"
+    ):
+        _own_hits = corpus_retrieve(body.message, limit=3)
+        _own_keys = {it.get("key") for it in _own_hits}
+        retrieved = (_own_hits + [it for it in retrieved if it.get("key") not in _own_keys])[:3]
 
     # (b0) State / UT layer — rent, liquor, traffic compounding and stamp duty are
     # state subjects. If the user has told us their state we serve its verified
@@ -1249,8 +1284,7 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
     # else's regulated conduct, instruct the LLM not to transfer that
     # obligation onto the user (see README_DEPLOYMENT.md > Engine Architecture).
     system_prompt = augment_prompt_with_actor_conduct_lock(system_prompt, _v2_classify)
-    # DHARA-P0-4: immediate-danger guard (see _is_immediate_danger).
-    _emergency = _is_immediate_danger(body.message)
+    # DHARA-P0-4: immediate-danger guard (computed at the top of chat_stream).
     if _emergency:
         system_prompt += _EMERGENCY_PROMPT
         if not _DOMESTIC_FACT_RE.search(body.message or ""):
@@ -1753,16 +1787,69 @@ def _script_check(text: str, language: str | None) -> dict:
     return {**result, "script_mismatch": result["mismatch"]}
 
 
-async def whisper_transcribe(audio: UploadFile, language: Optional[str]) -> dict:
-    """FastAPI-facing wrapper; delegates core logic to ``stt_engine``."""
+MAX_AUDIO_BYTES = 10 * 1024 * 1024   # Whisper hard limit is 25 MB; ≈10 min of AAC voice
+MIN_AUDIO_BYTES = 1024
+_GENERIC_AUDIO_TYPES = {"", "application/octet-stream"}
+_DECLARED_FAMILY = {
+    "audio/m4a": "mp4", "audio/x-m4a": "mp4", "audio/mp4": "mp4", "video/mp4": "mp4", "audio/aac": "mp4",
+    "audio/webm": "webm", "video/webm": "webm",
+    "audio/ogg": "ogg", "audio/opus": "ogg",
+    "audio/mpeg": "mp3", "audio/mp3": "mp3",
+    "audio/wav": "wav", "audio/x-wav": "wav", "audio/wave": "wav", "audio/vnd.wave": "wav",
+    "audio/flac": "flac", "audio/x-flac": "flac",
+}
+_FAMILY_FILE = {"mp4": ("audio.m4a", "audio/m4a"), "webm": ("audio.webm", "audio/webm"),
+                "ogg": ("audio.ogg", "audio/ogg"), "mp3": ("audio.mp3", "audio/mpeg"),
+                "wav": ("audio.wav", "audio/wav"), "flac": ("audio.flac", "audio/flac")}
+
+
+def sniff_audio_family(data: bytes) -> Optional[str]:
+    """Identify the container from its magic bytes (never trust the name)."""
+    if len(data) >= 8 and data[4:8] == b"ftyp":
+        return "mp4"
+    if data[:4] == b"\x1a\x45\xdf\xa3":
+        return "webm"
+    if data[:4] == b"OggS":
+        return "ogg"
+    if data[:4] == b"fLaC":
+        return "flac"
+    if data[:4] == b"RIFF" and data[8:12] == b"WAVE":
+        return "wav"
+    if data[:3] == b"ID3" or (len(data) >= 2 and data[0] == 0xFF and (data[1] & 0xE0) == 0xE0):
+        return "mp3"
+    return None
+
+
+async def read_validated_audio(audio: UploadFile) -> tuple[bytes, str, str]:
+    """Size / emptiness / declared-type / signature checks for every voice
+    upload. Runs BEFORE metering so rejected files are never billed.
+    Returns (bytes, filename, content_type) normalised to the sniffed format."""
+    data = await audio.read(MAX_AUDIO_BYTES + 1)
+    if len(data) > MAX_AUDIO_BYTES:
+        raise HTTPException(413, "Recording is too long (max 10 MB). Please record a shorter message.")
+    if len(data) < MIN_AUDIO_BYTES:
+        raise HTTPException(400, "Recording was empty or too short. Please hold the mic button and speak for at least a second.")
+    declared = (audio.content_type or "").split(";")[0].strip().lower()
+    if declared not in _GENERIC_AUDIO_TYPES and declared not in _DECLARED_FAMILY:
+        raise HTTPException(415, "This audio format isn't supported.")
+    family = sniff_audio_family(data)
+    if family is None or (declared in _DECLARED_FAMILY and _DECLARED_FAMILY[declared] != family):
+        raise HTTPException(415, "This audio format isn't supported.")
+    filename, ctype = _FAMILY_FILE[family]
+    return data, filename, ctype
+
+
+async def whisper_transcribe(audio: tuple[bytes, str, str], language: Optional[str]) -> dict:
+    """FastAPI-facing wrapper; delegates core logic to ``stt_engine``.
+    ``audio`` must come from ``read_validated_audio``."""
     from engine.stt_engine import transcribe_with_retry
+    data, filename, ctype = audio
     try:
-        data = await audio.read()
         oc = openai_client()
         return await transcribe_with_retry(
             audio_bytes=data,
-            filename=audio.filename or "audio.m4a",
-            content_type=audio.content_type or "audio/m4a",
+            filename=filename,
+            content_type=ctype,
             language=language,
             openai_client=oc,
             script_check_fn=_script_check,
@@ -1785,8 +1872,9 @@ async def transcribe(
     language: str = Form(None),
     user: dict = Depends(current_user),
 ):
+    clip = await read_validated_audio(audio)   # validate first — rejected files are never billed
     await meter_llm_use(user, "voice")
-    return await whisper_transcribe(audio, language)
+    return await whisper_transcribe(clip, language)
 
 @router.post("/voice/tts")
 async def tts(body: TTSIn, user: dict = Depends(current_user)):

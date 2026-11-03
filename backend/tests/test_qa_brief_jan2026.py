@@ -29,7 +29,7 @@ BASE_URL = os.environ.get("EXPO_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:
     # Fallback for local backend-only verification when EXPO_BACKEND_URL
     # is not exported in this shell (frontend/.env uses EXPO_PUBLIC_BACKEND_URL)
-    BASE_URL = "http://localhost:8001"
+    BASE_URL = "http://localhost:8001"  # only when EXPO_BACKEND_URL is unset
 
 
 @pytest.fixture(scope="module")

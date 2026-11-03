@@ -21,11 +21,12 @@
  */
 
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, Linking } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 
+import { openExternal } from '@/src/outbound';
 const c = theme.colors;
 
 export interface PrivacyCoverProps {
@@ -37,7 +38,7 @@ export function PrivacyCover({ onReveal }: PrivacyCoverProps) {
   const insets = useSafeAreaInsets();
 
   const call112 = () => {
-    Linking.openURL('tel:112').catch(() => {});
+    openExternal('tel:112').catch(() => {});
   };
 
   return (

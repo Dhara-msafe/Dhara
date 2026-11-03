@@ -11,6 +11,8 @@ import os
 import pytest
 import requests
 
+from _guardian_contract import assert_private_page
+
 BASE_URL = (os.environ.get("EXPO_BACKEND_URL") or os.environ.get("EXPO_PUBLIC_BACKEND_URL") or "").rstrip("/")
 API = f"{BASE_URL}/api"
 
@@ -140,15 +142,12 @@ class TestHTMLStatusPage:
     def test_html_page_shows_last_known_area(self, session, token_a, journey_token_a):
         """After location update, GET HTML page must contain 'Last known area' and area name."""
         # Verify the location was saved (first update in test above)
-        r = session.get(f"{API}/journey/status/{journey_token_a}")
-        assert r.status_code == 200, r.text
-        html = r.text
-        assert "Last known area" in html, "HTML does not contain 'Last known area' section"
-        assert "MG Road, Bengaluru" in html, "HTML does not contain the area name"
+        # PR-1B1: area/location is never shown on the anonymous page.
+        assert_private_page(API[:-4], journey_token_a, "MG Road, Bengaluru")
 
     def test_html_page_not_found(self, session):
-        r = session.get(f"{API}/journey/status/BADTOKEN9999")
-        assert r.status_code == 404, r.text
+        # PR-1B1: identical 200 page for unknown tokens (no existence oracle).
+        assert_private_page(API[:-4], "BADTOKEN9999")
 
     def test_html_page_is_html(self, session, journey_token_a):
         r = session.get(f"{API}/journey/status/{journey_token_a}")

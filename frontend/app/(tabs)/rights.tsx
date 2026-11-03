@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -7,6 +7,7 @@ import { API_BASE, useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { useUserProfile } from '@/src/userProfile';
 
+import { openExternal } from '@/src/outbound';
 type Citation = { label: string; url: string };
 type Topic = {
   id: string; icon: string; title: string; summary: string; law: string; points: string[];
@@ -144,7 +145,7 @@ export default function Rights() {
                         <Pressable
                           key={i}
                           testID={`citation-${t.id}-${i}`}
-                          onPress={() => Linking.openURL(c.url)}
+                          onPress={() => openExternal(c.url)}
                           style={styles.citeRow}
                         >
                           <Ionicons name="open-outline" size={13} color={theme.colors.brand} />

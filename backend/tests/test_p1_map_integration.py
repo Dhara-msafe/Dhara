@@ -20,6 +20,8 @@ import time
 import pytest
 import requests
 
+from _guardian_contract import assert_private_page
+
 BASE_URL = os.environ.get('EXPO_BACKEND_URL', '').rstrip('/')
 
 OWNER_EMAIL = "voicetest2026@example.com"
@@ -123,7 +125,9 @@ class TestRealEndToEndFlow_LocationInAlertPayload:
 
 
 class TestGuardianPageMapRendering:
-    def test_guardian_page_renders_leaflet_map_with_marker(self, owner_token):
+    def test_guardian_page_renders_no_map_or_coordinates(self, owner_token):
+        """PR-1B1 (c8569ec): the anonymous page no longer renders any map or
+        coordinates, even after a location update."""
         headers_o = {"Authorization": f"Bearer {owner_token}"}
         j = requests.post(f"{BASE_URL}/api/journey/status",
                            json={"destination": "QA Guardian Render", "duration_mins": 30, "recipient_link_ids": []},
@@ -132,19 +136,7 @@ class TestGuardianPageMapRendering:
         requests.patch(f"{BASE_URL}/api/journey/status/{token}/location",
                         json={"lat": 19.076, "lng": 72.8777, "accuracy": 25, "area": "QA Render Area"},
                         headers=headers_o)
-        page = requests.get(f"{BASE_URL}/api/journey/status/{token}")
-        assert page.status_code == 200
-        html = page.text
-        assert "leaflet" in html.lower()
-        assert "19.076" in html and "72.8777" in html
-        assert "L.marker" in html and "L.circle" in html
-        assert "maps.googleapis.com" not in html
-        # P1 follow-up: OSM's tile usage policy asks consumers not to use
-        # the "{s}." subdomain-sharding pattern (a/b/c.tile.openstreetmap.org)
-        # — confirm the single canonical host is requested instead.
-        assert "https://tile.openstreetmap.org/" in html
-        assert "{s}.tile.openstreetmap.org" not in html
-        assert "a.tile.openstreetmap.org" not in html
+        assert_private_page(BASE_URL, token, "19.076", "72.8777", "QA Render Area", "QA Guardian Render")
 
     def test_guardian_page_no_map_block_when_no_location_yet(self, owner_token):
         headers_o = {"Authorization": f"Bearer {owner_token}"}
@@ -157,17 +149,13 @@ class TestGuardianPageMapRendering:
         # No location ever posted -> no map script should be injected
         assert "L.marker" not in page.text
 
-    def test_guardian_page_sets_strict_referrer_policy(self, owner_token):
-        """P1 follow-up: tile requests to tile.openstreetmap.org are
-        cross-origin - confirm we explicitly pin a strict Referrer-Policy
-        (both response header and <meta> tag) rather than relying on an
-        implicit browser default, so the token-bearing page path is never
-        sent to the third-party tile provider."""
+    def test_guardian_page_sets_no_referrer_policy(self, owner_token):
+        """Security review: `no-referrer` (header + meta) is strictly stronger
+        than the earlier `strict-origin`; the page loads no third-party
+        resources, so no origin needs to be sent anywhere."""
         headers_o = {"Authorization": f"Bearer {owner_token}"}
         j = requests.post(f"{BASE_URL}/api/journey/status",
                            json={"destination": "QA Referrer Test", "duration_mins": 30, "recipient_link_ids": []},
                            headers=headers_o)
-        token = j.json()["token"]
-        page = requests.get(f"{BASE_URL}/api/journey/status/{token}")
-        assert page.headers.get("referrer-policy") == "strict-origin"
-        assert '<meta name="referrer" content="strict-origin"/>' in page.text
+        assert_private_page(BASE_URL, j.json()["token"])
+

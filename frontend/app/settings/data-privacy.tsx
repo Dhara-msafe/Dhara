@@ -12,22 +12,14 @@
  *
  */
 import React, { useState, useCallback } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  Pressable,
-  ActivityIndicator,
-  Linking,
-  Alert,
-} from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 
+import { openExternal } from '@/src/outbound';
 // ── Contact constants ─────────────────────────────────────────────────────────
 const GRIEVANCE_EMAIL        = 'grievance@calviltech.com';
 const SUPPORT_EMAIL          = 'support@calviltech.com';
@@ -108,7 +100,7 @@ export default function DataPrivacyScreen() {
 
   const handleContact = () => {
     const url = `mailto:${GRIEVANCE_EMAIL}?subject=DHARA%20Data%20Request`;
-    Linking.openURL(url).catch(() => {
+    openExternal(url).catch(() => {
       Alert.alert('Cannot open email app', `Please email us at ${GRIEVANCE_EMAIL}`);
     });
   };

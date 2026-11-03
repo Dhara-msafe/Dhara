@@ -1,14 +1,12 @@
 import React, { useRef, useState } from 'react';
-import {
-  View, Text, TouchableOpacity, StyleSheet, ActivityIndicator,
-  Linking, Platform,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 
+import { openExternal } from '@/src/outbound';
 const NAVY = theme.colors.primary;
 const GOLD = theme.colors.gold;
 
@@ -55,7 +53,7 @@ export default function LookupWebView() {
           <Ionicons name="arrow-back-outline" size={22} color={GOLD} />
         </TouchableOpacity>
         <Text style={s.title} numberOfLines={1}>{title || 'eCourt Lookup'}</Text>
-        <TouchableOpacity onPress={() => Linking.openURL(decodedUrl)} style={s.btn}>
+        <TouchableOpacity onPress={() => openExternal(decodedUrl)} style={s.btn}>
           <Ionicons name="open-outline" size={20} color={GOLD} />
         </TouchableOpacity>
       </View>

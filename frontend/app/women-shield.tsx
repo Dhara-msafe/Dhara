@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Switch, Linking, Platform } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, Switch, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -13,6 +13,7 @@ import { loadVisibleRecordings, releaseRecordings } from '@/src/women/evidenceSt
 import { enterWomensShield, leaveWomensShield } from '@/src/voice/speechGate';
 import { activateCover } from '@/src/women/coverState';
 
+import { openExternal } from '@/src/outbound';
 const PRIVACY_COVER_ENABLED = process.env.EXPO_PUBLIC_PRIVACY_COVER_V1 === 'true';
 
 const HEAD_OUT_ENABLED = process.env.EXPO_PUBLIC_SAFETY_SESSION_V1 === 'true';
@@ -153,7 +154,7 @@ export default function WomenShield() {
     // Leave this screen first so reopening the app never lands back here,
     // then open the neutral page once the navigation has committed.
     router.replace('/(tabs)/home');
-    setTimeout(() => { Linking.openURL(NEUTRAL_URL).catch(() => {}); }, 300);
+    setTimeout(() => { openExternal(NEUTRAL_URL).catch(() => {}); }, 300);
   };
 
   return (
@@ -276,11 +277,11 @@ export default function WomenShield() {
             <Text style={styles.h2}>Campus safety</Text>
             <Text style={styles.h2sub}>Resources for students and campus communities</Text>
             <View style={styles.toolCard}>
-              <ToolRow icon="school-outline" title="Anti-Ragging helpline" sub="National helpline: 1800-180-5522 (free call)" action="Call" onPress={() => Linking.openURL('tel:18001805522')} />
+              <ToolRow icon="school-outline" title="Anti-Ragging helpline" sub="National helpline: 1800-180-5522 (free call)" action="Call" onPress={() => openExternal('tel:18001805522')} />
               <Divider />
               <ToolRow icon="briefcase-outline" title="POSH / Internal Complaints" sub="Your institution's Internal Complaints Committee (ICC)" action="How to find" onPress={() => router.push({ pathname: '/all-help', params: { q: 'POSH committee' } })} />
               <Divider />
-              <ToolRow icon="shield-checkmark-outline" title="Campus security" sub="Contact your campus security office directly" action="Ask DHARA" onPress={() => router.push({ pathname: '/(tabs)/index', params: { q: 'How do I contact campus security or file a complaint?' } })} />
+              <ToolRow icon="shield-checkmark-outline" title="Campus security" sub="Contact your campus security office directly" action="Ask DHARA" onPress={() => router.push({ pathname: '/(tabs)', params: { draft: 'How do I contact campus security or file a complaint?', entry: Date.now().toString() } } as any)} />
             </View>
             <View style={styles.lessonRow}>
               <Ionicons name="information-circle-outline" size={18} color={c.darkGold} />
@@ -295,7 +296,7 @@ export default function WomenShield() {
           <Text style={styles.h2sub}>{tr('ws.talk.sub', lang)}</Text>
           <View style={styles.hlGrid}>
             {shownHelplines.map(h => (
-              <Pressable key={h.num} style={styles.hlCard} onPress={() => Linking.openURL(`tel:${h.num}`)} testID={`hl-${h.num}`} accessibilityRole="button" accessibilityLabel={`Call ${h.label}, ${h.num}`}>
+              <Pressable key={h.num} style={styles.hlCard} onPress={() => openExternal(`tel:${h.num}`)} testID={`hl-${h.num}`} accessibilityRole="button" accessibilityLabel={`Call ${h.label}, ${h.num}`}>
                 {h.verified && <Ionicons name="checkmark-circle" size={13} color={c.verifiedGreen} style={styles.hlVerified} />}
                 <Text style={styles.hlNum}>{h.num}</Text>
                 <Text style={styles.hlLabel} numberOfLines={1}>{h.label}</Text>

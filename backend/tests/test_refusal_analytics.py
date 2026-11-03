@@ -14,9 +14,9 @@ import pytest
 from pymongo import MongoClient
 
 BASE_URL = os.environ.get('EXPO_BACKEND_URL').rstrip('/')
-MONGO_URL = "mongodb://localhost:27017"
-DB_NAME = "gandhikar_db"
-ADMIN_KEY = "gz9cap1QPTVbzeHjHKpxhlykJQxJfr64kcrDwJL3BkE"
+MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
+DB_NAME = os.environ.get("DB_NAME", "gandhikar_db")
+ADMIN_KEY = os.environ.get("ADMIN_KEY", "")  # injected by the isolated QA runner; never hard-code
 
 TEST_EMAIL = "protest@gandhikar.in"
 TEST_PASSWORD = "test1234"

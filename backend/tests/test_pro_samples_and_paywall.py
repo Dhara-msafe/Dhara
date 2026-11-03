@@ -214,7 +214,7 @@ def pro_user_headers():
     res = subprocess.run(
         [
             "mongosh",
-            "gandhikar_db",
+            os.environ.get("DB_NAME", "gandhikar_db"),
             "--quiet",
             "--eval",
             f'JSON.stringify(db.users.updateOne({{email:"{lc_email}"}}, {{$set:{{is_pro:true, pro_since:new Date().toISOString()}}}}))',

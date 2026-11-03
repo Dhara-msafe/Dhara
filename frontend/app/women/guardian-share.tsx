@@ -12,10 +12,7 @@
  * Nothing is sent automatically; the user always controls every send.
  */
 import React, { useEffect, useState, useCallback } from 'react';
-import {
-  View, Text, Pressable, StyleSheet, ScrollView,
-  Linking, ActivityIndicator,
-} from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +22,7 @@ import { useAuth } from '@/src/auth';
 import { API_BASE } from '@/src/apiBase';
 import { getCircle, type Contact } from '@/src/women/api';
 
+import { openExternal } from '@/src/outbound';
 const c = theme.colors;
 
 function formatDeadline(startTime: number, durationMins: number): string {
@@ -147,8 +145,8 @@ export default function GuardianShare() {
     const pageUrl = statusUrl ?? await createJourneyRecord();
     const body = buildMessage(pageUrl);
 
-    Linking.openURL(`sms:${phones}?body=${encodeURIComponent(body)}`).catch(() =>
-      Linking.openURL(`sms:&body=${encodeURIComponent(body)}`).catch(() => {}),
+    openExternal(`sms:${phones}?body=${encodeURIComponent(body)}`).catch(() =>
+      openExternal(`sms:&body=${encodeURIComponent(body)}`).catch(() => {}),
     );
     setSent(true);
   }, [circle, selected, statusUrl, createJourneyRecord, buildMessage]);

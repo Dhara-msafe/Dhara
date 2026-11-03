@@ -28,6 +28,8 @@ import uuid
 import pytest
 import requests
 
+from _guardian_contract import assert_private_page
+
 BASE_URL = os.environ.get('EXPO_BACKEND_URL', '').rstrip('/')
 
 OWNER_EMAIL = "voicetest2026@example.com"
@@ -85,24 +87,17 @@ class TestRevokeSharing:
         token = _create_journey(headers)
         _post_location(headers, token, lat=13.001, lng=80.001, area="QA Pre-Revoke Area")
 
-        # Before revoke: location/map visible
-        page_before = requests.get(f"{BASE_URL}/api/journey/status/{token}")
-        assert page_before.status_code == 200
-        assert "13.001" in page_before.text and "L.marker" in page_before.text
+        # PR-1B1: the public page never shows location, before or after revoke.
+        assert_private_page(BASE_URL, token, "13.001", "80.001", "QA Pre-Revoke Area")
 
         rv = requests.post(f"{BASE_URL}/api/journey/status/{token}/revoke", headers=headers)
         assert rv.status_code == 200, rv.text
         assert rv.json()["ok"] is True
         assert "revoked_at" in rv.json()
 
-        page_after = requests.get(f"{BASE_URL}/api/journey/status/{token}")
-        assert page_after.status_code == 200   # not expired/not-found — just closed
-        assert "13.001" not in page_after.text
-        assert "80.001" not in page_after.text
-        assert "L.marker" not in page_after.text and "L.circle" not in page_after.text
-        assert "Sharing turned off by traveller" in page_after.text
-        # Must not claim arrival (that would be a false statement)
-        assert "Arrived safely" not in page_after.text
+        assert_private_page(BASE_URL, token, "13.001", "80.001", "QA Pre-Revoke Area")
+        # Revoke is idempotent and closed: a 2nd call reports already_closed.
+        assert requests.post(f"{BASE_URL}/api/journey/status/{token}/revoke", headers=headers).json().get("already_closed") is True
 
     def test_revoke_is_idempotent(self, owner_token):
         headers = {"Authorization": f"Bearer {owner_token}"}
@@ -139,10 +134,11 @@ class TestRevokeSharing:
 
         requests.post(f"{BASE_URL}/api/journey/status/{token_a}/revoke", headers=headers)
 
-        page_b = requests.get(f"{BASE_URL}/api/journey/status/{token_b}")
-        assert page_b.status_code == 200
-        assert "21.5" in page_b.text and "L.marker" in page_b.text
-        assert "Sharing turned off" not in page_b.text
+        assert_private_page(BASE_URL, token_b, "21.5", "85.5", "QA B Area")
+        # B is still open: its owner can still post a location (not skipped).
+        loc_b = requests.patch(f"{BASE_URL}/api/journey/status/{token_b}/location",
+                               json={"lat": 21.6, "lng": 85.6, "accuracy": 20, "area": "QA B Area 2"}, headers=headers)
+        assert loc_b.status_code == 200 and loc_b.json().get("skipped") in (None, "throttled")   # B not closed (throttled = 30 s rate limit)
 
     def test_location_patch_and_missed_checkin_are_noop_after_revoke(self, owner_token):
         headers = {"Authorization": f"Bearer {owner_token}"}
@@ -172,12 +168,10 @@ class TestRevokeSharing:
         _post_location(headers, token, lat=5.0, lng=6.0, area="QA Safe Area")
         safe = requests.patch(f"{BASE_URL}/api/journey/status/{token}/safe", headers=headers)
         assert safe.status_code == 200
-        page = requests.get(f"{BASE_URL}/api/journey/status/{token}")
-        assert "Arrived safely" in page.text
-        assert "5.0" not in page.text   # location already stripped by pre-existing safe-transition logic
-
-        missing = requests.get(f"{BASE_URL}/api/journey/status/{uuid.uuid4().hex[:10]}")
-        assert missing.status_code == 404
+        assert "safe_at" in safe.json()
+        assert_private_page(BASE_URL, token, "QA Safe Area")
+        # PR-1B1: unknown tokens get the identical 200 page (no existence oracle);
+        # assert_private_page already compares against a random token.
 
 
     def test_revoke_then_mark_safe_stays_independent_combined_state(self, owner_token):
@@ -196,10 +190,7 @@ class TestRevokeSharing:
         assert safe.json().get("skipped") is None   # no longer blocked — must actually succeed
         assert "safe_at" in safe.json()
 
-        page = requests.get(f"{BASE_URL}/api/journey/status/{token}")
-        assert "Arrived safely" in page.text          # the real, additional fact is shown
-        assert "sharing had already been turned off" in page.text.lower()
-        assert "2.0" not in page.text and "L.marker" not in page.text   # coordinates still hidden
+        assert_private_page(BASE_URL, token, "QA Pre-Revoke")
 
     def test_mark_safe_is_idempotent(self, owner_token):
         headers = {"Authorization": f"Bearer {owner_token}"}
@@ -222,9 +213,7 @@ class TestRevokeSharing:
         rv = requests.post(f"{BASE_URL}/api/journey/status/{token}/revoke", headers=headers)
         assert rv.status_code == 200
         assert rv.json().get("already_closed") is True
-        page = requests.get(f"{BASE_URL}/api/journey/status/{token}")
-        assert "Arrived safely" in page.text
-        assert "Sharing turned off" not in page.text   # revoke after safe did not add its own banner
+        assert_private_page(BASE_URL, token)
 
     def test_help_requested_remains_available_after_revoke(self, owner_token):
         """Explicit safety requirement: 'Need help' must NEVER be blocked
@@ -264,10 +253,8 @@ class TestRevokeSharing:
         assert r_revoke.status_code == 200
         assert r_safe.status_code == 200
 
-        page = requests.get(f"{BASE_URL}/api/journey/status/{token}")
-        assert page.status_code == 200
-        assert "7.0" not in page.text and "L.marker" not in page.text   # coordinates hidden regardless of race outcome
-        assert "Arrived safely" in page.text   # mark_safe landed
+        assert "safe_at" in r_safe.json()   # mark_safe landed
+        assert_private_page(BASE_URL, token, "QA Concurrent Area")   # nothing disclosed regardless of race
         # sharing_revoked_at landing is confirmed indirectly: if it did, the
         # combined-state copy appears; if the revoke call happened to lose
         # the race entirely (extremely unlikely given both are independent

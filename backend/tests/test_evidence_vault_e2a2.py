@@ -14,7 +14,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
-BASE = "http://localhost:8001/api"
+BASE = (os.environ.get("EXPO_BACKEND_URL") or "http://localhost:8001").rstrip("/") + "/api"
 HEX = "a" * 64
 
 

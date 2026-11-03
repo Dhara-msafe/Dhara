@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, Linking, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
@@ -9,6 +9,7 @@ import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { getAlert, markAlertRead, ackAlert, SafetyAlert } from '@/src/trustedCircle/api';
 
+import { openExternal } from '@/src/outbound';
 const c = theme.colors;
 
 const PRIMARY_MSG: Record<string, (owner: string) => string> = {
@@ -63,15 +64,15 @@ export default function AlertDetail() {
 
   async function onCall() {
     const phone = (alert as any).owner_phone;
-    if (phone) Linking.openURL(`tel:${phone}`);
+    if (phone) openExternal(`tel:${phone}`);
   }
   async function onMessage() {
     const phone = (alert as any).owner_phone;
-    if (phone) Linking.openURL(`sms:${phone}`);
+    if (phone) openExternal(`sms:${phone}`);
   }
   function onOpenMaps() {
     if (!loc?.lat || !loc?.lng) return;
-    Linking.openURL(`https://maps.google.com/?q=${loc.lat},${loc.lng}`);
+    openExternal(`https://maps.google.com/?q=${loc.lat},${loc.lng}`);
   }
   async function onAck() {
     if (!token) return;

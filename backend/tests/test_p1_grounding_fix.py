@@ -45,7 +45,8 @@ class TestSeededRecordsAreCorrect:
     async def _get_real_db(self):
         from motor.motor_asyncio import AsyncIOMotorClient
         client = AsyncIOMotorClient(os.environ["MONGO_URL"])
-        return client[os.environ.get("DB_NAME", "test_database")]
+        # legal_sections lives in the corpus DB (server.py corpus_db), not the app DB.
+        return client[os.environ.get("CORPUS_DB_NAME") or os.environ.get("DB_NAME", "test_database")]
 
     async def test_bns_199_record_exists_with_correct_punishment(self):
         db = await self._get_real_db()

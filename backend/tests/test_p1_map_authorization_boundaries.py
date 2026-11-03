@@ -15,6 +15,8 @@ import time
 import uuid
 import pytest
 import requests
+
+from _guardian_contract import assert_private_page
 import motor.motor_asyncio
 import asyncio
 from datetime import datetime, timezone, timedelta
@@ -40,6 +42,8 @@ def _login(email, password):
 
 def _db_name():
     import re
+    if os.environ.get("DB_NAME"):
+        return os.environ["DB_NAME"]
     try:
         with open(os.path.join(os.path.dirname(__file__), "..", ".env")) as f:
             for line in f:
@@ -209,14 +213,10 @@ class TestExpiredGuardianAccess:
         token = j.json()["token"]
         requests.patch(f"{BASE_URL}/api/journey/status/{token}/location",
                         json={"lat": SYN_LAT, "lng": SYN_LNG, "accuracy": 12, "area": "QA Area"}, headers=h_o)
-        asyncio.get_event_loop().run_until_complete(_force_expire(token))
+        asyncio.run(_force_expire(token))
 
-        page = requests.get(f"{BASE_URL}/api/journey/status/{token}")
-        assert page.status_code == 410
-        html = page.text
-        assert "expired" in html.lower()
-        assert "leaflet" not in html.lower()
-        assert str(SYN_LAT) not in html and str(SYN_LNG) not in html
+        # PR-1B1: expiry is not disclosed publicly (no 410 oracle) — identical static page.
+        assert_private_page(BASE_URL, token, str(SYN_LAT), str(SYN_LNG), "QA Area")
 
 
 class TestForwardedGuardianLink:
@@ -246,10 +246,8 @@ class TestForwardedGuardianLink:
         # "updated Xs/Xm ago" timestamp string can legitimately tick over
         # between two near-simultaneous requests without that being an
         # authorization difference.
-        for marker in ("QA Forwarded Area", "leaflet", "L.marker", str(SYN_LAT), str(SYN_LNG)):
-            assert (marker in resp1.text) == (marker in resp2.text), \
-                f"forwarding changed whether '{marker}' appears - unexpected access difference"
-        assert "QA Forwarded Area" in resp1.text
+        assert resp1.text == resp2.text   # forwarding grants nothing extra
+        assert_private_page(BASE_URL, token, "QA Forwarded Area", str(SYN_LAT), str(SYN_LNG))
 
     def test_guardian_page_location_and_map_removed_after_marked_safe(self, owner_token):
         """UPDATED per the P1 follow-up GO: once 'safe', exact coordinates
@@ -263,14 +261,7 @@ class TestForwardedGuardianLink:
         requests.patch(f"{BASE_URL}/api/journey/status/{token}/location",
                         json={"lat": SYN_LAT, "lng": SYN_LNG, "accuracy": 12, "area": "QA Safe Area"}, headers=h_o)
         requests.patch(f"{BASE_URL}/api/journey/status/{token}/safe", headers=h_o)
-        page = requests.get(f"{BASE_URL}/api/journey/status/{token}")
-        assert page.status_code == 200
-        html = page.text
-        assert "Arrived safely" in html
-        assert "QA Safe Test" in html  # non-location field (destination) preserved
-        assert "leaflet" not in html.lower()
-        assert str(SYN_LAT) not in html and str(SYN_LNG) not in html
-        assert "QA Safe Area" not in html, "area text must also be removed once safe"
+        assert_private_page(BASE_URL, token, "QA Safe Test", "QA Safe Area", str(SYN_LAT), str(SYN_LNG))
 
     def test_existing_forwarded_link_loses_location_after_safe(self, owner_token):
         """An 'existing forwarded link' scenario: a second viewer opens the
@@ -287,14 +278,13 @@ class TestForwardedGuardianLink:
 
         forwarded_viewer = requests.Session()
         before = forwarded_viewer.get(f"{BASE_URL}/api/journey/status/{token}")
-        assert "leaflet" in before.text.lower() and str(SYN_LAT) in before.text
+        assert str(SYN_LAT) not in before.text   # PR-1B1: never shown, even before safe
 
         requests.patch(f"{BASE_URL}/api/journey/status/{token}/safe", headers=h_o)
 
         after = forwarded_viewer.get(f"{BASE_URL}/api/journey/status/{token}")
-        assert "leaflet" not in after.text.lower()
-        assert str(SYN_LAT) not in after.text and str(SYN_LNG) not in after.text
-        assert "Arrived safely" in after.text
+        assert after.text == before.text
+        assert_private_page(BASE_URL, token, "QA Forward Area", str(SYN_LAT), str(SYN_LNG))
 
     def test_expiry_behaviour_unaffected_by_safe_change(self, owner_token):
         """Preserve existing expiry behaviour for the rest of the page -
@@ -306,7 +296,5 @@ class TestForwardedGuardianLink:
         token = j.json()["token"]
         requests.patch(f"{BASE_URL}/api/journey/status/{token}/location",
                         json={"lat": SYN_LAT, "lng": SYN_LNG, "accuracy": 12, "area": "QA Area"}, headers=h_o)
-        asyncio.get_event_loop().run_until_complete(_force_expire(token))
-        page = requests.get(f"{BASE_URL}/api/journey/status/{token}")
-        assert page.status_code == 410
-        assert "expired" in page.text.lower()
+        asyncio.run(_force_expire(token))
+        assert_private_page(BASE_URL, token)

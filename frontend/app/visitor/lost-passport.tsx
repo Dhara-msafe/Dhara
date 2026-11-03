@@ -2,10 +2,7 @@
  * Visitor Mode — V4: Lost Passport Workflow + V3: Speak For Me
  */
 import React, { useEffect, useState, useCallback } from 'react';
-import {
-  View, Text, ScrollView, Pressable, StyleSheet,
-  ActivityIndicator, Alert, Linking,
-} from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +12,7 @@ import { LOST_PASSPORT_STEPS, EMBASSY_CONTACTS, WorkflowStep } from '@/src/visit
 import { useAuth } from '@/src/auth';
 import { speakLangFor, phraseIn, playPhrase } from '@/src/visitor/speakForMe';
 
+import { openExternal } from '@/src/outbound';
 const C = theme.colors;
 const EMBASSY_KEY_STORAGE = 'dhara_visitor_embassy_key';
 
@@ -135,7 +133,7 @@ export default function VisitorLostPassport() {
             <Text style={s.embassyCity}>{emb.city}</Text>
             <Pressable
               style={s.embassyCall}
-              onPress={() => Linking.openURL(`tel:${emb.phone.replace(/[\s-]/g,'')}`).catch(() => {})}
+              onPress={() => openExternal(`tel:${emb.phone.replace(/[\s-]/g,'')}`).catch(() => {})}
             >
               <Ionicons name="call" size={16} color={C.gold} />
               <Text style={s.embassyPhone}>{emb.phone}</Text>
@@ -171,7 +169,7 @@ export default function VisitorLostPassport() {
                 onPress={() => {
                   const num = step.callNumber!;
                   const url = num.startsWith('http') ? num : `tel:${num}`;
-                  Linking.openURL(url).catch(() => {});
+                  openExternal(url).catch(() => {});
                 }}
               >
                 <Ionicons

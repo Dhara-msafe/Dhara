@@ -5,6 +5,8 @@ Tests for:
 """
 import pytest
 import requests
+
+from _guardian_contract import assert_private_page
 import os
 
 BASE_URL = os.environ.get("EXPO_PUBLIC_BACKEND_URL", "https://dhara-shield-2.preview.emergentagent.com")
@@ -94,13 +96,8 @@ class TestJourneyStatus:
     def test_html_page_in_progress(self):
         if not TestJourneyStatus.status_url:
             pytest.skip("No journey token from create step")
-        r = requests.get(f"{BASE_URL}{TestJourneyStatus.status_url}")
-        assert r.status_code == 200, f"HTML page failed: {r.status_code}"
-        assert "text/html" in r.headers.get("content-type", "")
-        body = r.text
-        assert "Journey in progress" in body, "Expected 'Journey in progress' in HTML"
-        assert "Test Office" in body, "Expected destination in HTML"
-        print("HTML page looks correct: contains 'Journey in progress' and destination")
+        # PR-1B1 privacy contract: static notice, no status / destination.
+        assert_private_page(BASE_URL, TestJourneyStatus.journey_token, "Test Office")
 
     def test_mark_safe(self, primary_token):
         if not TestJourneyStatus.journey_token:
@@ -117,10 +114,8 @@ class TestJourneyStatus:
     def test_html_page_shows_arrived_safely(self):
         if not TestJourneyStatus.status_url:
             pytest.skip("No journey token from create step")
-        r = requests.get(f"{BASE_URL}{TestJourneyStatus.status_url}")
-        assert r.status_code == 200
-        assert "Arrived safely" in r.text, f"Expected 'Arrived safely' in HTML after mark safe. Got: {r.text[:500]}"
-        print("HTML page updated to 'Arrived safely'")
+        # PR-1B1: safe state is NOT disclosed publicly (verified via owner API in test_mark_safe).
+        assert_private_page(BASE_URL, TestJourneyStatus.journey_token, "Test Office")
 
     def test_idor_protection(self, primary_token, secondary_token):
         """Create journey as primary, try to mark safe as secondary → expect 403"""
@@ -151,6 +146,7 @@ class TestJourneyStatus:
         assert r.status_code == 422, f"Expected 422, got {r.status_code}"
 
     def test_html_page_not_found(self):
+        # PR-1B1: unknown token → identical 200 page (no existence oracle).
+        assert_private_page(BASE_URL, "invalidtoken000")
         r = requests.get(f"{BASE_URL}/api/journey/status/invalidtoken000")
-        assert r.status_code == 404
         assert "text/html" in r.headers.get("content-type", "")

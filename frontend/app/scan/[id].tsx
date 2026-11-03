@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, Image, Pressable, StyleSheet, ScrollView, ActivityIndicator, Share } from 'react-native';
+import { View, Text, Image, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { useAuth, API_BASE } from '@/src/auth';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { draftByType } from '@/src/drafts';
 
+import { shareExternal } from '@/src/outbound';
 const c = theme.colors;
 
 type MaterialFacts = {
@@ -74,7 +75,7 @@ export default function ScanDetail() {
   const share = async () => {
     if (!detail) return;
     try {
-      await Share.share({ message: `${detail.mode === 'draft' ? 'Drafted reply' : 'Document, explained'} — DHARA\n\n${detail.summary}` });
+      await shareExternal({ message: `${detail.mode === 'draft' ? 'Drafted reply' : 'Document, explained'} — DHARA\n\n${detail.summary}` });
     } catch {}
   };
 

@@ -19,6 +19,8 @@ import os
 import uuid
 import asyncio
 import requests
+
+from _guardian_contract import assert_private_page
 import pytest
 import motor.motor_asyncio
 
@@ -59,16 +61,17 @@ def _create_invite(owner_token, temp_location: bool):
 
 async def _insert_synthetic_alert(link_id, recipient_user_id, owner_id, area_tag):
     import re
-    db_name = "dhara"
+    db_name = os.environ.get("DB_NAME", "")  # isolated QA run sets DB_NAME
     try:
         with open(os.path.join(os.path.dirname(__file__), "..", ".env")) as f:
             for line in f:
                 m = re.match(r'^DB_NAME=["\']?([^"\'\n]+)', line)
-                if m:
+                if m and not db_name:
                     db_name = m.group(1)
                     break
     except Exception:
         pass
+    db_name = db_name or "dhara"
     client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URL)
     db = client[db_name]
     alert_id = str(uuid.uuid4())
@@ -110,9 +113,9 @@ class TestCrossLinkIsolation:
         requests.post(f"{BASE_URL}/api/trusted-circle/invitations/{link_true}/respond",
                       json={"action": "accept"}, headers=headers_r)
 
-        alert_false_id = asyncio.get_event_loop().run_until_complete(
+        alert_false_id = asyncio.run(
             _insert_synthetic_alert(link_false, recipient_id, owner_id, "SHOULD_NOT_LEAK_AREA"))
-        alert_true_id = asyncio.get_event_loop().run_until_complete(
+        alert_true_id = asyncio.run(
             _insert_synthetic_alert(link_true, recipient_id, owner_id, "SHOULD_APPEAR_AREA"))
 
         list_resp = requests.get(f"{BASE_URL}/api/alerts?filter=all", headers=headers_r)
@@ -186,22 +189,6 @@ class TestGuardianShareArchitecturalSeparation:
                               headers=headers_o)
         assert loc.status_code == 200, loc.text
 
-        page = requests.get(f"{BASE_URL}/api/journey/status/{token}")
-        assert page.status_code == 200
-        html = page.text
-        assert "QA Guardian Area" in html
-        # UPDATED per explicit user GO (P1 Map Integration acceptance):
-        # the Guardian Share page now DELIBERATELY renders an exact marker
-        # via an embedded Leaflet/OpenStreetMap map for anyone holding the
-        # link. This reverses the PRIOR "no raw coordinates" assertion -
-        # the user explicitly accepted this privacy tradeoff. Coordinates
-        # ARE now expected to appear (inside the Leaflet init script).
-        assert "12.9716" in html and "77.5946" in html, \
-            "Guardian Share page should now render the exact coordinates (explicit user decision)"
-        # Still confirm NO Google Maps Platform key/API is used for this
-        # page (OpenStreetMap/Leaflet only, per the "no other paid APIs
-        # without separate authorization" constraint).
-        assert "maps.googleapis.com" not in html, \
-            "Guardian page must not call the Google Maps JS API (not authorized)"
-        assert "leaflet" in html.lower(), "Expected Leaflet.js map embed not found"
-        assert "lat" not in html.lower().replace("relate", "") or True  # heuristic only; coordinate check above is authoritative
+        # PR-1B1 (c8569ec) supersedes the earlier map/coordinates decision:
+        # the anonymous Guardian page is now an identical static notice.
+        assert_private_page(BASE_URL, token, "QA Guardian Area", "12.9716", "77.5946")

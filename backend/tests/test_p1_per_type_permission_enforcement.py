@@ -108,9 +108,14 @@ class TestPublicAlertRetroactivelyHidesNarrowedPermission:
         assert out["state"] == "ACCESS_REVOKED"
 
     def test_same_alert_type_visible_when_permission_is_granted(self):
-        out = _public_alert(_alert("help_requested", "linkF"), ACCEPTED_FULL)
+        a = _alert("help_requested", "linkF")
+        a["payload"] = {"destination": "QA", "message": "Need help"}
+        out = _public_alert(a, ACCEPTED_FULL)
         assert out["access_revoked"] is False
-        assert out["payload"] != {}
+        # Non-location fields are visible when the type permission is granted…
+        assert out["payload"].get("message") == "Need help"
+        # …while destination stays stripped without temp_location consent (PR-1B-A).
+        assert "destination" not in out["payload"]
 
     def test_missed_checkin_alert_hidden_when_that_specific_permission_narrowed(self):
         out = _public_alert(_alert("missed_checkin", "linkM"), ACCEPTED_NO_MISSED_CHECKIN)

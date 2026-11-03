@@ -9,16 +9,14 @@
  * E. No LLM / AI call is ever made from this screen.
  */
 import React, { useState, useCallback, useRef } from 'react';
-import {
-  View, Text, TextInput, Pressable, ScrollView, StyleSheet,
-  ActivityIndicator, KeyboardAvoidingView, Platform, Linking,
-} from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 
+import { openExternal } from '@/src/outbound';
 const NAVY   = theme.colors.primary;
 const GOLD   = theme.colors.gold;
 const CUTOFF = '2024-07-01';
@@ -378,7 +376,7 @@ function ResultCard({ item }: { item: XRef }) {
       {expanded && !!item.source_link && (
         <Pressable
           style={rc.srcLinkRow}
-          onPress={() => Linking.openURL(item.source_link!)}
+          onPress={() => openExternal(item.source_link!)}
           hitSlop={6}
         >
           <Ionicons name="open-outline" size={12} color={theme.colors.primary} />

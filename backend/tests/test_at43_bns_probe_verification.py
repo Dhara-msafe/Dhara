@@ -1,3 +1,4 @@
+import os
 """
 test_at43_bns_probe_verification.py — AT43 acceptance test closure.
 
@@ -54,7 +55,7 @@ ALL_CARD_KEYS = [
 
 async def _get_section(act_short: str, section: str) -> dict | None:
     client = AsyncIOMotorClient(MONGO_URL)
-    corpus = client["bns-know-your-rights-gandhikar_db"]
+    corpus = client[os.environ.get("CORPUS_DB_NAME", "bns-know-your-rights-gandhikar_db")]
     doc = await corpus.legal_sections.find_one(
         {
             "section_number": section,
@@ -68,7 +69,7 @@ async def _get_section(act_short: str, section: str) -> dict | None:
 
 async def _get_card(scenario_key: str) -> dict | None:
     client = AsyncIOMotorClient(MONGO_URL)
-    db = client["gandhikar_db"]
+    db = client[os.environ.get("DB_NAME", "gandhikar_db")]
     card = await db.rights_cards.find_one(
         {"scenario_key": scenario_key},
         {"release_state": 1, "_id": 0},
@@ -116,7 +117,7 @@ async def test_rights_card_at_or_above_legal_reviewed(scenario_key: str):
 async def test_corpus_bns_section_count_minimum():
     """AT43-SANITY: corpus must have ≥ 100 BNS sections (proves DB is populated)."""
     client = AsyncIOMotorClient(MONGO_URL)
-    corpus = client["bns-know-your-rights-gandhikar_db"]
+    corpus = client[os.environ.get("CORPUS_DB_NAME", "bns-know-your-rights-gandhikar_db")]
     count = await corpus.legal_sections.count_documents(
         {"act_name": {"$regex": "Bharatiya Nyaya Sanhita", "$options": "i"}}
     )
