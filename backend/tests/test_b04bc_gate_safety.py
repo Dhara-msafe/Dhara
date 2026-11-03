@@ -6,6 +6,7 @@ Immediate-danger and bare-distress messages must still get the deterministic
 messages must still receive 401 / 402 unchanged.
 """
 import os
+import sys
 import time
 
 import pytest
@@ -16,6 +17,9 @@ from pymongo import MongoClient
 load_dotenv("/app/frontend/.env")
 load_dotenv("/app/backend/.env")
 
+sys.path.insert(0, "/app/backend")
+from dependencies import make_token  # noqa: E402
+
 BASE_URL = (os.environ.get("EXPO_PUBLIC_BACKEND_URL") or os.environ.get("EXPO_BACKEND_URL")).rstrip("/")
 API = f"{BASE_URL}/api"
 PRO_FREE_SAMPLES = int(os.environ.get("PRO_FREE_SAMPLES", "5"))
@@ -23,6 +27,21 @@ PRO_FREE_SAMPLES = int(os.environ.get("PRO_FREE_SAMPLES", "5"))
 DANGER_MSG = "he is going to kill me right now"
 DISTRESS_MSG = "help"
 ORDINARY_MSG = "What is a will?"
+
+# Every user-linked collection a test account can touch (mirrors
+# account_deletion._SIMPLE_USER_ID_COLLECTIONS) — tests must leave no residue.
+USER_LINKED_COLLECTIONS = [
+    "sessions", "messages", "bookmarks", "draft_events", "password_resets",
+    "terms_acknowledgements", "client_error_logs", "billing_intents",
+    "missing_media",
+]
+
+
+def _purge(db, uid: str):
+    for name in USER_LINKED_COLLECTIONS:
+        db[name].delete_many({"user_id": uid})
+    db.usage_daily.delete_many({"user_id": uid, "scope": "user"})
+    db.users.delete_one({"id": uid})
 
 
 @pytest.fixture(scope="module")
@@ -40,22 +59,24 @@ def _post(token, msg):
 
 
 # ---------------- expired guest (B-04b) ----------------
+# The guest doc + token are built directly (POST /api/auth/guest is IP
+# rate-limited, which made this fixture skip on repeat runs). make_token is the
+# same minting helper the auth router uses, so the request is a genuine
+# authenticated guest call end-to-end.
 @pytest.fixture()
 def expired_guest(db):
-    r = requests.post(f"{API}/auth/guest", json={"language": "en"}, timeout=20)
-    if r.status_code == 429:
-        pytest.skip("guest-session throttle (429)")
-    assert r.status_code == 200, r.text
-    data = r.json()
-    uid = data["user"]["id"]
-    res = db.users.update_one(
-        {"id": uid},
-        {"$set": {"guest_expires_at": "2020-01-01T00:00:00+00:00", "guest_question_count": 0}},
-    )
-    if res.matched_count == 0:
-        pytest.skip("could not locate guest user doc")
-    yield data["token"], uid
-    db.users.delete_one({"id": uid})
+    uid = f"TEST_b04b_guest_{int(time.time() * 1000)}"
+    db.users.insert_one({
+        "id": uid,
+        "email": f"{uid}@guest.local",
+        "name": "B04b Guest",
+        "is_guest": True,
+        "guest_expires_at": "2020-01-01T00:00:00+00:00",
+        "guest_question_count": 0,
+        "guest_question_limit": 5,
+    })
+    yield make_token(uid), uid
+    _purge(db, uid)
 
 
 def test_expired_guest_danger_gets_112(expired_guest, db):
@@ -85,7 +106,7 @@ def test_expired_guest_ordinary_still_401(expired_guest, db):
 
 
 # ---------------- exhausted Pro samples (B-04c) ----------------
-@pytest.fixture()
+@pytest.fixture(scope="module")
 def exhausted_pro(db):
     uniq = int(time.time() * 1000)
     email = f"TEST_b04c_{uniq}@gandhikar.in"
@@ -108,7 +129,7 @@ def exhausted_pro(db):
         {"id": uid}, {"$set": {"is_pro": False, "pro_samples_used": PRO_FREE_SAMPLES}},
     )
     yield token, uid
-    db.users.delete_one({"id": uid})
+    _purge(db, uid)
 
 
 def test_exhausted_pro_danger_gets_112(exhausted_pro, db):

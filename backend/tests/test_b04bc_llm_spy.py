@@ -22,6 +22,24 @@ PAST = "2020-01-01T00:00:00+00:00"
 DANGER_MSG = "he is going to kill me right now"
 DISTRESS_MSG = "help"
 ORDINARY_MSG = "What is a will?"
+# A broad, non-statutory question that always reaches the LLM stage — used by the
+# spy self-check below to prove the patch targets are still the live ones.
+LLM_BOUND_MSG = "I am stuck in a messy family property dispute, what are my options?"
+
+# Every user-linked collection a test account can touch (mirrors
+# account_deletion._SIMPLE_USER_ID_COLLECTIONS) — tests must leave no residue.
+USER_LINKED_COLLECTIONS = [
+    "sessions", "messages", "bookmarks", "draft_events", "password_resets",
+    "terms_acknowledgements", "client_error_logs", "billing_intents",
+    "missing_media",
+]
+
+
+async def _purge(uid: str):
+    for name in USER_LINKED_COLLECTIONS:
+        await db[name].delete_many({"user_id": uid})
+    await db.usage_daily.delete_many({"user_id": uid, "scope": "user"})
+    await db.users.delete_one({"id": uid})
 
 
 @pytest.fixture()
@@ -67,8 +85,7 @@ async def guest_doc():
     }
     await db.users.insert_one(dict(doc))
     yield doc
-    await db.users.delete_one({"id": uid})
-    await db.messages.delete_many({"user_id": uid})
+    await _purge(uid)
 
 
 @pytest_asyncio.fixture(loop_scope="session")
@@ -80,8 +97,7 @@ async def pro_doc():
     }
     await db.users.insert_one(dict(doc))
     yield doc
-    await db.users.delete_one({"id": uid})
-    await db.messages.delete_many({"user_id": uid})
+    await _purge(uid)
 
 
 async def _state(uid):
@@ -215,5 +231,25 @@ async def test_b04a_guest_at_quota_sse_preserved(llm_spy):
         u = await db.users.find_one({"id": uid})
         assert int(u["guest_question_count"]) == 5
     finally:
-        await db.users.delete_one({"id": uid})
-        await db.messages.delete_many({"user_id": uid})
+        await _purge(uid)
+
+
+# ─────────── spy self-check: the patch targets are the LIVE ones ───────────
+@pytest.mark.asyncio(loop_scope="session")
+async def test_spy_targets_are_live(llm_spy):
+    """Guard against the spy silently becoming a no-op (e.g. if the pipeline is
+    refactored to call the provider through a different symbol). An UNBLOCKED
+    user asking an open-ended question MUST trip the spy — which proves that the
+    `llm_spy == []` assertions above are meaningful, not vacuous."""
+    uid = f"TEST_spy_live_{int(time.time()*1000)}"
+    doc = {"id": uid, "is_guest": False, "is_pro": True, "pro_samples_used": 0}
+    await db.users.insert_one(dict(doc))
+    try:
+        with pytest.raises(AssertionError, match="LLM provider was called"):
+            resp = await cr.chat_stream(
+                cr.ChatIn(message=LLM_BOUND_MSG, language="en", mode="pro"), user=doc,
+            )
+            await _drain(resp)
+        assert llm_spy and llm_spy[0][0] == "build_chat"
+    finally:
+        await _purge(uid)
