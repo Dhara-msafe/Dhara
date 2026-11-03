@@ -74,3 +74,19 @@ def test_sos_fast_path_skipped_when_danger():
 def test_gujarati_sos_is_single_script():
     t = get_conversational_template("distress_sos", "gu")
     assert not [c for c in t if "\u0A00" <= c <= "\u0A7F"], "Gurmukhi letter in Gujarati SOS"
+
+
+def test_guest_quota_wall_yields_to_immediate_danger():
+    """A guest who has exhausted the free-question quota must still receive a
+    safety reply when in immediate danger — the quota wall must branch on
+    `_emergency` (and bare distress) BEFORE emitting guest_limit_reached."""
+    start = SRC.index("async def _guest_limit_gen():")
+    block = SRC[start:start + 2200]
+    emerg = block.index("if _emergency:")
+    distress = block.index("is_bare_distress(body.message):")
+    wall = block.index('"type": "guest_limit_reached"')
+    # Both safety branches are checked before the quota wall is emitted.
+    assert emerg < wall, "emergency branch must precede guest_limit_reached"
+    assert distress < wall, "bare-distress branch must precede guest_limit_reached"
+    # The emergency branch sends the 112 banner, not the paywall.
+    assert "_EMERGENCY_BANNER.get(body.language" in block

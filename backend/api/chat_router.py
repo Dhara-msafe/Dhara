@@ -376,10 +376,26 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                     "guest": True, "guest_question_count": guest_question_limit,
                     "guest_question_limit": guest_question_limit,
                 })
-                yield _guest_sse({
-                    "type": "guest_limit_reached",
-                    "message": "You've reached the guest limit. Create a free account to continue.",
-                })
+                # DHARA-P0-4: safety before quota. A guest in immediate danger
+                # (or sending a bare distress call) must still receive the 112
+                # banner / SOS reply even after the free-question limit — the
+                # quota wall must NEVER gate a life-safety response. This reply
+                # is deterministic: it does not call the LLM and does not consume
+                # a guest question.
+                if _emergency:
+                    _banner = _EMERGENCY_BANNER.get(body.language, _EMERGENCY_BANNER["en"])
+                    yield _guest_sse({"type": "delta", "content": _banner, "emergency": True})
+                elif FEATURE_C1_CONVERSATIONAL_REPLIES and is_bare_distress(body.message):
+                    _sos = (
+                        get_conversational_template("distress_sos", body.language)
+                        or _EMERGENCY_BANNER.get(body.language, _EMERGENCY_BANNER["en"])
+                    )
+                    yield _guest_sse({"type": "delta", "content": _sos, "c1_sos": True})
+                else:
+                    yield _guest_sse({
+                        "type": "guest_limit_reached",
+                        "message": "You've reached the guest limit. Create a free account to continue.",
+                    })
                 yield _guest_sse({"type": "done"})
             return StreamingResponse(
                 _guest_limit_gen(), media_type="text/event-stream",
