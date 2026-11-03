@@ -113,7 +113,15 @@ router = APIRouter()
 # ── DHARA C1 — conversational replies (non-legal allowlist) ──────────────────
 # Default OFF. Deterministic matcher, no LLM, deny-list always wins, EN/HI
 # templates only. Full contract: engine/conversational_intents.py.
-FEATURE_C1_CONVERSATIONAL_REPLIES = os.getenv("FEATURE_C1_CONVERSATIONAL_REPLIES", "true").lower() == "true"
+# Greetings / thanks / capability replies ("good morning", "hi", "thank you")
+# are a core UX feature. Keep them ON by default and fail SAFE: only an
+# EXPLICIT falsy value disables them. A missing OR EMPTY env var (which the old
+# `== "true"` check treated as off) must NOT silently turn greetings into "cannot
+# answer" refusals in a deployed build.
+FEATURE_C1_CONVERSATIONAL_REPLIES = (
+    os.getenv("FEATURE_C1_CONVERSATIONAL_REPLIES", "true").strip().lower()
+    not in ("false", "0", "no", "off")
+)
 from engine.conversational_intents import (
     classify_conversational_intent,
     get_conversational_template,
