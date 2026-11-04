@@ -27,7 +27,13 @@ export function GlobalHelpButton() {
   const isHome = pathname === '/(tabs)/home' || pathname === '/home' || pathname === '/(tabs)' || pathname === '/';
   // Hide on screens where the FAB would overlap primary controls or sensitive content
   const hideScan = pathname === '/scan' || pathname?.startsWith('/scan/');
-  if (pathname === '/emergency' || pathname?.startsWith('/oauth') || pathname?.startsWith('/women') || isHome || hideScan) return null;
+  // Auth / onboarding screens have NO tab bar, so the bottom-anchored FAB (offset
+  // for a tab bar) lands on top of the password eye, consent checkboxes and the
+  // language list. Help/emergency is one tap away again the moment the user is in.
+  const isAuthOnboarding =
+    pathname === '/login' || pathname === '/signup' ||
+    pathname === '/consent' || pathname === '/language';
+  if (pathname === '/emergency' || pathname?.startsWith('/oauth') || pathname?.startsWith('/women') || isHome || hideScan || isAuthOnboarding) return null;
 
   return (
     <Pressable

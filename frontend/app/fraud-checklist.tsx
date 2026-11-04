@@ -45,8 +45,7 @@ const STEPS: Step[] = [
     id: 'bank',
     title: 'Tell your bank IN WRITING within 3 working days',
     detail:
-      'Report the unauthorised transaction to the bank in writing (email + branch acknowledgement). Reported within three working days, your liability is ZERO and the bank must credit the amount within ten working days.',
-    action: { label: 'Bank helpline', url: 'tel:1800', icon: 'business-outline' },
+      'Report the unauthorised transaction to the bank in writing (email + branch acknowledgement). Use the helpline number printed on the back of your card or your bank passbook. Reported within three working days, your liability is ZERO and the bank must credit the amount within ten working days.',
   },
   {
     id: 'block',

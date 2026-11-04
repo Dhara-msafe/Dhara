@@ -63,20 +63,30 @@ def _cleanup(db, email, uid):
 
 # ─────────────── 1. route coverage ───────────────
 def test_every_login_route_in_the_app_is_the_protected_one():
-    """Introspect the real ASGI app: there must be exactly ONE login route and
-    it must be the /api-prefixed, guarded handler. An unprefixed /auth/login
-    twin would be an unprotected bypass."""
+    """Introspect the real ASGI app: EVERY login route must resolve to the
+    guarded handler — there must be no unprotected twin. The canonical route is
+    the /api-prefixed handler; the legacy unprefixed /auth/login alias (kept for
+    stale deployed clients, and not externally reachable — see the test below)
+    must FORWARD into that same guarded handler, never a parallel unguarded one."""
     from server import app
+    from api import auth_router
     from services import login_guard
 
     paths = sorted({r.path for r in app.routes if r.path.endswith("/auth/login")})
-    assert paths == ["/api/auth/login"], paths
+    assert paths == ["/api/auth/login", "/auth/login"], paths
 
-    handler = next(r.endpoint for r in app.routes if r.path == "/api/auth/login")
-    code = handler.__code__
-    names = set(code.co_names)
+    # Canonical handler runs the brute-force guard directly.
+    canonical = next(r.endpoint for r in app.routes if r.path == "/api/auth/login")
+    names = set(canonical.__code__.co_names)
     assert {"check_lock", "register_failure", "clear_attempts"} <= names, names
-    assert handler.__module__.endswith("auth_router")
+    assert canonical.__module__.endswith("auth_router")
+
+    # Legacy alias must forward straight into the SAME guarded login function —
+    # no second, unguarded implementation.
+    alias = next(r.endpoint for r in app.routes if r.path == "/auth/login")
+    assert "_alias_login_fn" in alias.__code__.co_names
+    assert alias.__globals__["_alias_login_fn"] is auth_router.login
+
     assert login_guard.MAX_FAILURES == 5
 
 

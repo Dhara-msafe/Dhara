@@ -253,6 +253,7 @@ api.include_router(alerts_router)
 # and just forward straight into the existing /api/auth/* handlers below —
 # zero duplicated logic, zero behaviour change, always JSON (FastAPI's
 # default error handlers are JSON too, never HTML).
+from fastapi import Request as _AliasRequest
 from api.auth_router import (
     RegisterIn as _AliasRegisterIn, LoginIn as _AliasLoginIn, GoogleSessionIn as _AliasGoogleSessionIn,
     AuthOut as _AliasAuthOut,
@@ -264,8 +265,9 @@ async def _alias_auth_signup(body: _AliasRegisterIn):
     return await _alias_register_fn(body)
 
 @app.post("/auth/login", response_model=_AliasAuthOut)
-async def _alias_auth_login(body: _AliasLoginIn):
-    return await _alias_login_fn(body)
+async def _alias_auth_login(body: _AliasLoginIn, request: _AliasRequest):
+    # login() requires the Request for B-16 brute-force IP tracking; forward it.
+    return await _alias_login_fn(body, request)
 
 @app.post("/auth/session", response_model=_AliasAuthOut)
 async def _alias_auth_session(body: _AliasGoogleSessionIn):

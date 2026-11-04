@@ -18,8 +18,7 @@
         "NSMicrophoneUsageDescription": "Speak questions or save local voice evidence",
         "NSCameraUsageDescription": "Take your profile photo or complaint evidence",
         "NSPhotoLibraryUsageDescription": "Choose a profile photo or complaint evidence",
-        "NSLocationWhenInUseUsageDescription": "Share your area with your guardian during Head Out",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Keep guardian updated even when screen is off"
+        "NSLocationWhenInUseUsageDescription": "Share your area with your guardian during Head Out"
       },
       "associatedDomains": [
         "applinks:bns-know-your-rights.emergent.host",
@@ -41,10 +40,7 @@
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.CAMERA",
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_BACKGROUND_LOCATION",
-        "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION"
       ],
       "intentFilters": [
         {

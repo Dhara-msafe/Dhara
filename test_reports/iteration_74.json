@@ -1,0 +1,60 @@
+{
+  "summary": "GO-LIVE frontend audit on Expo web preview (390x844 + 375x667). PASS: onboarding (language -> consent -> login); email login voicetest2026 (HTTP 200 -> /home, language onboarding modal shown & dismissed); Continue as guest (reaches /home, but only after a 2nd consent screen); Ask DHARA chat 'What is Article 21?' -> /api/chat/stream 200, answer rendered, 'View Legal Details' shows Sources: Constitution Art.21 + indiacode.nic.in; all 5 bottom tabs render (no blank/crash, no page errors, no 4xx/5xx API calls); Women's Shield (first-visit panic-lesson gate -> 'I understand' -> shield): 7 helpline cards tel:112/181/14490/1930/1098/15100/14416 well-formed, all 10 rights tiles open /action-plan?scenario=... (4 open a 'are you safe?' gate which routes correctly to tel:112/tel:1091/tel:181 or the plan), 8 safety tool rows navigate (trusted-circle, evidence-locker, code-phrase, head-out, guardian-share, tel:18001805522, all-help, prefilled chat); SOS pill -> red /emergency 112 screen, all 4 tiles + 'I'm safe now' work; Nearest help -> google.com/maps/search URLs well-formed; Fraud checklist: 7 steps, bank step has NO dial button, 'Call 1930' -> tel:1930, 'Open the portal' -> https://cybercrime.gov.in/, timer starts on tick; voter-roll link -> https://voters.eci.gov.in/; IPC-BNS lookup loads, keyword search calls /api/advocate/cross-reference 200, date checker works; Scan intro renders (Take a photo / Choose from gallery); Me tab 12 rows navigate; sign-out clears token -> /login. KNOWN ISSUE STILL PRESENT: at 375x667 global Help FAB (x273,y482,86x45) overlaps password eye toggle (x282,y487,44x47). At 390x844 no overlap. NOTE: in the preview every tel:/sms: tap shows 'Simulated — nothing sent' because frontend/.env has EXPO_PUBLIC_OUTBOUND_MODE=simulate + PROFILE=internal_qa. No deprecated expo packages (expo-av/barcode-scanner/background-fetch) found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "GlobalHelpButton on /login (375x667)", "issue": "STILL OVERLAPS password show/hide eye (iteration_73 MEDIUM not fixed). RCA: FAB uses fixed bottom = insets.bottom + 140 (tuned for tab-bar + disclaimer), but /login, /consent, /language have no tab bar, so on a 667px screen the FAB lands at y=482 – exactly on the eye (y=487-534). Also covers the data-consent checkbox text on /consent and the Marathi card on /language. Fix: hide FAB on /login,/signup,/forgot-password,/language,/consent OR use a smaller bottom offset on non-tab routes. Reference: /app/frontend/src/components/dhara/GlobalHelpButton.tsx:30,43", "testID": "global-help-button", "priority": "MEDIUM"},
+      {"component": "Women's Shield > POSH / Internal Complaints 'How to find'", "issue": "Navigates to /all-help?q=POSH committee which shows 'No results for \"POSH committee\"' — dead end. Searching 'POSH' also returns no results. Reference: /app/frontend/app/women-shield.tsx:282", "testID": "ws-tool-briefcase-outline", "priority": "MEDIUM"},
+      {"component": "Me > Help & Support", "issue": "Row routes to /(tabs)/settings — identical to the 'Settings' row; there is no actual help/support/contact screen (Play/App Store reviewers expect a support contact). Reference: /app/frontend/app/(tabs)/me.tsx:35", "testID": "me-me.help", "priority": "MEDIUM"},
+      {"component": "Continue as guest", "issue": "After completing consent on onboarding, tapping 'Continue as guest' sends user to /consent?mode=update with ALL boxes unchecked again — user must re-consent a 2nd time within seconds. /api/consent/log is called twice.", "testID": "continue-as-guest-button", "priority": "MEDIUM"},
+      {"component": "LanguageOnboardModal after login", "issue": "User already picked a language on the very first screen, but after email login a 'Choose your language' modal appears again (redundant). Modal buttons ('Continue in English', language tiles) have no testIDs.", "testID": "n/a", "priority": "LOW"},
+      {"component": "Unmatched routes", "issue": "Unknown routes show the default expo-router 'Unmatched Route' page with the raw URL — no branded +not-found screen.", "testID": "n/a", "priority": "LOW"},
+      {"component": "Sign out", "issue": "Sign out has no confirmation and makes no /api/auth/logout call (token only removed locally, not revoked server-side).", "testID": "me-signout", "priority": "LOW"},
+      {"component": "Guest Me header", "issue": "Internal email 'guest_xxxx@guest.dhara.local' displayed and breaks mid-word ('...dhara.loca / l').", "testID": "me-avatar", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "IPC -> BNS lookup", "issue": "Keyword search 'theft' returns 6 results, ALL shown as 'Not yet approved — correspondence claim is withheld until sign-off'; footer says '655 entries — all pending dual advocate sign-off'. Feature is effectively non-functional for end users at launch (no BNS mapping ever shown).", "affected_testIDs": ["(no testIDs on ipc-bns-lookup screen)"]},
+      {"flow": "Outbound calls/SMS in release build", "issue": "frontend/.env EXPO_PUBLIC_OUTBOUND_MODE=simulate and EXPO_PUBLIC_OUTBOUND_PROFILE=internal_qa. If the APK/IPA is built with this .env, EVERY emergency call (112/1091/181/1930...) and SMS will show 'Simulated — nothing sent' and never dial. No eas.json exists to override per build profile. Must be set to live/closed_testing for the closed-testing build.", "affected_testIDs": ["call-112", "hl-112", "fraud-action-call1930", "nearest-call-112"]}
+    ],
+    "design_issues": [
+      {"screen": "My files", "issues": ["Title 'My files' wraps to two lines and the 'Private to your account' pill is squeezed against the SOS pill."]},
+      {"screen": "Chat answer", "issues": ["Answer starts with literal 'Answer:' label and lowercase sentence ('this constitutional right...'); 'What you can do' bullets are raw '- ' text, not rendered list.", "Source card shows 'May be outdated — last checked over 90 days ago' for Article 21 (text last checked 2026-01-15) — reduces trust at launch."]},
+      {"screen": "Fraud checklist", "issues": ["'Start New' pill in timer header is ~24px tall (<44px touch target)."]},
+      {"screen": "Action plan (violence_at_home)", "issues": ["Asks 'Is the complaint about violence or harassment against you?' even when scenario is already 'Violence at home'."]},
+      {"screen": "Delete account", "issues": ["'Changed your mind? Back to sign in' — link text baseline is misaligned (~8px higher) and says 'sign in' to a logged-in user."]},
+      {"screen": "Action-plan safety gate", "issues": ["'Call Police — 112', 'Women's Emergency — 1091', 'Women's Helpline — 181' Pressables have no testID and no accessibilityRole='button' (screen readers won't announce them as buttons). Reference: /app/frontend/app/action-plan.tsx:98,110"]},
+      {"screen": "IPC-BNS lookup / All help", "issues": ["No testIDs on inputs/tiles/chips (only global-help-button present)."]}
+    ],
+    "react_native_issues": [
+      {"component": "Unused background-location permissions", "issue": "app.json android.permissions declares ACCESS_BACKGROUND_LOCATION + FOREGROUND_SERVICE_LOCATION (and iOS NSLocationAlwaysAndWhenInUseUsageDescription) but code only uses foreground watchPositionAsync (startLocationUpdatesAsync/TaskManager not used). Google Play will require a Permissions Declaration + video or reject. Reference: /app/frontend/app.json android.permissions; /app/frontend/src/hooks/useJourneyGPS.ts:161"},
+      {"component": "Deprecated style props (warnings)", "issue": "Expo logs: '\"shadow*\" style props are deprecated. Use boxShadow' and 'Image: style.resizeMode is deprecated'. Non-blocking. Reference: /app/frontend/src/components/dhara/GlobalHelpButton.tsx:63-66 (and others)"}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_74.json", ".screenshots/ (browser automation)"],
+  "action_items": [
+    "HIGH: For the closed-testing APK/IPA build set EXPO_PUBLIC_OUTBOUND_MODE=live and EXPO_PUBLIC_OUTBOUND_PROFILE=closed_testing (or add eas.json build-profile env) — otherwise emergency dial/SMS never works on device.",
+    "HIGH: Remove unused ACCESS_BACKGROUND_LOCATION / FOREGROUND_SERVICE_LOCATION (and iOS Always-location string) from app.json, or implement + declare them — Play review risk.",
+    "HIGH (policy): /upgrade sells a digital 'Dhara Pro' unlock (₹99 / $5) via Stripe/Razorpay; Google Play Payments policy and Apple 3.1.1 require in-app billing for digital goods — hide upgrade in store builds or switch to Play Billing/StoreKit.",
+    "HIGH (product): IPC->BNS lookup shows every mapping as 'Not yet approved' (655 pending sign-off) — either complete sign-off or hide the feature / show the mapping with a disclaimer before launch.",
+    "MEDIUM: Fix GlobalHelpButton overlap on /login (password eye) at 375x667 — hide on auth/onboarding routes or reduce bottom offset when no tab bar.",
+    "MEDIUM: Fix POSH 'How to find' dead end (add POSH/ICC entry to all-help or route to a POSH explainer / prefilled chat).",
+    "MEDIUM: Point Me > Help & Support to a real support/contact screen (grievance email, FAQ).",
+    "MEDIUM: Skip the 2nd consent screen after 'Continue as guest' when consent was just recorded (consent?mode=update).",
+    "LOW: Don't re-show LanguageOnboardModal when language already chosen at onboarding; add testIDs to modal.",
+    "LOW: Add branded +not-found.tsx; add confirm + server logout on sign out; clean chat answer formatting ('Answer:' label, raw '- ' bullets); add testIDs/accessibilityRole on action-plan safety buttons, IPC-BNS lookup and all-help tiles; enlarge 'Start New' touch target."
+  ],
+  "critical_code_review_comments": [
+    "src/components/dhara/GlobalHelpButton.tsx: hide-list does not include /login,/signup,/language,/consent; fixed bottom offset assumes tab bar.",
+    "frontend/.env contains comment lines and a Google Maps API key exposed via EXPO_PUBLIC_* (ensure key is restricted by package/bundle id).",
+    "No eas.json in /app/frontend — build-profile env (outbound mode) cannot differ between QA and release.",
+    "app/(tabs)/me.tsx:35 'me.help' route duplicates settings.",
+    "Consent notice says 'Your phone number and name - to log you in' while login is email/Google — copy mismatch."
+  ],
+  "updated_files": ["/app/frontend/app/women-shield.tsx (added testID={`ws-tool-${icon}`} to ToolRow for testing)"],
+  "success_rate": {"backend": "N/A (not requested)", "frontend": "~88% (all requested flows functional; 4 MEDIUM UX bugs + release-config/policy blockers)"},
+  "seed_data_creation": "None. A guest account was created via 'Continue as guest' (POST /api/auth/guest) and new chat history entries for voicetest2026 ('What is Article 21?' x3).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Flow: / -> /language (language-continue) -> /consent (consent-age-adult, consent-terms-checkbox, consent-data-checkbox, consent-continue-button) -> /login. After login a language modal appears: click text 'Continue in English'. Fast auth: capture localStorage after login (keys gk_token, gk_user, gk_lang, lang_onboarded_v1_<uid>, gk_consent_*) and inject via add_init_script. Deep-linking to '/' redirects to /home — open chat via home-type-button. First visit to /women-shield redirects to /women/panic-lesson ('I understand'). Outbound tel/sms show window.alert 'Simulated — nothing sent | ... | tel:NNN' on web — capture with page.on('dialog') to verify URLs. External https links use window.open — stub it to capture URLs.",
+  "rca_of_issue": "Help FAB overlap: GlobalHelpButton renders at root with style bottom = insets.bottom + 140. On non-tab routes (login) at 375x667 this places it at y=482-527, directly over toggle-password-visibility (y=487-534). The pathname hide-list excludes only /emergency, /oauth*, /women*, home and /scan."
+}

@@ -1,5 +1,76 @@
 # Dhara (formerly Gandhikar) — PRD
 
+## 4 November 2026 — Play Store / App Store GO-LIVE readiness audit
+
+User asked for a full list of what is tested & good-to-go vs what blocks the APK/iOS
+release. Backend fully re-tested (full pytest suite) + frontend app-flow sweep
+(iteration_74) + all external links audited.
+
+### Backend test suite — full run
+- **1540+ passed**, 6 skipped. All reported failures/errors were ENVIRONMENTAL, not
+  product bugs, and were individually proven so:
+  - Most "errors" = the forked shell lacked `EXPO_BACKEND_URL` / `EXPO_PUBLIC_BACKEND_URL`
+    (tests target the live preview URL). With them set, the files pass.
+  - Guardian/map/journey HTML-contract tests fail ONLY through the preview URL because
+    Cloudflare injects a unique per-request challenge `<script>` into the HTML, breaking
+    byte-identical diffs. Verified byte-identical directly on localhost:8001 (privacy
+    contract holds — the public journey page reveals nothing, valid vs random token identical).
+  - `test_pro_samples_*` expect `₹50`; product price is intentionally `₹99` (stale tests).
+  - `test_safety_go1a` + alert-isolation tests fail on accumulated shared-preview-DB data
+    (10-saved-places cap; >200 alerts exceeds the list limit) — not code.
+  - `test_refusal_analytics` success test expects old SSE `"delta"` events; current stream
+    delivers the answer in a `"final"` event (verified live, full answer text present).
+  - Crypto REFUSAL_QUERY now surfaces an obscure 1893 private-act citation (known tangential
+    citation-ranking quality item; carries the unverified-status disclaimer). Not a blocker.
+
+### Code bugs FOUND & FIXED this session
+1. **`/auth/login` alias 500 crash** (`server.py`) — the legacy unprefixed alias for stale
+   clients lacked the `request` param that `login()` now needs for B-16 IP tracking. Added
+   `request: _AliasRequest` and forwarded it. Now 401 (was 500); B-16 guard runs on the alias
+   (verified: 5th wrong attempt → 429). `test_b16_review_evidence` route-coverage test updated
+   to assert the alias FORWARDS to the guarded handler (no unprotected twin) instead of
+   forbidding the alias outright. B-16 end-to-end re-verified (account + per-IP lockout write).
+2. **Broken link** `fraud-checklist.tsx` had `tel:1800` ("Bank helpline" — incomplete number).
+   Removed the broken dial button (bank numbers differ per bank); step text now points the user
+   to the number on their card/passbook.
+3. **Help FAB overlap** (`GlobalHelpButton.tsx`) — the bottom-anchored Help button overlapped the
+   password eye / consent checkbox / language list on auth & onboarding screens (no tab bar).
+   Now hidden on `/login`, `/signup`, `/consent`, `/language` (already hidden on home/emergency/women/scan).
+4. **Unused sensitive permissions removed** (`app.json`) — app only uses FOREGROUND location, so
+   removed Android `ACCESS_BACKGROUND_LOCATION`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`
+   and iOS `NSLocationAlwaysAndWhenInUseUsageDescription` (kept WhenInUse). Avoids Play/Apple
+   background-location review rejection.
+
+### OPEN GO-LIVE BLOCKERS requiring USER decision (NOT changed unilaterally)
+- **B1 Emergency outbound is in QA-simulate mode.** `frontend/.env` has
+  `EXPO_PUBLIC_OUTBOUND_MODE=simulate` + `EXPO_PUBLIC_OUTBOUND_PROFILE=internal_qa`, so on a real
+  phone tapping 112/1091/181/1930 shows "Simulated — nothing sent" and SOS SMS/share do nothing.
+  Release build MUST set `EXPO_PUBLIC_OUTBOUND_MODE=live` + `EXPO_PUBLIC_OUTBOUND_PROFILE=closed_testing`
+  (or `production`). SMS in closed_testing is gated to `EXPO_PUBLIC_SMS_TEST_CONTACTS`; emergency
+  SMS is always blocked by design (call only). No `eas.json` exists to separate build env.
+- **B2 Store billing policy.** `/upgrade` sells digital "Dhara Pro" (₹99/$5) via Stripe/Razorpay —
+  Google Play & Apple require their own in-app purchase for digital goods. Needs native IAB
+  (RevenueCat) or remove Pro purchase from store builds.
+- **B3 IPC→BNS lookup content** shows "Not yet approved" for all entries (awaiting advocate
+  sign-off T-02/T-03, withheld per earlier user instruction). Feature works; content gated.
+
+### Known MEDIUM/LOW frontend items (non-blocking, from iteration_74)
+- POSH "How to find" opens All-help with "No results for POSH committee" (dead end).
+- Me → "Help & Support" opens Settings (no dedicated support screen).
+- "Continue as guest" and post-login language modal re-prompt even after onboarding choices.
+- Chat answers render literal "Answer:" label and raw "- " bullets; unknown routes show the
+  default Expo "Unmatched Route" page; sign-out has no confirm and doesn't end the server session.
+
+### Still device-only (cannot certify in web preview / Expo Go — needs the APK/IPA build)
+- Camera (Scan a Notice), microphone/Voice STT+TTS, Google deep-link sign-in callback,
+  push notifications (needs google-services.json), real 112 dialer & SOS SMS, code-phrase
+  silent-alert, native PDF/share, foreground location permission prompts.
+
+### Paused (flagged as release risks, per user)
+- Leaked `ADMIN_KEY` rotation + history cleanup (BLOCKED — awaiting user).
+- Canonical GitHub identity (T-01/B-01, awaiting org-owner access).
+
+
 ## November 2026 — DHARA Greeting & Suggested-Question Fix (Phase 1 MVP)
 
 ### C1 Conversational Intent Layer (FEATURE_C1_CONVERSATIONAL_REPLIES=true)

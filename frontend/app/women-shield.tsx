@@ -327,6 +327,7 @@ function ToolRow({ icon, title, sub, action, onPress }: { icon: any; title: stri
   return (
     <Pressable
       style={styles.toolRow}
+      testID={`ws-tool-${icon}`}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${title} — ${action}`}
