@@ -12,6 +12,7 @@ import { useAuth } from '@/src/auth';
 import { speakLangFor, phraseIn, playPhrase } from '@/src/visitor/speakForMe';
 
 import { openExternal } from '@/src/outbound';
+import { EmergencyNumberStatic, EmergencyNotActiveNotice } from '@/src/components/dhara/EmergencyNumberStatic';
 const C = theme.colors;
 
 export default function VisitorEmergency() {
@@ -99,17 +100,20 @@ export default function VisitorEmergency() {
 
             {/* Call button */}
             {step.callNumber && (
-              <Pressable
-                style={[s.actionBtn, { backgroundColor: C.error }]}
-                onPress={() => {
-                  const num = step.callNumber!;
-                  const url = num.startsWith('http') ? num : `tel:${num}`;
-                  openExternal(url).catch(() => {});
-                }}
-              >
-                <Ionicons name="call" size={18} color="#fff" />
-                <Text style={s.actionBtnText}>{t(step.callLabel!) || step.callNumber}</Text>
-              </Pressable>
+              step.callNumber.startsWith('http') ? (
+                <Pressable
+                  style={[s.actionBtn, { backgroundColor: C.error }]}
+                  onPress={() => { openExternal(step.callNumber!).catch(() => {}); }}
+                >
+                  <Ionicons name="call" size={18} color="#fff" />
+                  <Text style={s.actionBtnText}>{t(step.callLabel!) || step.callNumber}</Text>
+                </Pressable>
+              ) : (
+                <View>
+                  <EmergencyNumberStatic label={t(step.callLabel!) || step.callNumber} number={step.callNumber} testID={`visitor-emergency-call-${step.callNumber}`} />
+                  <EmergencyNotActiveNotice />
+                </View>
+              )
             )}
 
             {/* Speak For Me */}

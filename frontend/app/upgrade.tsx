@@ -26,6 +26,11 @@ import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { trackEvent } from '@/src/analytics';
 
+// Batch FREE-V1-001: Pro upgrade / Stripe / Razorpay payment UI gated off for v1
+// (store digital-goods billing policy). Code below stays intact for a later
+// release — only this screen-level guard changes.
+const PRO_UPGRADE_ENABLED = process.env.EXPO_PUBLIC_PRO_UPGRADE_ENABLED === 'true';
+
 type Pricing = {
   pro_price_inr_paise: number;
   pro_price_label: string;
@@ -287,6 +292,33 @@ export default function Upgrade() {
       if (txt) setRazorPaymentId(txt.trim());
     } catch {}
   }, []);
+
+  // Batch FREE-V1-001: if this screen is reached directly (deep link, stale
+  // bookmark, etc.) while the flag is off, show a simple notice instead of
+  // the payment UI below. All hooks above still run unconditionally; no
+  // payment code is removed — it's just not rendered.
+  if (!PRO_UPGRADE_ENABLED) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']} testID="upgrade-screen-disabled">
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} testID="upgrade-back" hitSlop={10}>
+            <Ionicons name="arrow-back" size={26} color={theme.colors.onBrandPrimary} />
+          </Pressable>
+          <Text style={styles.headerTitle}>Dhara Pro</Text>
+          <View style={{ width: 26 }} />
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 }}>
+          <Ionicons name="time-outline" size={40} color={theme.colors.brand} />
+          <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.onSurface, textAlign: 'center' }}>
+            Pro isn&apos;t available in this version yet
+          </Text>
+          <Text style={{ fontSize: 13, color: theme.colors.onSurfaceSecondary, textAlign: 'center', lineHeight: 20 }}>
+            Every DHARA feature you can see today is free to use. We&apos;ll let you know here when Pro becomes available.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']} testID="upgrade-screen">

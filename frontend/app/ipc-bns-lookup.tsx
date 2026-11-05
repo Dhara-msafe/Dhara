@@ -261,6 +261,7 @@ function _needsApprovalBanner(ca: string | undefined): boolean {
 }
 
 function NotYetApprovedBanner({ reason }: { reason: string }) {
+  const router = useRouter();
   const isRevoked = reason === 'revoked';
   return (
     <View style={na.banner}>
@@ -269,13 +270,24 @@ function NotYetApprovedBanner({ reason }: { reason: string }) {
       </View>
       <View style={{ flex: 1 }}>
         <Text style={na.title}>
-          {isRevoked ? 'Approval revoked' : 'Not yet approved'}
+          {isRevoked ? "DHARA can't confirm this section anymore" : "DHARA can't confirm this section yet"}
         </Text>
         <Text style={na.sub}>
           {isRevoked
-            ? 'The legal reviewer\'s approval for this correspondence was revoked. This claim is withheld pending re-review.'
-            : 'This IPC → BNS correspondence has not yet been approved by an authorized legal reviewer. The correspondence claim is withheld until sign-off is obtained.'}
+            ? 'This section mapping was reviewed before, but that approval has since been withdrawn. We are intentionally withholding it, not showing it by mistake, until it is re-reviewed.'
+            : 'We have this entry on file, but a qualified legal reviewer has not signed off on the section mapping yet. We are intentionally withholding the section number, not showing it by mistake.'}
         </Text>
+        <Text style={na.nextStep}>
+          Next step: confirm the correct section with an advocate or at the police station before relying on it.
+        </Text>
+        <Pressable
+          style={na.cta}
+          onPress={(e) => { e.stopPropagation(); router.push({ pathname: '/(tabs)', params: { autostartMic: Date.now().toString() } } as any); }}
+          testID="not-yet-approved-ask-dhara"
+        >
+          <Ionicons name="chatbubble-ellipses-outline" size={13} color="#3730A3" />
+          <Text style={na.ctaTxt}>Ask DHARA</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -340,7 +352,7 @@ function ResultCard({ item }: { item: XRef }) {
           <Text style={rc.secLabel}>{isWithheld ? 'Status' : hasNewSec ? 'New Section' : 'Status'}</Text>
           {isWithheld
             ? <Text style={[rc.secNum, { color: '#6366F1', fontSize: 11, lineHeight: 16 }]}>
-                Not yet{'\n'}approved
+                Pending{'\n'}review
               </Text>
             : hasNewSec
               ? <Text style={rc.secNum}>{item.new_section}</Text>
@@ -828,6 +840,13 @@ const na = StyleSheet.create({
   },
   title: { fontSize: 12, fontWeight: '800', color: '#3730A3', marginBottom: 2 },
   sub:   { fontSize: 11, color: '#4338CA', lineHeight: 16 },
+  nextStep: { fontSize: 11, color: '#3730A3', fontWeight: '600', lineHeight: 16, marginTop: 6 },
+  cta: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: '#E0E7FF', borderRadius: 8, paddingVertical: 8, marginTop: 8,
+    minHeight: 32, alignSelf: 'flex-start', paddingHorizontal: 12,
+  },
+  ctaTxt: { fontSize: 12, fontWeight: '700', color: '#3730A3' },
 });
 
 // ── Dead-Law banner styles ─────────────────────────────────────────────────────

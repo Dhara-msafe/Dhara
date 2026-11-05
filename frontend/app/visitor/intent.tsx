@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { loadVisitorSession, VisitorSession, getStateLocalLang, HINDI_LANG } from '@/src/visitor/session';
 
-import { openExternal } from '@/src/outbound';
+import { EmergencyNumberStatic, EmergencyNotActiveNotice } from '@/src/components/dhara/EmergencyNumberStatic';
 const C = theme.colors;
 
 const WORKFLOWS = [
@@ -126,12 +126,8 @@ export default function VisitorIntent() {
           ℹ️ In any emergency, call <Text style={{ fontWeight: '800' }}>112</Text> immediately.
         </Text>
 
-        <Pressable style={s.callBtn} onPress={() => {
-          openExternal('tel:112');
-        }}>
-          <Ionicons name="call" size={20} color="#fff" />
-          <Text style={s.callBtnText}>Call 112 — Emergency</Text>
-        </Pressable>
+        <EmergencyNumberStatic label="Emergency" number="112" testID="visitor-intent-call-112" />
+        <EmergencyNotActiveNotice />
       </View>
     </SafeAreaView>
   );

@@ -11,6 +11,7 @@ import { WorkflowStep } from '@/src/visitor/content';
 import { API_BASE, useAuth } from '@/src/auth';
 
 import { openExternal } from '@/src/outbound';
+import { EmergencyNumberStatic, EmergencyNotActiveNotice } from '@/src/components/dhara/EmergencyNumberStatic';
 const C = theme.colors;
 
 type Props = {
@@ -82,19 +83,20 @@ export default function WorkflowScreen({
             <Text style={s.stepBody}>{t(step.body)}</Text>
 
             {step.callNumber && (
-              <Pressable
-                style={[s.actionBtn, { backgroundColor: headerColor }]}
-                onPress={() => {
-                  const n = step.callNumber!;
-                  openExternal(n.startsWith('http') ? n : `tel:${n}`).catch(() => {});
-                }}
-              >
-                <Ionicons
-                  name={step.callNumber!.startsWith('http') ? 'globe-outline' : 'call'}
-                  size={18} color="#fff"
-                />
-                <Text style={s.actionBtnText}>{t(step.callLabel!) || step.callNumber}</Text>
-              </Pressable>
+              step.callNumber.startsWith('http') ? (
+                <Pressable
+                  style={[s.actionBtn, { backgroundColor: headerColor }]}
+                  onPress={() => { openExternal(step.callNumber!).catch(() => {}); }}
+                >
+                  <Ionicons name="globe-outline" size={18} color="#fff" />
+                  <Text style={s.actionBtnText}>{t(step.callLabel!) || step.callNumber}</Text>
+                </Pressable>
+              ) : (
+                <View style={{ marginBottom: 8 }}>
+                  <EmergencyNumberStatic label={t(step.callLabel!) || step.callNumber} number={step.callNumber} testID={`workflow-call-${step.callNumber}`} />
+                  <EmergencyNotActiveNotice />
+                </View>
+              )
             )}
 
             {step.speak_hi && (

@@ -11,6 +11,9 @@ import { SOSButton } from '@/src/components/SOSButton';
 import { getPushPermissionState, enablePushNotifications, PushPermissionState } from '@/src/push';
 import { t } from '@/src/i18n';
 
+// Batch FREE-V1-001: Pro upgrade / Stripe / Razorpay payment UI gated off for v1.
+const PRO_UPGRADE_ENABLED = process.env.EXPO_PUBLIC_PRO_UPGRADE_ENABLED === 'true';
+
 export default function Settings() {
   const { user, token, logout, language, setLanguage, autoSpeak, setAutoSpeak, ttsVolume, setTtsVolume, ttsVoiceMode, setTtsVoiceMode, refreshUser } = useAuth();
   const router = useRouter();
@@ -182,18 +185,20 @@ export default function Settings() {
           </View>
         </View>
 
-        <Pressable
-          testID="pro-upsell-card"
-          style={[styles.upsell, user?.is_pro && { backgroundColor: theme.colors.brandTertiary }]}
-          onPress={() => router.push('/upgrade')}
-        >
-          <Ionicons name="star" size={22} color={theme.colors.onBrandPrimary} />
-          <View style={{ flex: 1, marginLeft: theme.spacing.md }}>
-            <Text style={styles.upsellTitle}>{user?.is_pro ? 'Dhara Pro · Active' : 'Upgrade to Dhara Pro'}</Text>
-            <Text style={styles.upsellSub}>{user?.is_pro ? 'Lawyer-consultation-style answers unlocked' : 'Lawyer-style depth · Drafts · Escalation paths'}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={theme.colors.onBrandPrimary} />
-        </Pressable>
+        {PRO_UPGRADE_ENABLED && (
+          <Pressable
+            testID="pro-upsell-card"
+            style={[styles.upsell, user?.is_pro && { backgroundColor: theme.colors.brandTertiary }]}
+            onPress={() => router.push('/upgrade')}
+          >
+            <Ionicons name="star" size={22} color={theme.colors.onBrandPrimary} />
+            <View style={{ flex: 1, marginLeft: theme.spacing.md }}>
+              <Text style={styles.upsellTitle}>{user?.is_pro ? 'Dhara Pro · Active' : 'Upgrade to Dhara Pro'}</Text>
+              <Text style={styles.upsellSub}>{user?.is_pro ? 'Lawyer-consultation-style answers unlocked' : 'Lawyer-style depth · Drafts · Escalation paths'}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.onBrandPrimary} />
+          </Pressable>
+        )}
 
         <Text style={styles.section}>{t('settings.section.preferences', language.code)}</Text>
 

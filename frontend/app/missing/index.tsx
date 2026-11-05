@@ -15,8 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import interviewData from '@/src/content/missing_interview.json';
 import { trackEvent } from '@/src/analytics';
-
-import { openExternal } from '@/src/outbound';
+import { EmergencyNotActiveNotice } from '@/src/components/dhara/EmergencyNumberStatic';
 type Lang = 'en' | 'hi' | 'mr';
 
 const NAVY = theme.colors.primary;
@@ -39,12 +38,6 @@ export default function MissingEntryScreen() {
 
   const first = interviewData.entry_screens.first_screen;
 
-  const makeCall = (number: string) => {
-    openExternal(`tel:${number}`).catch(() => {
-      openExternal(`https://en.wikipedia.org/wiki/Emergency_telephone_number`);
-    });
-  };
-
   return (
     <SafeAreaView testID="missing-entry-screen" style={s.safe} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={s.scroll}>
@@ -63,20 +56,20 @@ export default function MissingEntryScreen() {
         {/* Emergency call buttons */}
         <View style={s.callSection}>
           {first.emergency_numbers.map(num => (
-            <Pressable
+            <View
               key={num.number}
               testID={`missing-call-${num.number}`}
-              style={[s.callBtn, num.number === '1098' && s.callBtnSecondary]}
-              onPress={() => makeCall(num.number)}
+              style={[s.callBtn, num.number === '1098' && s.callBtnSecondary, { opacity: 0.7 }]}
             >
               <Text style={s.callIcon}>📞</Text>
               <View style={s.callInfo}>
                 <Text style={s.callNumber}>{num.number}</Text>
                 <Text style={s.callLabel}>{t(num.label, lang)}</Text>
               </View>
-            </Pressable>
+            </View>
           ))}
         </View>
+        <EmergencyNotActiveNotice />
 
         {/* Divider */}
         <View style={s.divider} />

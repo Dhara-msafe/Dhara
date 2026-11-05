@@ -6,6 +6,9 @@ import { useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { DRAFTS } from '@/src/drafts';
 
+// Batch FREE-V1-001: Pro upgrade / Stripe / Razorpay payment UI gated off for v1.
+const PRO_UPGRADE_ENABLED = process.env.EXPO_PUBLIC_PRO_UPGRADE_ENABLED === 'true';
+
 export default function DraftsList() {
   const router = useRouter();
   const { user } = useAuth();
@@ -36,8 +39,8 @@ export default function DraftsList() {
             {isPro
               ? 'Dhara Pro · unlimited notices'
               : remaining > 0
-                ? `${remaining} free notice left · unlimited with Pro`
-                : 'Free notice used · upgrade to Pro for unlimited notices'}
+                ? PRO_UPGRADE_ENABLED ? `${remaining} free notice left · unlimited with Pro` : `${remaining} free notice left`
+                : PRO_UPGRADE_ENABLED ? 'Free notice used · upgrade to Pro for unlimited notices' : 'Free notice used · more become available with your plan'}
           </Text>
         </View>
 

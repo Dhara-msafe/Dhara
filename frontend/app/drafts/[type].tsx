@@ -12,6 +12,10 @@ import { draftByType } from '@/src/drafts';
 import { addToHistory } from '@/src/draftHistory';
 
 import { shareExternal } from '@/src/outbound';
+
+// Batch FREE-V1-001: Pro upgrade / Stripe / Razorpay payment UI gated off for v1.
+const PRO_UPGRADE_ENABLED = process.env.EXPO_PUBLIC_PRO_UPGRADE_ENABLED === 'true';
+
 export default function DraftForm() {
   const { type, prefill } = useLocalSearchParams<{ type: string; prefill?: string }>();
   const router = useRouter();
@@ -51,6 +55,10 @@ export default function DraftForm() {
       if (res.status === 402) {
         const body = await res.json();
         const msg = body?.detail?.message || 'Upgrade to Pro for unlimited notices.';
+        if (!PRO_UPGRADE_ENABLED) {
+          crossAlert('Free notice used', 'You have used your free notice for now. More free notices become available with your plan.', [{ text: 'OK' }]);
+          return;
+        }
         if (Platform.OS === 'web') {
           if (typeof window !== 'undefined' && window.confirm(`${msg}\n\nOpen upgrade?`)) {
             router.push('/upgrade');

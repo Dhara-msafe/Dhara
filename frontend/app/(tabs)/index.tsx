@@ -40,7 +40,7 @@ import { triggerSafetySequence } from '@/src/women/safetyTriggerCoordinator';
 import { useEvidenceRecorder } from '@/src/women/EvidenceRecorderProvider';
 import { activateCover } from '@/src/women/coverState';
 
-import { openExternal } from '@/src/outbound';
+import { EmergencyNotActiveNotice } from '@/src/components/dhara/EmergencyNumberStatic';
 /** Strip raw markdown markers from streaming text so asterisks/hashes never
  *  flash in the UI while the LLM is still mid-sentence. Called only on the
  *  accumulated delta text; the sanitized `final` frame is displayed as-is. */
@@ -294,12 +294,11 @@ function SosEmergencyBanner({ onDismiss, language }: { onDismiss: () => void; la
       <Text style={{ fontSize: 18 }}>🆘</Text>
       <View style={{ flex: 1, gap: 4 }}>
         <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 12 }}>{headline}</Text>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
           {SOS_NUMBERS.map(({ label, desc }) => (
-            <Pressable
+            <View
               key={label}
               testID={`sos-call-${label}`}
-              onPress={() => openExternal(`tel:${label}`)}
               style={{
                 backgroundColor: theme.colors.emergencyDeep,
                 borderRadius: 6,
@@ -309,15 +308,17 @@ function SosEmergencyBanner({ onDismiss, language }: { onDismiss: () => void; la
                 justifyContent: 'center',
                 minWidth: 52,
                 minHeight: 44,
+                opacity: 0.75,
               }}
-              accessibilityLabel={`Call ${label} — ${desc}`}
-              accessibilityRole="button"
             >
               <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15, letterSpacing: 0.5 }}>{label}</Text>
               <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 9, fontWeight: '500' }}>{desc}</Text>
-            </Pressable>
+            </View>
           ))}
         </View>
+        <Text style={{ color: '#FFFFFF', fontSize: 10, fontStyle: 'italic', opacity: 0.9 }}>
+          Emergency calling is not active in this test version. Dial 112 on your phone if you need help.
+        </Text>
       </View>
       <Pressable
         testID="sos-banner-dismiss"
@@ -351,14 +352,11 @@ function EmergencyCallShortcut({ language }: { language: string }) {
   return (
     <View testID="emergency-call-shortcut" style={{ gap: 6, marginTop: theme.spacing.sm }}>
       <Text style={{ color: theme.dhara.navy, fontSize: 12, fontWeight: '600' }}>{title}</Text>
-      <View style={{ flexDirection: 'row', gap: 8 }}>
+      <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
         {EMERGENCY_SHORTCUT_NUMBERS.map(({ label, desc }) => (
-          <Pressable
+          <View
             key={label}
             testID={`emergency-call-${label}`}
-            onPress={() => openExternal(`tel:${label}`)}
-            accessibilityRole="button"
-            accessibilityLabel={`Call ${label} — ${desc}`}
             style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -367,14 +365,16 @@ function EmergencyCallShortcut({ language }: { language: string }) {
               borderRadius: 8,
               paddingHorizontal: 14,
               minHeight: 44,
+              opacity: 0.75,
             }}
           >
-            <Ionicons name="call" size={16} color="#FFFFFF" />
+            <Ionicons name="call-outline" size={16} color="#FFFFFF" />
             <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>{label}</Text>
             <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 10 }}>{desc}</Text>
-          </Pressable>
+          </View>
         ))}
       </View>
+      <EmergencyNotActiveNotice />
     </View>
   );
 }
@@ -393,6 +393,9 @@ function looksLikeDanger(text: string): boolean {
   return _GUEST_DANGER_RE.test(text || '');
 }
 
+
+// Batch FREE-V1-001: Pro upgrade / Stripe / Razorpay payment UI gated off for v1.
+const PRO_UPGRADE_ENABLED = process.env.EXPO_PUBLIC_PRO_UPGRADE_ENABLED === 'true';
 
 export default function ChatScreen() {
   const { token, user, language, autoSpeak, ttsVolume, ttsVoiceMode, refreshUser, forceLogout } = useAuth();
@@ -2355,7 +2358,8 @@ export default function ChatScreen() {
               </View>
 
               {/* ── Pro upgrade card — bottom of empty state, non-Pro users only ── */}
-              {!isPro && (
+              {/* Batch FREE-V1-001: gated off for v1 (store IAP policy); flag stays false until a later release. */}
+              {PRO_UPGRADE_ENABLED && !isPro && (
                 <Pressable
                   testID="pro-upgrade-card"
                   style={styles.proUpgradeCard}
@@ -2970,24 +2974,28 @@ export default function ChatScreen() {
             </View>
             <Text style={styles.pwTitle}>Free samples used</Text>
             <Text style={styles.pwBody}>{paywall?.message}</Text>
-            <View style={styles.pwPriceRow}>
-              <Text style={styles.pwPrice}>{paywall?.pro_price_label}</Text>
-              <Text style={styles.pwPriceOr}>or</Text>
-              <Text style={styles.pwPrice}>{paywall?.pro_price_usd_label}</Text>
-            </View>
-            <Text style={styles.pwPriceMeta}>one-time · lifetime Pro access</Text>
+            {PRO_UPGRADE_ENABLED && (
+              <>
+                <View style={styles.pwPriceRow}>
+                  <Text style={styles.pwPrice}>{paywall?.pro_price_label}</Text>
+                  <Text style={styles.pwPriceOr}>or</Text>
+                  <Text style={styles.pwPrice}>{paywall?.pro_price_usd_label}</Text>
+                </View>
+                <Text style={styles.pwPriceMeta}>one-time · lifetime Pro access</Text>
 
-            <Pressable
-              testID="paywall-upgrade-btn"
-              style={styles.pwUpgrade}
-              onPress={() => {
-                setPaywall(null);
-                router.push('/upgrade');
-              }}
-            >
-              <Ionicons name="star" size={18} color={theme.colors.onBrandPrimary} />
-              <Text style={styles.pwUpgradeText}>Upgrade to Pro</Text>
-            </Pressable>
+                <Pressable
+                  testID="paywall-upgrade-btn"
+                  style={styles.pwUpgrade}
+                  onPress={() => {
+                    setPaywall(null);
+                    router.push('/upgrade');
+                  }}
+                >
+                  <Ionicons name="star" size={18} color={theme.colors.onBrandPrimary} />
+                  <Text style={styles.pwUpgradeText}>Upgrade to Pro</Text>
+                </Pressable>
+              </>
+            )}
 
             <Pressable
               testID="paywall-continue-basic-btn"
