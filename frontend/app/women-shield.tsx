@@ -14,6 +14,7 @@ import { enterWomensShield, leaveWomensShield } from '@/src/voice/speechGate';
 import { activateCover } from '@/src/women/coverState';
 
 import { openExternal } from '@/src/outbound';
+import { EmergencyNumberStatic, EmergencyNotActiveNotice } from '@/src/components/dhara/EmergencyNumberStatic';
 const PRIVACY_COVER_ENABLED = process.env.EXPO_PUBLIC_PRIVACY_COVER_V1 === 'true';
 
 const HEAD_OUT_ENABLED = process.env.EXPO_PUBLIC_SAFETY_SESSION_V1 === 'true';

@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 
-import { openExternal } from '@/src/outbound';
+import { EmergencyNumberStatic, EmergencyNotActiveNotice } from '@/src/components/dhara/EmergencyNumberStatic';
 type Helpline = {
   label: string;
   number: string;
@@ -32,11 +32,6 @@ export function SOSButton({
   inline = false,
 }: { variant?: 'chip' | 'floating'; inline?: boolean }) {
   const [open, setOpen] = useState(false);
-
-  const dial = (number: string) => {
-    setOpen(false);
-    openExternal(`tel:${number}`).catch(() => {});
-  };
 
   return (
     <>
@@ -68,23 +63,10 @@ export function SOSButton({
               </Pressable>
             </View>
             {HELPLINES.map((h) => (
-              <Pressable
-                key={h.number}
-                testID={`sos-dial-${h.number}`}
-                style={styles.row}
-                onPress={() => dial(h.number)}
-              >
-                <View style={styles.rowIcon}>
-                  <Ionicons name={h.icon} size={20} color={theme.colors.error} />
-                </View>
-                <Text style={styles.rowLabel}>{h.label}</Text>
-                <View style={styles.numberPill}>
-                  <Ionicons name="call" size={12} color={theme.colors.onBrandPrimary} />
-                  <Text style={styles.numberText}>{h.number}</Text>
-                </View>
-              </Pressable>
+              <EmergencyNumberStatic key={h.number} label={h.label} number={h.number} testID={`sos-dial-${h.number}`} />
             ))}
             <Text style={styles.note}>Calls go directly to government helplines. Dhara is not an emergency service.</Text>
+            <EmergencyNotActiveNotice />
           </Pressable>
         </Pressable>
       </Modal>

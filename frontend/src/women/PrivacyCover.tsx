@@ -14,8 +14,10 @@
  *   the OS notification shade.
  *
  * EMERGENCY ACCESS:
- *   "Emergency 112" initiates a direct phone call.  It is not gated behind
- *   any authentication and is always tappable regardless of cover state.
+ *   The "Emergency 112" number is shown read-only (Batch SAFE-SOS-001 —
+ *   dialler intentionally inactive in this test build; it is not wired to
+ *   any tel: link or openExternal call). It becomes a live call button in a
+ *   separate, explicitly-approved batch after the app goes live.
  *
  * GATE: EXPO_PUBLIC_PRIVACY_COVER_V1 === 'true' (enforced by PrivacyCoverGate).
  */
@@ -26,7 +28,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 
-import { openExternal } from '@/src/outbound';
+import { EmergencyNumberStatic, EmergencyNotActiveNotice } from '@/src/components/dhara/EmergencyNumberStatic';
 const c = theme.colors;
 
 export interface PrivacyCoverProps {
@@ -36,10 +38,6 @@ export interface PrivacyCoverProps {
 
 export function PrivacyCover({ onReveal }: PrivacyCoverProps) {
   const insets = useSafeAreaInsets();
-
-  const call112 = () => {
-    openExternal('tel:112').catch(() => {});
-  };
 
   return (
     <View
@@ -77,17 +75,11 @@ export function PrivacyCover({ onReveal }: PrivacyCoverProps) {
 
       <View style={{ flex: 1 }} />
 
-      {/* Emergency access — always visible, not presented as authentication */}
-      <Pressable
-        style={styles.emergencyBtn}
-        onPress={call112}
-        accessibilityRole="button"
-        accessibilityLabel="Emergency call 112"
-        testID="privacy-cover-emergency"
-      >
-        <Ionicons name="call-outline" size={18} color="#fff" />
-        <Text style={styles.emergencyTxt}>Emergency 112</Text>
-      </Pressable>
+      {/* Emergency access — number shown read-only; dialler inactive in this test build (Batch SAFE-SOS-001) */}
+      <View style={{ width: '100%', maxWidth: 280 }}>
+        <EmergencyNumberStatic label="Emergency" number="112" testID="privacy-cover-emergency" />
+        <EmergencyNotActiveNotice />
+      </View>
     </View>
   );
 }
