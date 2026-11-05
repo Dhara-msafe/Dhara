@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -81,8 +81,20 @@ export default function MissingAttachments() {
     setBusy(true); setError('');
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (!permission.granted) throw new Error('Location permission was denied. Enter coordinates below or continue without GPS.');
+      let permission = await Location.getForegroundPermissionsAsync();
+      if (!permission.granted) permission = await Location.requestForegroundPermissionsAsync();
+      if (!permission.granted) {
+        if (!permission.canAskAgain) {
+          Alert.alert(
+            'Location permission needed',
+            'DHARA uses your location only to add it to this missing-person report. Open Settings to allow it, or enter coordinates below.',
+            [{ text: 'Cancel', style: 'cancel' }, { text: 'Open Settings', onPress: () => Linking.openSettings() }],
+          );
+          setBusy(false);
+          return;
+        }
+        throw new Error('Location permission was denied. Enter coordinates below or continue without GPS.');
+      }
       const result = await Promise.race([
         Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
         new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('GPS took too long. Retry outdoors or enter coordinates below.')), 15000); }),

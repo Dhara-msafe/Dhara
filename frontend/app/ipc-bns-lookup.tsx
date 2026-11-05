@@ -17,6 +17,7 @@ import { API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 
 import { openExternal } from '@/src/outbound';
+import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
 const NAVY   = theme.colors.primary;
 const GOLD   = theme.colors.gold;
 const CUTOFF = '2024-07-01';
@@ -618,6 +619,7 @@ export default function IpcBnsLookup() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <DisclaimerBanner testID="ipc-bns-disclaimer" />
     </SafeAreaView>
   );
 }
