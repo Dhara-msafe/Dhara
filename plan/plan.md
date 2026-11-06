@@ -1,70 +1,50 @@
-# DHARA Greeting & Suggested-Question Fix
+# DHARA Pro — UPI Payment Page (Outside the App)
 
-DHARA currently sends every message — including greetings and its own suggested follow-up questions — through the legal-corpus search. This returns a "cannot confirm from official text" refusal for any message that has no corpus match, making the app feel broken from the very first interaction.
-
-The fix adds a lightweight intent layer that catches greetings and capability questions before they reach the corpus, returns a friendly built-in reply, and replaces the existing suggested questions with ones DHARA can actually answer.
-
----
+A standalone web page where a user can pay for DHARA Pro using any UPI app — GPay, PhonePe, BharatPe, Paytm, or others — by scanning a QR code or tapping a UPI link, then submitting their payment reference for confirmation. The page lives outside the mobile app and is shared directly with users (chat, SMS, email, a website), not linked from inside the Play Store/App Store app, so the live app itself stays free of any in-app digital-purchase flow.
 
 ## Who it's for
-
-Existing DHARA users on Android and web who see the broken first-message flow described above.
-
----
+DHARA users in India who want to upgrade to Pro and prefer UPI over a card, reached outside the app — through a message, support conversation, or a link on your own website.
 
 ## Core features and experience
-
-**Greeting / capability intent detection**
-A small set of patterns (hi, hello, namaste, good morning/evening, what can you do, how do you help, what issues, what topics, etc.) is checked at the start of every send. If the message matches, DHARA skips the corpus search entirely and returns a single pre-written reply.
-
-**Capability reply content**
-The reply briefly introduces DHARA and lists the areas it covers: FIR filing & police complaints, domestic violence protection, property & inheritance rights, maintenance & matrimonial issues, workplace harassment (POSH), consumer rights, criminal procedure (BNS / IPC), and rights cards for common situations. It ends with an invitation to ask a specific question.
-
-**Corrected suggested questions**
-The follow-up question chips shown after any DHARA response are replaced with questions the corpus can actually answer — for example "What happens if police refuse my FIR?" or "What are my rights under the Protection of Women from Domestic Violence Act?" — rather than meta-questions about DHARA's own scope. The initial greeting screen's chips are also updated to match.
-
-**No change to legal answers**
-Any message that does not match the greeting/capability patterns continues through the existing corpus search path unchanged. No existing legal-answer behaviour is altered.
-
----
+- A payment page showing the Pro price, a UPI QR code, and a "Pay with UPI app" button containing your UPI ID with the amount and a reference note already filled in — tapping it opens whichever UPI app is installed (GPay, PhonePe, BharatPe, Paytm...); scanning the QR does the same on another device.
+- A short form below it for the user to enter their UPI payment reference number (UTR) and the email of their DHARA account, once they've paid.
+- A clear "Submitted — we'll confirm shortly" state after that, so the user isn't left wondering what happens next.
+- A simple way for you to see submitted reference numbers and mark a payment as confirmed once you've checked it against your own UPI payment history.
+- Once confirmed, the account is flipped to Pro using the same mechanism already in the app today (no change to what Pro unlocks).
+- No button, card, or mention of this page appears anywhere inside the DHARA mobile app in this phase — it only exists as a link you share outside the app.
 
 ## User flow
-
-1. User opens a new chat. DHARA displays its existing greeting message.
-2. Suggested chips below it are legal questions DHARA can answer (updated).
-3. User taps a chip or types "hi". DHARA returns the friendly capability reply immediately, without a spinner or corpus lookup.
-4. New follow-up chips below that reply are also legal questions DHARA can answer.
-5. User taps one. DHARA answers from its corpus as normal.
-
----
+1. You send the user a link to the payment page.
+2. They open it on their phone and see the Pro price with a "Pay via UPI" button and a QR code.
+3. Tapping the button opens their UPI app with your UPI ID and the amount pre-filled; scanning the QR does the same.
+4. They complete the payment in their UPI app, then return to the page and enter the payment reference number and their DHARA account email.
+5. The page confirms the submission was received and is pending a check.
+6. You check the reference number against your UPI payment history and confirm it.
+7. Their account shows as Pro the next time they open DHARA.
 
 ## UI/UX feel
-
-No visual changes. The capability reply uses the same Dhara message bubble. The chip style is unchanged; only the text of the chips is updated.
-
----
+A single, calm, trustworthy screen that matches DHARA's existing look — not a flashy checkout page. Large, obvious tap targets for the UPI button and QR code, plain language, and reassuring confirmation copy, consistent with an app people already trust with sensitive legal and safety matters.
 
 ## Implementation phases
 
-**Phase 1 — MVP (built now)**
-- Add greeting/capability intent check to the backend send handler (runs before corpus search).
-- Write the capability reply string (English; same i18n pipeline as other responses for other languages).
-- Replace the initial suggested-question chips with three to four questions answerable from the corpus.
-- Replace the follow-up chips after the capability reply with similar answerable questions.
+**Phase 1 (MVP — built now)**
+A standalone web payment page, reachable only by direct link, with:
+- Pro price, UPI QR code, and a "Pay via UPI" link to your UPI ID with amount and note pre-filled.
+- A form to submit the UPI reference number and account email after paying.
+- A simple review list for you to check submissions and confirm a payment, which then grants Pro on that account.
+- Nothing about this page is referenced anywhere inside the shipped mobile app.
 
-**Phase 2 — Multilingual capability reply**
-Translate the capability reply into the other supported languages (Hindi, Bengali, Tamil, etc.) using the same translation mechanism used elsewhere in the app.
+**Phase 2**
+Replace manual checking with automatic confirmation by connecting a UPI-capable payment gateway (for example Razorpay or Cashfree, both of which already support UPI collect requests) — so a payment confirms itself within seconds and Pro unlocks immediately, with no review step for you.
 
-**Phase 3 — Adaptive suggestions**
-Generate follow-up chip suggestions dynamically based on the topic of the previous answer (e.g. a DV answer suggests chips about protection orders, maintenance, and evidence), so suggestions always stay relevant to the conversation.
-
----
+**Phase 3**
+Bring the purchase back inside the native app in a store-compliant way — either through Google Play Billing / Apple In-App Purchase (both of which already support UPI as a payment instrument for Indian users within their own billing systems), or through Google Play's approved alternative-billing program for India. Only once one of these is in place should any "Upgrade" button reappear inside the app itself.
 
 ## Assumptions
-
-- The intent check is a simple keyword / short-phrase match on the backend, not an LLM classifier, to keep latency at zero and cost at zero.
-- "Capability question" covers: what can you do, what issues, what topics, how can you help, what kind of questions, tell me about yourself, and close variants — decided without asking.
-- The capability reply lists eight topic areas listed above; the exact wording is decided during implementation.
-- The initial greeting message text itself is not changed; only the suggested chips below it are updated.
-- The fix is in English first; other languages follow in Phase 2.
-- Existing corpus-search refusal messages ("I cannot confirm from the official text") are not changed for genuinely unanswerable legal questions — only greeting/capability inputs are rerouted.
+- You will provide the UPI ID (VPA) to collect payments into; a placeholder is used until then.
+- The Pro price and what Pro unlocks stay exactly as already defined in the app today — unchanged.
+- "Confirming a payment" in Phase 1 means you personally check the submitted reference number against your own UPI payment history; there is no bank-statement automation in this phase.
+- The page is in English only for Phase 1, matching the app's other payment-related screens.
+- No link, button, or mention of this payment page is placed anywhere inside the DHARA mobile app in Phase 1 — this keeps the live app itself clear of any in-app digital-purchase flow, which is a store-compliance requirement rather than a style choice. Sharing the link happens entirely outside the app (chat, SMS, email, your own website).
+- The existing, already-paused Stripe/Razorpay Pro upgrade screens inside the app stay exactly as they are (paused, behind their flag) — this is a separate, additional path, not a replacement.
+- Submitted UPI reference numbers and account emails are stored only to verify payment and grant Pro access.

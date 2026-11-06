@@ -80,7 +80,10 @@ function ConsentGuard() {
   useEffect(() => {
     // 'guardian' handles its own auth state (shows sign-in prompt if unauthenticated)
     // so it must not be redirected to /consent, especially for deep-linked recipients.
-    if (loading || !segments.length || segments[0] === 'language' || segments[0] === 'consent' || segments[0] === 'emergency' || segments[0] === 'guardian') return;
+    // 'pay-upi' and 'admin-upi-review' are standalone pages reached only by a
+    // direct link shared outside the app (Batch: DHARA Pro UPI payment page) —
+    // they must open immediately for any visitor, with or without an account.
+    if (loading || !segments.length || segments[0] === 'language' || segments[0] === 'consent' || segments[0] === 'emergency' || segments[0] === 'guardian' || segments[0] === 'pay-upi' || segments[0] === 'admin-upi-review') return;
     let active = true;
     void (async () => {
       const stored = await AsyncStorage.getItem(consentVersionKey(user?.id)).catch(() => null);

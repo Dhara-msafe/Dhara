@@ -227,6 +227,7 @@ from api.journey_router  import router as journey_router  # S3 Phase 2 — guard
 from api.profile_router  import router as profile_router         # P1 — profile photo
 from api.trusted_circle_router import router as trusted_circle_router  # P3 — recipient invitations
 from api.alerts_router   import router as alerts_router           # P3/P4 — safety alerts inbox
+from api.upi_billing_router import router as upi_billing_router   # UPI payment page (outside the app)
 api.include_router(auth_router)
 api.include_router(chat_router)
 api.include_router(fir_router)
@@ -242,6 +243,7 @@ api.include_router(scan_router)
 api.include_router(profile_router)
 api.include_router(trusted_circle_router)
 api.include_router(alerts_router)
+api.include_router(upi_billing_router)
 
 # ---------------------------------------------------------------------------
 # Build-only fix (live prod bug, 2025-06 — stale-client JSON error):
