@@ -128,7 +128,10 @@ export default function GuardianScreen() {
       }
 
       const json = await resp.json();
-      if (json.status === 'in_progress') {
+      // A revoked journey keeps status 'in_progress' but is closed — deciding
+      // from status alone showed "LIVE" for a journey the owner had stopped.
+      const isClosed = json.status !== 'in_progress' || !!json.closed_at || !!json.safe_at;
+      if (!isClosed) {
         setState({
           phase: 'data',
           data: { kind: 'active', ...json },

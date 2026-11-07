@@ -11,9 +11,10 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
-import { JourneyHeader, JourneyHelpRow, PreviewBadge, FamilyJourneyOff, fjStyles } from '@/src/familyJourney/ui';
+import { JourneyHeader, JourneyHelpRow, PreviewScreenBadge, FamilyJourneyOff, fjStyles } from '@/src/familyJourney/ui';
 import { isLocalOnly, loadJourney, saveJourney, useFamilyJourneyEnabled, type Journey } from '@/src/familyJourney/store';
 import { MODE_META, buildPreview, enabledModes } from '@/src/familyJourney/previewCopy';
+import { FJ_SEND_ENABLED } from '@/src/familyJourney/flags';
 
 const c = theme.colors;
 
@@ -58,9 +59,9 @@ export default function JourneyPreview() {
         <View style={fjStyles.card}>
           <Text style={fjStyles.cardTitle}>What each contact would see</Text>
           <Text style={fjStyles.cardSub}>
-            Worded exactly as it would be worded for real — shown on your phone only.
+            The exact text each contact would receive from your number. Nothing is sent from this screen.
           </Text>
-          <PreviewBadge testID="fj-preview-top-badge" />
+          <PreviewScreenBadge testID="fj-preview-top-badge" />
         </View>
 
         {chosen.length === 0 ? (
@@ -92,13 +93,13 @@ export default function JourneyPreview() {
                   <Text style={styles.msgKind}>{MODE_META[mode].title.toUpperCase()}</Text>
                   <View style={styles.msgBubble}>
                     <View style={styles.msgFrom}>
-                      <Ionicons name="shield-outline" size={14} color={c.navy} />
-                      <Text style={styles.msgFromTxt}>DHARA</Text>
+                      <Ionicons name={FJ_SEND_ENABLED ? 'chatbubble-ellipses-outline' : 'shield-outline'} size={14} color={c.navy} />
+                      <Text style={styles.msgFromTxt}>{FJ_SEND_ENABLED ? 'FROM YOUR NUMBER' : 'DHARA'}</Text>
                     </View>
                     <Text style={styles.msgHeading}>{p.heading}</Text>
-                    <Text style={styles.msgBody}>{p.body}</Text>
+                    <Text style={styles.msgBody} selectable>{p.body}</Text>
                   </View>
-                  <PreviewBadge testID={`fj-preview-badge-${mode}-${ct.id}`} />
+                  <PreviewScreenBadge testID={`fj-preview-badge-${mode}-${ct.id}`} />
                 </View>
               );
             })}

@@ -54,6 +54,14 @@ _RANDOM_TOKEN = "XGARBAGEX99ZZ"
 def _coord_re() -> re.Pattern:
     return re.compile(r"19\.07\d+|72\.87\d+")
 
+
+@pytest.fixture(autouse=True)
+def _privacy_notice_mode(monkeypatch):
+    """Every test below describes the privacy-notice behaviour, which applies
+    whenever GUARDIAN_PUBLIC_PAGE_DETAILS is off. The owner-enabled details
+    mode has its own tests at the bottom of this file."""
+    monkeypatch.delenv("GUARDIAN_PUBLIC_PAGE_DETAILS", raising=False)
+
 # ── Time helpers ──────────────────────────────────────────────────────
 
 def _fut(mins: int = 60) -> str:
@@ -251,3 +259,67 @@ async def test_r13_comprehensive_no_metadata_no_location():
     _assert_no_journey_metadata(html)
     _assert_no_location(html)
     assert response.status_code == 200
+
+
+# ── Owner-enabled details mode (GUARDIAN_PUBLIC_PAGE_DETAILS=true) ────────────
+# The owner may choose to show the traveller's name, destination and journey
+# timestamps to anyone holding the link. Live location, area name and maps stay
+# withheld on this anonymous page in every journey state.
+
+@pytest.fixture
+def _details_mode(monkeypatch):
+    monkeypatch.setenv("GUARDIAN_PUBLIC_PAGE_DETAILS", "true")
+
+
+def _patched_db(record):
+    mock_db = MagicMock()
+    mock_db.safety_journeys.find_one = AsyncMock(return_value=record)
+    return patch.object(jr_module, "db", mock_db)
+
+
+@pytest.mark.asyncio
+async def test_d1_details_mode_shows_name_and_destination(_details_mode):
+    with _patched_db(_base_rec()):
+        response = await jr_module.journey_status_page(_TOKEN)
+    html = _get_html(response)
+    assert response.status_code == 200
+    assert "Priya" in html, "Traveller name should be shown in details mode"
+    assert "14 MG Road" in html, "Destination should be shown in details mode"
+    assert "Journey in progress" in html
+
+
+@pytest.mark.asyncio
+async def test_d2_details_mode_still_withholds_location(_details_mode):
+    rec = _base_rec()
+    rec["destination"] = "Office"   # no overlap with the fixture area name
+    with _patched_db(rec):
+        response = await jr_module.journey_status_page(_TOKEN)
+    _assert_no_location(_get_html(response))
+
+
+@pytest.mark.asyncio
+async def test_d3_details_mode_unknown_token_is_200_without_metadata(_details_mode):
+    with _patched_db(None):
+        response = await jr_module.journey_status_page(_RANDOM_TOKEN)
+    html = _get_html(response)
+    assert response.status_code == 200, "Unknown tokens must not return 404"
+    assert "Priya" not in html and "14 MG Road" not in html
+
+
+@pytest.mark.asyncio
+async def test_d4_details_mode_expired_token_is_200(_details_mode):
+    rec = _base_rec()
+    rec["expires_at"] = _ago(10)
+    with _patched_db(rec):
+        response = await jr_module.journey_status_page(_TOKEN)
+    html = _get_html(response)
+    assert response.status_code == 200, "Expired tokens must not return 410"
+    assert "Link expired" in html
+    assert "14 MG Road" not in html, "Destination must not leak on the expired page"
+
+
+@pytest.mark.asyncio
+async def test_d5_details_mode_does_not_echo_token(_details_mode):
+    with _patched_db(_base_rec()):
+        response = await jr_module.journey_status_page(_TOKEN)
+    assert _TOKEN not in _get_html(response), "Journey token echoed in HTML"

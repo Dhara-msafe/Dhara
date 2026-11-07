@@ -321,10 +321,15 @@ def annotate_provisions(
                         _subject_key, _approval.reason,
                     )
             existing_warn = prov_copy.get("dead_warning") or ""
+            # Prefer the PROVISION's own successor when the corpus record names
+            # one ("Bharatiya Nyaya Sanhita, Section 199"): the act-level
+            # registry value only names the replacing Act, which leaves the
+            # reader without the section they actually need to look up.
+            successor = (prov_copy.get("successor_act") or "").strip() or rec.successor_act
             guard_msg = (
                 f"⚠️ [LAW_STATUS_GUARD] '{rec.short_name}' is {rec.status}. "
                 f"{rec.status_reason} "
-                + (f"Successor: {rec.successor_act}." if rec.successor_act else "")
+                + (f"Successor: {successor}." if successor else "")
             )
             prov_copy["dead_warning"] = (
                 (guard_msg + "\n\n" + existing_warn).strip()
@@ -332,10 +337,10 @@ def annotate_provisions(
             )
             prov_copy["is_dead_law"] = True
             prov_copy["_law_status"] = rec.status
-            prov_copy["_successor_act"] = rec.successor_act
+            prov_copy["_successor_act"] = successor
             logger.info(
                 "[law_status_guard] INACTIVE act=%r status=%s successor=%r",
-                rec.short_name[:60], rec.status, rec.successor_act,
+                rec.short_name[:60], rec.status, successor,
             )
 
         elif status_label == "WARN" and rec:

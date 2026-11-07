@@ -14,6 +14,7 @@ import { useIconFonts } from "@/src/hooks/use-icon-fonts";
 import { useAppFonts } from "@/src/hooks/use-app-fonts";
 import { DesktopFrame } from "@/src/components/dhara/DesktopFrame";
 import { GlobalHelpButton } from "@/src/components/dhara/GlobalHelpButton";
+import { IssueReporterButton } from "@/src/components/IssueReporterButton";
 import { LanguageOnboardModal } from "@/src/components/LanguageOnboardModal";
 import { AuthProvider, useAuth } from "@/src/auth";
 import { consentVersionKey, isCurrentConsent } from "@/src/consentStorage";
@@ -83,7 +84,7 @@ function ConsentGuard() {
     // 'pay-upi' and 'admin-upi-review' are standalone pages reached only by a
     // direct link shared outside the app (Batch: DHARA Pro UPI payment page) —
     // they must open immediately for any visitor, with or without an account.
-    if (loading || !segments.length || segments[0] === 'language' || segments[0] === 'consent' || segments[0] === 'emergency' || segments[0] === 'guardian' || segments[0] === 'pay-upi' || segments[0] === 'admin-upi-review') return;
+    if (loading || !segments.length || segments[0] === 'language' || segments[0] === 'consent' || segments[0] === 'emergency' || segments[0] === 'guardian' || segments[0] === 'pay-upi' || segments[0] === 'admin-upi-review' || segments[0] === 'admin-issues') return;
     let active = true;
     void (async () => {
       const stored = await AsyncStorage.getItem(consentVersionKey(user?.id)).catch(() => null);
@@ -369,9 +370,11 @@ export default function RootLayout() {
                 <View style={{ flex: 1 }}>
                   <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.surface } }} />
                   <GlobalHelpButton />
+                  <IssueReporterButton />
                 </View>
               )}
               {isWideWeb && <GlobalHelpButton />}
+              {isWideWeb && <IssueReporterButton />}
               </EvidenceRecorderProvider>
             </AuthProvider>
           </PostHogProvider>

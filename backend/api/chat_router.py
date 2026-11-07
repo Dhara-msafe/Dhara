@@ -732,7 +732,12 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
     early_refusal: Optional[str] = None
     if is_non_indian_jurisdiction(retrieval_text):
         early_refusal = REFUSAL_NON_INDIAN
-    elif is_non_legal_advice(retrieval_text):
+    # Check the user's RAW message as well as the normalised text: the LLM
+    # query-normaliser often rephrases "should I forgive my husband" into a
+    # neutral legal-sounding question, which silently slips past this
+    # keyword gate and sends a request for personal/moral advice into the
+    # legal corpus. (Same class of bug as the C1 vocative-stripper fix.)
+    elif is_non_legal_advice(retrieval_text) or is_non_legal_advice(body.message):
         early_refusal = REFUSAL_NOT_LEGAL
 
     # -------- Personal-law disambiguation (marriage/succession) --------

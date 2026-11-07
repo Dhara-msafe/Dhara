@@ -57,10 +57,13 @@ def ensure_flag_on():
 
 class TestFlagGating:
     def test_anchor_503_when_flag_off(self, api_client):
-        # Turn OFF temporarily
+        # The vault routes are gated on `evidence_vault_enabled`, NOT on
+        # `evidence_locker_enabled` (which only controls the on-device locker
+        # UI). Toggling the wrong flag left the endpoint live and made this
+        # test fail with 200.
         r_off = api_client.post(
             f"{BASE_URL}/api/women/admin/flags",
-            json={"evidence_locker_enabled": False},
+            json={"evidence_vault_enabled": False},
             headers={"X-Admin-Key": ADMIN_KEY},
         )
         assert r_off.status_code == 200
@@ -76,7 +79,7 @@ class TestFlagGating:
         finally:
             api_client.post(
                 f"{BASE_URL}/api/women/admin/flags",
-                json={"evidence_locker_enabled": True},
+                json={"evidence_vault_enabled": True},
                 headers={"X-Admin-Key": ADMIN_KEY},
             )
 
@@ -159,7 +162,10 @@ class TestChunkedUploadFlow:
         assert r_complete.status_code == 200, r_complete.text
         result = r_complete.json()
         assert result["item_id"] == item_id
-        assert result["scope"] == scope
+        # E1 hardening: the server pins `scope` to the authenticated user's id
+        # and ignores whatever the client sent, so it is never the literal
+        # "device" the client asked for.
+        assert result["scope"] and result["scope"] != scope
         assert result["size"] == sum(len(c) for c in chunks)
         assert "storage_path" in result and "uploaded_at" in result
 
@@ -178,10 +184,13 @@ class TestChunkedUploadFlow:
         items2 = r_list2.json()["items"]
         assert not any(it["item_id"] == item_id for it in items2)
 
-    def test_delete_nonexistent_returns_deleted_false(self, api_client):
+    def test_delete_nonexistent_returns_404(self, api_client):
+        # E2/A2 hardening: a missing item and someone else's item return the
+        # SAME 404, so a caller cannot use the response to discover whether an
+        # item exists.
         r = api_client.delete(f"{BASE_URL}/api/evidence/backups/{uuid.uuid4()}", params={"scope": "device"})
-        assert r.status_code == 200
-        assert r.json() == {"ok": True, "deleted": False}
+        assert r.status_code == 404
+        assert "No backup found" in r.text
 
     def test_chunk_unknown_session_404(self, api_client):
         r = api_client.post(f"{BASE_URL}/api/evidence/upload/chunk", json={

@@ -261,7 +261,7 @@ export default function WomenShield() {
             </>}
             {HEAD_OUT_ENABLED && (process.env.EXPO_PUBLIC_GUARDIAN_SHARE === 'true') && <>
               <Divider />
-              <ToolRow icon="people-circle-outline" title="Guardian Journey" sub="Notify someone about your live journey" action="Share" onPress={() => router.push('/women/guardian-share')} />
+              <ToolRow icon="people-circle-outline" title="Guardian Journey" sub="Share where you're going with someone you trust" action="Share" onPress={() => router.push('/women/guardian-share')} />
             </>}
           </View>
           <Pressable style={styles.lessonRow} onPress={() => router.push('/women/panic-lesson')}>

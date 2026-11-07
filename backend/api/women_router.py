@@ -392,6 +392,10 @@ class FlagsIn(BaseModel):
     discreet_mode_enabled: Optional[bool] = None
     trusted_circle_enabled: Optional[bool] = None
     evidence_locker_enabled: Optional[bool] = None
+    # Gates the 5 cloud anchor/backup routes (api/evidence_vault_router.py).
+    # Without this field the documented kill-switch could only be flipped by
+    # editing the settings document in the database by hand.
+    evidence_vault_enabled: Optional[bool] = None
 
 
 _PANIC_LESSON_DEFAULT = {

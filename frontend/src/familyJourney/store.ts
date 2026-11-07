@@ -32,6 +32,11 @@ export type JourneyContact = {
 
 export type JourneyStatus = 'draft' | 'active' | 'ended';
 
+/** contactId -> permission name -> timestamp the SMS composer was opened.
+ *  Only ever records that the composer opened: the app cannot know whether the
+ *  student actually pressed Send. */
+export type SentLog = Record<string, Record<string, number>>;
+
 export type Journey = {
   id: string;
   destination: string;
@@ -47,6 +52,8 @@ export type Journey = {
   arrivedAt: number | null;
   helpRequestedAt: number | null;
   endedAt: number | null;
+  /** Phase 2 only. Absent on journeys planned before real delivery existed. */
+  sent?: SentLog;
 };
 
 export const CHECKIN_OPTIONS: { label: string; mins: number | null }[] = [
@@ -58,6 +65,13 @@ export const CHECKIN_OPTIONS: { label: string; mins: number | null }[] = [
 
 export function isLocalOnly(ct: JourneyContact): boolean {
   return !ct.arrival && !ct.missedCheckin && !ct.helpRequest;
+}
+
+/** Add one composer-opened record without mutating the journey in place. */
+export function withSent(j: Journey, contactId: string, mode: string): Journey {
+  const log: SentLog = { ...(j.sent ?? {}) };
+  log[contactId] = { ...(log[contactId] ?? {}), [mode]: Date.now() };
+  return { ...j, sent: log };
 }
 
 export function emptyJourney(): Journey {

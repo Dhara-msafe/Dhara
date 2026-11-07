@@ -12,10 +12,11 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
-import { JourneyHeader, JourneyHelpRow, PreviewBadge, ConfirmSheet, FamilyJourneyOff, fjStyles } from '@/src/familyJourney/ui';
+import { JourneyHeader, JourneyHelpRow, PhaseBadge, ConfirmSheet, FamilyJourneyOff, fjStyles } from '@/src/familyJourney/ui';
 import { loadPickableContacts, type PickableContact } from '@/src/familyJourney/contacts';
 import { isLocalOnly, loadJourney, saveJourney, useFamilyJourneyEnabled, type Journey, type JourneyContact } from '@/src/familyJourney/store';
-import { MODE_META, buildPreview, type PreviewMode } from '@/src/familyJourney/previewCopy';
+import { MODE_META, modeNote, buildPreview, type PreviewMode } from '@/src/familyJourney/previewCopy';
+import { FJ_SEND_ENABLED } from '@/src/familyJourney/flags';
 
 const c = theme.colors;
 const MODES: PreviewMode[] = ['arrival', 'missedCheckin', 'helpRequest'];
@@ -103,10 +104,10 @@ export default function JourneyContacts() {
         <View style={fjStyles.card}>
           <Text style={fjStyles.cardTitle}>From your Trusted Circle</Text>
           <Text style={fjStyles.cardSub}>
-            This only reads the contacts you already saved. No invitation and no message is sent to anyone,
-            and nothing in your Trusted Circle is changed.
+            This only reads the contacts you already saved. No invitation is sent to anyone and nothing in
+            your Trusted Circle is changed.
           </Text>
-          <PreviewBadge testID="fj-contacts-preview-badge" />
+          <PhaseBadge testID="fj-contacts-preview-badge" />
         </View>
 
         {loading ? (
@@ -140,14 +141,16 @@ export default function JourneyContacts() {
                   <View style={styles.modes}>
                     <View style={fjStyles.pill}>
                       <Text style={fjStyles.pillTxt}>
-                        {isLocalOnly(sel) ? 'LOCAL-ONLY — NOTHING LEAVES THIS PHONE' : 'SHARING CHOICES SAVED ON THIS PHONE'}
+                        {isLocalOnly(sel)
+                          ? 'LOCAL-ONLY — NOTHING LEAVES THIS PHONE'
+                          : FJ_SEND_ENABLED ? 'YOU CHOOSE WHEN TO SEND EACH MESSAGE' : 'SHARING CHOICES SAVED ON THIS PHONE'}
                       </Text>
                     </View>
                     {MODES.map(mode => (
                       <View key={mode} style={styles.modeRow}>
                         <View style={{ flex: 1 }}>
                           <Text style={styles.modeTitle}>{MODE_META[mode].title}</Text>
-                          <Text style={fjStyles.cardSub}>{MODE_META[mode].note}</Text>
+                          <Text style={fjStyles.cardSub}>{modeNote(mode)}</Text>
                         </View>
                         <Switch
                           testID={`fj-mode-${mode}-${ct.id}`}
@@ -180,7 +183,9 @@ export default function JourneyContacts() {
         title={pending ? `Turn on ${MODE_META[pending.mode].title.toLowerCase()}?` : ''}
         body={
           pending && pendingContact && pendingPreview
-            ? `If this were real, ${pendingContact.name} would see:\n\n“${pendingPreview.heading} — ${pendingPreview.body}”\n\n${MODE_META[pending.mode].note} You can turn this off again at any time.`
+            ? (FJ_SEND_ENABLED
+              ? `When you choose to send it, ${pendingContact.name} receives this text from your number:\n\n“${pendingPreview.body}”\n\n${modeNote(pending.mode)} You can turn this off again at any time.`
+              : `If this were real, ${pendingContact.name} would see:\n\n“${pendingPreview.heading} — ${pendingPreview.body}”\n\n${modeNote(pending.mode)} You can turn this off again at any time.`)
             : ''
         }
         confirmLabel="Turn it on"

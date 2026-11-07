@@ -10,6 +10,7 @@ import { useComplaints, isDraftReady, complaintTitle, complaintProgress } from '
 import { useUserProfile } from '@/src/userProfile';
 import { unreadCount } from '@/src/trustedCircle/api';
 import { useFamilyJourneyEnabled } from '@/src/familyJourney/store';
+import { FJ_SEND_ENABLED } from '@/src/familyJourney/flags';
 
 /** Same gate as women-shield.tsx — when Head Out is off, fall back to the shield. */
 const HEAD_OUT_ENABLED = process.env.EXPO_PUBLIC_SAFETY_SESSION_V1 === 'true';
@@ -250,11 +251,13 @@ export default function Home() {
             >
               <View style={styles.forYouTag}>
                 <Ionicons name="people-outline" size={13} color={c.darkGold} />
-                <Text style={[styles.forYouTagTxt, { color: c.darkGold }]}>PREVIEW</Text>
+                <Text style={[styles.forYouTagTxt, { color: c.darkGold }]}>{FJ_SEND_ENABLED ? 'YOU PRESS SEND' : 'PREVIEW'}</Text>
               </View>
               <Text style={[styles.forYouTitle, { color: c.ink }]}>Family Journey</Text>
               <Text style={[styles.forYouBody, { color: c.muted }]} numberOfLines={3}>
-                Plan a trip and see exactly what a trusted contact would be told. Nothing is sent in this version.
+                {FJ_SEND_ENABLED
+                  ? 'Plan a trip and choose who can be told. Your SMS app opens with the text ready — you press Send.'
+                  : 'Plan a trip and see exactly what a trusted contact would be told. Nothing is sent in this version.'}
               </Text>
               <View style={styles.navyBtn}>
                 <Text style={styles.navyBtnTxt}>Open</Text>

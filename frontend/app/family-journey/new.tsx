@@ -10,7 +10,7 @@ import { View, Text, Pressable, TextInput, StyleSheet } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { theme } from '@/src/theme';
-import { JourneyHeader, JourneyHelpRow, PreviewBadge, FamilyJourneyOff, fjStyles } from '@/src/familyJourney/ui';
+import { JourneyHeader, JourneyHelpRow, PhaseBadge, FamilyJourneyOff, fjStyles } from '@/src/familyJourney/ui';
 import { CHECKIN_OPTIONS, emptyJourney, loadJourney, saveJourney, useFamilyJourneyEnabled, type Journey } from '@/src/familyJourney/store';
 
 const c = theme.colors;
@@ -125,7 +125,7 @@ export default function NewJourney() {
               );
             })}
           </View>
-          <PreviewBadge testID="fj-new-preview-badge" />
+          <PhaseBadge testID="fj-new-preview-badge" />
         </View>
 
         {error ? <Text style={styles.error} testID="fj-new-error">{error}</Text> : null}

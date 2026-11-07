@@ -23,6 +23,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from pymongo import ReturnDocument
+from pymongo.errors import DuplicateKeyError
 
 COLLECTION = "login_attempts"
 WINDOW_SECONDS = 15 * 60
@@ -99,31 +100,63 @@ async def check_lock(db, email_key: str, ip: Optional[str]) -> int:
 
 
 async def _record_failure(db, kind: str, key: str) -> dict:
-    """Atomic single-document increment — safe across workers. A failure after
-    the window has elapsed starts a fresh window at 1."""
+    """Atomic single-document increment — safe across workers AND across
+    simultaneous requests. A failure after the window has elapsed starts a
+    fresh window at 1.
+
+    The cold-start path used to be a plain `$set: {failures: 1}` upsert, so N
+    simultaneous first attempts each wrote 1 and N-1 failures were lost: an
+    attacker firing 5 wrong passwords at once was recorded as a single failure
+    and never locked out. The reset is now CLAIMED by exactly one caller
+    (the filter only matches while the window is still stale) and everyone else
+    falls through to the atomic `$inc`.
+    """
     record_id = f"{kind}:{key}"
     now = datetime.now(timezone.utc)
     window_floor = now - timedelta(seconds=WINDOW_SECONDS)
 
-    doc = await db[COLLECTION].find_one_and_update(
-        {"_id": record_id, "window_started_at": {"$gt": window_floor}},
-        {"$inc": {"failures": 1},
-         "$set": {"kind": kind, "key": key, "last_failure_at": now}},
-        return_document=ReturnDocument.AFTER,
-    )
-    if doc is None:
-        # No live window (absent or expired) — (re)start one at failure 1.
-        doc = await db[COLLECTION].find_one_and_update(
-            {"_id": record_id},
-            {"$set": {
-                "kind": kind, "key": key, "failures": 1,
-                "window_started_at": now, "last_failure_at": now,
-                "lock_until": None,
-                "expires_at": now + timedelta(seconds=WINDOW_SECONDS),
-            }},
-            upsert=True,
+    async def _increment_live_window():
+        return await db[COLLECTION].find_one_and_update(
+            {"_id": record_id, "window_started_at": {"$gt": window_floor}},
+            {"$inc": {"failures": 1},
+             "$set": {"kind": kind, "key": key, "last_failure_at": now}},
             return_document=ReturnDocument.AFTER,
         )
+
+    doc = await _increment_live_window()
+    if doc is None:
+        # No live window (absent or expired) — exactly one caller gets to
+        # (re)start it at failure 1; the filter stops matching the moment the
+        # window is refreshed.
+        try:
+            doc = await db[COLLECTION].find_one_and_update(
+                {"_id": record_id,
+                 "$or": [{"window_started_at": {"$lte": window_floor}},
+                         {"window_started_at": {"$exists": False}}]},
+                {"$set": {
+                    "kind": kind, "key": key, "failures": 1,
+                    "window_started_at": now, "last_failure_at": now,
+                    "lock_until": None,
+                    "expires_at": now + timedelta(seconds=WINDOW_SECONDS),
+                }},
+                upsert=True,
+                return_document=ReturnDocument.AFTER,
+            )
+        except DuplicateKeyError:
+            # Another caller inserted the record a moment ago — count on top.
+            doc = None
+        if doc is None:
+            doc = await _increment_live_window()
+        if doc is None:  # window vanished again (TTL/clear) — count from zero
+            doc = await db[COLLECTION].find_one_and_update(
+                {"_id": record_id},
+                {"$inc": {"failures": 1},
+                 "$set": {"kind": kind, "key": key, "last_failure_at": now,
+                          "window_started_at": now,
+                          "expires_at": now + timedelta(seconds=WINDOW_SECONDS)}},
+                upsert=True,
+                return_document=ReturnDocument.AFTER,
+            )
 
     if int(doc.get("failures", 0)) >= MAX_FAILURES and not doc.get("lock_until"):
         lock_until = now + timedelta(seconds=WINDOW_SECONDS)

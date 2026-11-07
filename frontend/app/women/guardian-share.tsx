@@ -11,8 +11,8 @@
  *
  * Nothing is sent automatically; the user always controls every send.
  */
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,7 +22,7 @@ import { useAuth } from '@/src/auth';
 import { API_BASE } from '@/src/apiBase';
 import { getCircle, type Contact } from '@/src/women/api';
 
-import { openExternal } from '@/src/outbound';
+import { openExternal, composeSms } from '@/src/outbound';
 const c = theme.colors;
 
 function formatDeadline(startTime: number, durationMins: number): string {
@@ -40,18 +40,49 @@ export default function GuardianShare() {
     startTime?: string;
     durationMins?: string;
     journeyToken?: string;    // GO1B: pre-created token from head-out.tsx (when GPS is active)
+    gpsLive?: string;         // '1' only when location sharing is actually running
   }>();
 
-  const destination  = params.destination ?? '';
-  const startTime    = parseInt(params.startTime   ?? '0',  10);
-  const durationMins = parseInt(params.durationMins ?? '60', 10);
+  const paramStart   = parseInt(params.startTime   ?? '0',  10);
+  const paramDuration = parseInt(params.durationMins ?? '60', 10) || 60;
+  // Editable journey details — this screen can also be opened straight from
+  // Women's Shield, where no params are passed at all.
+  const [destInput,    setDestInput]    = useState(params.destination ?? '');
+  const [durationMins, setDurationMins] = useState(paramDuration);
+  const [customDur,    setCustomDur]    = useState(
+    [15, 30, 60, 120].includes(paramDuration) ? '' : String(paramDuration),
+  );
+  /** Duration in force when the Custom field was focused — restored if the
+   *  user types an out-of-range value such as 1441 over a valid one. */
+  const baselineDurationRef = useRef(paramDuration);
+  const [durError,     setDurError]     = useState<string | null>(null);
+  /** Set when the status record is created, so "check-in by" counts from then. */
+  const [startedAt,    setStartedAt]    = useState(paramStart > 0 ? paramStart : 0);
+  const destination  = destInput.trim();
   // If a journey was already created in head-out.tsx (GO1B GPS on), reuse it
   const preCreatedToken = params.journeyToken || null;
+  /** True only when head-out confirmed the user consented and GPS is running. */
+  const gpsLive = params.gpsLive === '1';
+
+  /** The status link is useless to a guardian if it points at a dev host. */
+  const linkHostWarning = (() => {
+    const host = (API_BASE || '').replace(/^https?:\/\//, '').split('/')[0];
+    if (!host) return 'This build has no backend address set, so a status link cannot be created.';
+    const bare = host.split(':')[0];
+    const isPrivate = bare === 'localhost' || bare === '127.0.0.1'
+      || /^10\./.test(bare) || /^192\.168\./.test(bare)
+      || /^172\.(1[6-9]|2\d|3[01])\./.test(bare);
+    return isPrivate ? `This link only works on this network (${bare}) — your guardian will not be able to open it from their own phone.` : null;
+  })();
 
   const [circle,       setCircle]       = useState<Contact[]>([]);
-  const [selected,     setSelected]     = useState<Set<string>>(new Set());
-  const [sent,         setSent]         = useState(false);
   const [loading,      setLoading]      = useState(true);
+  /** Contacts whose SMS composer was actually opened (NOT "sent"). */
+  const [prepared,     setPrepared]     = useState<Set<string>>(new Set());
+  const [preparingId,  setPreparingId]  = useState<string | null>(null);
+  const [prepareError, setPrepareError] = useState<string | null>(null);
+  const [safeError,    setSafeError]    = useState<string | null>(null);
+  const [revokeError,  setRevokeError]  = useState<string | null>(null);
 
   // Phase 2 state — seed with pre-created token from GPS session if available
   const [statusUrl,    setStatusUrl]    = useState<string | null>(null);
@@ -65,14 +96,15 @@ export default function GuardianShare() {
   const [revoking,     setRevoking]     = useState(false);
   const [revoked,      setRevoked]      = useState(false);
 
-  const checkInBy = startTime > 0 ? formatDeadline(startTime, durationMins) : `${durationMins} min`;
+  const checkInBy = formatDeadline(startedAt || Date.now(), durationMins);
+  /** Once a status record exists its destination/duration are fixed on the
+   *  backend, so the fields lock — the simpler, safer option than silently
+   *  revoking and re-creating a link the guardian may already hold. */
+  const fieldsLocked = !!journeyToken;
 
   useEffect(() => {
     getCircle()
-      .then(contacts => {
-        setCircle(contacts);
-        setSelected(new Set(contacts.filter(ct => ct.notify !== false).map(ct => ct.id)));
-      })
+      .then(contacts => setCircle(contacts))
       .catch(() => {})
       .finally(() => setLoading(false));
     // If journey was pre-created in head-out.tsx, build the status URL immediately
@@ -81,13 +113,6 @@ export default function GuardianShare() {
     }
   }, [preCreatedToken]);
 
-  const toggleContact = useCallback((id: string) => {
-    setSelected(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }, []);
 
   /** Create journey record on backend → get public status URL (skipped if already created) */
   const createJourneyRecord = useCallback(async (): Promise<string | null> => {
@@ -113,54 +138,72 @@ export default function GuardianShare() {
       const url = `${API_BASE}${data.status_url}`;
       setStatusUrl(url);
       setJourneyToken(data.token);
+      if (!startedAt) setStartedAt(Date.now());
       return url;
     } catch {
-      setCreateError('Status link unavailable — SMS will be sent without it.');
+      setCreateError('Status link unavailable — the message will say there is no page to check.');
       return null;
     } finally {
       setCreating(false);
     }
-  }, [authToken, destination, durationMins]);
+  }, [authToken, destination, durationMins, statusUrl, startedAt]);
 
   const buildMessage = useCallback((pageUrl?: string | null) => {
     const dest = destination || 'a location';
+    // Only promise live tracking when location sharing is genuinely running.
     const link = pageUrl
-      ? `\n\nTrack my journey live: ${pageUrl}`
-      : '';
+      ? `\n\n${gpsLive ? 'Track my journey live' : 'Check my journey status'}: ${pageUrl}`
+      : '\n\n(Status link unavailable — I could not create one, so there is no page to check.)';
     return (
       `Hi, I'm heading to ${dest}. I plan to check in by ${checkInBy}.${link}\n\n` +
       `If you don't hear from me by then, please call me to confirm I'm safe.\n\n` +
       `(Sent via DHARA legal aid app)`
     );
-  }, [destination, checkInBy]);
+  }, [destination, checkInBy, gpsLive]);
 
-  const sendSMS = useCallback(async () => {
-    const phones = circle
-      .filter(ct => selected.has(ct.id))
-      .map(ct => ct.phone)
-      .join(',');
-    if (!phones) return;
-
-    // Phase 2: create backend record first (or reuse existing)
-    const pageUrl = statusUrl ?? await createJourneyRecord();
-    const body = buildMessage(pageUrl);
-
-    const opened = await openExternal(`sms:${phones}?body=${encodeURIComponent(body)}`).catch(() => 'blocked' as const);
-    if (opened !== 'opened') return;   // guard blocked it — never claim "notified"
-    setSent(true);
-  }, [circle, selected, statusUrl, createJourneyRecord, buildMessage]);
+  /** One contact at a time, through the outbound guard — the user presses Send. */
+  const prepareFor = useCallback(async (ct: Contact) => {
+    if (!destination) { setPrepareError('Enter a destination first.'); return; }
+    setPreparingId(ct.id);
+    setPrepareError(null);
+    try {
+      const pageUrl = statusUrl ?? await createJourneyRecord();
+      const body = buildMessage(pageUrl);
+      const result = await composeSms([ct.phone], body);
+      if (result === 'composer') {
+        setPrepared(prev => new Set(prev).add(ct.id));
+        return;
+      }
+      if (result === 'blocked' || result === 'simulated') {
+        setPrepareError('No message was prepared — see the notice shown just now for the reason.');
+        return;
+      }
+      // 'unavailable' (e.g. web has no SMS module) — fall back to the sms: link,
+      // still through the guard so the same rails apply.
+      const opened = await openExternal(`sms:${ct.phone}?body=${encodeURIComponent(body)}`);
+      if (opened === 'opened') setPrepared(prev => new Set(prev).add(ct.id));
+      else setPrepareError('No message was prepared — see the notice shown just now for the reason.');
+    } catch {
+      setPrepareError('Your SMS app could not be opened. You can copy the message and send it yourself.');
+    } finally {
+      setPreparingId(null);
+    }
+  }, [statusUrl, createJourneyRecord, buildMessage, destination]);
 
   const markSafe = useCallback(async () => {
     if (!journeyToken || !authToken) return;
     setMarkingSafe(true);
+    setSafeError(null);
     try {
       const r = await fetch(`${API_BASE}/api/journey/status/${journeyToken}/safe`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${authToken}` },
       });
+      // Only claim the update once the backend confirmed it.
       if (r.ok) setMarkedSafe(true);
+      else setSafeError('Could not update your status page. Your guardian has NOT been told you arrived.');
     } catch {
-      // non-critical — silently fail
+      setSafeError('No connection, so your status page was not updated. Your guardian has NOT been told you arrived.');
     } finally {
       setMarkingSafe(false);
     }
@@ -173,21 +216,25 @@ export default function GuardianShare() {
   const revokeSharing = useCallback(async () => {
     if (!journeyToken || !authToken) return;
     setRevoking(true);
+    setRevokeError(null);
     try {
       const r = await fetch(`${API_BASE}/api/journey/status/${journeyToken}/revoke`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${authToken}` },
       });
+      // Only claim sharing stopped once the backend confirmed it.
       if (r.ok) setRevoked(true);
+      else setRevokeError('Could not withdraw sharing. The link may still show your location — try again.');
     } catch {
-      // non-critical — silently fail
+      setRevokeError('No connection, so sharing was not withdrawn. The link may still show your location — try again.');
     } finally {
       setRevoking(false);
     }
   }, [journeyToken, authToken]);
 
-  const selectedCount = selected.size;
-  const canSend = selectedCount > 0 && !loading && !creating;
+  // Only contacts who can actually receive a message.
+  const messageable = circle.filter(ct => ct.notify !== false && !!ct.phone?.trim());
+  const sent = prepared.size > 0;
 
   if (loading) return null;
 
@@ -202,11 +249,86 @@ export default function GuardianShare() {
         subtitle="Send a journey update — nothing is sent automatically"
       />
 
+      {/* Journey details — editable; this screen is also opened directly from
+          Women's Shield, where nothing is pre-filled. */}
+      <View style={styles.journeyCard}>
+        <Text style={styles.previewLabel}>Where are you going?</Text>
+        <TextInput
+          testID="guardian-destination-input"
+          style={[styles.input, fieldsLocked && styles.inputLocked]}
+          value={destInput}
+          onChangeText={t => { setDestInput(t); if (prepareError) setPrepareError(null); }}
+          editable={!fieldsLocked}
+          placeholder="e.g. Library, friend's place, hostel"
+          placeholderTextColor={c.muted}
+          maxLength={80}
+          accessibilityLabel="Where are you going"
+        />
+        <Text style={styles.previewLabel}>Check in within</Text>
+        <View style={styles.chipRow}>
+          {[15, 30, 60, 120].map(mins => (
+            <Pressable
+              key={mins}
+              testID={`guardian-duration-${mins}`}
+              disabled={fieldsLocked}
+              style={[styles.chip, durationMins === mins && styles.chipOn, fieldsLocked && styles.inputLocked]}
+              onPress={() => { setDurationMins(mins); baselineDurationRef.current = mins; setCustomDur(''); setDurError(null); }}
+              accessibilityRole="button"
+              accessibilityLabel={`Check in within ${mins} minutes`}
+            >
+              <Text style={[styles.chipTxt, durationMins === mins && styles.chipTxtOn]}>{mins} min</Text>
+            </Pressable>
+          ))}
+          <TextInput
+            testID="guardian-duration-custom"
+            style={[styles.chipInput, fieldsLocked && styles.inputLocked]}
+            value={customDur}
+            editable={!fieldsLocked}
+            onFocus={() => { baselineDurationRef.current = durationMins; }}
+            onChangeText={t => {
+              const digits = t.replace(/\D/g, '').slice(0, 4);
+              setCustomDur(digits);
+              if (!digits) { setDurError(null); setDurationMins(baselineDurationRef.current); return; }
+              const n = parseInt(digits, 10);
+              if (n < 1 || n > 1440) {
+                // Fall back to what was in force before this edit — a half-typed
+                // prefix of an invalid number (144 of 1441) is not a choice.
+                setDurError('Choose between 1 and 1440 minutes.');
+                setDurationMins(baselineDurationRef.current);
+                return;
+              }
+              setDurError(null);
+              setDurationMins(n);
+            }}
+            onBlur={() => {
+              if (durError) {
+                setCustomDur('');
+                setDurError(null);
+                setDurationMins(baselineDurationRef.current);
+                return;
+              }
+              // Accepted on leaving the field — this becomes the new baseline.
+              baselineDurationRef.current = durationMins;
+            }}
+            placeholder="Custom"
+            placeholderTextColor={c.muted}
+            keyboardType="number-pad"
+            accessibilityLabel="Custom check-in minutes"
+          />
+        </View>
+        {durError && <Text style={styles.errorTxt} testID="guardian-duration-error">{durError}</Text>}
+        {fieldsLocked && (
+          <Text style={styles.disclosureNote} testID="guardian-fields-locked">
+            Your status link is already created, so the destination and time are fixed for it. End this journey and start a new one to change them.
+          </Text>
+        )}
+      </View>
+
       {/* Journey preview card */}
       <View style={styles.journeyCard}>
         <View style={styles.journeyRow}>
           <Ionicons name="navigate-circle-outline" size={20} color={c.navy} />
-          <Text style={styles.journeyTxt}>{destination || 'Destination not set'}</Text>
+          <Text style={[styles.journeyTxt, { flex: 1 }]}>{destination || 'Destination not set'}</Text>
         </View>
         <View style={styles.journeyRow}>
           <Ionicons name="time-outline" size={20} color={c.navy} />
@@ -215,88 +337,98 @@ export default function GuardianShare() {
         {statusUrl && (
           <View style={styles.journeyRow}>
             <Ionicons name="link-outline" size={20} color={c.verifiedGreen ?? '#16a34a'} />
-            <Text style={[styles.journeyTxt, { color: c.verifiedGreen ?? '#16a34a', fontSize: 12 }]}>
-              Status page ready — link added to SMS
+            <Text style={[styles.journeyTxt, { color: c.verifiedGreen ?? '#16a34a', fontSize: 12, flex: 1 }]}>
+              {gpsLive
+                ? 'Status page ready — it shows your area while sharing is on'
+                : 'Status page ready — it shows your check-in status, not your location'}
             </Text>
           </View>
         )}
       </View>
 
       {/* Contact selector */}
-      <Text style={styles.sectionLabel}>Choose who to notify</Text>
+      <Text style={styles.sectionLabel}>Prepare a message for each person</Text>
+      {linkHostWarning && (
+        <Text style={styles.errorTxt} testID="guardian-link-host-warning">{linkHostWarning}</Text>
+      )}
 
-      {circle.length === 0 ? (
-        <View style={styles.emptyCard}>
+      {messageable.length === 0 ? (
+        <View style={styles.emptyCard} testID="guardian-no-contacts">
           <Ionicons name="people-outline" size={28} color={c.muted} />
-          <Text style={styles.emptyTxt}>Your trusted circle is empty. Add contacts first.</Text>
+          <Text style={styles.emptyTxt}>
+            {circle.length === 0
+              ? 'Your trusted circle is empty. Add someone with a phone number first.'
+              : 'No one in your circle has notifications on with a phone number saved. Open your circle to add a number or tap the bell.'}
+          </Text>
           <Pressable
             testID="guardian-add-circle"
+            style={styles.safeBtn}
             onPress={() => router.push('/women/trusted-circle')}
             accessibilityRole="button"
-            accessibilityLabel="Set up trusted circle"
+            accessibilityLabel="Manage trusted circle"
           >
-            <Text style={styles.linkTxt}>Set up trusted circle →</Text>
+            <Text style={styles.safeBtnTxt}>Manage circle</Text>
           </Pressable>
         </View>
       ) : (
-        circle.map(ct => (
-          <Pressable
-            key={ct.id}
-            style={[styles.contactRow, selected.has(ct.id) && styles.contactRowSelected]}
-            onPress={() => toggleContact(ct.id)}
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: selected.has(ct.id) }}
-            accessibilityLabel={`${ct.name}, ${ct.phone}`}
-            testID={`guardian-contact-${ct.id}`}
-          >
-            <View style={[styles.avatar, selected.has(ct.id) && styles.avatarSelected]}>
-              {selected.has(ct.id)
-                ? <Ionicons name="checkmark" size={16} color="#fff" />
-                : <Text style={styles.avatarTxt}>{ct.name.charAt(0).toUpperCase()}</Text>
-              }
+        messageable.map(ct => {
+          const done = prepared.has(ct.id);
+          return (
+            <View key={ct.id} style={[styles.contactRow, done && styles.contactRowSelected]} testID={`guardian-contact-${ct.id}`}>
+              <View style={[styles.avatar, done && styles.avatarSelected]}>
+                {done
+                  ? <Ionicons name="checkmark" size={16} color="#fff" />
+                  : <Text style={styles.avatarTxt}>{ct.name.charAt(0).toUpperCase()}</Text>}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.contactName}>{ct.name}</Text>
+                <Text style={styles.contactPhone}>
+                  {done ? 'Message prepared — press Send in your SMS app' : ct.phone}
+                </Text>
+              </View>
+              <Pressable
+                testID={`guardian-prepare-${ct.id}`}
+                style={[styles.prepareBtn, (!destination || !!durError) && styles.sendBtnDisabled]}
+                disabled={preparingId === ct.id || creating || !destination || !!durError}
+                onPress={() => prepareFor(ct)}
+                accessibilityRole="button"
+                accessibilityLabel={`Prepare a message for ${ct.name}`}
+              >
+                {preparingId === ct.id
+                  ? <ActivityIndicator color={c.navy} size="small" />
+                  : <Text style={styles.prepareBtnTxt}>{done ? 'Again' : 'Prepare'}</Text>}
+              </Pressable>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.contactName}>{ct.name}</Text>
-              <Text style={styles.contactPhone}>{ct.phone}</Text>
-            </View>
-          </Pressable>
-        ))
+          );
+        })
+      )}
+
+      {!destination && messageable.length > 0 && (
+        <Text style={styles.errorTxt} testID="guardian-need-destination">Enter a destination first.</Text>
+      )}
+
+      {prepareError && (
+        <Text style={styles.errorTxt} testID="guardian-prepare-error">{prepareError}</Text>
       )}
 
       {/* Message preview */}
       <View style={styles.messagePreview}>
         <Text style={styles.previewLabel}>Message preview</Text>
         <Text style={styles.previewBody}>
-          {buildMessage(statusUrl ?? '[status link will be added]')}
+          {buildMessage(statusUrl ?? (createError ? null : '[status link will be added]'))}
         </Text>
       </View>
 
       {createError && (
-        <Text style={styles.errorTxt}>{createError}</Text>
+        <Text style={styles.errorTxt} testID="guardian-create-error">{createError}</Text>
       )}
-
-      {/* Send button */}
-      <Pressable
-        testID="guardian-send"
-        style={[styles.sendBtn, !canSend && styles.sendBtnDisabled]}
-        disabled={!canSend}
-        onPress={sendSMS}
-        accessibilityRole="button"
-        accessibilityLabel={`Send journey update to ${selectedCount} contact${selectedCount === 1 ? '' : 's'}`}
-      >
-        {creating
-          ? <ActivityIndicator color="#fff" size="small" />
-          : <Ionicons name="chatbubble-outline" size={18} color="#fff" />
-        }
-        <Text style={styles.sendBtnTxt}>
-          {creating ? 'Preparing…' : sent ? 'Send again' : `Send to ${selectedCount} contact${selectedCount === 1 ? '' : 's'}`}
-        </Text>
-      </Pressable>
 
       {sent && (
         <View style={styles.sentBanner} testID="guardian-sent-banner">
           <Ionicons name="checkmark-circle-outline" size={18} color={c.verifiedGreen} />
-          <Text style={styles.sentTxt}>SMS app opened — your guardian has been notified.</Text>
+          <Text style={styles.sentTxt}>
+            {`Message prepared for ${prepared.size} ${prepared.size === 1 ? 'person' : 'people'} — press Send in your SMS app for each one. DHARA cannot confirm delivery.`}
+          </Text>
         </View>
       )}
 
@@ -322,6 +454,15 @@ export default function GuardianShare() {
             {markingSafe ? 'Updating\u2026' : 'I have arrived safely \u2014 update my guardian'}
           </Text>
         </Pressable>
+      )}
+
+      {safeError && (
+        <View style={styles.revokeSection} testID="guardian-safe-error">
+          <Text style={styles.errorTxt}>{safeError}</Text>
+          <Pressable style={styles.safeBtn} onPress={markSafe} disabled={markingSafe} testID="guardian-safe-retry" accessibilityRole="button">
+            <Text style={styles.safeBtnTxt}>{markingSafe ? 'Trying again…' : 'Try again'}</Text>
+          </Pressable>
+        </View>
       )}
 
       {markedSafe && revoked && (
@@ -372,6 +513,15 @@ export default function GuardianShare() {
         </View>
       )}
 
+      {revokeError && (
+        <View style={styles.revokeSection} testID="guardian-revoke-error">
+          <Text style={styles.errorTxt}>{revokeError}</Text>
+          <Pressable style={styles.revokeSharingBtn} onPress={revokeSharing} disabled={revoking} testID="guardian-revoke-retry" accessibilityRole="button">
+            <Text style={styles.revokeSharingBtnTxt}>{revoking ? 'Trying again…' : 'Try again'}</Text>
+          </Pressable>
+        </View>
+      )}
+
       {revoked && (
         <View style={styles.revokedBanner} testID="guardian-revoked-banner">
           <Ionicons name="lock-closed" size={18} color={c.error ?? '#dc2626'} />
@@ -382,7 +532,7 @@ export default function GuardianShare() {
       )}
 
       <Text style={styles.disclosureNote}>
-        Nothing is sent automatically. DHARA opens your SMS app with a pre-filled message; you control every send. Status pages expire after 24 hours.
+        Nothing is sent automatically. DHARA opens your SMS app with a pre-filled message for one person at a time; you read it and press Send yourself, and delivery is not confirmed. Status pages expire after 24 hours.
       </Text>
     </ScrollView>
   );
@@ -417,6 +567,30 @@ const styles = StyleSheet.create({
   avatarTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.navy },
   contactName: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink },
   contactPhone: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, marginTop: 2 },
+  prepareBtn: {
+    minHeight: 44, minWidth: 84, paddingHorizontal: 14, borderRadius: 12,
+    borderWidth: 1.5, borderColor: c.navy, backgroundColor: c.surface,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  prepareBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.navy },
+  input: {
+    backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 12,
+    paddingHorizontal: 14, minHeight: 48, fontFamily: theme.fonts.body, fontSize: 15, color: c.ink,
+  },
+  inputLocked: { opacity: 0.6 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: {
+    minHeight: 44, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 999,
+    borderWidth: 1, borderColor: c.navy, backgroundColor: c.surface,
+  },
+  chipOn: { backgroundColor: c.navy },
+  chipTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy },
+  chipTxtOn: { color: '#fff' },
+  chipInput: {
+    minHeight: 44, minWidth: 90, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1,
+    borderColor: c.lines, backgroundColor: c.surface, fontFamily: theme.fonts.body,
+    fontSize: 13, color: c.ink,
+  },
   messagePreview: {
     backgroundColor: c.surfaceTertiary ?? '#F4F4F6', borderRadius: 12,
     borderWidth: 1, borderColor: c.lines, padding: 14, gap: 6,
@@ -438,7 +612,7 @@ const styles = StyleSheet.create({
   safeBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, backgroundColor: c.navySoft, borderRadius: 14, paddingVertical: 14,
-    borderWidth: 1.5, borderColor: c.navy,
+    paddingHorizontal: 18, borderWidth: 1.5, borderColor: c.navy,
   },
   safeBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.navy },
   safeBanner: {
