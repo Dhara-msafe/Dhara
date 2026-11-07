@@ -229,7 +229,11 @@ export default function Home() {
             </View>
             <Text style={[styles.forYouTitle, { color: c.ink }]}>Heading out?</Text>
             <Text style={[styles.forYouBody, { color: c.muted }]}>Start a safe-journey check-in with your trusted circle.</Text>
-            <Pressable style={styles.navyBtn} onPress={() => router.push('/women-shield')}>
+            <Pressable
+              style={styles.navyBtn}
+              onPress={() => router.push(familyJourneyEnabled ? '/family-journey' : '/women-shield')}
+              testID="home-heading-out-start"
+            >
               <Text style={styles.navyBtnTxt}>Start</Text>
             </Pressable>
           </View>

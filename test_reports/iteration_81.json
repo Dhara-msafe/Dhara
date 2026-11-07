@@ -1,0 +1,21 @@
+{
+  "summary": "Frontend-only retest of the Home 'Heading out?' (TONIGHT) Start routing change. Tested with Playwright on the web preview at 375x667, logged in as voicetest2026@example.com. (a) Switch ON (default, fj_enabled key unset): home-heading-out-start opens /family-journey and family-journey-hub is shown. PASS. (b) Switch OFF (from the hub with fj-master-toggle, and also by seeding '0'): the same Start opens Women's Shield. It is not a dead end: ws-back returns to /home. On the first visit, Women's Shield first opens /women/panic-lesson. This is existing A6 behaviour in women-shield.tsx:75-83, not part of this change. Back from the lesson lands on /women-shield, and later taps go straight to /women-shield. PASS. (c) Regressions: with the switch OFF, home-family-journey-card and the Me row me-me.familyJourney are hidden. Turning it back ON with fj-privacy-toggle in Settings → Data & Privacy shows both again, and both open the hub. The hub's sos-pill opens /emergency and Back returns to the hub. Other Home items still go where they did before: journey-home.allHelp to /all-help, journey-j.shield to /women-shield, journey-j.police to /fir-draft, journey-engine.title to /engine, rights-reminder-banner to /rights, home-myfiles-preview to /myfiles, foryou-case-cta to /fir-draft?resumeId, and home-mic and home-type-button to / (Ask tab). No page errors. The Home screen has no sos-pill of its own (none in home.tsx before this change either), and home-alerts-bell is hidden by its flag as before. At the end the Family Journey switch was turned back ON (key '1'). The switch is stored per browser (localStorage), and each automation run starts with fresh storage, so the default is ON. The git diff shows home.tsx is the only frontend file changed (+5/-1).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/tests/family_journey_ui_test.py"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "home.tsx:232-238: the ternary on familyJourneyEnabled is correct and the testID is present. Note: with the switch OFF, the card text 'Start a safe-journey check-in with your trusted circle' opens Women's Shield (the first visit goes through the panic lesson). This is the same as before the change, so it is not a regression."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped as requested)", "frontend": "100%"},
+  "seed_data_creation": "None. Only localStorage in the browser was used (auth seed and the fj_enabled_v1_<uid> flag). Switch left ON.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Use the fast-auth seed from /app/tests/family_journey_ui_test.py. With FJ OFF, the first tap on home-heading-out-start goes to /women/panic-lesson (first Women's Shield visit only). The lesson's back button has no testID, so click (32,32) to land on /women-shield. The Home screen has no sos-pill; use the one on the hub or on Women's Shield."
+}
