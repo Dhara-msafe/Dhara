@@ -50,11 +50,6 @@ type ErrorEvent = {
 };
 
 const STATUSES: Report['status'][] = ['New', 'In progress', 'Resolved'];
-const NEXT_STATUS: Record<Report['status'], Report['status']> = {
-  New: 'In progress',
-  'In progress': 'Resolved',
-  Resolved: 'New',
-};
 
 export default function AdminIssues() {
   const [adminKey, setAdminKey] = useState('');
@@ -69,6 +64,7 @@ export default function AdminIssues() {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [actingOn, setActingOn] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [statusMenuFor, setStatusMenuFor] = useState<string | null>(null);
 
   const [errors, setErrors] = useState<ErrorEvent[]>([]);
   const [byRoute, setByRoute] = useState<Record<string, number>>({});
@@ -142,8 +138,9 @@ export default function AdminIssues() {
     load('errors', adminKey, { route });
   };
 
-  const advanceStatus = async (report: Report) => {
-    const next = NEXT_STATUS[report.status];
+  const setReportStatus = async (report: Report, next: Report['status']) => {
+    setStatusMenuFor(null);
+    if (next === report.status) return;
     setActingOn(report.id);
     setError(null);
     try {
@@ -324,17 +321,49 @@ export default function AdminIssues() {
                       {actingOn === r.id ? (
                         <ActivityIndicator color={theme.colors.brand} />
                       ) : (
-                        <Pressable
-                          testID={`status-${r.id}`}
-                          style={[
-                            styles.statusBtn,
-                            r.status === 'Resolved' && styles.statusResolved,
-                            r.status === 'In progress' && styles.statusProgress,
-                          ]}
-                          onPress={() => advanceStatus(r)}
-                        >
-                          <Text style={styles.statusText}>{r.status}</Text>
-                        </Pressable>
+                        <View style={styles.statusWrap}>
+                          <Pressable
+                            testID={`status-${r.id}`}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Status: ${r.status}. Opens a menu to change it.`}
+                            style={[
+                              styles.statusBtn,
+                              r.status === 'Resolved' && styles.statusResolved,
+                              r.status === 'In progress' && styles.statusProgress,
+                            ]}
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              setStatusMenuFor(statusMenuFor === r.id ? null : r.id);
+                            }}
+                          >
+                            <Text style={styles.statusText}>{r.status}</Text>
+                            <Ionicons
+                              name={statusMenuFor === r.id ? 'chevron-up' : 'chevron-down'}
+                              size={14}
+                              color={theme.colors.onSurface}
+                            />
+                          </Pressable>
+                          {statusMenuFor === r.id && (
+                            <View style={styles.statusMenu} testID={`status-menu-${r.id}`}>
+                              {STATUSES.map((s) => (
+                                <Pressable
+                                  key={s}
+                                  testID={`status-option-${r.id}-${s}`}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`Set status to ${s}`}
+                                  style={styles.statusMenuItem}
+                                  onPress={(e) => {
+                                    e.stopPropagation();
+                                    setReportStatus(r, s);
+                                  }}
+                                >
+                                  <Text style={styles.statusMenuText}>{s}</Text>
+                                  {s === r.status && <Ionicons name="checkmark" size={14} color={theme.colors.brand} />}
+                                </Pressable>
+                              ))}
+                            </View>
+                          )}
+                        </View>
                       )}
                     </Pressable>
                   ))
@@ -442,7 +471,25 @@ const styles = StyleSheet.create({
   rowBody: { color: theme.colors.onSurfaceSecondary, fontSize: 13, marginTop: 4 },
   rowDate: { color: theme.colors.onSurfaceTertiary, fontSize: 11, marginTop: 4 },
   trace: { color: theme.colors.onSurfaceTertiary, fontSize: 11, marginTop: 6, fontFamily: Platform.OS === 'web' ? 'monospace' : undefined },
-  statusBtn: { backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.sm, paddingVertical: 8, paddingHorizontal: 12, minHeight: 36, justifyContent: 'center' },
+  statusBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.sm,
+    paddingVertical: 8, paddingHorizontal: 12, minHeight: 36, justifyContent: 'center',
+  },
+  statusWrap: { position: 'relative' },
+  statusMenu: {
+    position: 'absolute', top: 40, right: 0, minWidth: 130, zIndex: 20,
+    backgroundColor: theme.colors.surface, borderRadius: theme.radius.sm,
+    borderWidth: 1, borderColor: theme.colors.border,
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+    elevation: 6, overflow: 'hidden',
+  },
+  statusMenuItem: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 10, paddingHorizontal: 12, minHeight: 40,
+    borderBottomWidth: 1, borderBottomColor: theme.colors.border,
+  },
+  statusMenuText: { fontSize: 13, fontWeight: '600', color: theme.colors.onSurface },
   statusProgress: { backgroundColor: theme.colors.surfaceSecondary, borderWidth: 1, borderColor: theme.colors.brand },
   statusResolved: { backgroundColor: theme.colors.successSoft },
   statusText: { fontSize: 12, fontWeight: '700', color: theme.colors.onSurface },

@@ -5,6 +5,7 @@ import { LogBox, Pressable, Text, View, useWindowDimensions, Platform, Modal, Ap
 import { activateCover, isCoverActive, subscribeCover, syncCoverFromStorage, deactivateCover, setGuestSessionId } from "@/src/women/coverState";
 import { PrivacyCover } from "@/src/women/PrivacyCover";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -341,8 +342,9 @@ export default function RootLayout() {
   if (!loaded && !error && !timedOut) return null;
 
   return (
-    <RootErrorBoundary>
-      <SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <RootErrorBoundary>
+        <SafeAreaProvider>
         <KeyboardProvider preserveEdgeToEdge>
           {/* PostHogProvider must wrap AuthProvider so PostHogBridge can reach
               the client while AuthProvider still owns the user state. */}
@@ -381,5 +383,6 @@ export default function RootLayout() {
         </KeyboardProvider>
       </SafeAreaProvider>
     </RootErrorBoundary>
+    </GestureHandlerRootView>
   );
 }

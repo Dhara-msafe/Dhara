@@ -15,9 +15,10 @@
  * Flag: EXPO_PUBLIC_ENABLE_ISSUE_REPORTER. Default ON (the app is testers-only
  * until the final release); set it to "false" to hide the button everywhere.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, Pressable, StyleSheet, Modal, ScrollView, TextInput, ActivityIndicator, Platform,
+  useWindowDimensions, AccessibilityActionEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname } from 'expo-router';
@@ -25,10 +26,33 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
 import { theme } from '@/src/theme';
 import { useAuth, API_BASE } from '@/src/auth';
+import {
+  POSITION_KEY,
+  computeBounds,
+  clampToBounds,
+  snapToEdge,
+  isTap,
+  defaultPosition,
+  parseStoredPosition,
+} from '@/src/components/fabPosition';
 
 const c = theme.colors;
+
+/** Visual size of the draggable handle — matches styles.fab below, and is
+ *  the box every bounds/default-position calculation clamps against. */
+const FAB_VISUAL_SIZE = 48;
+/** How far an accessibility "Move left/right" action nudges the button. */
+const A11Y_NUDGE = 72;
+
+async function persistFabPosition(x: number, y: number): Promise<void> {
+  try {
+    await AsyncStorage.setItem(POSITION_KEY, JSON.stringify({ x, y }));
+  } catch {}
+}
 
 /** Off only when explicitly disabled, so every current build has it. */
 export const ISSUE_REPORTER_ENABLED =
@@ -95,6 +119,7 @@ export function IssueReporterButton() {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const { token } = useAuth();
+  const { width, height } = useWindowDimensions();
 
   const [open, setOpen] = useState(false);
   const [category, setCategory] = useState<string>('');
@@ -103,6 +128,162 @@ export function IssueReporterButton() {
   const [description, setDescription] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // ── Draggable-FAB position state ─────────────────────────────────────────
+  // translateX/Y hold absolute screen coordinates (top-left origin) of the
+  // handle's top-left corner. boundsSV mirrors the current screen bounds on
+  // the UI thread so the pan worklet never reads stale JS-thread values.
+  const insetsKey = `${insets.top}:${insets.bottom}:${insets.left}:${insets.right}`;
+  const initialPos = useMemo(
+    () => defaultPosition(width, height, insets, FAB_VISUAL_SIZE),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+  const translateX = useSharedValue(initialPos.x);
+  const translateY = useSharedValue(initialPos.y);
+  const startX = useSharedValue(initialPos.x);
+  const startY = useSharedValue(initialPos.y);
+  const dragProgress = useSharedValue(0); // 0 = resting, 1 = actively dragging
+  const bounds = useMemo(
+    () => computeBounds(width, height, insets, FAB_VISUAL_SIZE),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [width, height, insetsKey],
+  );
+  const boundsSV = useSharedValue(bounds);
+
+  // Restore a previously-saved position once on mount.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(POSITION_KEY);
+        const stored = parseStoredPosition(raw);
+        if (active && stored) {
+          const clamped = clampToBounds(stored, computeBounds(width, height, insets, FAB_VISUAL_SIZE));
+          translateX.value = clamped.x;
+          translateY.value = clamped.y;
+        }
+      } catch {}
+    })();
+    return () => { active = false; };
+    // Mount-only: restoring a saved position must not re-run on every resize.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keep the UI-thread bounds copy current, and re-clamp (never re-default)
+  // the handle into view whenever the window/orientation/safe-area changes.
+  useEffect(() => {
+    boundsSV.value = bounds;
+    const clamped = clampToBounds({ x: translateX.value, y: translateY.value }, bounds);
+    translateX.value = clamped.x;
+    translateY.value = clamped.y;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bounds.minX, bounds.maxX, bounds.minY, bounds.maxY]);
+
+  const openSheet = useCallback(() => setOpen(true), []);
+
+  const nudge = useCallback((dx: number) => {
+    const target = clampToBounds({ x: translateX.value + dx, y: translateY.value }, bounds);
+    translateX.value = withSpring(target.x, { damping: 18 });
+    translateY.value = withSpring(target.y, { damping: 18 });
+    void persistFabPosition(target.x, target.y);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bounds]);
+
+  const resetFabPosition = useCallback(() => {
+    const def = defaultPosition(width, height, insets, FAB_VISUAL_SIZE);
+    translateX.value = withSpring(def.x, { damping: 18 });
+    translateY.value = withSpring(def.y, { damping: 18 });
+    void persistFabPosition(def.x, def.y);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [width, height, insetsKey]);
+
+  const onFabAccessibilityAction = useCallback((event: AccessibilityActionEvent) => {
+    switch (event.nativeEvent.actionName) {
+      case 'activate':
+        openSheet();
+        break;
+      case 'moveLeft':
+        nudge(-A11Y_NUDGE);
+        break;
+      case 'moveRight':
+        nudge(A11Y_NUDGE);
+        break;
+      case 'reset':
+        resetFabPosition();
+        break;
+      default:
+        break;
+    }
+  }, [openSheet, nudge, resetFabPosition]);
+
+  // Pan handles both the drag (move + clamp + snap-to-edge + persist) and the
+  // tap (movement under TAP_SLOP opens the report sheet) in one gesture, so
+  // there's no competing Pressable to fight the gesture handler for the touch.
+  //
+  // minDistance(1) makes the gesture activate almost immediately so onUpdate
+  // tracks small movements too. Critically, the tap-vs-drag decision and the
+  // snap/persist logic live in onFinalize (not onEnd): onEnd ONLY fires once
+  // the gesture has reached the ACTIVE state, so a near-zero-movement tap
+  // (which never crosses the activation threshold, especially on web) would
+  // transition BEGAN -> FAILED -> and onEnd would simply never run, leaving
+  // the report sheet impossible to open by tapping. onFinalize always runs
+  // exactly once, for both the activated and the never-activated case, so
+  // it's the only callback guaranteed to fire for every tap.
+  const pan = useMemo(
+    () =>
+      Gesture.Pan()
+        .hitSlop(8)
+        .minDistance(1)
+        .onBegin(() => {
+          'worklet';
+          startX.value = translateX.value;
+          startY.value = translateY.value;
+          dragProgress.value = withTiming(1, { duration: 120 });
+        })
+        .onUpdate((e) => {
+          'worklet';
+          const clamped = clampToBounds(
+            { x: startX.value + e.translationX, y: startY.value + e.translationY },
+            boundsSV.value,
+          );
+          translateX.value = clamped.x;
+          translateY.value = clamped.y;
+        })
+        .onFinalize(() => {
+          'worklet';
+          dragProgress.value = withTiming(0, { duration: 150 });
+          // translateX/Y only move inside onUpdate, so this delta is exactly
+          // zero for a tap that never activated, and the real distance for
+          // any gesture that did.
+          const dx = translateX.value - startX.value;
+          const dy = translateY.value - startY.value;
+          if (isTap(dx, dy)) {
+            translateX.value = startX.value;
+            translateY.value = startY.value;
+            runOnJS(openSheet)();
+            return;
+          }
+          const snapped = snapToEdge({ x: translateX.value, y: translateY.value }, boundsSV.value);
+          translateX.value = withSpring(snapped.x, { damping: 18 });
+          translateY.value = withSpring(snapped.y, { damping: 18 });
+          runOnJS(persistFabPosition)(snapped.x, snapped.y);
+        }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  const fabAnimatedStyle = useAnimatedStyle(() => ({
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: 1 - dragProgress.value * 0.08 },
+    ],
+    opacity: 1 - dragProgress.value * 0.25,
+  }));
 
   // Anything queued while offline goes out on the next app open / next report.
   const flushPending = useCallback(async () => {
@@ -177,16 +358,25 @@ export function IssueReporterButton() {
 
   return (
     <>
-      <Pressable
-        testID="issue-reporter-button"
-        accessibilityRole="button"
-        accessibilityLabel="Report a problem with the app"
-        accessibilityHint="Opens a form to describe an issue for the DHARA team"
-        onPress={() => setOpen(true)}
-        style={[styles.fab, { bottom: insets.bottom + 140 }]}
-      >
-        <Ionicons name="bug-outline" size={20} color="#fff" />
-      </Pressable>
+      <GestureDetector gesture={pan}>
+        <Animated.View
+          testID="issue-reporter-button"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Report a problem with the app"
+          accessibilityHint="Opens a form to describe an issue for the DHARA team. Double-tap to open, or drag to move this button."
+          accessibilityActions={[
+            { name: 'activate', label: 'Open report form' },
+            { name: 'moveLeft', label: 'Move left' },
+            { name: 'moveRight', label: 'Move right' },
+            { name: 'reset', label: 'Reset position' },
+          ]}
+          onAccessibilityAction={onFabAccessibilityAction}
+          style={[styles.fab, fabAnimatedStyle]}
+        >
+          <Ionicons name="bug-outline" size={20} color="#fff" />
+        </Animated.View>
+      </GestureDetector>
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
         <View style={styles.backdrop}>
@@ -291,10 +481,8 @@ export function IssueReporterButton() {
 
 const styles = StyleSheet.create({
   fab: {
-    position: 'absolute',
-    left: 16,
-    width: 48,
-    height: 48,
+    width: FAB_VISUAL_SIZE,
+    height: FAB_VISUAL_SIZE,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
@@ -304,6 +492,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
+    zIndex: 999,
   },
   backdrop: { flex: 1, backgroundColor: 'rgba(14,39,64,0.45)', justifyContent: 'flex-end' },
   sheet: {

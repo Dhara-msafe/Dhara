@@ -39,7 +39,13 @@ export function computeBounds(
   return { minX, maxX, minY, maxY };
 }
 
+// NOTE: clampToBounds, snapToEdge and isTap carry a 'worklet' directive so
+// Reanimated can run them directly on the UI thread inside the pan-gesture
+// callbacks (onUpdate/onEnd), as well as normally from JS (accessibility
+// nudges, the initial-position restore effect). A 'worklet' function is a
+// strict superset of a normal one — nothing changes for JS-thread callers.
 export function clampToBounds(p: Point, b: Bounds): Point {
+  'worklet';
   return {
     x: Math.min(Math.max(p.x, b.minX), b.maxX),
     y: Math.min(Math.max(p.y, b.minY), b.maxY),
@@ -48,6 +54,7 @@ export function clampToBounds(p: Point, b: Bounds): Point {
 
 /** After a drag, settle against whichever side edge is closer. */
 export function snapToEdge(p: Point, b: Bounds): Point {
+  'worklet';
   const clamped = clampToBounds(p, b);
   const centre = (b.minX + b.maxX) / 2;
   return { x: clamped.x <= centre ? b.minX : b.maxX, y: clamped.y };
@@ -55,6 +62,7 @@ export function snapToEdge(p: Point, b: Bounds): Point {
 
 /** A gesture that moved less than the slop in both axes opens the sheet. */
 export function isTap(dx: number, dy: number, slop: number = TAP_SLOP): boolean {
+  'worklet';
   return Math.abs(dx) < slop && Math.abs(dy) < slop;
 }
 
