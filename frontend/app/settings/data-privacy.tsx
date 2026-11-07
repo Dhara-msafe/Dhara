@@ -12,12 +12,13 @@
  *
  */
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator, Alert, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { useFamilyJourneyEnabled } from '@/src/familyJourney/store';
 
 import { openExternal } from '@/src/outbound';
 // ── Contact constants ─────────────────────────────────────────────────────────
@@ -70,6 +71,7 @@ export default function DataPrivacyScreen() {
 
   const [sec1Open, setSec1Open] = useState(false);
   const [sec2Open, setSec2Open] = useState(false);
+  const { enabled: fjEnabled, setEnabled: setFjEnabled } = useFamilyJourneyEnabled();
 
   const [exportLoading, setExportLoading]   = useState(false);
   const [exportSuccess, setExportSuccess]   = useState(false);
@@ -278,6 +280,32 @@ export default function DataPrivacyScreen() {
           </View>
           <Ionicons name="chevron-forward" size={18} color={theme.colors.onSurfaceTertiary} />
         </Pressable>
+
+        {/* ══════════════════════════════════════════════════════════
+            Family Journey — app-wide switch (Phase 1: preview only)
+            ══════════════════════════════════════════════════════════ */}
+        <Text style={[styles.sectionHeader, { marginTop: theme.spacing.xl }]}>Family Journey</Text>
+
+        <View style={styles.actionCard} testID="fj-privacy-toggle-card">
+          <View style={styles.actionIconWrap}>
+            <Ionicons name="navigate-outline" size={20} color={PRIMARY} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.actionTitle}>Family Journey</Text>
+            <Text style={styles.actionSub}>
+              {fjEnabled
+                ? 'On — preview only. Nothing is sent and no location is collected.'
+                : 'Off — hidden everywhere in DHARA.'}
+            </Text>
+          </View>
+          <Switch
+            testID="fj-privacy-toggle"
+            value={fjEnabled}
+            onValueChange={setFjEnabled}
+            trackColor={{ true: PRIMARY, false: theme.colors.borderStrong }}
+            thumbColor="#fff"
+          />
+        </View>
 
         {/* ══════════════════════════════════════════════════════════
             SECTION 4 — Our commitments  (static, no accordion)

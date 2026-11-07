@@ -9,6 +9,7 @@ import { tr } from '@/src/ui18n';
 import { SOSButton } from '@/src/components/SOSButton';
 import { INTERESTS, useUserProfile, type ProfileInterest } from '@/src/userProfile';
 import { getPhotoViewToken } from '@/src/trustedCircle/api';
+import { useFamilyJourneyEnabled } from '@/src/familyJourney/store';
 import { API_BASE } from '@/src/apiBase';
 
 const c = theme.colors;
@@ -20,15 +21,19 @@ export default function Me() {
   const lang = language.code;
   const name = user?.name || tr('me.guest', lang);
   const { interests, saveInterests, loaded } = useUserProfile();
+  const { enabled: familyJourneyEnabled } = useFamilyJourneyEnabled();
   const [selected, setSelected] = useState<ProfileInterest[]>([]);
   const [viewToken, setViewToken] = useState<string | null>(null);
   useEffect(() => { if (loaded) setSelected(interests); }, [loaded, interests]);
   useEffect(() => { if (token && user?.photo_url) getPhotoViewToken(token).then(setViewToken); }, [token, user?.photo_url]);
   const photoSrc = user?.photo_url && viewToken ? `${API_BASE}${user.photo_url}&token=${viewToken}` : null;
 
-  const rows: { icon: any; key: string; value?: string; route?: string; action?: () => void }[] = [
+  const rows: { icon: any; key: string; label?: string; value?: string; route?: string; action?: () => void }[] = [
     { icon: 'person-outline', key: 'me.editProfile', route: '/edit-profile' },
     { icon: 'people-outline', key: 'me.trustedCircle', route: '/women/trusted-circle' },
+    ...(familyJourneyEnabled
+      ? [{ icon: 'navigate-outline' as any, key: 'me.familyJourney', value: tr('common.preview', lang), route: '/family-journey' }]
+      : []),
     { icon: 'notifications-outline', key: 'me.notifications', route: '/alerts' },
     { icon: 'shield-checkmark-outline', key: 'me.privacy', route: '/settings/data-privacy' },
     { icon: 'globe-outline', key: 'me.language', value: language.native, route: '/language' },
@@ -80,7 +85,7 @@ export default function Me() {
           {rows.map((r, i) => (
             <Pressable key={r.key} style={[styles.row, i < rows.length - 1 && styles.rowBorder]} onPress={() => r.route && router.push(r.route as any)} testID={`me-${r.key}`}>
               <View style={styles.rowIcon}><Ionicons name={r.icon} size={20} color={c.navy} /></View>
-              <Text style={styles.rowLabel}>{tr(r.key, lang)}</Text>
+              <Text style={styles.rowLabel}>{r.label ?? tr(r.key, lang)}</Text>
               {r.value && <Text style={styles.rowValue} numberOfLines={1}>{r.value}</Text>}
               <Ionicons name="chevron-forward" size={18} color={c.onSurfaceTertiary} />
             </Pressable>

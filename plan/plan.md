@@ -1,50 +1,57 @@
-# DHARA Pro — UPI Payment Page (Outside the App)
+# DHARA Family Journey — Student-Controlled Trip Sharing (Phase 1: Preview)
 
-A standalone web page where a user can pay for DHARA Pro using any UPI app — GPay, PhonePe, BharatPe, Paytm, or others — by scanning a QR code or tapping a UPI link, then submitting their payment reference for confirmation. The page lives outside the mobile app and is shared directly with users (chat, SMS, email, a website), not linked from inside the Play Store/App Store app, so the live app itself stays free of any in-app digital-purchase flow.
+A way for an adult user — including a student living away from home — to plan a journey, decide who could be told about it and exactly what they'd see, and preview that sharing on their own phone before any of it is real. Nothing is sent to anyone in this phase; it proves the idea and the consent flow safely before any real sharing exists.
 
 ## Who it's for
-DHARA users in India who want to upgrade to Pro and prefer UPI over a card, reached outside the app — through a message, support conversation, or a link on your own website.
+
+Adult DHARA users who want to plan a trip and think through sharing it with a trusted contact — most often a parent, but the feature is not limited to any one relationship or gender — before turning real sharing on in a later release.
 
 ## Core features and experience
-- A payment page showing the Pro price, a UPI QR code, and a "Pay with UPI app" button containing your UPI ID with the amount and a reference note already filled in — tapping it opens whichever UPI app is installed (GPay, PhonePe, BharatPe, Paytm...); scanning the QR does the same on another device.
-- A short form below it for the user to enter their UPI payment reference number (UTR) and the email of their DHARA account, once they've paid.
-- A clear "Submitted — we'll confirm shortly" state after that, so the user isn't left wondering what happens next.
-- A simple way for you to see submitted reference numbers and mark a payment as confirmed once you've checked it against your own UPI payment history.
-- Once confirmed, the account is flipped to Pro using the same mechanism already in the app today (no change to what Pro unlocks).
-- No button, card, or mention of this page appears anywhere inside the DHARA mobile app in this phase — it only exists as a link you share outside the app.
+
+- **Create a journey**: a destination label, expected departure/arrival/return windows, and an optional check-in reminder interval.
+- **Pick contacts**: choose from the student's existing Trusted Circle for this journey. This only reads the existing contact list to populate a picker — no invitation or message is sent to anyone.
+- **Four separate sharing permissions, not stacked levels** — each one requires its own explicit confirmation and can be turned on or off independently:
+  - *Local-only* — nothing leaves the phone (the default).
+  - *Arrival notification* — a contact would be told when the student confirms arrival.
+  - *Late / missed check-in notification* — confirmed separately from arrival; uses fixed, neutral wording only ("Check-in not received") and never implies the student is safe or in danger.
+  - *Student-initiated help request* — a deliberate action the student takes themselves; never automatic.
+  - *(Temporary location sharing is a distinct, later-phase permission — not part of this phase at all.)*
+- **Live preview**: for every contact and every mode chosen, the student sees — on their own device only — exactly what that contact would receive, worded exactly as it would be worded for real, clearly labelled **"Preview — nothing has been sent."**
+- **Journey controls**: manual check-in, "I've arrived," change the plan, or stop — all instant, local, and available with one tap and no reason required.
+- **Help stays reachable**: SOS, calling for help, and DHARA's existing legal-help tools remain visible and usable from every Family Journey screen, with no subscription or payment requirement.
+- **No institution** (school, employer, hostel, etc.) ever receives any journey information in this phase.
+- **No location data of any kind** — not even a last-known point — is collected, stored, or shown in this phase.
 
 ## User flow
-1. You send the user a link to the payment page.
-2. They open it on their phone and see the Pro price with a "Pay via UPI" button and a QR code.
-3. Tapping the button opens their UPI app with your UPI ID and the amount pre-filled; scanning the QR does the same.
-4. They complete the payment in their UPI app, then return to the page and enter the payment reference number and their DHARA account email.
-5. The page confirms the submission was received and is pending a check.
-6. You check the reference number against your UPI payment history and confirm it.
-7. Their account shows as Pro the next time they open DHARA.
+
+1. The student opens Family Journey from its own section and creates a journey: destination label, timing, optional check-in interval.
+2. The student picks one or more Trusted Circle contacts and a sharing mode for each, or leaves everything local-only.
+3. Before finishing, the student sees a preview screen per contact and per mode — exactly what that contact would see, clearly marked as a preview.
+4. The student starts the journey; reminders appear only as local notifications on their own phone.
+5. The student checks in, marks arrival, changes the plan, or stops at any time, with one tap and no explanation required.
+6. If a check-in is missed, the student's own preview reflects "check-in not received" — nothing leaves the phone, and nothing is shown as a finding of safety or danger.
+7. A visible path to SOS, emergency calling, or legal help stays one tap away throughout.
 
 ## UI/UX feel
-A single, calm, trustworthy screen that matches DHARA's existing look — not a flashy checkout page. Large, obvious tap targets for the UPI button and QR code, plain language, and reassuring confirmation copy, consistent with an app people already trust with sensitive legal and safety matters.
+
+Calm and plain, consistent with the rest of DHARA — no urgency styling, no red "danger" badges triggered by a missed check-in, no countdown that feels punitive. Wherever a contact-facing screen is being previewed, the **"Preview — nothing has been sent"** label is visually distinct and unmissable, so the student is never confused about what is and isn't real yet.
 
 ## Implementation phases
 
 **Phase 1 (MVP — built now)**
-A standalone web payment page, reachable only by direct link, with:
-- Pro price, UPI QR code, and a "Pay via UPI" link to your UPI ID with amount and note pre-filled.
-- A form to submit the UPI reference number and account email after paying.
-- A simple review list for you to check submissions and confirm a payment, which then grants Pro on that account.
-- Nothing about this page is referenced anywhere inside the shipped mobile app.
+Everything described above. Entirely on the student's device: no server-side timers, no notification queue, no real notifications, no real location, no screen a contact can actually open, and no payment. Open to every user by default, with a quick app-wide switch to turn the whole feature off if needed. Built as its own, separate piece of the app so it cannot change how Women's Shield, Guardian Journey, SOS, or Trusted Circle behave today.
 
 **Phase 2**
-Replace manual checking with automatic confirmation by connecting a UPI-capable payment gateway (for example Razorpay or Cashfree, both of which already support UPI collect requests) — so a payment confirms itself within seconds and Pro unlocks immediately, with no review step for you.
+Real delivery: arrival and missed-check-in notices actually reach the chosen contact. Requires a backend scheduling and delivery system built and reviewed on its own terms — offline phones, clock and time-zone changes, retries, and duplicate sends all need to be handled correctly before this phase ships. Still no location sharing.
 
 **Phase 3**
-Bring the purchase back inside the native app in a store-compliant way — either through Google Play Billing / Apple In-App Purchase (both of which already support UPI as a payment instrument for Indian users within their own billing systems), or through Google Play's approved alternative-billing program for India. Only once one of these is in place should any "Upgrade" button reappear inside the app itself.
+Temporary location sharing, plus a secure, time-limited way for a contact (such as a parent) to view a journey's status — using something that expires and re-checks permission every time it's opened, not a link that keeps working forever. Any payment or subscription question only becomes relevant from this phase onward, once there is a real feature behind it.
 
 ## Assumptions
-- You will provide the UPI ID (VPA) to collect payments into; a placeholder is used until then.
-- The Pro price and what Pro unlocks stay exactly as already defined in the app today — unchanged.
-- "Confirming a payment" in Phase 1 means you personally check the submitted reference number against your own UPI payment history; there is no bank-statement automation in this phase.
-- The page is in English only for Phase 1, matching the app's other payment-related screens.
-- No link, button, or mention of this payment page is placed anywhere inside the DHARA mobile app in Phase 1 — this keeps the live app itself clear of any in-app digital-purchase flow, which is a store-compliance requirement rather than a style choice. Sharing the link happens entirely outside the app (chat, SMS, email, your own website).
-- The existing, already-paused Stripe/Razorpay Pro upgrade screens inside the app stay exactly as they are (paused, behind their flag) — this is a separate, additional path, not a replacement.
-- Submitted UPI reference numbers and account emails are stored only to verify payment and grant Pro access.
+
+- Phase 1 only reads the existing Trusted Circle list to populate the contact picker; it does not reuse or modify any existing safety-session, SOS, or Guardian Journey logic, so none of today's behavior there can be affected.
+- There is nothing for a parent or any other contact to install, log into, or view in Phase 1 — that is entirely Phase 3 scope.
+- No payment or subscription is attached to Phase 1, since nothing real is being shared yet.
+- The wording "Check-in not received" is used exactly as written, and is never paired with language suggesting the student is safe or in danger.
+- An app-wide switch to disable Family Journey entirely is built in from the start as a safety net, even though the feature ships visible to all users rather than a limited group.
+- All consent and mode choices made in Phase 1 are stored only on the student's own device; nothing is synced to any contact or institution.
