@@ -40,6 +40,16 @@ import { claimMic, type MicLease } from '@/src/voice/micArbiterGuard';
 
 type RecordingOwner = 'locker' | 'trigger' | null;
 
+/** Why startTriggerRecording() did not start a recording. Lets callers show
+ * the correct message instead of always assuming a permission problem. */
+export type StartRecordingFailureReason = 'already_recording' | 'permission_denied' | 'error';
+
+export interface StartRecordingOutcome {
+  started: boolean;
+  /** Present only when started is false. */
+  reason?: StartRecordingFailureReason;
+}
+
 export interface EvidenceRecorderContextValue {
   /** The shared AudioRecorder instance (pass to recorder.* calls). */
   recorder: ReturnType<typeof useAudioRecorder>;
@@ -49,10 +59,13 @@ export interface EvidenceRecorderContextValue {
   recordingOwner: RecordingOwner;
   /**
    * Start evidence recording on behalf of the safety trigger.
-   * Returns true if recording started successfully.
-   * Returns false if already recording or microphone permission denied.
+   * Resolves { started: true } if recording started successfully, or
+   * { started: false, reason } naming why — already recording (locker or a
+   * prior trigger owns the session), microphone permission denied, or an
+   * unexpected error — so the caller can show the right message instead of
+   * always assuming a permission problem.
    */
-  startTriggerRecording: (scope: string) => Promise<boolean>;
+  startTriggerRecording: (scope: string) => Promise<StartRecordingOutcome>;
   /** Stop and discard a trigger-owned recording (coordinator cleanup). */
   stopTriggerRecording: () => Promise<void>;
   /**
@@ -98,15 +111,15 @@ export function EvidenceRecorderProvider({ children }: { children: React.ReactNo
   }, []);
 
   // ── Safety Trigger path ────────────────────────────────────────────────────
-  const startTriggerRecording = useCallback(async (_scope: string): Promise<boolean> => {
+  const startTriggerRecording = useCallback(async (_scope: string): Promise<StartRecordingOutcome> => {
     // Never interrupt an in-progress session (locker or trigger).
-    if (ownerRef.current !== null) return false;
+    if (ownerRef.current !== null) return { started: false, reason: 'already_recording' };
     try {
       let perm = await AudioModule.getRecordingPermissionsAsync();
       if (!perm.granted) {
         perm = await AudioModule.requestRecordingPermissionsAsync();
       }
-      if (!perm.granted) return false;
+      if (!perm.granted) return { started: false, reason: 'permission_denied' };
 
       if (Platform.OS !== 'web') {
         await setAudioModeAsync({
@@ -117,12 +130,12 @@ export function EvidenceRecorderProvider({ children }: { children: React.ReactNo
       }
       await recorder.prepareToRecordAsync();
       claimArbiter(); // Evidence Locker takes the shared mic (preempts any other owner)
-      recorder.record();
+      await recorder.record();
       setOwner('trigger');
-      return true;
+      return { started: true };
     } catch {
       releaseArbiter();
-      return false;
+      return { started: false, reason: 'error' };
     }
   }, [recorder, setOwner, claimArbiter, releaseArbiter]);
 
