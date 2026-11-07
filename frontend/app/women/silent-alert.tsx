@@ -9,7 +9,7 @@ import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { getCircle, type Contact, getSilentAlertEvidencePref, setSilentAlertEvidencePref } from '@/src/women/api';
 import { composeAlert } from '@/src/women/helpActions';
 import { useEvidenceRecorder } from '@/src/women/EvidenceRecorderProvider';
-import { triggerFromSilentAlert } from '@/src/women/safetyTriggerCoordinator';
+import { triggerFromSilentAlert, describeEvidenceFailure } from '@/src/women/safetyTriggerCoordinator';
 import { OUTBOUND_LIVE, SIMULATED_TEXT } from '@/src/outbound';
 import { useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
@@ -64,6 +64,7 @@ export default function SilentAlert() {
 
   /** Route through SafetyTriggerCoordinator then open SMS composer. */
   const handlePrepareAlert = async (phone: string) => {
+    let evidenceNotice = '';
     if (SILENT_EVIDENCE_ENABLED && evidenceEnabled) {
       const scope = user?.id || 'device';
       // Coordinator handles flag gate + audit logging
@@ -72,10 +73,13 @@ export default function SilentAlert() {
         startEvidenceRecording: startTriggerRecording,
       });
       if (!result.flagOff && !result.evidenceStarted) {
-        setStatus('Evidence recording could not start (check microphone permission). Preparing alert anyway.');
+        // Captured, not shown yet — composeAlert()'s own status below would
+        // otherwise silently overwrite this the moment it resolves.
+        evidenceNotice = describeEvidenceFailure(result.evidenceFailureReason) + ' ';
       }
     }
-    setStatus(await composeAlert(phone, body));
+    const composeStatus = await composeAlert(phone, body);
+    setStatus(evidenceNotice ? `${evidenceNotice}${composeStatus}` : composeStatus);
   };
 
   const body = `${message}${location ? `\n${location}` : ''}`;
