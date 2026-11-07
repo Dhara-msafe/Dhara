@@ -11,6 +11,9 @@ import { useUserProfile } from '@/src/userProfile';
 import { unreadCount } from '@/src/trustedCircle/api';
 import { useFamilyJourneyEnabled } from '@/src/familyJourney/store';
 
+/** Same gate as women-shield.tsx — when Head Out is off, fall back to the shield. */
+const HEAD_OUT_ENABLED = process.env.EXPO_PUBLIC_SAFETY_SESSION_V1 === 'true';
+
 const c = theme.colors;
 const TRUSTED_CIRCLE_RECIPIENT = process.env.EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT === 'true';
 
@@ -231,7 +234,7 @@ export default function Home() {
             <Text style={[styles.forYouBody, { color: c.muted }]}>Start a safe-journey check-in with your trusted circle.</Text>
             <Pressable
               style={styles.navyBtn}
-              onPress={() => router.push(familyJourneyEnabled ? '/family-journey' : '/women-shield')}
+              onPress={() => router.push(HEAD_OUT_ENABLED ? '/women/head-out' : '/women-shield')}
               testID="home-heading-out-start"
             >
               <Text style={styles.navyBtnTxt}>Start</Text>
