@@ -14,7 +14,6 @@ import { enterWomensShield, leaveWomensShield } from '@/src/voice/speechGate';
 import { activateCover } from '@/src/women/coverState';
 
 import { openExternal } from '@/src/outbound';
-import { EmergencyNotActiveNotice } from '@/src/components/dhara/EmergencyNumberStatic';
 const PRIVACY_COVER_ENABLED = process.env.EXPO_PUBLIC_PRIVACY_COVER_V1 === 'true';
 
 const HEAD_OUT_ENABLED = process.env.EXPO_PUBLIC_SAFETY_SESSION_V1 === 'true';
@@ -278,15 +277,7 @@ export default function WomenShield() {
             <Text style={styles.h2}>Campus safety</Text>
             <Text style={styles.h2sub}>Resources for students and campus communities</Text>
             <View style={styles.toolCard}>
-              <View style={styles.toolRow} testID="ws-tool-school-outline">
-                <View style={styles.toolIcon}><Ionicons name="school-outline" size={20} color={c.navy} /></View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.toolTitle}>Anti-Ragging helpline</Text>
-                  <Text style={styles.toolSub}>National helpline: 1800-180-5522 (free call)</Text>
-                </View>
-                <Text style={[styles.toolAction, { color: c.muted }]}>Not active</Text>
-              </View>
-              <EmergencyNotActiveNotice />
+              <ToolRow icon="school-outline" title="Anti-Ragging helpline" sub="National helpline: 1800-180-5522 (free call)" action="Call" onPress={() => openExternal('tel:18001805522')} />
               <Divider />
               <ToolRow icon="briefcase-outline" title="POSH / Internal Complaints" sub="Your institution's Internal Complaints Committee (ICC)" action="How to find" onPress={() => router.push({ pathname: '/all-help', params: { q: 'POSH committee' } })} />
               <Divider />
@@ -305,14 +296,13 @@ export default function WomenShield() {
           <Text style={styles.h2sub}>{tr('ws.talk.sub', lang)}</Text>
           <View style={styles.hlGrid}>
             {shownHelplines.map(h => (
-              <View key={h.num} style={styles.hlCard} testID={`hl-${h.num}`}>
+              <Pressable key={h.num} style={styles.hlCard} onPress={() => openExternal(`tel:${h.num}`)} testID={`hl-${h.num}`} accessibilityRole="button" accessibilityLabel={`Call ${h.label}, ${h.num}`}>
                 {h.verified && <Ionicons name="checkmark-circle" size={13} color={c.verifiedGreen} style={styles.hlVerified} />}
                 <Text style={styles.hlNum}>{h.num}</Text>
                 <Text style={styles.hlLabel} numberOfLines={1}>{h.label}</Text>
-              </View>
+              </Pressable>
             ))}
           </View>
-          <EmergencyNotActiveNotice />
         </View>
 
         {/* Safety plan */}

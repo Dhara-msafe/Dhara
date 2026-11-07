@@ -40,7 +40,7 @@ import { triggerSafetySequence } from '@/src/women/safetyTriggerCoordinator';
 import { useEvidenceRecorder } from '@/src/women/EvidenceRecorderProvider';
 import { activateCover } from '@/src/women/coverState';
 
-import { EmergencyNotActiveNotice } from '@/src/components/dhara/EmergencyNumberStatic';
+import { openExternal } from '@/src/outbound';
 /** Strip raw markdown markers from streaming text so asterisks/hashes never
  *  flash in the UI while the LLM is still mid-sentence. Called only on the
  *  accumulated delta text; the sanitized `final` frame is displayed as-is. */
@@ -296,9 +296,10 @@ function SosEmergencyBanner({ onDismiss, language }: { onDismiss: () => void; la
         <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 12 }}>{headline}</Text>
         <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
           {SOS_NUMBERS.map(({ label, desc }) => (
-            <View
+            <Pressable
               key={label}
               testID={`sos-call-${label}`}
+              onPress={() => openExternal(`tel:${label}`)}
               style={{
                 backgroundColor: theme.colors.emergencyDeep,
                 borderRadius: 6,
@@ -308,17 +309,15 @@ function SosEmergencyBanner({ onDismiss, language }: { onDismiss: () => void; la
                 justifyContent: 'center',
                 minWidth: 52,
                 minHeight: 44,
-                opacity: 0.75,
               }}
+              accessibilityLabel={`Call ${label} — ${desc}`}
+              accessibilityRole="button"
             >
               <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15, letterSpacing: 0.5 }}>{label}</Text>
               <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 9, fontWeight: '500' }}>{desc}</Text>
-            </View>
+            </Pressable>
           ))}
         </View>
-        <Text style={{ color: '#FFFFFF', fontSize: 10, fontStyle: 'italic', opacity: 0.9 }}>
-          Emergency calling is not active in this test version. Dial 112 on your phone if you need help.
-        </Text>
       </View>
       <Pressable
         testID="sos-banner-dismiss"
@@ -354,9 +353,12 @@ function EmergencyCallShortcut({ language }: { language: string }) {
       <Text style={{ color: theme.dhara.navy, fontSize: 12, fontWeight: '600' }}>{title}</Text>
       <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
         {EMERGENCY_SHORTCUT_NUMBERS.map(({ label, desc }) => (
-          <View
+          <Pressable
             key={label}
             testID={`emergency-call-${label}`}
+            onPress={() => openExternal(`tel:${label}`)}
+            accessibilityRole="button"
+            accessibilityLabel={`Call ${label} — ${desc}`}
             style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -365,16 +367,14 @@ function EmergencyCallShortcut({ language }: { language: string }) {
               borderRadius: 8,
               paddingHorizontal: 14,
               minHeight: 44,
-              opacity: 0.75,
             }}
           >
-            <Ionicons name="call-outline" size={16} color="#FFFFFF" />
+            <Ionicons name="call" size={16} color="#FFFFFF" />
             <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>{label}</Text>
             <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 10 }}>{desc}</Text>
-          </View>
+          </Pressable>
         ))}
       </View>
-      <EmergencyNotActiveNotice />
     </View>
   );
 }

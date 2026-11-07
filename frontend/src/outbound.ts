@@ -104,13 +104,32 @@ function showSimulated(detail: string, disabled = false) {
 
 /** Drop-in replacement for Linking.openURL. Non-dispatch links (https pages,
  * maps, app settings) open normally in every mode. */
-export async function openExternal(url: string): Promise<void> {
+export type OpenResult = 'opened' | 'blocked';
+
+export async function openExternal(url: string): Promise<OpenResult> {
   const channel = channelForUrl(url);
   if (channel && !shouldDispatch(channel)) {
     showSimulated(url.length > 300 ? `${url.slice(0, 300)}…` : url, channelDecision(channel) === 'disabled');
-    return;
+    return 'blocked';
+  }
+  // An `sms:` deep link must obey the same rails as composeSms() — otherwise a
+  // caller could bypass the verified-test-contact list simply by opening a link.
+  if (channel === 'sms') {
+    const target = url.replace(/^\s*(sms|smsto|mms):/i, '').split(/[?&#]/)[0];
+    const nums = target.split(/[,;]/).map(normNum).filter(Boolean);
+    if (nums.some((n) => EMERGENCY_NUMBERS.has(n))) {
+      showSimulated('SMS to an emergency-service number is blocked. Use the dialler to call instead.');
+      return 'blocked';
+    }
+    if (OUTBOUND_PROFILE === 'closed_testing') {
+      if (SMS_TEST_CONTACTS.length === 0 || nums.length === 0 || !nums.every((n) => SMS_TEST_CONTACTS.includes(n))) {
+        showSimulated(`Closed-testing SMS is limited to verified test contacts.\nTo: ${target || '(no number)'}`);
+        return 'blocked';
+      }
+    }
   }
   await Linking.openURL(url);
+  return 'opened';
 }
 
 export type SmsResult = 'composer' | 'unavailable' | 'simulated' | 'blocked';

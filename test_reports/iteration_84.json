@@ -1,0 +1,29 @@
+{
+  "summary": "Frontend-only retest of the guardian-share false-claim fix, run at 375x667. Build settings: MODE=live, PROFILE=closed_testing, SMS_TEST_CONTACTS empty, ALERT_SIMULATION_MODE=true. Logged in as voicetest2026@example.com with a fake local TEST_c1 contact (+910000000001). window.open and window.alert were stubbed, and tel: was intercepted. HIGH FIX PASS: on /women/guardian-share, guardian-send opened no sms: link (window.__opened stayed empty) and showed the 'Closed-testing SMS is limited to verified test contacts. To: +910000000001' notice. guardian-sent-banner was not rendered, the 'has been notified' text was not on the page, guardian-mark-safe and guardian-revoke-sharing were not rendered, and the button still read 'Send to 1 contact'. This held both without a destination and with destination=TEST_Dest; the second case created one backend journey record (cleaned up afterwards). Silent alert PASS: no sms: link was opened and the status said 'No message was prepared. Messaging is restricted in this build, so nothing left this device.' Dialler PASS: /emergency call-112 showed no alert and the status 'Continue in your phone's dialler...'. Women's Shield hl-112, hl-181 and hl-1930, visitor-intent-call-112 and chat sos-call-112 all showed no 'Simulated' alert. Head-out PASS: with an expired seeded session, headout-alert-circle showed headout-sim-preview-modal ('Simulated — nothing sent' pilot preview), opened no sms: link, and the Close button worked. Render regression PASS: Home, chat (SOS banner), the Family Journey hub and Trusted Circle loaded with 0 page errors. outboundGuard.test.mjs: 3 pass, 1 fail, and the failure is only the known pre-existing app/pay-upi.tsx:68.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "guardian-share with a destination param", "issue": "LOW: createJourneyRecord() runs (POST /api/journey/status) before openExternal is checked. When the SMS is then blocked, the backend journey record and public status link are still created and never shared, and the card keeps saying 'Status page ready — link added to SMS'. No false 'notified' claim is shown. This is cosmetic, plus an orphan record that expires after 24h. Reference: app/women/guardian-share.tsx:145", "affected_testIDs": ["guardian-send"]}
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/tests/dialler_restore_ui_test.py", "/app/test_reports/iteration_84.json"],
+  "action_items": [
+    "Optional (LOW): in guardian-share, consider checking channel permission (or reordering) so a journey record is not created when the SMS is going to be blocked, or soften the 'Status page ready — link added to SMS' copy after a blocked send.",
+    "Pre-existing: outboundGuard.test.mjs still flags app/pay-upi.tsx:68 (calls Linking.openURL directly)."
+  ],
+  "critical_code_review_comments": [
+    "outbound.ts: openExternal now returns 'opened'/'blocked' correctly on every blocked path (policy, emergency number, closed-testing allow-list).",
+    "guardian-share.tsx:148-150: blocked or thrown sends return before setSent(true). This is correct.",
+    "helpActions.ts composeAlert: the sms: fallback honours the 'blocked' result. openPhone ignores the OpenResult, which is fine because the dialler is live."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100%"},
+  "seed_data_creation": "One safety_journeys record (destination TEST_Dest, token 3j38yhnUIK) was created by the guardian-share test and then deleted by its exact token. The trusted-circle contact was local storage only.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Reuse INIT_JS/SEED_JS from /app/tests/dialler_restore_ui_test.py. To test the head-out sim preview, seed localStorage ws_head_out_session={destination,startTime:Date.now()-2h,durationMins:30}; this makes headout-expired-card show headout-alert-circle. Passing a destination param to guardian-share creates a real backend journey record, so delete it by token afterwards.",
+  "rca_of_issue": "Iteration 83 HIGH bug (false 'guardian notified' banner) is verified fixed: sendSMS now awaits openExternal's result and returns early when it is 'blocked'."
+}

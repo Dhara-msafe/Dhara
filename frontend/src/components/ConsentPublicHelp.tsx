@@ -7,7 +7,6 @@ import { theme } from '../theme';
 import type { ConsentCopy } from '../consentCopy';
 
 import { openExternal } from '@/src/outbound';
-import { EmergencyNumberStatic, EmergencyNotActiveNotice } from '@/src/components/dhara/EmergencyNumberStatic';
 type Citation = { label: string; url: string };
 type Topic = {
   id: string; title: string; summary: string; law: string; points: string[];
@@ -36,7 +35,9 @@ export function ConsentPublicHelp({ mode, onClose, copy, lang }: {
       .finally(() => clearTimeout(timer));
     return () => { active = false; clearTimeout(timer); controller.abort(); };
   }, [mode, attempt, lang]);
-
+  const call = (number: string) => {
+    void openExternal(`tel:${number}`).catch(() => setError(`Please dial ${number} on your phone.`));
+  };
   return (
     <Modal visible={mode !== null} animationType="slide" onRequestClose={onClose} testID="consent-help-modal">
       <SafeAreaView style={styles.safe}>
@@ -45,8 +46,7 @@ export function ConsentPublicHelp({ mode, onClose, copy, lang }: {
           {error && <Text testID="consent-help-error" accessibilityRole="alert" style={styles.error}>{error}</Text>}
           {mode === 'emergency' ? <>
             <Text testID="consent-helpline-info" style={styles.body}>In immediate danger, call 112. For help for a child, call 1098. No account is needed.</Text>
-            {['112', '1098'].map(number => <EmergencyNumberStatic key={number} label={number === '112' ? 'Emergency' : 'Child Helpline'} number={number} testID={`consent-call-${number}`} />)}
-            <EmergencyNotActiveNotice />
+            {['112', '1098'].map(number => <Pressable key={number} testID={`consent-call-${number}`} accessibilityRole="button" style={styles.button} onPress={() => call(number)}><Text style={styles.buttonText}>Call {number}</Text></Pressable>)}
           </> : topics ? topics.map(topic => (
             <View key={topic.id} testID={`consent-rights-topic-${topic.id}`} style={styles.topicBlock}>
               <Text selectable style={styles.body}>

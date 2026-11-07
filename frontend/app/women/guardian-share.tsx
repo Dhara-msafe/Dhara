@@ -145,9 +145,8 @@ export default function GuardianShare() {
     const pageUrl = statusUrl ?? await createJourneyRecord();
     const body = buildMessage(pageUrl);
 
-    openExternal(`sms:${phones}?body=${encodeURIComponent(body)}`).catch(() =>
-      openExternal(`sms:&body=${encodeURIComponent(body)}`).catch(() => {}),
-    );
+    const opened = await openExternal(`sms:${phones}?body=${encodeURIComponent(body)}`).catch(() => 'blocked' as const);
+    if (opened !== 'opened') return;   // guard blocked it — never claim "notified"
     setSent(true);
   }, [circle, selected, statusUrl, createJourneyRecord, buildMessage]);
 

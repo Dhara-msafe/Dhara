@@ -286,9 +286,7 @@ export default function HeadOut() {
     }
     if (notifyContacts.length > 0) {
       const phones = notifyContacts.map(ct => ct.phone).join(',');
-      openExternal(`sms:${phones}?body=${encodeURIComponent(body)}`).catch(() =>
-        openExternal(`sms:&body=${encodeURIComponent(body)}`).catch(() => {}),
-      );
+      openExternal(`sms:${phones}?body=${encodeURIComponent(body)}`).catch(() => {});
     } else {
       openExternal(`sms:&body=${encodeURIComponent(body)}`).catch(() => {});
     }

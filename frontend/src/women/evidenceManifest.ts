@@ -24,6 +24,8 @@ export type ManifestEntry = {
   id: string; sha256: string; prevHash: string; chainHash: string;
   createdAt: string; type: string; ext?: string; size: number;
   gps?: GpsPoint | null; anchor?: AnchorReceipt | null; backup?: BackupInfo | null;
+  /** Set when the local copy was deleted from this device (see markManifestDeleted). */
+  deletedAt?: string | null;
 };
 
 function toHex(bytes: Uint8Array): string { return aesjs.utils.hex.fromBytes(bytes); }
@@ -84,4 +86,17 @@ export async function saveAnchorReceipt(scope: string, id: string, receipt: Anch
 export async function saveBackupInfo(scope: string, id: string, backup: BackupInfo): Promise<void> {
   const entries = await readManifest(scope);
   await writeManifest(scope, entries.map(e => (e.id === id ? { ...e, backup } : e)));
+}
+
+/** The item's local copy has been deleted. The chain LINK itself must stay —
+ * removing a link would break hash verification for every entry saved after
+ * it — so the entry is tombstoned instead: it stops being listed in the
+ * locker, and its location data (the only personal detail in the entry) is
+ * dropped. Only the entry with this exact id is touched. */
+export async function markManifestDeleted(scope: string, id: string): Promise<void> {
+  const entries = await readManifest(scope);
+  await writeManifest(
+    scope,
+    entries.map(e => (e.id === id ? { ...e, gps: null, deletedAt: new Date().toISOString() } : e)),
+  );
 }

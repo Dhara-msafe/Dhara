@@ -28,13 +28,22 @@ export async function composeAlert(phone: string, message: string): Promise<stri
     return `${SIMULATED_TEXT}. QA mode — no SMS app was opened and no alert left this device.`;
   }
   try {
-    if ((await composeSms([clean], message)) === 'composer') {
+    const result = await composeSms([clean], message);
+    if (result === 'composer') {
       return 'Message prepared in your SMS app. Review it and press Send yourself — delivery is not confirmed; no automatic alert was sent.';
+    }
+    // 'blocked' / 'simulated' — the guard already told the user why; never fall
+    // back to a bare sms: link, which would bypass that decision.
+    if (result === 'blocked' || result === 'simulated') {
+      return 'No message was prepared. Messaging is restricted in this build, so nothing left this device.';
     }
   } catch { /* fall through to sms: link below */ }
   const separator = Platform.OS === 'ios' ? '&' : '?';
   try {
-    await openExternal(`sms:${clean}${separator}body=${encodeURIComponent(message)}`);
+    const opened = await openExternal(`sms:${clean}${separator}body=${encodeURIComponent(message)}`);
+    if (opened !== 'opened') {
+      return 'No message was prepared. Messaging is restricted in this build, so nothing left this device.';
+    }
     return 'Message prepared. Review it and press Send in your messaging app. Delivery is not confirmed; no automatic alert was sent.';
   } catch {
     return 'Messaging could not open. Copy the message below into your SMS app. No alert has been sent.';
