@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend-only check of Silent Alert live/production SMS-composer path on web preview (375x667), using voicetest2026@example.com. All 9 requested items checked. A normal contact (fake 9999900001/9999900003) gets no closed-testing block: tapping it calls window.open('sms:<num>?body=<encoded msg>') once and the status reads 'Message prepared. Review it and press Send in your messaging app. Delivery is not confirmed; no automatic alert was sent.' Emergency numbers 112 and 1091 are BLOCKED: alert 'SMS to an emergency-service number is blocked. Use the dialler to call instead.', no sms: open, status 'No message was prepared…'. No automatic send: idling 6–8s on the screen (empty circle and with a contact) gave zero window.open and zero alert calls. Location (mocked geolocation 12.9716,77.5946) adds a maps.google.com link to silent-alert-message and the sms body. Remove location takes it out of both. Filtering works: no-phone rows and notify=false rows are hidden. Both empty states (no-phone and call-only wording, plus alert-no-contacts) show alert-empty-manage-circle, which opens /women/trusted-circle. Disclosure wording is correct. Copy reports 'Message copied. No alert has been sent.' Head Out: ALERT_SIMULATION_MODE=true, so an expired timer plus 'headout-alert-circle' shows the in-app 'Simulated — nothing sent' preview (recipients filtered: only TEST_Normal). No composer or sms: link is opened, so Head Out does NOT yet use the live composer path. Regression: /emergency call-112 triggers tel:112 with the dialler status and no Simulated alert. The women-shield helpline hl-181 triggers tel:181 with no alert. Family Journey, Evidence Locker (PIN setup) and the Head Out picker/start all render. outboundGuard.test.mjs: only the known pay-upi.tsx:68 failure. headOutTimer.test.mjs: 35/35 pass.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "outbound.ts showSimulated() used for live-mode safety blocks", "issue": "In production/live mode, the emergency-number block alert is headed 'Simulated — nothing sent' and says 'QA mode — no real call, message or share left this device.' before the correct reason. This is misleading in a production build. The block itself works. Reference: /app/frontend/src/outbound.ts:95-103,148", "testID": "alert-contact-<id>", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Head Out expired → Prepare alert", "issue": "EXPO_PUBLIC_ALERT_SIMULATION_MODE=true (frontend/.env:50), so head-out shows the in-app simulated preview and never opens a composer. It does not match Silent Alert's live behaviour. When the flag is off, head-out calls openExternal('sms:a,b?body=') directly with all recipients comma-joined (not one at a time, not via composeAlert/composeSms) and shows no status text. Reference: /app/frontend/app/women/head-out.tsx:279-292", "affected_testIDs": ["headout-alert-circle", "headout-sim-preview-modal"]}
+    ],
+    "design_issues": [
+      {"screen": "Silent alert", "issues": ["Contacts with an emergency-service number (112/1091) still show as 'Prepare SMS to …' rows that always block when tapped. Consider hiding or labelling them 'Call only'. Note: they can only exist through legacy or injected data, because the trusted-circle form requires 10–15 digits."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/tests/silent_alert_common.py", "/app/test_reports/sa_prepared.png", "/app/test_reports/sa_loc.png", "/app/test_reports/headout_sim.png"],
+  "action_items": [
+    "Decide whether Head Out should follow Silent Alert's live composer path. If yes, set EXPO_PUBLIC_ALERT_SIMULATION_MODE=false and route head-out through composeAlert (one recipient at a time, status text shown) rather than a raw comma-joined sms: link.",
+    "Optional: in outbound.ts, use a non-'QA mode'/'Simulated' heading for live-mode safety blocks (emergency-number SMS), e.g. 'Blocked for your safety'."
+  ],
+  "critical_code_review_comments": [
+    "helpActions.composeAlert: on web, expo-sms isAvailableAsync() returns false → 'unavailable' → falls back to openExternal('sms:'), which re-applies the emergency rail. Correct and verified.",
+    "head-out.tsx SESSION_KEY 'ws_head_out_session' is not scoped per user, unlike the circle keys (pre-existing, out of scope)."
+  ],
+  "updated_files": ["/app/tests/silent_alert_common.py (new helper snippet only; no app code changed)"],
+  "success_rate": {"backend": "N/A (skipped as requested)", "frontend": "100% of requested Silent Alert checks passed; Head Out stays on the simulated preview by flag design"},
+  "seed_data_creation": "None in DB. Trusted-circle TEST_ contacts were written only to fresh headless-browser localStorage (device-local), which is discarded with each context.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Setup: POST /api/auth/login, then use an init script to set localStorage gk_token, gk_user, gk_consent_version='2026-10-01', gk_lang='\"en\"' and lang_onboarded_v1_<uid>='1' (otherwise the language modal blocks clicks). The trusted circle is localStorage key ws_trusted_circle_<uid>; also set ws_trusted_circle_legacy_quarantined_v1='1'. Stub window.open and window.alert to capture sms: links and guard notices. Capture tel: by subclassing window.URL, because RN-web Linking does new URL(); tel: then window.location. An expired Head Out session can be injected as ws_head_out_session. /women-shield redirects to /women/panic-lesson on first visit.",
+  "rca_of_issue": "Confirmed: with PROFILE=production, composeSms skips the closed_testing whitelist, so normal contacts reach the composer or the sms: fallback. The emergency rail still applies in both composeSms and openExternal."
+}

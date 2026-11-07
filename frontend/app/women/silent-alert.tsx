@@ -79,14 +79,17 @@ export default function SilentAlert() {
   };
 
   const body = `${message}${location ? `\n${location}` : ''}`;
-  const notifyContacts = contacts.filter(ct => ct.notify !== false);
+  // Only contacts marked for notifications AND holding a usable number can be
+  // messaged — a row with no number would open an empty composer.
+  const notifyContacts = contacts.filter(ct => ct.notify !== false && !!ct.phone?.trim());
+  const notifyWithoutPhone = contacts.filter(ct => ct.notify !== false && !ct.phone?.trim()).length;
   const isRecordingActive = recorderState.isRecording && recordingOwner === 'trigger';
 
   return (
     <View style={styles.root} testID="silent-alert-screen">
       <ScreenHeader title="Silent alert" subtitle="Prepare a message · you choose when to send" />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
-        <Text testID="silent-alert-disclosure" style={styles.note}>{OUTBOUND_LIVE ? 'This opens your SMS app, not an automatic emergency alert. Review the message and press Send there, separately for each person. SMS service may be required. Your phone or their phone may make sounds; DHARA cannot guarantee silence or delivery.' : `QA mode — ${SIMULATED_TEXT}. Your SMS app will not open and no alert will leave this device.`}</Text>
+        <Text testID="silent-alert-disclosure" style={styles.note}>{OUTBOUND_LIVE ? 'This opens your SMS app with the message ready — you read it and press Send yourself, one person at a time. DHARA never sends anything by itself, and delivery is not confirmed. SMS service may be required, and either phone may make a sound; DHARA cannot guarantee silence.' : `QA mode — ${SIMULATED_TEXT}. Your SMS app will not open and no alert will leave this device.`}</Text>
         <Text testID="silent-alert-message" selectable style={styles.message}>{body}</Text>
         <Pressable testID="alert-add-location" style={styles.button} disabled={busy} onPress={addLocation}>{busy ? <ActivityIndicator color={c.onBrandPrimary} /> : <Text style={styles.buttonText}>{location ? 'Update location (optional)' : 'Add my location (optional)'}</Text>}</Pressable>
         {(!!location || busy) && <Pressable testID="alert-remove-location" style={styles.secondary} onPress={() => { request.current++; setBusy(false); setLocation(''); }}><Text style={styles.label}>{busy ? 'Continue without location' : 'Remove location'}</Text></Pressable>}
@@ -122,8 +125,26 @@ export default function SilentAlert() {
           </View>
         )}
 
-        {contacts.length === 0 && <Text testID="alert-no-contacts" style={styles.note}>No trusted contacts saved. Add a person below, or copy this message to send yourself.</Text>}
-        {contacts.length > 0 && notifyContacts.length === 0 && <Text testID="alert-no-notify-contacts" style={styles.note}>All your contacts are set to &quot;Call only&quot;. Open Manage circle and tap the bell to enable one for Silent alert.</Text>}
+        {contacts.length === 0 && (
+          <View style={styles.emptyCard} testID="alert-no-contacts">
+            <Text style={styles.note}>No trusted contacts saved yet. Add someone in your trusted circle, or copy this message and send it yourself.</Text>
+            <Pressable testID="alert-empty-manage-circle" style={styles.button} onPress={() => router.push('/women/trusted-circle')}>
+              <Text style={styles.buttonText}>Manage circle</Text>
+            </Pressable>
+          </View>
+        )}
+        {contacts.length > 0 && notifyContacts.length === 0 && (
+          <View style={styles.emptyCard} testID="alert-no-notify-contacts">
+            <Text style={styles.note}>
+              {notifyWithoutPhone > 0
+                ? 'Your contacts for Silent alert have no phone number saved. Add a number in your trusted circle so a message can be prepared.'
+                : 'All your contacts are set to "Call only". Open your trusted circle and tap the bell to enable one for Silent alert.'}
+            </Text>
+            <Pressable testID="alert-empty-manage-circle" style={styles.button} onPress={() => router.push('/women/trusted-circle')}>
+              <Text style={styles.buttonText}>Manage circle</Text>
+            </Pressable>
+          </View>
+        )}
         {notifyContacts.map(contact => (
           <Pressable key={contact.id} testID={`alert-contact-${contact.id}`} style={styles.secondary} onPress={() => handlePrepareAlert(contact.phone)}>
             <View style={styles.contactRow}>
@@ -156,6 +177,7 @@ const styles = StyleSheet.create({
   button:  { padding: 16, minHeight: 52, borderRadius: 14, backgroundColor: c.navy, alignItems: 'center' },
   buttonText: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.onBrandPrimary },
   secondary:  { padding: 16, minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: c.lines, backgroundColor: c.surface },
+  emptyCard:  { gap: 14 },
   label:      { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.navy },
   // Toggle card
   toggleCard:    { borderRadius: 16, borderWidth: 1, borderColor: c.lines, backgroundColor: c.surface, overflow: 'hidden' },

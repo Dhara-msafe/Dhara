@@ -131,7 +131,7 @@ export function useJourneyGPS(
   useEffect(() => {
     if (!enabled || !journeyToken) {
       // Stop tracking if not needed
-      subRef.current?.remove();
+      try { subRef.current?.remove(); } catch { /* expo-location web can throw here */ }
       subRef.current = null;
       setState(INITIAL);
       return;

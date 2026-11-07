@@ -35,14 +35,14 @@ export async function composeAlert(phone: string, message: string): Promise<stri
     // 'blocked' / 'simulated' — the guard already told the user why; never fall
     // back to a bare sms: link, which would bypass that decision.
     if (result === 'blocked' || result === 'simulated') {
-      return 'No message was prepared. Messaging is restricted in this build, so nothing left this device.';
+      return 'No message was prepared — see the notice shown just now for the reason. Nothing left this device.';
     }
   } catch { /* fall through to sms: link below */ }
   const separator = Platform.OS === 'ios' ? '&' : '?';
   try {
     const opened = await openExternal(`sms:${clean}${separator}body=${encodeURIComponent(message)}`);
     if (opened !== 'opened') {
-      return 'No message was prepared. Messaging is restricted in this build, so nothing left this device.';
+      return 'No message was prepared — see the notice shown just now for the reason. Nothing left this device.';
     }
     return 'Message prepared. Review it and press Send in your messaging app. Delivery is not confirmed; no automatic alert was sent.';
   } catch {

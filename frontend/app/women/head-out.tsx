@@ -253,7 +253,7 @@ export default function HeadOut() {
   }, []); // mount-only; dynamic values accessed via refs
 
   const prepareAlertSMS = useCallback(async () => {
-    const notifyContacts = circle.filter(ct => ct.notify !== false);
+    const notifyContacts = circle.filter(ct => ct.notify !== false && !!ct.phone?.trim());
     let body = `I was heading to ${session?.destination ?? 'a location'} and my check-in timer has expired. Please check on me.`;
 
     // F3: append Plus Code only for GPS or server-sourced location.
