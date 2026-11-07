@@ -19,6 +19,7 @@ import asyncio
 import requests
 import pytest
 import motor.motor_asyncio
+from datetime import datetime, timezone
 
 BASE_URL = os.environ.get('EXPO_BACKEND_URL').rstrip('/')
 MONGO_URL = "mongodb://localhost:27017"
@@ -71,7 +72,12 @@ async def _insert_synthetic_alert(link_id, recipient_user_id, owner_id):
         "recipient_user_id": recipient_user_id, "link_id": link_id, "journey_token": "qa-synthetic-token",
         "payload": {"destination": "QA Dest", "journey_status": "in_progress", "last_location": dict(SYNTHETIC_LOCATION)},
         "state": "QUEUED", "idempotency_key": f"qa-hotfix-{alert_id}",
-        "created_at": "2026-06-01T09:00:00Z", "read_at": None, "acknowledged_at": None,
+        # Insert with the CURRENT time, not a fixed past date: /api/alerts
+        # returns only the newest 200 rows, so a back-dated synthetic alert
+        # silently falls off the list as QA alerts accumulate and the test
+        # then fails with "synthetic alert not found".
+        "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "read_at": None, "acknowledged_at": None,
     })
     client.close()
     return alert_id, db_name

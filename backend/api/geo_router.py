@@ -101,7 +101,10 @@ class GeoDetails(BaseModel):
 class GeoProvider(Protocol):
     name: str
 
-    async def autocomplete(self, query: str, session_token: str, limit: int) -> List[GeoSuggestion]: ...
+    async def autocomplete(
+        self, query: str, session_token: str, limit: int,
+        bias: Optional[tuple[float, float]] = None,
+    ) -> List[GeoSuggestion]: ...
 
     async def details(self, place_id: str, session_token: str) -> Optional[GeoDetails]: ...
 
@@ -113,7 +116,10 @@ class GooglePlacesProvider:
     def __init__(self, server_key: str):
         self._key = server_key
 
-    async def autocomplete(self, query: str, session_token: str, limit: int) -> List[GeoSuggestion]:
+    async def autocomplete(
+        self, query: str, session_token: str, limit: int,
+        bias: Optional[tuple[float, float]] = None,
+    ) -> List[GeoSuggestion]:
         headers = {
             "Content-Type": "application/json",
             "X-Goog-Api-Key": self._key,
@@ -127,6 +133,15 @@ class GooglePlacesProvider:
             "regionCode": "IN",
             "languageCode": "en",
         }
+        if bias:
+            # Soft bias only, and only when the caller already has the user's
+            # permission to know where they are.
+            payload["locationBias"] = {
+                "circle": {
+                    "center": {"latitude": bias[0], "longitude": bias[1]},
+                    "radius": 20000.0,
+                }
+            }
         async with httpx.AsyncClient(timeout=6.0) as client:
             resp = await client.post(PLACES_AUTOCOMPLETE_URL, headers=headers, json=payload)
         resp.raise_for_status()
@@ -195,9 +210,12 @@ class NominatimFallbackProvider:
         except Exception:
             return None
 
-    async def autocomplete(self, query: str, session_token: str, limit: int) -> List[GeoSuggestion]:
+    async def autocomplete(
+        self, query: str, session_token: str, limit: int,
+        bias: Optional[tuple[float, float]] = None,
+    ) -> List[GeoSuggestion]:
         global _fallback_last_request
-        key = f"{query.strip().lower()}|{limit}"
+        key = f"{query.strip().lower()}|{limit}|{round(bias[0], 2) if bias else ''},{round(bias[1], 2) if bias else ''}"
         now = time.monotonic()
         cached = _fallback_cache.get(key)
         if cached and (now - cached[0]) < _FALLBACK_CACHE_TTL_S:
@@ -207,16 +225,26 @@ class NominatimFallbackProvider:
                 wait = _FALLBACK_MIN_INTERVAL_S - (time.monotonic() - _fallback_last_request)
                 if wait > 0:
                     await asyncio.sleep(wait)
+                params = {"q": query.strip(), "format": "jsonv2", "addressdetails": 1, "limit": limit}
+                if bias:
+                    lat, lon = bias
+                    # Preference box (~±0.35°), never a hard bound.
+                    params["viewbox"] = f"{lon - 0.35},{lat + 0.35},{lon + 0.35},{lat - 0.35}"
+                    params["bounded"] = 0
                 async with httpx.AsyncClient(timeout=6.0) as client:
                     resp = await client.get(
                         _NOMINATIM_SEARCH_URL,
-                        params={"q": query.strip(), "format": "jsonv2", "addressdetails": 1, "limit": limit},
+                        params=params,
                         headers={"User-Agent": _NOMINATIM_USER_AGENT, "Accept-Language": "en"},
                     )
                 _fallback_last_request = time.monotonic()
                 resp.raise_for_status()
                 raw = resp.json()
             _fallback_cache[key] = (now, raw)
+            if len(_fallback_cache) > 200:
+                # Keep the cache bounded — drop the oldest entries.
+                for stale_key in sorted(_fallback_cache, key=lambda k: _fallback_cache[k][0])[:100]:
+                    _fallback_cache.pop(stale_key, None)
 
         out: List[GeoSuggestion] = []
         for item in raw[:limit]:
@@ -255,17 +283,28 @@ async def geo_autocomplete(
     input: str = Query(..., min_length=2, max_length=120, alias="input"),
     session_token: str = Query(..., min_length=8, max_length=64),
     limit: int = Query(6, ge=1, le=8),
+    lat: Optional[float] = Query(None, ge=-90, le=90),
+    lng: Optional[float] = Query(None, ge=-180, le=180),
 ):
-    provider = _active_provider()
-    if provider is None:
-        # Feature off (or key missing) — fail closed. Frontend falls back to
-        # the existing manual Search-button + /api/geocode/search flow.
-        raise HTTPException(503, "Places autocomplete is not enabled")
     if not _SESSION_TOKEN_RE.match(session_token):
         raise HTTPException(400, "Invalid session token")
+    # Soft bias, only sent by a client that already has location permission.
+    bias = (lat, lng) if lat is not None and lng is not None else None
+
+    provider = _active_provider()
+    if provider is None:
+        # Google not configured — serve free OSM suggestions instead of failing,
+        # so typing still suggests places. Same response shape.
+        try:
+            fallback = NominatimFallbackProvider()
+            suggestions = await fallback.autocomplete(input.strip(), session_token, limit, bias)
+            return {"suggestions": [s.model_dump() for s in suggestions], "provider": fallback.name}
+        except Exception as e:
+            logger.warning("geo_autocomplete: OSM-only lookup failed: %s", e)
+            raise HTTPException(502, "Address search is temporarily unavailable. Try again shortly.")
 
     try:
-        suggestions = await provider.autocomplete(input.strip(), session_token, limit)
+        suggestions = await provider.autocomplete(input.strip(), session_token, limit, bias)
         return {"suggestions": [s.model_dump() for s in suggestions], "provider": provider.name}
     except HTTPException:
         raise
@@ -273,7 +312,7 @@ async def geo_autocomplete(
         logger.warning("geo_autocomplete: %s provider failed (%s), trying OSM fallback", provider.name, e)
         try:
             fallback = NominatimFallbackProvider()
-            suggestions = await fallback.autocomplete(input.strip(), session_token, limit)
+            suggestions = await fallback.autocomplete(input.strip(), session_token, limit, bias)
             return {"suggestions": [s.model_dump() for s in suggestions], "provider": fallback.name}
         except Exception as e2:
             logger.warning("geo_autocomplete: OSM fallback also failed: %s", e2)

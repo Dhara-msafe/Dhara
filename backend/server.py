@@ -185,6 +185,42 @@ async def _validation_error_handler(request: Request, exc: RequestValidationErro
     )
 
 
+def _record_error_event(request: Request, exc: Exception) -> None:
+    """Persist a privacy-safe record of an unhandled server error.
+
+    Fire-and-forget: scheduled as a task so it never delays the response, and
+    fully wrapped so a database problem can never turn into a second failure.
+
+    PRIVACY — the record holds the route, method, error type, status code, a
+    trimmed traceback and a timestamp. Never the request body, headers, tokens,
+    query string, coordinates, message contents, phone numbers or e-mails.
+    """
+    import asyncio as _asyncio
+    import traceback as _tb
+    from datetime import datetime as _dt, timezone as _tz
+
+    try:
+        tb = "".join(_tb.format_exception(type(exc), exc, exc.__traceback__))[-4000:]
+        doc = {
+            "route": request.url.path,          # path only — query string dropped
+            "method": request.method,
+            "error_type": type(exc).__name__,
+            "traceback": tb,
+            "status_code": 500,
+            "created_at": _dt.now(_tz.utc),
+        }
+
+        async def _save():
+            try:
+                await db.error_events.insert_one(doc)
+            except Exception:
+                pass  # never let error logging raise
+
+        _asyncio.get_running_loop().create_task(_save())
+    except Exception:
+        pass
+
+
 @app.exception_handler(Exception)
 async def _unhandled_exception_handler(request: Request, exc: Exception):
     """Catch-all: guarantees JSON even when an unhandled exception escapes
@@ -197,6 +233,7 @@ async def _unhandled_exception_handler(request: Request, exc: Exception):
     _log.getLogger("gandhikar").exception(
         "Unhandled exception on %s: %s", request.url.path, exc
     )
+    _record_error_event(request, exc)
     return JSONResponse(
         status_code=500,
         content={"detail": "An unexpected error occurred. Please try again."},
@@ -220,6 +257,7 @@ from api.journeys_router import router as journeys_router
 from api.women_router    import router as women_router
 from api.evidence_vault_router import router as evidence_vault_router, cleanup_stale_upload_sessions
 from api.scan_router     import router as scan_router
+from api.issues_router   import router as issues_router, ensure_indexes as _ensure_issue_indexes
 from api.safety_router   import router as safety_router   # GO1A — saved places
 from api.geocode_router  import router as geocode_router   # GO1A — address search proxy
 from api.geo_router      import router as geo_router        # Google Places (New) autocomplete pilot
@@ -240,6 +278,7 @@ api.include_router(geo_router)      # Google Places (New) autocomplete pilot (fl
 api.include_router(journey_router)  # S3 Phase 2 — guardian status
 api.include_router(evidence_vault_router)
 api.include_router(scan_router)
+api.include_router(issues_router)   # In-app issue reporter (testers + users)
 api.include_router(profile_router)
 api.include_router(trusted_circle_router)
 api.include_router(alerts_router)
@@ -1895,6 +1934,21 @@ async def _startup():
 
     # Fire-and-forget: sweep any abandoned Evidence Vault upload temp dirs
     asyncio.create_task(cleanup_stale_upload_sessions())
+
+    # In-app issue reporter indexes + a 90-day TTL on automatic error events
+    # (they hold no personal data, and nobody needs a year-old traceback).
+    asyncio.create_task(_ensure_issue_indexes())
+
+    async def _ensure_error_event_ttl():
+        try:
+            await db.error_events.create_index(
+                "created_at", expireAfterSeconds=90 * 24 * 3600,
+                name="error_events_ttl",
+            )
+        except Exception as e:
+            logger.warning(f"[startup] error_events TTL index warning: {e}")
+
+    asyncio.create_task(_ensure_error_event_ttl())
 
     # Fire-and-forget background task, NOT awaited: the corpus migration
     # (see corpus_migration.py) starts automatically the instant this

@@ -12,9 +12,12 @@
  * - Radius selection is for planning only.
  * - No live GPS observations are made by this component.
  * - No geofence monitoring is active.
- * - Address search only runs on an explicit tap of the Search button (or the
- *   keyboard's search key) — never automatically while typing, and never
- *   reads device location. Independent of any GPS/tracking flag.
+ * - Address suggestions appear as you type (debounced) and also on an
+ *   explicit tap of the Search button / the keyboard's search key.
+ * - The live-position dot is DISPLAY ONLY: with the user's permission the
+ *   current position is drawn on this map on this device and used to bias
+ *   suggestions. It is never uploaded, stored or tracked in the background,
+ *   and it is independent of the journey GPS / guardian-share flags.
  *
  * Props:
  *   value         Current destination state
@@ -31,6 +34,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
 import { theme } from '@/src/theme';
 import { DestinationMapPicker } from './DestinationMapPicker';
+import { useLivePosition } from './useLivePosition';
 
 // Google Places (New) debounced autocomplete pilot — default OFF. When off,
 // this component behaves exactly as before (manual Search button + OSM
@@ -38,11 +42,16 @@ import { DestinationMapPicker } from './DestinationMapPicker';
 const PLACES_AUTOCOMPLETE_ENABLED = process.env.EXPO_PUBLIC_PLACES_AUTOCOMPLETE_V1 === 'true';
 const PLACES_DEBOUNCE_MS = 300;
 
+/** True only when both coordinates are real numbers. */
+function isFinitePair(lat?: number | null, lng?: number | null): boolean {
+  return typeof lat === 'number' && Number.isFinite(lat) && typeof lng === 'number' && Number.isFinite(lng);
+}
+
 // Mandatory limitation disclosure wording — kept accurate to whichever
 // search path is actually active, never claiming device-location reads.
 const ADDRESS_SOURCE_DISCLOSURE = PLACES_AUTOCOMPLETE_ENABLED
-  ? 'Address suggestions appear as you type (Google Places, with a free OpenStreetMap backup) or when you tap Search — never from your device location.'
-  : 'Address suggestions come from OpenStreetMap search and only run when you tap Search — never from your device location.';
+  ? 'Address suggestions appear as you type (Google Places, with a free OpenStreetMap backup) or when you tap Search. Your live position is only shown on this map, on this device — it is never uploaded or tracked in the background.'
+  : 'Address suggestions come from OpenStreetMap search and only run when you tap Search. Your live position is only shown on this map, on this device — it is never uploaded or tracked in the background.';
 
 const c = theme.colors;
 
@@ -54,8 +63,8 @@ export interface DestinationValue {
   savedPlaceId?: string;
   /**
    * Set by: an address-search selection, dragging/tapping the map pin, or
-   * selecting a saved place that already has coordinates. Never populated
-   * from device GPS — this component never reads live location.
+   * selecting a saved place that already has coordinates. Device position is
+   * only ever copied in here when the user taps "Use my location".
    */
   latitude?: number | null;
   longitude?: number | null;
@@ -128,9 +137,13 @@ async function fetchAddressSuggestions(base: string, query: string): Promise<Add
 // ── Places (New) debounced autocomplete pilot — behind EXPO_PUBLIC_PLACES_AUTOCOMPLETE_V1.
 // Both calls THROW on any non-2xx/network error so callers can fail closed
 // (hide the dropdown, leave the manual Search button fully functional).
-async function fetchPlacesAutocomplete(base: string, input: string, sessionToken: string): Promise<PlacesSuggestion[]> {
+async function fetchPlacesAutocomplete(
+  base: string, input: string, sessionToken: string,
+  bias?: { latitude: number; longitude: number } | null,
+): Promise<PlacesSuggestion[]> {
   const r = await fetch(
     `${base}/api/geo/autocomplete?input=${encodeURIComponent(input)}&session_token=${encodeURIComponent(sessionToken)}&limit=6`
+    + (bias ? `&lat=${bias.latitude.toFixed(5)}&lng=${bias.longitude.toFixed(5)}` : '')
   );
   if (!r.ok) throw new Error(`places_autocomplete_${r.status}`);
   const j = await r.json();
@@ -430,6 +443,42 @@ function InfoModal({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+/** Plain-language reason shown BEFORE the OS/browser location prompt. */
+function LocationIntroModal({
+  visible, onAllow, onNotNow,
+}: { visible: boolean; onAllow: () => void; onNotNow: () => void }) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onNotNow}>
+      <View style={mStyles.overlay}>
+        <View style={mStyles.box} testID="dp-location-intro">
+          <Text style={mStyles.title}>Show your position on the map?</Text>
+          <Text style={mStyles.hint}>
+            DHARA will draw a dot where you are, so you can see your starting point and pick a destination
+            near you. It stays on this phone — nothing is uploaded, no one is told, and there is no
+            background tracking. You can carry on without it.
+          </Text>
+          <Pressable
+            style={[mStyles.btn, mStyles.btnSave]}
+            onPress={onAllow}
+            accessibilityRole="button"
+            testID="dp-location-allow"
+          >
+            <Text style={mStyles.btnSaveTxt}>Show my position</Text>
+          </Pressable>
+          <Pressable
+            style={[mStyles.btn, mStyles.btnCancel]}
+            onPress={onNotNow}
+            accessibilityRole="button"
+            testID="dp-location-not-now"
+          >
+            <Text style={mStyles.btnCancelTxt}>Not now</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export function DestinationPicker({ value, onChange, authToken, testID, apiBase, gpsForegroundEnabled }: Props) {
   const base = apiBase ?? process.env.EXPO_PUBLIC_BACKEND_URL ?? '';
 
@@ -487,6 +536,28 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
   const [placesSuggestions, setPlacesSuggestions] = useState<PlacesSuggestion[]>([]);
   const [showPlacesDropdown, setShowPlacesDropdown] = useState(false);
   const [placesLoading, setPlacesLoading] = useState(false);
+  const [placesEmpty, setPlacesEmpty] = useState(false);
+
+  // ── Live position (display only, foreground only) ──────────────────────
+  const live = useLivePosition();
+  const [askLocation, setAskLocation] = useState(false);
+  const [followUserKey, setFollowUserKey] = useState(0);
+  const livePointRef = useRef(live.point);
+  useEffect(() => { livePointRef.current = live.point; });
+
+  // If the user already allowed location earlier, start showing the dot
+  // straight away — no prompt, nothing uploaded.
+  useEffect(() => { void live.resumeIfAlreadyGranted(); }, [live.resumeIfAlreadyGranted]);
+
+  // Centre on the user the first time a fix arrives, unless a pin is already set.
+  const centredOnUserRef = useRef(false);
+  useEffect(() => {
+    if (centredOnUserRef.current || !live.point) return;
+    centredOnUserRef.current = true;
+    if (!isFinitePair(valueRef.current.latitude, valueRef.current.longitude)) {
+      setFollowUserKey(k => k + 1);
+    }
+  }, [live.point]);
   const placesSessionTokenRef = useRef<string | null>(null);
   const placesDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const placesReqRef = useRef(0);
@@ -507,6 +578,16 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
     // Read label from ref so the search always uses the current text even if
     // the callback was created before the most recent label keystroke landed.
     const trimmed = valueRef.current.label.trim();
+    // Pressing Enter blurs the field on web; the blur handler would hide the
+    // results the moment they arrive, so skip that hide exactly once.
+    suppressBlurHideRef.current = true;
+    // Drop any in-flight typeahead so a late response cannot pop the old
+    // dropdown back over these results.
+    if (placesDebounceRef.current) clearTimeout(placesDebounceRef.current);
+    placesReqRef.current++;
+    setPlacesSuggestions([]);
+    setPlacesEmpty(false);
+    setPlacesLoading(false);
     setShowSuggestions(true);
     setShowPlacesDropdown(false);
     if (trimmed.length < SEARCH_MIN_CHARS) {
@@ -545,10 +626,18 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
 
     const trimmed = text.trim();
     if (trimmed.length < SEARCH_MIN_CHARS) {
+      placesReqRef.current++;          // discard any in-flight lookup
       setPlacesSuggestions([]);
+      setPlacesEmpty(false);
+      setPlacesLoading(false);
       setShowPlacesDropdown(false);
       return;
     }
+    // Show the dropdown immediately with a small spinner, so slow networks
+    // never look like a dead search box.
+    setPlacesLoading(true);
+    setPlacesEmpty(false);
+    setShowPlacesDropdown(true);
 
     placesDebounceRef.current = setTimeout(async () => {
       if (!placesSessionTokenRef.current) {
@@ -558,15 +647,18 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
       const reqId = ++placesReqRef.current;
       setPlacesLoading(true);
       try {
-        const results = await fetchPlacesAutocomplete(base, trimmed, token);
+        // Bias only when the user has already allowed location.
+        const results = await fetchPlacesAutocomplete(base, trimmed, token, livePointRef.current);
         if (placesReqRef.current !== reqId) return; // superseded by newer keystroke
         setPlacesSuggestions(results);
-        setShowPlacesDropdown(results.length > 0);
+        setPlacesEmpty(results.length === 0);
+        setShowPlacesDropdown(true);
       } catch {
         if (placesReqRef.current !== reqId) return;
-        // Fail closed: no dropdown — manual Search button above is unaffected.
+        // Nothing usable came back — say so plainly, never a raw error.
         setPlacesSuggestions([]);
-        setShowPlacesDropdown(false);
+        setPlacesEmpty(true);
+        setShowPlacesDropdown(true);
       } finally {
         if (placesReqRef.current === reqId) setPlacesLoading(false);
       }
@@ -596,6 +688,7 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
     } finally {
       setPlacesLoading(false);
       setPlacesSuggestions([]);
+      setPlacesEmpty(false);
       placesSessionTokenRef.current = null; // session concluded — fresh token next search
     }
   }, [base, onChange]);
@@ -731,6 +824,7 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
             setShowPlacesDropdown(false);
           }, 150); }}
           onSubmitEditing={submitSearch}
+          submitBehavior="submit"
           placeholder="Search an address, or type a label (e.g. bus stop)…"
           placeholderTextColor={c.muted}
           style={[styles.input, { flex: 1 }]}
@@ -739,9 +833,32 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
           accessibilityLabel="Destination address or name"
           accessibilityHint="Type an address or label, then tap Search to look it up"
         />
-        {/* Batch 2: manual address search still only runs on this explicit tap
-            (or the keyboard's Search key). The Places debounced dropdown
-            below is purely additive and never disables this button. */}
+        {value.label.length > 0 && (
+          <Pressable
+            onPress={() => {
+              handleLabelChange('');
+              if (placesDebounceRef.current) clearTimeout(placesDebounceRef.current);
+              placesReqRef.current++;      // discard any in-flight lookup
+              searchReqRef.current++;
+              setPlacesSuggestions([]);
+              setPlacesEmpty(false);
+              setPlacesLoading(false);
+              setShowPlacesDropdown(false);
+              setSuggestions([]);
+              setShowSuggestions(false);
+              setSearching(false);
+            }}
+            onPressIn={() => { suppressBlurHideRef.current = true; }}
+            style={styles.searchBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Clear the destination field"
+            testID="dp-clear-input"
+          >
+            <Ionicons name="close" size={18} color={c.muted} />
+          </Pressable>
+        )}
+        {/* The manual search still runs on this explicit tap (or the keyboard's
+            Search key); the debounced dropdown below never disables it. */}
         <Pressable
           onPress={submitSearch}
           onPressIn={() => { suppressBlurHideRef.current = true; }}
@@ -801,8 +918,19 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
           Purely additive: appears only while PLACES_AUTOCOMPLETE_ENABLED and a
           debounced lookup has suggestions. Never shown together with the
           manual-search box above (typing always clears that one first). */}
-      {PLACES_AUTOCOMPLETE_ENABLED && showPlacesDropdown && placesSuggestions.length > 0 && (
+      {PLACES_AUTOCOMPLETE_ENABLED && showPlacesDropdown && (
         <View style={styles.suggestionsBox} testID="dp-places-suggestions">
+          {placesLoading && placesSuggestions.length === 0 && (
+            <View style={styles.suggestionRow} testID="dp-places-loading">
+              <ActivityIndicator size="small" color={c.muted} />
+              <Text style={styles.suggestionTxt}>Looking for places…</Text>
+            </View>
+          )}
+          {!placesLoading && placesEmpty && placesSuggestions.length === 0 && (
+            <Text style={styles.suggestionEmptyTxt} testID="dp-places-empty">
+              No places found. Try a different spelling, or type your own label.
+            </Text>
+          )}
           {placesSuggestions.map((s, i) => (
             <Pressable
               key={`${s.place_id}-${i}`}
@@ -825,7 +953,43 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
         </View>
       )}
 
-      {/* ── Map pin (GO1A pilot — web: OSM/Leaflet; native: placeholder) ── */}
+      {/* ── Live position controls (display only, foreground only) ──────── */}
+      <View style={styles.liveRow}>
+        <Pressable
+          style={styles.liveBtn}
+          onPress={() => {
+            if (live.status === 'granted' && live.point) { setFollowUserKey(k => k + 1); return; }
+            if (live.status === 'blocked') { live.openSettings(); return; }
+            setAskLocation(true);   // explain first, then ask
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Show my current position on this map"
+          testID="dp-use-my-location"
+        >
+          {live.status === 'asking'
+            ? <ActivityIndicator size="small" color={c.navy} />
+            : <Ionicons name="locate" size={16} color={c.navy} />}
+          <Text style={styles.liveBtnTxt}>
+            {live.status === 'granted' ? 'Recenter on me' : 'Use my location'}
+          </Text>
+        </Pressable>
+      </View>
+      {live.status === 'granted' && (
+        <Text style={styles.liveNote} testID="dp-live-note">
+          Your live position is shown on this map only. Nothing is uploaded or tracked.
+        </Text>
+      )}
+      {(live.status === 'denied' || live.status === 'blocked' || live.status === 'unavailable') && (
+        <Text style={styles.liveNote} testID="dp-live-note">
+          {live.status === 'unavailable'
+            ? 'Location is unavailable on this device. Search for a place or drag the pin instead.'
+            : live.status === 'blocked'
+              ? 'Location is switched off for DHARA. You can turn it on in Settings, or just search or drag the pin.'
+              : 'No problem — search for a place or drag the pin instead.'}
+        </Text>
+      )}
+
+      {/* ── Map pin + live position dot ─────────────────────────────────── */}
       <DestinationMapPicker
         testID="dp-map-picker"
         latitude={value.latitude ?? null}
@@ -833,6 +997,8 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
         radiusMeters={value.radiusMeters}
         onPositionChange={movePin}
         recenterKey={mapRecenterKey}
+        userLocation={live.point}
+        followUserKey={followUserKey}
       />
 
       {/* ── Saved places quick-select ─────────────────────────────────── */}
@@ -958,6 +1124,12 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
         onSave={handleEdit}
         onCancel={() => setEditTarget(null)}
       />
+      {/* Plain-language reason shown BEFORE the OS/browser location prompt. */}
+      <LocationIntroModal
+        visible={askLocation}
+        onAllow={() => { setAskLocation(false); void live.request(); }}
+        onNotNow={() => setAskLocation(false)}
+      />
     </View>
   );
 }
@@ -966,11 +1138,14 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
 
 const styles = StyleSheet.create({
   fieldLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.ink, marginBottom: 8, marginTop: 4 },
-  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' },
   input: {
     backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines,
     borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13,
     fontFamily: theme.fonts.body, fontSize: 15, color: c.ink,
+    // flex:1 alone can overflow on web (intrinsic min-content width), which
+    // pushed the bookmark button off a 375px screen.
+    minWidth: 0, flexShrink: 1,
   },
   saveChip: {
     width: 44, height: 44, borderRadius: 12, backgroundColor: c.navySoft,
@@ -985,7 +1160,16 @@ const styles = StyleSheet.create({
   suggestionsBox: {
     borderWidth: 1, borderColor: c.lines, borderRadius: 12, backgroundColor: c.surface,
     marginTop: -6, marginBottom: 12, overflow: 'hidden',
+    // Keep the dropdown above the map on web and native.
+    zIndex: 20, elevation: 6,
   },
+  liveRow: { flexDirection: 'row', marginBottom: 8 },
+  liveBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingHorizontal: 14,
+    borderRadius: 999, borderWidth: 1, borderColor: c.navy, backgroundColor: c.surface,
+  },
+  liveBtnTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy },
+  liveNote: { fontFamily: theme.fonts.body, fontSize: 11, color: c.muted, lineHeight: 16, marginBottom: 8 },
   suggestionRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.lines,

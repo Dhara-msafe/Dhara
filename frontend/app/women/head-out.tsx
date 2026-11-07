@@ -253,7 +253,7 @@ export default function HeadOut() {
   }, []); // mount-only; dynamic values accessed via refs
 
   const prepareAlertSMS = useCallback(async () => {
-    const notifyContacts = circle.filter(ct => ct.notify !== false);
+    const notifyContacts = circle.filter(ct => ct.notify !== false && !!ct.phone?.trim());
     let body = `I was heading to ${session?.destination ?? 'a location'} and my check-in timer has expired. Please check on me.`;
 
     // F3: append Plus Code only for GPS or server-sourced location.
@@ -286,9 +286,7 @@ export default function HeadOut() {
     }
     if (notifyContacts.length > 0) {
       const phones = notifyContacts.map(ct => ct.phone).join(',');
-      openExternal(`sms:${phones}?body=${encodeURIComponent(body)}`).catch(() =>
-        openExternal(`sms:&body=${encodeURIComponent(body)}`).catch(() => {}),
-      );
+      openExternal(`sms:${phones}?body=${encodeURIComponent(body)}`).catch(() => {});
     } else {
       openExternal(`sms:&body=${encodeURIComponent(body)}`).catch(() => {});
     }
@@ -433,6 +431,9 @@ export default function HeadOut() {
                       startTime: String(session.startTime),
                       durationMins: String(session.durationMins),
                       journeyToken: journeyToken ?? '',
+                      // Truthfulness: only claim live tracking when GPS is
+                      // actually running (flag on + user consented + session).
+                      gpsLive: GO1B_GPS_ENABLED && locationConsentGiven && gps.granted ? '1' : '0',
                     },
                   })}
                   accessibilityRole="button"
@@ -624,7 +625,7 @@ const styles = StyleSheet.create({
   buttonText: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: '#fff' },
   safeButton: { backgroundColor: c.verifiedGreen },
   alertButton: { backgroundColor: c.emergencyRed },
-  guardianBtn: { backgroundColor: c.navySoft, borderWidth: 1.5, borderColor: c.navy },
+  guardianBtn: { backgroundColor: c.navySoft, borderWidth: 1.5, borderColor: c.navy, paddingHorizontal: 18 },
   warningCard: {
     backgroundColor: c.goldMuted, borderRadius: 14, borderWidth: 1,
     borderColor: c.goldSoft, padding: 16, gap: 10,
@@ -666,7 +667,7 @@ const styles = StyleSheet.create({
   gpsRationaleCard: { flexDirection: 'row', gap: 10, backgroundColor: '#EFF6FF', borderRadius: 10, padding: 12, marginTop: 10, alignItems: 'flex-start' },
   gpsRationaleTitle: { fontFamily: theme.fonts.body, fontSize: 13, fontWeight: '600', color: '#1E3A8A', marginBottom: 3 },
   gpsRationaleBody: { fontFamily: theme.fonts.body, fontSize: 12, color: '#1D4ED8', lineHeight: 17 },
-  gpsAllowBtn: { marginTop: 8, backgroundColor: '#1D4ED8', borderRadius: 8, paddingVertical: 7, paddingHorizontal: 14, alignSelf: 'flex-start' },
+  gpsAllowBtn: { marginTop: 8, backgroundColor: '#1D4ED8', borderRadius: 8, minHeight: 44, justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start' },
   gpsAllowBtnText: { fontFamily: theme.fonts.body, fontSize: 12, color: '#fff', fontWeight: '600' },
   // handle_permissions_contract — permanent denial + Settings redirect
   gpsDeniedCard: { flexDirection: 'row', gap: 10, backgroundColor: '#FEF2F2', borderRadius: 10, padding: 12, marginTop: 10, alignItems: 'flex-start' },

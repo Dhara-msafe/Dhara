@@ -9,7 +9,8 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
 import { SosPill } from '../components/dhara/SosPill';
-import { PREVIEW_LABEL } from './previewCopy';
+import { PREVIEW_LABEL, SEND_LABEL } from './previewCopy';
+import { FJ_SEND_ENABLED } from './flags';
 
 const c = theme.colors;
 
@@ -48,7 +49,7 @@ export function JourneyHelpRow() {
   );
 }
 
-/** Unmissable "nothing has been sent" marker. */
+/** Unmissable "nothing has been sent" marker (Phase-1 preview screens). */
 export function PreviewBadge({ testID }: { testID?: string }) {
   return (
     <View style={styles.badge} testID={testID ?? 'fj-preview-badge'}>
@@ -58,8 +59,48 @@ export function PreviewBadge({ testID }: { testID?: string }) {
   );
 }
 
-/** Phase-1 scope notice shown at the top of the feature. */
+/** Phase-2 marker: the SMS app opens, the student presses Send. */
+export function SendBadge({ testID }: { testID?: string }) {
+  return (
+    <View style={styles.badge} testID={testID ?? 'fj-send-badge'}>
+      <Ionicons name="chatbubble-ellipses-outline" size={14} color={c.darkGold} />
+      <Text style={styles.badgeTxt}>{SEND_LABEL}</Text>
+    </View>
+  );
+}
+
+/** The badge that is truthful for the current phase. */
+export function PhaseBadge({ testID }: { testID?: string }) {
+  return FJ_SEND_ENABLED ? <SendBadge testID={testID} /> : <PreviewBadge testID={testID} />;
+}
+
+/** Marker for the read-only preview screen: with Phase 2 on, messages CAN be
+ *  sent elsewhere in the app, so the claim is narrowed to this screen only. */
+export function PreviewScreenBadge({ testID }: { testID?: string }) {
+  return (
+    <View style={styles.badge} testID={testID ?? 'fj-preview-badge'}>
+      <Ionicons name="eye-outline" size={14} color={c.darkGold} />
+      <Text style={styles.badgeTxt}>
+        {FJ_SEND_ENABLED ? 'Nothing is sent from this screen.' : PREVIEW_LABEL}
+      </Text>
+    </View>
+  );
+}
+
+/** Scope notice shown at the top of the feature. */
 export function PhaseNotice() {
+  if (FJ_SEND_ENABLED) {
+    return (
+      <View style={styles.phase} testID="fj-phase-notice">
+        <Text style={styles.phaseTitle}>You press Send — always</Text>
+        <Text style={styles.phaseBody}>
+          A contact is only ever messaged when you choose it: your own SMS app opens with the text ready
+          and you press Send, one contact at a time. DHARA never sends anything by itself, and no
+          location of any kind is shared in this version. Your plan stays on this phone.
+        </Text>
+      </View>
+    );
+  }
   return (
     <View style={styles.phase} testID="fj-phase-notice">
       <Text style={styles.phaseTitle}>Preview only in this version</Text>
@@ -74,7 +115,7 @@ export function PhaseNotice() {
 
 /** Plain confirm sheet — used because every permission needs its own explicit yes. */
 export function ConfirmSheet({
-  visible, title, body, confirmLabel, onConfirm, onCancel, testID, hideCancel,
+  visible, title, body, confirmLabel, onConfirm, onCancel, testID, hideCancel, badge = 'phase',
 }: {
   visible: boolean;
   title: string;
@@ -85,6 +126,9 @@ export function ConfirmSheet({
   testID?: string;
   /** For read-only preview sheets, where "Cancel" would just repeat "Close". */
   hideCancel?: boolean;
+  /** Which truth marker belongs on this sheet. 'none' for sheets that neither
+   *  preview nor send (e.g. discarding a draft). */
+  badge?: 'phase' | 'preview' | 'none';
 }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
@@ -93,7 +137,9 @@ export function ConfirmSheet({
           <ScrollView bounces={false}>
             <Text style={styles.sheetTitle}>{title}</Text>
             <Text style={styles.sheetBody}>{body}</Text>
-            <PreviewBadge testID="fj-confirm-preview-badge" />
+            {badge === 'none' ? null : badge === 'preview'
+              ? <PreviewBadge testID="fj-confirm-preview-badge" />
+              : <PhaseBadge testID="fj-confirm-preview-badge" />}
           </ScrollView>
           <Pressable style={styles.primaryBtn} onPress={onConfirm} testID="fj-confirm-yes">
             <Text style={styles.primaryBtnTxt}>{confirmLabel}</Text>
@@ -120,8 +166,8 @@ export function FamilyJourneyOff() {
         <View style={fjStyles.card}>
           <Text style={fjStyles.cardTitle}>Family Journey is switched off</Text>
           <Text style={fjStyles.cardSub}>
-            You turned this feature off. Nothing was shared with anyone. You can switch it back on in
-            Family Journey or in Settings → Data &amp; Privacy.
+            You turned this feature off. No new message will be prepared for anyone. You can switch it
+            back on in Family Journey or in Settings → Data &amp; Privacy.
           </Text>
           <Pressable style={fjStyles.primary} onPress={() => router.replace('/family-journey')} testID="fj-off-hub">
             <Text style={fjStyles.primaryTxt}>Open Family Journey</Text>

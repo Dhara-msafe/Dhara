@@ -1,5 +1,222 @@
 # Dhara (formerly Gandhikar) — PRD
 
+## ⚠️ PRE-FINAL-RELEASE CHECKLIST
+
+- [ ] **Turn the in-app issue reporter OFF.** The app is testers-only until the
+      final release, so the floating "Report a problem" button is ON in every
+      current build. Before the public release set
+      `EXPO_PUBLIC_ENABLE_ISSUE_REPORTER=false` in `frontend/.env` (verified:
+      the flag set to `false` hides the button everywhere — the component
+      returns null before rendering anything), or remove
+      `<IssueReporterButton />` from `app/_layout.tsx` entirely. The backend
+      routes can stay; with the button hidden nothing in the app calls them.
+- [ ] Emergency outbound profile re-checked (`EXPO_PUBLIC_OUTBOUND_MODE`,
+      `EXPO_PUBLIC_OUTBOUND_PROFILE`).
+- [ ] Rotate `ADMIN_KEY` (still pending — the user skipped the secure card).
+
+## 7 November 2026 — In-app issue reporter + automatic server-error log (additive)
+
+Nothing in SOS, Family Journey, auth, legal chat or location behaviour was
+touched. New code only.
+
+### Backend
+- **`api/issues_router.py`** (new, mounted under `/api` in `server.py`), collection
+  `issue_reports`:
+  - `GET /api/issues/categories` — the 17 categories + the 3 statuses, so the app
+    can never submit a value the server would reject.
+  - `POST /api/issues` — signed-in users only. Category validated against the
+    exact list; title capped at 120 and description at 2000 characters; control
+    characters stripped; status starts at `New`; max **20 reports per user per
+    hour** (429 after that). Stores the reporter's user id and nothing else that
+    identifies them — no email, phone or name — plus app version/build, platform,
+    OS version, device model and the current route. The server sets its own
+    `created_at`; the device clock is kept separately as advisory only.
+  - `GET /api/issues` — admin only (`X-Admin-Key`), filters by category/status,
+    returns plain JSON that doubles as the export, with per-category counts.
+  - `PATCH /api/issues/{id}` — admin only, status → New | In progress | Resolved.
+- **Automatic error log** — `_record_error_event()` in `server.py` is called from
+  the existing catch-all handler. The generic 500 JSON response is unchanged.
+  It saves route (path only, query string dropped), method, error type, a
+  trimmed 4 KB traceback, status code and timestamp into `error_events`, as a
+  fire-and-forget task wrapped so a DB failure can never become a second
+  failure. 90-day TTL index created at startup. Never stores request bodies,
+  headers, tokens, coordinates, audio, message contents, phones or emails.
+
+### Frontend
+- **`src/components/IssueReporterButton.tsx`**, mounted once in `app/_layout.tsx`
+  so it appears on every screen (hidden on `/emergency`, and only for signed-in
+  users). Bottom-LEFT dock at `insets.bottom + 140`: the SOS pill is fixed
+  top-right and the Help FAB bottom-right, so it overlaps neither. 48×48 target,
+  `accessibilityRole`/`Label`/`Hint` on the button, every field and every
+  category option labelled for TalkBack/VoiceOver.
+- Sheet: category picker, title, description, the notice "Please don't include
+  personal details, phone numbers or exact locations.", Submit + Cancel, and an
+  explicit success/failure line.
+- Metadata attached automatically from `expo-constants` + `expo-device` +
+  `usePathname`.
+- **Offline:** a failed send is queued in AsyncStorage (`issue_reports_pending_v1`)
+  and the user is told it will be sent when the connection returns; the queue is
+  flushed on next mount and after the next successful send.
+- Flag `EXPO_PUBLIC_ENABLE_ISSUE_REPORTER` (ON unless explicitly `false`).
+
+### How to read the reports
+```
+curl -s -H "X-Admin-Key: $ADMIN_KEY" \
+  "$BACKEND/api/issues?status=New" | python3 -m json.tool
+curl -s -X PATCH -H "X-Admin-Key: $ADMIN_KEY" -H 'Content-Type: application/json' \
+  -d '{"status":"In progress"}' "$BACKEND/api/issues/<id>"
+```
+Server errors: `db.error_events` (newest first, auto-expires after 90 days).
+
+### Tests
+- `backend/tests/test_issue_reporter.py` — 15 tests: category list, anonymous
+  401, happy path, unknown category / missing fields / blank title (422),
+  oversize text capped not rejected, stored report holds no contact details,
+  admin-only on list + patch, unknown status 422 / unknown id 404, the 21st
+  report in an hour refused, and the `error_events` field-set + stripped query
+  string. All green.
+- Not in this change (per the request): React render crashes from
+  RootErrorBoundary, native crash reporting, QA Test Studio import.
+
+
+## 7 November 2026 — CI/CD test-suite repair + chat-screen split
+
+### Backend suite: 54 failed + 54 errors  →  green (same code, no env exports)
+
+Every category below was a test-infrastructure or stale-expectation problem, not
+a product failure. The suite now runs with NO shell exports at all.
+
+1. **Blank base URL (all 54 errors).** Most test modules resolve their host with
+   `os.environ.get("EXPO_PUBLIC_BACKEND_URL", <default>)`, whose default only
+   applies when the variable is MISSING — a variable that exists but is empty
+   (forked shell, CI, or `export A=url B=$A`) left the base URL as "" and every
+   request went to `"/api/..."` → `MissingSchema`. New **`tests/conftest.py`**
+   normalises both host variables once, before any test module is imported
+   (explicit env → the host in `frontend/.env` → `http://localhost:8001`).
+2. **Daily rate limits exhausted by the suite itself.** `/auth/guest` allows 15
+   guest sessions per IP per day (suite starts 13+), and the free tier allows
+   200 questions per user per day (suite sends ~250 through ONE shared QA
+   account). The second run of any day therefore failed ~45 tests with 429s.
+   The same conftest clears today's `usage_daily` counters (pure rate-limit
+   bookkeeping, no user content) before the run.
+3. **Cloudflare HTML injection.** The public Guardian page byte-identity
+   contract compared two responses fetched through the preview host, where
+   Cloudflare injects a unique per-request challenge `<script>`.
+   `tests/_guardian_contract.py` now exposes `direct_origin()` and fetches the
+   page straight from the backend when reachable; `test_p1_map_authorization_
+   boundaries.py` uses it for its two before/after comparisons.
+4. **Saved-places 10-item cap.** `test_safety_go1a.py` reuses stable accounts,
+   so places accumulated until every create returned 400. `_register_and_login`
+   now clears the account's saved places on login (green twice in a row).
+5. **Back-dated synthetic alerts.** `/api/alerts` returns only the newest 200
+   rows; the synthetic alerts were inserted with a fixed 2026-06-01 timestamp
+   and silently fell off the list. Now inserted with the current time
+   (`test_p0_hotfix_live_verification.py`, `test_dhara_shield2_final_acceptance.py`).
+6. **Unattributable global counts under xdist (2 workers).** `refusal_events`
+   carries no user/session id by design, so "+1 row" and "newest row" assertions
+   raced with the other worker — now cutoff-scoped. `test_b16` asserted "no IP
+   row exists anywhere" although that row is shared with every login from the
+   same client IP — now asserts the counter restarted instead.
+7. **Stale expectations.** Pro pricing/razorpay handle are read from env
+   (price is configuration, not behaviour: ₹99 vs the hard-coded ₹50); evidence
+   vault tests updated to the E1/E2-A2 hardened contract (server pins `scope`
+   to the owner; a missing backup returns the same enumeration-safe 404);
+   refusal SSE accepts `delta` or `final`.
+8. **Non-deterministic refusal query.** The crypto / "jaywalking in Toronto"
+   queries refuse only sometimes (the LLM query-normaliser rewrites them
+   differently per run). `REFUSAL_QUERY` now uses the deterministic
+   non-Indian-jurisdiction gate (verified: 3/3 runs logged a refusal row).
+
+### Product bugs found while repairing the suite (fixed)
+- **Brute-force counter under-counted concurrent failures** (`services/login_guard.py`).
+  The cold-start path did `$set: {failures: 1}`, so N simultaneous first
+  attempts each wrote 1 and N-1 were lost: 5 wrong passwords fired at once were
+  recorded as ONE failure and never locked the account. The window reset is now
+  claimed by exactly one caller (filter only matches while the window is stale,
+  `DuplicateKeyError` handled) and everyone else falls through to an atomic
+  `$inc`. Verified: 5 concurrent wrong passwords → failures = 5 + lock.
+- **Dead-law successor lost its section number** (`engine/law_status_guard.py`).
+  The warning showed only the act-level successor ("Bharatiya Nyaya Sanhita,
+  2023") even when the corpus record named the provision ("…, Section 199"),
+  leaving the reader without the section to look up. The provision's own
+  `successor_act` now wins.
+- **Evidence-vault kill-switch unreachable** (`api/women_router.py`).
+  `/api/evidence/*` is gated on `evidence_vault_enabled`, which was missing from
+  the admin `FlagsIn` model — the documented switch could only be flipped by
+  editing the database by hand. Added.
+
+### Deliberately NOT masked
+`test_bugs_review_jan2026` / `test_p1_grounding_fix` expected DHARA to name
+"BNS 199" as the successor of IPC 166A. Doing that requires an active
+advocate-signed correspondence approval (P0-T03 fail-closed gate) which is
+still withheld (T-02/T-03), so the hedged "cannot reliably name its successor"
+reply is correct. The tests now assert BOTH halves of that gate instead of the
+approved branch only.
+
+### Chat screen split (`app/(tabs)/index.tsx`: 3,979 → 2,674 lines)
+Behaviour untouched; pure moves into `src/chat/`:
+- `types.ts` (Citation, Msg) · `messageUtils.ts` (stripStreamMarkdown,
+  nextStepFor, detectFirIntent, splitVerdict, generateId, isIpcCitation,
+  looksLikeDanger) · `suggestions.ts` (language-aware chips + TOPIC_SUGGESTIONS)
+  · `EmergencyBanners.tsx` (SOS banner + quota-independent 112/181 shortcut)
+  · `chatStyles.ts` (the 960-line StyleSheet).
+- Deleted the dead `BASIC_SUGGESTIONS` / `PRO_SUGGESTIONS` constants (unused
+  since the i18n chips landed). Lint + `tsc` clean; no new warnings.
+
+
+## 7 November 2026 — DHARA Family Journey Phase 2: real delivery (student presses Send)
+
+Phase 1 was a pure local preview. Phase 2 adds REAL delivery, with one hard rule: DHARA
+never sends anything by itself. The student's own SMS app is opened with the text ready,
+for ONE contact per tap, and the student presses Send.
+
+### Flag
+- `EXPO_PUBLIC_FAMILY_JOURNEY_SEND_V1=true` in `frontend/.env`. Set to anything else and the
+  feature reverts byte-for-byte to Phase-1 preview behaviour (nothing can leave the phone).
+
+### New / changed code
+- **`src/familyJourney/flags.ts`** (new) — the flag alone, so `previewCopy.ts` and `send.ts`
+  can both read it without a circular import.
+- **`src/familyJourney/send.ts`** (new) — `sendToContact(contact, mode, journey)`; goes through
+  the Outbound Guard (`composeSms`, falling back to an `sms:` deep link via `openExternal` when
+  expo-sms is unavailable, e.g. on web). Returns `composer | blocked | failed` — never "sent".
+- **`src/familyJourney/SendSheet.tsx`** (new) — per-contact send sheet: shows the exact SMS text
+  (selectable), one row per contact holding the permission, an "Open SMS" button each, and a
+  per-row status that only ever claims the composer opened.
+- **`previewCopy.ts`** — `smsBody(mode, journey)` is now the single source of the exact text, in
+  FIRST person (it leaves the student's own number): arrival / late check-in / help request, each
+  ending "(Sent by me from the DHARA app.)". `buildPreview()` returns that same body when the flag
+  is on, so a preview can never differ from what the contact receives. `modeNote()` gives
+  phase-correct permission notes.
+- **`store.ts`** — additive `Journey.sent` log (contactId → permission → timestamp the composer
+  opened) plus `withSent()`. Journeys saved before Phase 2 have no `sent` field and still load.
+- **`ui.tsx`** — `SendBadge`, `PhaseBadge`, `PreviewScreenBadge`; `PhaseNotice` now reads
+  "You press Send — always"; `ConfirmSheet` gained `badge: 'phase' | 'preview' | 'none'`.
+- Screens updated for truthful copy: `family-journey/{index,new,contacts,preview,active}.tsx`,
+  plus the Family Journey entry points in `(tabs)/home.tsx`, `(tabs)/me.tsx` and
+  `settings/data-privacy.tsx` (all three previously said "preview only / nothing is sent").
+
+### Safety rails kept
+- Emergency short codes (112, 1091, 181, 1930, …) remain blocked for SMS by the Outbound Guard —
+  verified live: the row reports "Nothing was opened…" and other contacts are unaffected.
+- No location of any kind is collected or shared (that is Phase 3).
+- Read-only on both Trusted Circle lists; no invitations, no writes.
+- Master switch still hides the whole feature everywhere.
+
+### Verification
+- `testing_agent` iteration_94 → 9/10 pass, 3 untruthful copy strings + 2 minor items found.
+- All five fixed; `testing_agent` iteration_95 → all five confirmed, core flow green, 112 blocked.
+- Three further stale strings (Home card, Me row, Data & Privacy) found in iteration_95 and fixed.
+- Lint clean; `tsc` clean for every touched Family Journey file; the static outbound-guard test
+  shows only the pre-existing `app/pay-upi.tsx:68` violation.
+- **Cannot be certified in the web preview:** actual SMS delivery. `expo-sms` is unavailable on
+  web, so the success line appears once the `sms:` link is handed to the browser. Needs a phone
+  build to confirm the composer opens pre-filled.
+
+### Still open for Family Journey
+- Phase 3: temporary location sharing (not started, deliberately absent).
+
+
 ## 4 November 2026 — Play Store / App Store GO-LIVE readiness audit
 
 User asked for a full list of what is tested & good-to-go vs what blocks the APK/iOS
@@ -887,3 +1104,24 @@ approved. Legal and authorization blockers (T03–T12) remain open per the track
 - Iteration 75 (bug fix — greeting "cannot answer" on installed APK): Root cause = FEATURE_C1_CONVERSATIONAL_REPLIES evaluated falsy on the backend the APK talks to (preview had it true). With the C1 flag off, greetings ("Good morning"/"hi") skip the conversational-reply gate and fall through to the legal pipeline → "cannot answer" refusal; legal questions unaffected (matches user report exactly). Fix in api/chat_router.py: flag now fail-safe — enabled unless an EXPLICIT falsy value ("false"/"0"/"no"/"off"); a missing OR EMPTY env no longer silently disables greetings (old `== "true"` treated empty as off). Repo backend/.env already sets it true, so it deploys on. Verified in preview: greeting still replies; parse table covers None/empty/true/false/0/off/no/yes. ACTION FOR USER: the installed APK points at the deployed/published backend — redeploy (Publish) so production picks up this fix; no APK rebuild needed (backend URL unchanged). WAVE sprint remains on hold per user.
 
 - Iteration 78–80 (DHARA Family Journey — Student-Controlled Trip Sharing, Phase 1: Preview): Built as a fully isolated, on-device-only module (`src/familyJourney/*` + `app/family-journey/*`). Create a journey (destination label, departure/arrival/return text, optional check-in interval) → pick contacts (READ-ONLY merge of the on-device Trusted Circle `getCircle()` and accepted in-app invites `GET /api/trusted-circle/accepted`; no invite/message/write) → four INDEPENDENT permissions per contact (local-only default, arrival, missed check-in, student-initiated help request), each turned ON only after its own confirm sheet → per-contact/per-mode preview with the exact label "Preview — nothing has been sent." → journey controls (check in, I've arrived, change plan, see previews, ask for help, stop; all one tap, no reason required). Missed check-in uses the exact calm wording "Check-in not received" with no red/danger styling and no safe/danger claim. NOTHING is sent: no backend writes, no notifications (deliberately no local notification scheduling — the existing global notification handler in `src/push.ts` re-schedules every received notification, so Phase 1 keeps reminders in-screen only), no SMS, no location of any kind, no institution. Journey state and permission choices are stored on-device only, namespaced by account id with the same fail-closed pattern as `src/women/api.ts`. App-wide off switch in BOTH the hub (`fj-master-toggle`) and Settings → Data & Privacy (`fj-privacy-toggle`), kept in sync live via a module-level listener set; when off, the Home card and Me row disappear immediately and the sub-screens render "Family Journey is switched off". Entry points: Home "For you right now" card (`home-family-journey-card`) + Me tab row (`tr('me.familyJourney')`). SOS pill + Emergency help / Legal help row on every Family Journey screen; `GlobalHelpButton` now hides on `/family-journey/*` (its FAB overlapped the permission switches). Verified by testing agent iterations 78/79/80: core flow, exact wording, calm styling, isolation (no POST/PUT, no notification/SMS/location calls), and regression on Home, Me, Data & Privacy, Women's Shield, Trusted Circle and Emergency — Trusted Circle contacts unchanged. Known minor: on web only, deep-linking straight to `/family-journey/new` leaves the setup screens behind the hub in history. Phase 2 (real delivery) and Phase 3 (temporary location sharing, time-limited contact view) remain out of scope. Claude AI model integration was offered and discarded by the user — no AI code added.
+
+- Iterations 82–85 (owner-approved batch: dialler re-enable + Evidence Locker delete fix):
+  * DIALLER RE-ENABLED (reverses Batch SAFE-SOS-001 UI only). The SAFE-SOS hunks of commits 960662d and 33e70d3 were reverse-applied across 17 screens and `src/components/dhara/EmergencyNumberStatic.tsx` was deleted; every emergency/helpline number is a tappable button again, always via `openExternal('tel:…')` (never Linking.openURL). All other content from those commits (FREE-V1-001 Pro gating, IPC→BNS wording, store-readiness text) was preserved. `frontend/.env`: EXPO_PUBLIC_OUTBOUND_MODE=live, EXPO_PUBLIC_OUTBOUND_PROFILE=closed_testing, EXPO_PUBLIC_SMS_TEST_CONTACTS= (empty). Effective channels: dialler live, external_share live, SMS live by policy but refused at runtime for every number while the verified-contact list is empty. Two leaks found in test and closed: `openExternal` now applies the emergency-number block and the verified-test-contact allowlist to sms:/smsto:/mms: deep links (POLICY table untouched), and it returns 'opened' | 'blocked' so `composeAlert`, guardian-share and head-out can no longer claim a message was prepared/"guardian notified" when the guard refused it. `app/visitor/intent.tsx` is now scrollable so its Call 112 button is reachable. Known pre-existing static-test failure, out of scope: outboundGuard.test.mjs flags app/pay-upi.tsx:68 (UPI app intent).
+  * EVIDENCE LOCKER DELETE FIXED. Root causes: (a) native `deleteRecording` built `new File(item.uri)` for a v2 segmented parent whose uri is '' — it threw, so segmented recordings could never be deleted on device; (b) the confirm was a hidden second tap on the same Delete row, and the only success/error feedback was the status line at the very top of a long scrolling screen, so a delete appeared to do nothing; (c) the deleted item's note and manifest entry were left behind. Fixes: native delete now writes the updated list first and then deletes the parent + segment files, skipping empty uris; the locker shows one explicit Modal confirmation ("Delete this recording?", message contains the exact sentence "Once deleted, it cannot be retrieved.", large Delete/Keep buttons, testIDs recording-delete-{id} / recording-delete-confirm-{id} / recording-keep-{id}, backdrop and Android back = Keep); success shows in a floating banner "Recording deleted from this device."; failures show a reason class inside the dialog and never claim success; the item's note is removed and its manifest entry tombstoned via new `markManifestDeleted` (the chain LINK is deliberately kept so later items still verify — only gps is cleared and deletedAt set). Cloud: a cloud backup of the same item is NOT touched by a local delete (unchanged by design); the dialog now says so for backed-up items. The screen has no ui18n keys, so this copy is English only.
+
+- Iterations 86–89 (owner batch: Home routing correction, Head Out search + live map, Silent Alert live):
+  * HOME ROUTING CORRECTION: the "Heading out?" (TONIGHT) Start button on Home opens `/women/head-out` when `EXPO_PUBLIC_SAFETY_SESSION_V1 === 'true'` (it is `true`), else `/women-shield`. The earlier Family Journey branching on that button was a misread and was removed; the separate Family Journey PREVIEW card is unchanged. Verified iteration 86.
+  * HEAD OUT SEARCH + LIVE MAP: `EXPO_PUBLIC_PLACES_AUTOCOMPLETE_V1=true`. Backend `FEATURE_GOOGLE_PLACES_V1` stays false because `GOOGLE_PLACES_SERVER_KEY` is not set, so `/api/geo/autocomplete` now serves free OpenStreetMap suggestions instead of 503 (same response shape, optional `lat`/`lng` soft bias, OSM cache capped at 200). Typing debounces 300 ms into a dropdown with a loading row and a "No places found" state; picking a suggestion fills the field, moves the pin and recentres; Enter and the Search button work (Enter needed `submitBehavior="submit"` + a blur-hide suppression, and in-flight lookups are now cancelled on Clear/Enter/short input so stale results cannot reappear); a Clear button was added. New `src/women/useLivePosition.ts` is a foreground-only, DISPLAY-ONLY watcher (expo-location) that asks with a plain-language "Show my position / Not now" dialog, handles denied/blocked/unavailable with Settings, stops on unmount and in the background, and never uploads anything; both map pickers draw the live blue dot + accuracy ring, centre on the user when no destination is set, and offer "Recenter on me". `showsUserLocation` on native is now bound to the parent-supplied position (the source-level assertion in destinationMapPicker.logic.test.mjs was updated accordingly); the native blue dot could not be verified on web. GO1B GPS and guardian-share flags untouched. Verified iterations 87–88.
+  * SILENT ALERT LIVE: `EXPO_PUBLIC_OUTBOUND_PROFILE` closed_testing → production (mode stays `live`), so the SMS composer opens for the user's own contacts; the POLICY table and the rails were not changed. Rails confirmed under production: SMS to emergency-service numbers stays blocked, the composer only ever opens on a user tap, and DHARA itself sends nothing. Silent Alert now lists only contacts with notifications on AND a phone number, shows a Manage-circle button in both empty states, and its live disclosure says the SMS app opens and the user presses Send, one person at a time, delivery not confirmed. Head Out's notify list is filtered the same way. The live-mode safety block no longer reuses the "Simulated — nothing sent / QA mode" heading; it now reads "Blocked for your safety". Backend OUTBOUND_MODE/PROFILE deliberately unchanged (simulate / internal_qa). Verified iteration 89.
+  * OPEN: Head Out still has `EXPO_PUBLIC_ALERT_SIMULATION_MODE=true`, so its expired-timer alert shows an in-app preview instead of opening the SMS app, and if that flag is turned off it opens one sms: link to all contacts at once rather than going through composeAlert one person at a time. Awaiting an owner decision. Known pre-existing static-test failure: `app/pay-upi.tsx:68` (UPI app intent uses Linking.openURL) — not fixed, owner approval pending.
+
+- Iterations 90–93 (Guardian Journey MVP, owner batch + owner bug):
+  * FLAGS: `EXPO_PUBLIC_GUARDIAN_SHARE=true` (already), `EXPO_PUBLIC_GO1B_GPS` false → true. GPS still starts only after the user taps the existing in-app consent card in head-out (flag + active session + consent + not expired), never in the background; it stops on mark-safe/expiry/unmount, and `useJourneyGPS` now discards a watcher that finished starting after the session ended, surfaces "Location tracking could not start on this device." instead of failing silently, and guards its cleanup remove().
+  * ONE SMS PER CONTACT: `guardian-share.tsx` no longer opens a single comma-joined sms: link. Each messageable contact (notify !== false AND a phone) has its own Prepare button going through `composeSms` with an `sms:` fallback, both inside the outbound guard; the row then reads "Message prepared — press Send in your SMS app" and the banner says prepared, never "notified"/"sent". Emergency numbers stay blocked ("Blocked for your safety"). Empty list → Manage circle button.
+  * TRUTHFUL WORDING: the SMS says "Track my journey live" only when head-out passes `gpsLive=1` (flag + consent + GPS granted), otherwise "Check my journey status"; with no status link it says "(Status link unavailable…)" in BOTH the on-screen preview and the SMS. The status-page row states whether the page shows the area or only the check-in status.
+  * LINK HOST: built from `API_BASE` (= `EXPO_PUBLIC_BACKEND_URL`), which in preview is `https://dhara-shield-2.preview.emergentagent.com` — a real guardian needs the production deploy for the link to work outside the preview. A visible warning now appears if the host is localhost/127.0.0.1/10.x/192.168.x/172.16-31.x.
+  * VISIBLE FAILURES: markSafe and revokeSharing only claim success after the backend confirms, and otherwise show a plain error plus a Try again button; journey-creation failure is visible with its own testID.
+  * OWNER BUG ("cannot set destination or duration"): the screen had no inputs — only head-out passed params, so the Women's Shield row left destination empty and the duration silently at 60, and no journey record could be created. It now has an editable destination field (80 chars) and 15/30/60/120 chips + a 1–1440 Custom field (default 60, Head Out values pre-filled, non-chip durations land in Custom). The record is created on the first Prepare using the edited values, the check-in time counts from that tap, Prepare is disabled with "Enter a destination first." until a destination exists, and the fields LOCK once a record exists (chosen over silently revoking and re-creating a link a guardian may already hold). Custom-field validation snapshots the duration on focus and restores it for out-of-range input, so a half-typed "1441" can never leave 144 in force, and Prepare stays disabled while the error shows.
+  * GUARDIAN PAGE: a revoked journey (status stays `in_progress` with `sharing_revoked_at`) no longer shows "Journey in progress · LIVE" — the page now decides from `closed_at`/`safe_at`. Women's Shield row sub-text is now "Share where you're going with someone you trust". The floating help button no longer overlaps `/guardian/*`.
+  * TWO SYSTEMS (report only, nothing merged): (a) the journey-token status page — `POST /api/journey/status` → `{host}/api/journey/status/{token}`, a bearer-style public HTML page anyone holding the link can open, used by guardian-share's SMS; (b) the per-recipient circle links — `/guardian/[token]` in-app, which calls `GET /api/journey/{token}/guardian` and checks the caller's accepted trusted-circle link and its `temp_location` permission. guardian-share does NOT pass `recipient_link_ids`; head-out does when `TRUSTED_CIRCLE_RECIPIENT` + GO1B are on. Unifying them would mean creating the journey with its recipient link ids and sending each contact their own per-recipient URL, then retiring the anonymous page — a bigger change, deliberately deferred.
+  * Backend untouched in this batch. Guardian suites: 91/91 pass across test_guardian_access / test_guardian_mongo / test_pr1a_guardian_containment / test_pr1a_route_level / test_pr3a_journey_ownership; `test_journey_status.py` and `test_go1b_gps_journey.py` still fail on the long-standing "public page must be identical for every token" HTML comparison and shared-DB state (pre-existing P1 issue, not from this batch). Verified iterations 90–93.

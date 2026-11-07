@@ -11,9 +11,11 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
-import { JourneyHeader, JourneyHelpRow, PreviewBadge, ConfirmSheet, FamilyJourneyOff, fjStyles } from '@/src/familyJourney/ui';
-import { isLocalOnly, loadJourney, saveJourney, clearJourney, nextCheckinDueAt, useFamilyJourneyEnabled, type Journey } from '@/src/familyJourney/store';
-import { buildPreview, MODE_META, type PreviewMode } from '@/src/familyJourney/previewCopy';
+import { JourneyHeader, JourneyHelpRow, PhaseBadge, ConfirmSheet, FamilyJourneyOff, fjStyles } from '@/src/familyJourney/ui';
+import { isLocalOnly, loadJourney, saveJourney, clearJourney, nextCheckinDueAt, withSent, useFamilyJourneyEnabled, type Journey } from '@/src/familyJourney/store';
+import { buildPreview, MODE_META, modeNote, type PreviewMode } from '@/src/familyJourney/previewCopy';
+import { SendSheet } from '@/src/familyJourney/SendSheet';
+import { FJ_SEND_ENABLED } from '@/src/familyJourney/flags';
 
 const c = theme.colors;
 
@@ -35,6 +37,7 @@ export default function ActiveJourney() {
   const [askHelp, setAskHelp] = useState(false);
   const [askStop, setAskStop] = useState(false);
   const [shownPreview, setShownPreview] = useState<PreviewMode | null>(null);
+  const [sendMode, setSendMode] = useState<PreviewMode | null>(null);
   const { enabled, loaded: switchLoaded } = useFamilyJourneyEnabled();
 
   useFocusEffect(
@@ -79,6 +82,17 @@ export default function ActiveJourney() {
   const sharingContacts = journey.contacts.filter(ct => !isLocalOnly(ct));
   const contactsFor = (mode: PreviewMode) => journey.contacts.filter(ct => ct[mode]);
 
+  /** Phase 2 opens the per-contact send sheet; Phase 1 shows the preview only. */
+  const openEvent = (mode: PreviewMode) => {
+    if (FJ_SEND_ENABLED) setSendMode(mode);
+    else setShownPreview(mode);
+  };
+
+  /** Contacts whose SMS app was actually opened for a help request, and when. */
+  const helpOpenedTimes = Object.values(journey.sent ?? {}).map(m => m.helpRequest).filter(Boolean) as number[];
+  const helpOpenedCount = helpOpenedTimes.length;
+  const helpOpenedAt = helpOpenedCount > 0 ? Math.max(...helpOpenedTimes) : null;
+
   const previewOf = shownPreview ? buildPreview(shownPreview, journey, ownerName) : null;
 
   return (
@@ -96,7 +110,7 @@ export default function ActiveJourney() {
           ) : journey.lastCheckinAt ? (
             <Text style={fjStyles.cardSub}>Last check-in {clockLabel(journey.lastCheckinAt)}</Text>
           ) : null}
-          <PreviewBadge testID="fj-active-badge" />
+          <PhaseBadge testID="fj-active-badge" />
         </View>
 
         {/* Check-in reminder — calm, never a red alarm or a countdown. */}
@@ -107,13 +121,17 @@ export default function ActiveJourney() {
             </Text>
             <Text style={fjStyles.cardSub}>
               {overdue
-                ? 'Nothing has been sent and nothing says whether you are safe or at risk. Check in whenever you like, or ignore this.'
+                ? (FJ_SEND_ENABLED
+                  ? 'This says nothing about whether you are safe or at risk. Check in whenever you like, ignore this, or tell a contact yourself.'
+                  : 'Nothing has been sent and nothing says whether you are safe or at risk. Check in whenever you like, or ignore this.')
                 : 'A reminder for you only. There is no deadline and nothing happens if you skip it.'}
             </Text>
             {overdue && contactsFor('missedCheckin').length > 0 ? (
-              <Pressable style={fjStyles.secondary} onPress={() => setShownPreview('missedCheckin')} testID="fj-show-missed-preview">
-                <Ionicons name="eye-outline" size={16} color={c.navy} />
-                <Text style={fjStyles.secondaryTxt}>See what this would look like</Text>
+              <Pressable style={fjStyles.secondary} onPress={() => openEvent('missedCheckin')} testID="fj-show-missed-preview">
+                <Ionicons name={FJ_SEND_ENABLED ? 'chatbubble-ellipses-outline' : 'eye-outline'} size={16} color={c.navy} />
+                <Text style={fjStyles.secondaryTxt}>
+                  {FJ_SEND_ENABLED ? 'Tell a contact my check-in is late' : 'See what this would look like'}
+                </Text>
               </Pressable>
             ) : null}
           </View>
@@ -132,7 +150,7 @@ export default function ActiveJourney() {
             style={fjStyles.secondary}
             onPress={async () => {
               await persist({ arrivedAt: Date.now() });
-              if (contactsFor('arrival').length > 0) setShownPreview('arrival');
+              if (contactsFor('arrival').length > 0) openEvent('arrival');
             }}
             testID="fj-arrived"
           >
@@ -156,14 +174,16 @@ export default function ActiveJourney() {
         {/* Student-initiated help request — deliberate, never automatic. */}
         <View style={fjStyles.card}>
           <Text style={fjStyles.cardTitle}>Ask a contact for help</Text>
-          <Text style={fjStyles.cardSub}>{MODE_META.helpRequest.note}</Text>
+          <Text style={fjStyles.cardSub}>{modeNote('helpRequest')}</Text>
           <Pressable style={fjStyles.secondary} onPress={() => setAskHelp(true)} testID="fj-help-request">
             <Ionicons name="hand-left-outline" size={16} color={c.navy} />
             <Text style={fjStyles.secondaryTxt}>Ask for help</Text>
           </Pressable>
-          {journey.helpRequestedAt ? (
+          {journey.helpRequestedAt && (!FJ_SEND_ENABLED || helpOpenedCount > 0) ? (
             <Text style={fjStyles.cardSub}>
-              You previewed a help request at {clockLabel(journey.helpRequestedAt)}. Nothing was sent.
+              {FJ_SEND_ENABLED
+                ? `You opened your SMS app for ${helpOpenedCount} ${helpOpenedCount === 1 ? 'contact' : 'contacts'} at ${clockLabel(helpOpenedAt!)}. Only the ones where you pressed Send received it.`
+                : `You previewed a help request at ${clockLabel(journey.helpRequestedAt)}. Nothing was sent.`}
             </Text>
           ) : null}
           <Text style={fjStyles.empty}>
@@ -186,27 +206,35 @@ export default function ActiveJourney() {
             ))
           )}
           {sharingContacts.length > 0 ? (
-            <Text style={fjStyles.empty}>These choices are saved on this phone. No contact has been told anything.</Text>
+            <Text style={fjStyles.empty}>
+              {FJ_SEND_ENABLED
+                ? 'These choices are saved on this phone. A contact only hears from you when you press Send in your SMS app.'
+                : 'These choices are saved on this phone. No contact has been told anything.'}
+            </Text>
           ) : null}
         </View>
 
         <JourneyHelpRow />
       </ScrollView>
 
-      {/* Help-request confirmation → shows the preview, sends nothing. */}
+      {/* Help-request confirmation → Phase 2 opens the SMS app per contact. */}
       <ConfirmSheet
         visible={askHelp}
         title="Ask for help?"
         body={
-          contactsFor('helpRequest').length > 0
-            ? `In a later version this would reach ${contactsFor('helpRequest').map(ct => ct.name).join(', ')}. In this version you will only see what it would look like.`
-            : 'No contact has the help-request permission turned on, so you will only see what it would look like.'
+          FJ_SEND_ENABLED
+            ? (contactsFor('helpRequest').length > 0
+              ? `Your SMS app will open for ${contactsFor('helpRequest').map(ct => ct.name).join(', ')}, one at a time. You press Send each time — DHARA sends nothing by itself.`
+              : 'No contact has the help-request permission turned on, so there is nobody to message yet. For an emergency use Emergency help instead.')
+            : (contactsFor('helpRequest').length > 0
+              ? `In a later version this would reach ${contactsFor('helpRequest').map(ct => ct.name).join(', ')}. In this version you will only see what it would look like.`
+              : 'No contact has the help-request permission turned on, so you will only see what it would look like.')
         }
-        confirmLabel="Show me the preview"
+        confirmLabel={FJ_SEND_ENABLED ? 'Continue' : 'Show me the preview'}
         onConfirm={async () => {
           setAskHelp(false);
           await persist({ helpRequestedAt: Date.now() });
-          setShownPreview('helpRequest');
+          openEvent('helpRequest');
         }}
         onCancel={() => setAskHelp(false)}
         testID="fj-help-confirm"
@@ -216,8 +244,13 @@ export default function ActiveJourney() {
       <ConfirmSheet
         visible={askStop}
         title="Stop this journey?"
-        body="The journey ends on this phone and the plan is removed. Nothing was shared with anyone, so no contact needs to be told."
+        body={
+          FJ_SEND_ENABLED
+            ? 'The journey ends on this phone and the plan is removed. No contact is messaged about this.'
+            : 'The journey ends on this phone and the plan is removed. Nothing was shared with anyone, so no contact needs to be told.'
+        }
         confirmLabel="Stop journey"
+        badge="none"
         onConfirm={async () => {
           setAskStop(false);
           await clearJourney();
@@ -236,10 +269,29 @@ export default function ActiveJourney() {
         title={shownPreview ? MODE_META[shownPreview].title : ''}
         body={previewOf ? `“${previewOf.heading} — ${previewOf.body}”` : ''}
         confirmLabel="Close"
+        badge="preview"
         onConfirm={() => setShownPreview(null)}
         onCancel={() => setShownPreview(null)}
         hideCancel
         testID="fj-message-preview"
+      />
+
+      {/* Phase 2 — one contact per tap, the student presses Send. */}
+      <SendSheet
+        visible={!!sendMode}
+        mode={sendMode}
+        journey={journey}
+        contacts={sendMode ? contactsFor(sendMode) : []}
+        onSent={(contactId, mode) => {
+          // Functional update: several contacts can be messaged in one sheet.
+          setJourney(prev => {
+            if (!prev) return prev;
+            const next = withSent(prev, contactId, mode);
+            void saveJourney(next);
+            return next;
+          });
+        }}
+        onClose={() => setSendMode(null)}
       />
     </View>
   );

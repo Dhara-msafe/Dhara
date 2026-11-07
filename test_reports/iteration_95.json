@@ -1,0 +1,33 @@
+{
+  "summary": "Retest of the Family Journey Phase 2 (iteration_94) fixes on mobile web 375x667 with FJ_SEND_V1=true. All 5 fixes pass. FIX1: fj-preview-top-badge and all fj-preview-badge-<mode>-<id> badges say 'Nothing is sent from this screen.', and PREVIEW_LABEL no longer appears. FIX2: all 3 bubbles show 'FROM YOUR NUMBER' with a chat icon, and no 'DHARA' sender chip is left. FIX3: the overdue card shows the exact new wording. FIX4: tapping Ask for help → Continue → Done without opening SMS shows no 'You opened' line; after opening SMS for 1 contact it reads 'You opened your SMS app for 1 contact at 4:30 PM. Only the ones where you pressed Send received it.' and journey.sent stores {device:c1:{helpRequest}}. FIX5: the SMS text in the send sheet and the preview bubbles has user-select:text. The core flow works end to end: plan → pick contact → turn on 3 permissions (each one confirmed) → preview → Start → I've arrived. The arrival, help and missed-check-in send sheets list exactly one row per permitted contact (two rows when two contacts have arrival on). 'Open SMS' changes only that contact's row and opens sms:<that number> only. Status lines say 'SMS app opened — press Send there to deliver it', never 'notified'. Phone 112 is blocked with an alert ('SMS to an emergency-service number is blocked'), and nothing is opened. Truthfulness sweep: the 5 FJ screens are clean. Three entry points OUTSIDE those screens still use Phase-1 'nothing is sent' copy: the Home card, Settings → Data & Privacy, and the Me tab row.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Truthfulness — Home 'For you' card", "issue": "With Phase 2 on, the card still shows the tag 'PREVIEW' and the line 'Plan a trip and see exactly what a trusted contact would be told. Nothing is sent in this version.' This is false in Phase 2. Reference: app/(tabs)/home.tsx:253,257", "affected_testIDs": ["home-family-journey-card"]},
+      {"flow": "Truthfulness — Settings → Data & Privacy", "issue": "The switch subtitle reads 'On — preview only. Nothing is sent and no location is collected.' It is not gated on FJ_SEND_ENABLED. Reference: app/settings/data-privacy.tsx:297", "affected_testIDs": ["fj-privacy-toggle-card"]},
+      {"flow": "Truthfulness — Me tab", "issue": "The Family Journey row value is tr('common.preview') = 'Preview'. This is misleading in Phase 2. Reference: app/(tabs)/me.tsx:35", "affected_testIDs": []}
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/tests/fj/fj_init.js", "/app/tests/fj/fj_init_overdue.js", "/app/tests/fj/fj_init_blocked.js", "/app/tests/fj/r2_preview.png", "/app/tests/fj/r3_blocked.png", "/app/tests/fj/r3_home_card.png"],
+  "action_items": [
+    "home.tsx:253-257: when FJ_SEND_ENABLED, drop the 'PREVIEW' tag and replace 'Nothing is sent in this version.' with Phase-2 copy (e.g. 'Your SMS app opens and you press Send — DHARA never sends by itself.').",
+    "data-privacy.tsx:297: gate the subtitle on FJ_SEND_ENABLED (e.g. 'On — messages only go when you press Send in your SMS app. No location is collected.').",
+    "me.tsx:35: when FJ_SEND_ENABLED, show something other than 'Preview' (e.g. 'On').",
+    "Minor: the help-request line uses helpRequestedAt, which is set when the student taps Continue in the confirm, not when the SMS app actually opens. The count is cumulative across repeated help requests, but the time shown is the latest confirm. Consider using the newest journey.sent[*].helpRequest timestamp for HH:MM."
+  ],
+  "critical_code_review_comments": [
+    "The Phase-1 strings left in active.tsx (124, 184, 210, 248), ui.tsx PreviewBadge/PhaseNotice and the fj-message-preview sheet are all gated behind !FJ_SEND_ENABLED, so they cannot be reached in Phase 2 (verified in UI).",
+    "contacts.tsx:145 'LOCAL-ONLY — NOTHING LEAVES THIS PHONE' only shows for a picked contact with no permission. That is truthful, because such a contact can never be messaged.",
+    "The hub PhaseNotice says 'DHARA never sends anything by itself'. That is truthful in Phase 2."
+  ],
+  "updated_files": ["/app/tests/fj/fj_init.js", "/app/tests/fj/fj_init_overdue.js", "/app/tests/fj/fj_init_blocked.js (JWT refreshed only)"],
+  "success_rate": {"backend": "N/A", "frontend": "100% of the 5 fixes and of the core Phase-2 flow; truthfulness sweep: 3 leftover strings outside the FJ screens"},
+  "seed_data_creation": "Only in the browser's localStorage (TEST_Asha/TEST_Ravi trusted circle, TEST_Library journey) inside throwaway Playwright contexts. No DB writes.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use page.context.add_init_script(open('/app/tests/fj/fj_init*.js').read()). JWT refreshed 7 Nov 2026 via POST /api/auth/login (exp ~Dec 2026). fj_init.js = no journey (full flow); fj_init_overdue.js = overdue active journey; fj_init_blocked.js = c1 phone 112. window.open is stubbed into window.__opened and alert into window.__alerts. Contact testIDs use the 'device:' prefix. Next retest: check the home card, the data-privacy subtitle and the Me row copy only.",
+  "rca_of_issue": "The iteration_94 fixes covered only the 5 FJ screens. The FJ entry points in home.tsx, data-privacy.tsx and me.tsx have hard-coded Phase-1 copy that is not gated on FJ_SEND_ENABLED."
+}

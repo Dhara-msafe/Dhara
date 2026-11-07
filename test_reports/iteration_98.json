@@ -1,0 +1,64 @@
+{
+  "summary": "Tested the new draggable Issue Reporter FAB and the admin status-dropdown change. App boots cleanly on web preview with no blank screen and no console errors (the main agent's 'identical blank screenshot' issue did not reproduce — likely a screenshot-tool artifact, not an app bug). CRITICAL bug found: tapping the FAB (zero/near-zero movement) never opens the report sheet, so the primary tap-to-report flow and the full report-submission flow are both blocked. Drag, clamping, snap-to-edge and AsyncStorage position persistence all work correctly. FAB is correctly hidden on /emergency and /admin-issues. Admin reports page: status dropdown (New/In progress/Resolved with checkmark) works correctly and calls PATCH /api/issues/{id} as expected; Server errors tab unchanged and still loads.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "IssueReporterButton (FAB)",
+        "issue": "A genuine tap (0px, 1px, and 3px movement all tested) never opens the report sheet. Only a real drag (tested 150px and 1000px) is recognized; onEnd (which contains the isTap() check that calls runOnJS(openSheet)) never fires for near-zero movement because Gesture.Pan() has a default activation/minDistance threshold (~10pt) before it 'begins' at all on web. Since isTap() logic lives inside onEnd, and onEnd never runs unless the pan already activated, a tap under the activation threshold produces NO callback at all — not even a failed tap check. Verified with Playwright mouse down/up at the same point, a .click(), and manually dispatched PointerEvents; all three produced no sheet.",
+        "testID": "issue-reporter-button",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Report submission (tap FAB -> sheet -> category -> title/description -> submit -> POST /api/issues)",
+        "issue": "Could not be tested end-to-end via the normal tap gesture because of the tap-open bug above — the sheet never opens from a tap, so the flow is blocked at step 1 for every real user on web. (The POST /api/issues endpoint itself was separately confirmed healthy via direct curl with a valid token — a TEST_ report was created and returned 201 with id/status/created_at.)",
+        "affected_testIDs": ["issue-reporter-button", "issue-reporter-sheet", "issue-submit", "issue-result"]
+      }
+    ],
+    "design_issues": [],
+    "react_native_issues": [
+      {
+        "component": "GestureHandlerRootView wrapper in app/_layout.tsx",
+        "issue": "No regressions observed from adding GestureHandlerRootView at the app root — navigation (Stack transitions), modals (report sheet when it does open, language modal, consent flow) and other screens all rendered and functioned normally. The only issue is the Pan gesture's own activation threshold swallowing taps (see FAB bug above), not the root wrapper itself."
+      }
+    ]
+  },
+  "verified_working": [
+    "App boots cleanly on web preview (localhost:3000), no blank/white screen, no console errors — confirmed via screenshot showing the language-selection screen rendering correctly",
+    "FAB visible as bug icon at default bottom-right position (e.g. {x:311,y:423} at 375x667 viewport) once logged in, on a normal screen (home)",
+    "Drag of >100px moves the FAB (does not open sheet)",
+    "Clamping: dragging 1000px up-left clamped the FAB to minX=16 (EDGE_MARGIN) and minY=8 (TOP_RESERVED), never leaving the visible screen or sitting on the status bar",
+    "Snap-to-edge: after drag release, FAB settled against the nearer edge",
+    "Position persistence: AsyncStorage key 'issue_reporter_fab_position_v1' correctly stored {x:16,y:8} after drag, and the FAB reappeared at that exact position after a full page reload (not the default bottom-right)",
+    "FAB correctly hidden (testID not found) on /emergency and /admin-issues; visible again on /home",
+    "Admin /admin-issues: admin key unlock works (X-Admin-Key, gated via check_admin_key), Reports tab loads, status pill opens a real dropdown menu (testID status-menu-{id}) listing New/In progress/Resolved with a checkmark on the current status, selecting a different option (testID status-option-{id}-{status}) calls PATCH /api/issues/{id} and updates the row in place",
+    "Server errors tab still loads and is unchanged from prior session",
+    "No existing real tester report ('Unable to send message') was modified — only the TEST_ seed report's status was changed"
+  ],
+  "unverifiable_web_limitation": [
+    "accessibilityActions (activate/moveLeft/moveRight/reset) on the FAB cannot be triggered or inspected via Playwright/Chromium DOM — React Native Web does not expose accessibilityActions as a standard ARIA action mechanism, so this cannot be automated-tested on web. Noted as a platform limitation per the review request, not a bug. Could not independently confirm the base accessibilityRole/accessibilityLabel/accessibilityHint render correctly in the DOM either (not checked via getAttribute); code review shows they are set in JSX (accessibilityRole='button', accessibilityLabel='Report a problem with the app', accessibilityHint present)."
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "HIGH PRIORITY: Fix the tap-to-open gesture. Root cause: Gesture.Pan() requires the touch to exceed its default activation distance before onBegin/onUpdate/onEnd fire at all; the isTap() check (TAP_SLOP=7) lives inside onEnd, so taps under the activation threshold never reach that check and the sheet never opens. Suggested fixes: (a) set .activeOffsetX([-1,1]).activeOffsetY([-1,1]) or .minDistance(0) on the Pan gesture so it activates immediately and lets isTap() in onEnd do the real tap-vs-drag decision, or (b) compose Gesture.Race(Gesture.Tap().onEnd(openSheet), panGesture) so a true tap is handled by a dedicated Tap gesture while Pan handles drags exceeding the tap gesture's own distance threshold.",
+    "After the fix, retest the full submission flow end-to-end (tap -> sheet -> category -> title/description -> submit -> issue-result -> POST /api/issues) since it was blocked by this bug this session.",
+    "Re-verify tap-vs-drag with the ~7px TAP_SLOP boundary specifically (e.g. 6px should open sheet, 8px should drag) once the activation fix lands."
+  ],
+  "critical_code_review_comments": [
+    "fabPosition.ts: pure math helpers are clean, well-commented, and the clamp/snap/tap logic is correct in isolation — the bug is architectural (gesture activation), not in the math.",
+    "IssueReporterButton.tsx: the onEnd tap-check correctly resets translateX/Y to startX/Y before calling openSheet when isTap() is true, so no visual jump happens on a true tap once it reaches onEnd — again, the bug is that onEnd never gets called for near-zero movement.",
+    "admin-issues.tsx: status dropdown implementation is solid — click events correctly call e.stopPropagation() so opening the menu doesn't also toggle the row's expanded/collapsed description."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (issues POST/PATCH/GET endpoints verified via curl and via admin UI)", "frontend": "~75% of requested flows (drag/clamp/snap/persist/visibility/admin-dropdown all pass; tap-to-open and full submission flow fail/blocked)"},
+  "seed_data_creation": "One TEST_ prefixed issue report created via direct POST /api/issues (id: 8d3156a5-1723-498f-a8d6-67915167d98a, title 'TEST_FAB admin dropdown check') to safely exercise the admin status dropdown without touching the real tester report already in the DB. Its status was changed New -> In progress during testing. No delete endpoint exists for issue reports, so this TEST_ record remains in the DB (harmless, clearly prefixed).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Use voicetest2026@example.com / TestPass123! (token/user can be injected into localStorage keys gk_token/gk_user to skip the UI login+consent screens for faster iteration — see this session's scripts). ADMIN_KEY for /admin-issues is in backend/.env (ADMIN_KEY). The critical blocker this session is the FAB's Gesture.Pan() never activating for near-zero-movement taps on web — fix that first, then retest the full submission flow end-to-end, the exact 7px TAP_SLOP boundary, and reattempt whatever accessibility-actions verification is possible (likely still a platform limitation on web; may need to verify on a native build/Expo Go instead).",
+  "rca_of_issue": "Gesture.Pan() in react-native-gesture-handler (and in its web shim used by react-native-gesture-handler's web support) only fires onBegin/onUpdate/onEnd once the touch has moved past an internal activation distance (default ~10 logical pixels unless overridden by minDistance/activeOffsetX/activeOffsetY). The component's tap-vs-drag decision (isTap(), TAP_SLOP=7) is implemented entirely inside the pan's onEnd callback, assuming onEnd always fires at the end of any press (tap or drag). On web, it does not: for presses that never cross the activation threshold, the pan gesture never begins, onEnd never runs, and openSheet() is therefore never called. This was reproduced deterministically with 0px, 1px and 3px simulated movements (all well under the intended 7px TAP_SLOP) — none opened the sheet — while a 150px and 1000px drag both worked exactly as specified (moved + clamped + snapped + persisted)."
+}

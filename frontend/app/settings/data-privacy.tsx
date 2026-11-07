@@ -294,7 +294,7 @@ export default function DataPrivacyScreen() {
             <Text style={styles.actionTitle}>Family Journey</Text>
             <Text style={styles.actionSub}>
               {fjEnabled
-                ? 'On — preview only. Nothing is sent and no location is collected.'
+                ? 'On — a contact is only messaged when you press Send yourself. No location is collected.'
                 : 'Off — hidden everywhere in DHARA.'}
             </Text>
           </View>

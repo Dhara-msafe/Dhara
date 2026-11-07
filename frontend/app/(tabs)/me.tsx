@@ -10,6 +10,7 @@ import { SOSButton } from '@/src/components/SOSButton';
 import { INTERESTS, useUserProfile, type ProfileInterest } from '@/src/userProfile';
 import { getPhotoViewToken } from '@/src/trustedCircle/api';
 import { useFamilyJourneyEnabled } from '@/src/familyJourney/store';
+import { FJ_SEND_ENABLED } from '@/src/familyJourney/flags';
 import { API_BASE } from '@/src/apiBase';
 
 const c = theme.colors;
@@ -32,7 +33,7 @@ export default function Me() {
     { icon: 'person-outline', key: 'me.editProfile', route: '/edit-profile' },
     { icon: 'people-outline', key: 'me.trustedCircle', route: '/women/trusted-circle' },
     ...(familyJourneyEnabled
-      ? [{ icon: 'navigate-outline' as any, key: 'me.familyJourney', value: tr('common.preview', lang), route: '/family-journey' }]
+      ? [{ icon: 'navigate-outline' as any, key: 'me.familyJourney', value: FJ_SEND_ENABLED ? undefined : tr('common.preview', lang), route: '/family-journey' }]
       : []),
     { icon: 'notifications-outline', key: 'me.notifications', route: '/alerts' },
     { icon: 'shield-checkmark-outline', key: 'me.privacy', route: '/settings/data-privacy' },

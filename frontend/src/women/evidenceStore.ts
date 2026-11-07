@@ -57,20 +57,21 @@ export async function saveVideo(scope: string, uri: string): Promise<RecordingIt
   return saveItem(scope, uri, 'video', 'mp4');
 }
 export async function deleteRecording(scope: string, item: RecordingItem): Promise<void> {
-  const remaining = (await loadRecordings(scope)).filter(row => row.id !== item.id);
-  const file = new File(item.uri);
-  if (file.exists) file.delete();
-  // P0-B: If this is a v2 parent, also delete all its segment items.
-  if (item.recording_format_version === 2 && item.session_id) {
-    const segItems = remaining.filter(r => r.is_segment && r.session_id === item.session_id);
-    for (const seg of segItems) {
-      try { const f = new File(seg.uri); if (f.exists) f.delete(); } catch {}
-    }
-    const afterSegDelete = remaining.filter(r => !(r.is_segment && r.session_id === item.session_id));
-    await AsyncStorage.setItem(storageKey(scope), JSON.stringify(afterSegDelete));
-    return;
-  }
+  const all = await loadRecordings(scope);
+  // A v2 (segmented) parent has no file of its own — `uri` is ''. Constructing
+  // a File from an empty uri throws, which used to abort the whole delete and
+  // left segmented recordings undeletable on device.
+  const isV2Parent = item.recording_format_version === 2 && !!item.session_id;
+  const segments = isV2Parent ? all.filter(r => r.is_segment && r.session_id === item.session_id) : [];
+  const removeIds = new Set([item.id, ...segments.map(s => s.id)]);
+  const remaining = all.filter(row => !removeIds.has(row.id));
+  // Persist the new list FIRST: if this write fails, nothing is half-deleted —
+  // the item stays listed and its file is still on disk.
   await AsyncStorage.setItem(storageKey(scope), JSON.stringify(remaining));
+  for (const row of [item, ...segments]) {
+    if (!row.uri) continue;
+    try { const f = new File(row.uri); if (f.exists) f.delete(); } catch {}
+  }
 }
 
 // ── P0-B: Segmented recording helpers ─────────────────────────────────────

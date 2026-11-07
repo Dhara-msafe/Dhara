@@ -12,9 +12,10 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import {
-  JourneyHeader, JourneyHelpRow, PhaseNotice, PreviewBadge, ConfirmSheet, fjStyles,
+  JourneyHeader, JourneyHelpRow, PhaseNotice, PhaseBadge, ConfirmSheet, fjStyles,
 } from '@/src/familyJourney/ui';
 import { loadJourney, clearJourney, useFamilyJourneyEnabled, type Journey } from '@/src/familyJourney/store';
+import { FJ_SEND_ENABLED } from '@/src/familyJourney/flags';
 
 const c = theme.colors;
 
@@ -44,8 +45,10 @@ export default function FamilyJourneyHub() {
             <Text style={fjStyles.cardTitle}>Family Journey</Text>
             <Text style={fjStyles.cardSub}>
               {enabled
-                ? 'On — you can plan journeys and preview what a contact would see.'
-                : 'Off — the feature is hidden everywhere in DHARA. Nothing you saved is sent; it simply stays unused.'}
+                ? (FJ_SEND_ENABLED
+                  ? 'On — you can plan journeys, choose who can be told, and send each message yourself.'
+                  : 'On — you can plan journeys and preview what a contact would see.')
+                : 'Off — the feature is hidden everywhere in DHARA. No new message is prepared for anyone; it simply stays unused.'}
             </Text>
           </View>
           <Switch
@@ -92,7 +95,7 @@ export default function FamilyJourneyHub() {
                   Give it a destination label and the timings you expect. Then choose which trusted contacts
                   could be told, and exactly what they would see.
                 </Text>
-                <PreviewBadge testID="fj-hub-preview-badge" />
+                <PhaseBadge testID="fj-hub-preview-badge" />
                 <Pressable style={[fjStyles.primary, { marginTop: 10 }]} onPress={() => router.push('/family-journey/new')} testID="fj-start-plan">
                   <Text style={fjStyles.primaryTxt}>Plan a journey</Text>
                 </Pressable>
@@ -101,12 +104,20 @@ export default function FamilyJourneyHub() {
 
             <View style={fjStyles.card}>
               <Text style={fjStyles.cardTitle}>What this version does not do</Text>
-              {[
-                'No message, notification or email reaches any contact.',
-                'No location is collected, stored or shown — not even a last-known point.',
-                'No school, employer, hostel or any institution receives anything.',
-                'Nothing here changes Women\u2019s Shield, Guardian Journey, SOS or your Trusted Circle.',
-              ].map(line => (
+              {(FJ_SEND_ENABLED
+                ? [
+                  'Nothing is ever sent on its own — your SMS app opens and you press Send.',
+                  'No location is collected, stored or shared — not even a last-known point.',
+                  'No school, employer, hostel or any institution receives anything.',
+                  'Nothing here changes Women\u2019s Shield, Guardian Journey, SOS or your Trusted Circle.',
+                ]
+                : [
+                  'No message, notification or email reaches any contact.',
+                  'No location is collected, stored or shown — not even a last-known point.',
+                  'No school, employer, hostel or any institution receives anything.',
+                  'Nothing here changes Women\u2019s Shield, Guardian Journey, SOS or your Trusted Circle.',
+                ]
+              ).map(line => (
                 <View key={line} style={styles.bullet}>
                   <Ionicons name="ellipse" size={6} color={c.borderStrong} style={{ marginTop: 7 }} />
                   <Text style={[fjStyles.cardSub, { flex: 1 }]}>{line}</Text>
@@ -122,8 +133,9 @@ export default function FamilyJourneyHub() {
       <ConfirmSheet
         visible={askDiscard}
         title="Discard this draft?"
-        body="The journey you saved on this phone will be removed. Nothing was ever shared with anyone, so no contact is affected."
+        body="The journey you saved on this phone will be removed. No contact is messaged either way."
         confirmLabel="Discard draft"
+        badge="none"
         onConfirm={async () => { await clearJourney(); setJourney(null); setAskDiscard(false); }}
         onCancel={() => setAskDiscard(false)}
         testID="fj-discard-confirm"

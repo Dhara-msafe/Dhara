@@ -131,7 +131,7 @@ export function useJourneyGPS(
   useEffect(() => {
     if (!enabled || !journeyToken) {
       // Stop tracking if not needed
-      subRef.current?.remove();
+      try { subRef.current?.remove(); } catch { /* expo-location web can throw here */ }
       subRef.current = null;
       setState(INITIAL);
       return;
@@ -158,19 +158,29 @@ export function useJourneyGPS(
       } catch { /* non-fatal */ }
 
       // Watch for ongoing movement
-      subRef.current = await Location.watchPositionAsync(
-        {
-          accuracy:          Location.Accuracy.Balanced,
-          distanceInterval:  DISTANCE_METERS,
-          timeInterval:      POLL_INTERVAL_MS,
-        },
-        (pos) => { if (!cancelled) handlePosition(pos); },
-      );
+      let sub: Location.LocationSubscription;
+      try {
+        sub = await Location.watchPositionAsync(
+          {
+            accuracy:          Location.Accuracy.Balanced,
+            distanceInterval:  DISTANCE_METERS,
+            timeInterval:      POLL_INTERVAL_MS,
+          },
+          (pos) => { if (!cancelled) handlePosition(pos); },
+        );
+      } catch {
+        setState(s => ({ ...s, tracking: false, error: 'Location tracking could not start on this device.' }));
+        return;   // location unavailable — the one-off fix above still applies
+      }
+      // The journey may have ended (or the screen closed) while the permission
+      // prompt was open — never leave a watcher running after that.
+      if (cancelled) { try { sub.remove(); } catch {} return; }
+      subRef.current = sub;
     })();
 
     return () => {
       cancelled = true;
-      subRef.current?.remove();
+      try { subRef.current?.remove(); } catch { /* expo-location web can throw */ }
       subRef.current = null;
     };
   }, [enabled, journeyToken, requestPermission, handlePosition]);

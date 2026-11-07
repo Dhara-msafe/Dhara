@@ -138,8 +138,9 @@ def _assert_notice(html: str) -> None:
 
 def _assert_non_location_fields(html: str) -> None:
     assert "Priya" in html,                             "Traveller name missing"
-    # Destination is redacted — the generic label must be present, not the raw value
-    assert "Destination on file" in html,               "Generic destination label missing"
+    # The owner's choice (GUARDIAN_PUBLIC_PAGE_DETAILS) is to show the typed
+    # destination; only live location stays withheld.
+    assert "Office" in html,                            "Destination value missing"
     assert "Destination" in html,                       "Destination field heading missing"
     assert "Journey started" in html,                   "Journey-started label missing"
     assert "Expected check-in" in html,                 "Expected check-in label missing"

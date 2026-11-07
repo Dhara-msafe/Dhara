@@ -36,7 +36,7 @@ import { theme } from '@/src/theme';
 import FirSectionDrawer, { SectionItem, DroppedSection } from '@/src/components/FirSectionDrawer';
 import { MarqueeBanner } from '@/src/components/MarqueeBanner';
 
-import { EmergencyNotActiveNotice } from '@/src/components/dhara/EmergencyNumberStatic';
+import { openExternal } from '@/src/outbound';
 // Native location is optional; importing it on web fails in the installed version.
 const Location: typeof import('expo-location') | null =
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -2170,6 +2170,11 @@ function ConfirmButtons({
 function EmergencyOverlay({
   numbers, onContinue, onExit,
 }: { numbers: Array<{label: string; number: string}>; onContinue: () => void; onExit: () => void }) {
+  const handleCall = (num: string) => {
+    openExternal(`tel:${num}`).catch(() =>
+      Alert.alert('Cannot call', `Please manually dial ${num}`)
+    );
+  };
   return (
     <View style={eStyles.overlay}>
       <View style={eStyles.card}>
@@ -2178,15 +2183,14 @@ function EmergencyOverlay({
           If you are in immediate danger, please call for help first.
         </Text>
         {numbers.map(n => (
-          <View key={n.number} style={[eStyles.callBtn, { opacity: 0.7 }]}>
-            <Ionicons name="call-outline" size={22} color="#fff" />
+          <Pressable key={n.number} style={eStyles.callBtn} onPress={() => handleCall(n.number)}>
+            <Ionicons name="call" size={22} color="#fff" />
             <View style={{ marginLeft: 10 }}>
               <Text style={eStyles.callLabel}>{n.label}</Text>
               <Text style={eStyles.callNum}>{n.number}</Text>
             </View>
-          </View>
+          </Pressable>
         ))}
-        <EmergencyNotActiveNotice />
         <Pressable style={eStyles.continueBtn} onPress={onContinue}>
           <Text style={eStyles.continueBtnText}>{"I'm safe now \u2014 continue filing"}</Text>
         </Pressable>

@@ -33,7 +33,7 @@ export function GlobalHelpButton() {
   const isAuthOnboarding =
     pathname === '/login' || pathname === '/signup' ||
     pathname === '/consent' || pathname === '/language';
-  if (pathname === '/emergency' || pathname?.startsWith('/oauth') || pathname?.startsWith('/women') || pathname?.startsWith('/family-journey') || isHome || hideScan || isAuthOnboarding) return null;
+  if (pathname === '/emergency' || pathname?.startsWith('/oauth') || pathname?.startsWith('/women') || pathname?.startsWith('/family-journey') || pathname?.startsWith('/guardian') || pathname?.startsWith('/admin-') || isHome || hideScan || isAuthOnboarding) return null;
 
   return (
     <Pressable
