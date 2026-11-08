@@ -119,7 +119,7 @@ function _safeParse<T>(raw: string | null, fallback: T): T {
   }
 }
 
-export type Contact = { id: string; name: string; phone: string; email?: string; notify?: boolean };
+export type Contact = { id: string; name: string; phone: string; email?: string; relationship?: string; notify?: boolean };
 
 export async function getCircle(): Promise<Contact[]> {
   await _quarantineLegacyOnce(CIRCLE_KEY);

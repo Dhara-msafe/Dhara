@@ -15,12 +15,13 @@ type Row = { kind: 'alert'; data: SafetyAlert } | { kind: 'invite'; data: Invite
 const TABS = ['all', 'active', 'completed', 'invitations'] as const;
 const TAB_LABEL: Record<string, string> = { all: 'All', active: 'Active', completed: 'Completed', invitations: 'Invitations' };
 
-const URGENT_TYPES = ['missed_checkin', 'help_requested', 'location_unavailable'];
+const URGENT_TYPES = ['missed_checkin', 'route_deviation', 'help_requested', 'location_unavailable'];
 const DONE_TYPES = ['arrival_confirmed', 'journey_completed', 'sharing_ended'];
 
 function iconFor(type: string): any {
   switch (type) {
     case 'missed_checkin': return 'alert-circle';
+    case 'route_deviation': return 'navigate-outline';
     case 'help_requested': return 'warning';
     case 'journey_started': return 'navigate';
     case 'journey_completed': return 'checkmark-circle';

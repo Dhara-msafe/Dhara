@@ -1,8 +1,11 @@
 /**
- * DestinationMapPicker — web implementation (Google Maps JavaScript API).
+ * DestinationMapPicker — web implementation.
  *
- * Replaced from the previous OpenStreetMap/Leaflet implementation.
- * Uses @react-google-maps/api with EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY.
+ * Primary renderer is Google Maps (JavaScript API), matching native. When
+ * EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY isn't configured, this falls back to a
+ * free OpenStreetMap/Leaflet map — see ActiveJourneyMap.web.tsx's file header
+ * for the full rationale (same pattern, same already-installed dependency,
+ * same production-scale tile-provider caveat).
  *
  * Features:
  *  • Draggable destination pin
@@ -20,7 +23,7 @@
  * session regardless of how many instances render.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, Suspense, lazy } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import {
   GoogleMap,
@@ -31,6 +34,11 @@ import {
 import { theme } from '@/src/theme';
 import { isValidCoord, isValidRadius } from '@/src/utils/mapValidation';
 
+// Lazy + Suspense, NOT a static import — see LeafletActiveJourneyMap.web.tsx's
+// file header for why (leaflet/react-leaflet crash Expo's web SSR pass if
+// required eagerly).
+const LeafletDestinationMapPicker = lazy(() => import('./LeafletDestinationMapPicker.web'));
+
 const c = theme.colors;
 
 // Generic demo centre (New Delhi) — never from device GPS.
@@ -39,7 +47,9 @@ const DEMO_LNG = 77.209;
 
 const WEB_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY ?? '';
 
-const MAP_CONTAINER_STYLE = { width: '100%', height: '220px', borderRadius: '14px' };
+function mapContainerStyle(heightPx: number) {
+  return { width: '100%', height: `${heightPx}px`, borderRadius: '14px' };
+}
 
 const MAP_OPTIONS: google.maps.MapOptions = {
   disableDefaultUI: true,
@@ -63,6 +73,8 @@ export interface Props {
   onPositionChange: (lat: number, lng: number) => void;
   recenterKey?: string | number;
   testID?: string;
+  /** Map height in px. Defaults to 220 (the original embedded-preview size). */
+  mapHeight?: number;
 }
 
 export function DestinationMapPicker({
@@ -72,6 +84,7 @@ export function DestinationMapPicker({
   onPositionChange,
   recenterKey,
   testID,
+  mapHeight = 220,
 }: Props) {
   const hasPin = isValidCoord(latitude, longitude);
   const initLat = hasPin ? latitude! : DEMO_LAT;
@@ -113,12 +126,26 @@ export function DestinationMapPicker({
     [onPositionChange],
   );
 
+  const handleLeafletPositionChange = useCallback((lat: number, lng: number) => {
+    if (!isValidCoord(lat, lng)) return;
+    setMarkerPos({ lat, lng });
+    onPositionChange(lat, lng);
+  }, [onPositionChange]);
+
   if (!WEB_API_KEY) {
     return (
       <View style={styles.wrap} testID={testID ?? 'destination-map-picker'}>
-        <View style={styles.fallback}>
-          <Text style={styles.hint}>Map unavailable — web API key not configured.</Text>
-        </View>
+        <Suspense fallback={<View style={[styles.fallback, { height: mapHeight }]} />}>
+          <LeafletDestinationMapPicker
+            markerPos={markerPos} radiusMeters={radiusMeters}
+            onPositionChange={handleLeafletPositionChange} recenterKey={recenterKey} mapHeight={mapHeight}
+          />
+        </Suspense>
+        <Text style={styles.hint} testID="destination-map-picker-hint">
+          {hasPin
+            ? 'Drag the pin or click the map to adjust your planned arrival area.'
+            : 'Demo view — click the map or drag the pin to set your planned arrival area. No device location is used.'}
+        </Text>
       </View>
     );
   }
@@ -126,10 +153,10 @@ export function DestinationMapPicker({
   return (
     <View style={styles.wrap} testID={testID ?? 'destination-map-picker'}>
       <LoadScript googleMapsApiKey={WEB_API_KEY} loadingElement={
-        <View style={styles.fallback}><Text style={styles.hint}>Loading map…</Text></View>
+        <View style={[styles.fallback, { height: mapHeight }]}><Text style={styles.hint}>Loading map…</Text></View>
       }>
         <GoogleMap
-          mapContainerStyle={MAP_CONTAINER_STYLE}
+          mapContainerStyle={mapContainerStyle(mapHeight)}
           center={markerPos}
           zoom={15}
           options={MAP_OPTIONS}
@@ -154,14 +181,14 @@ export function DestinationMapPicker({
       <Text style={styles.hint} testID="destination-map-picker-hint">
         {hasPin
           ? 'Drag the pin or click the map to adjust your planned arrival area.'
-          : 'Demo view \u2014 click the map or drag the pin to set your planned arrival area. No device location is used.'}
+          : 'Demo view — click the map or drag the pin to set your planned arrival area. No device location is used.'}
       </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: 14 },
+  wrap: { marginBottom: 14, alignSelf: 'stretch', width: '100%' },
   fallback: {
     height: 220,
     borderRadius: 14,

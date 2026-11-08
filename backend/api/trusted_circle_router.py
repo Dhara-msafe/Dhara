@@ -52,6 +52,7 @@ class InviteIn(BaseModel):
     name: str = Field(..., min_length=1, max_length=80)
     phone: str = Field(..., min_length=6, max_length=20)
     permissions: PermissionsIn = PermissionsIn()
+    relationship: Optional[str] = Field(default=None, max_length=30)
 
 
 class RespondIn(BaseModel):
@@ -60,6 +61,18 @@ class RespondIn(BaseModel):
 
 class MuteIn(BaseModel):
     muted: bool
+
+
+class PermissionsPatchIn(BaseModel):
+    """Partial update — every field optional. Only keys explicitly present in
+    the request body are changed; omitted keys keep their current stored
+    value. Mirrors the Partial<Permissions> contract inviteContact() already
+    uses client-side at invite time."""
+    journey_status: Optional[bool] = None
+    expected_arrival: Optional[bool] = None
+    missed_checkin: Optional[bool] = None
+    temp_location: Optional[bool] = None
+    emergency_requests: Optional[bool] = None
 
 
 def _normalize_phone(p: str) -> str:
@@ -74,6 +87,7 @@ def _public_link(link: dict) -> dict:
         "owner_name": link.get("owner_name"),
         "contact_name": link.get("contact_name"),
         "contact_phone": link.get("contact_phone"),
+        "relationship": link.get("relationship"),
         "invitee_user_id": link.get("invitee_user_id"),
         "permissions": link.get("permissions", {}),
         "status": link["status"],
@@ -103,6 +117,7 @@ async def invite(body: InviteIn, user: dict = Depends(current_user)):
         "contact_phone": body.phone.strip(),
         "invitee_user_id": invitee["id"] if invitee else None,
         "permissions": body.permissions.dict(),
+        "relationship": body.relationship.strip() if body.relationship else None,
         "status": "pending",
         "muted": False,
         "created_at": now,
@@ -206,6 +221,42 @@ async def mute(link_id: str, body: MuteIn, user: dict = Depends(current_user)):
         raise HTTPException(403, "Not your membership")
     await db.trusted_circle_links.update_one({"id": link_id}, {"$set": {"muted": body.muted}})
     return {"ok": True, "muted": body.muted}
+
+
+@router.patch("/trusted-circle/invitations/{link_id}/permissions")
+async def update_permissions(link_id: str, body: PermissionsPatchIn, user: dict = Depends(current_user)):
+    """Owner-only: change what this trusted-circle member is allowed to
+    receive GOING FORWARD — this is a standing setting on the link, same as
+    what inviteContact() sets once at invite time, NOT scoped to a single
+    journey. (There is deliberately no per-journey override layer today —
+    journey_router.py's alert fan-out reads a link's standing permissions
+    directly with no additional journey-level gate — so editing permissions
+    here is the only way to change what a person receives, and it affects
+    every future journey with them, not just the one being set up when a
+    caller happens to open this.) Any client surfacing this as a toggle
+    should say so plainly, not imply it's scoped to "this journey only".
+
+    Takes effect immediately for every future alert on this link —
+    alerts_router.py already re-reads a link's permissions live on every
+    read, never a value cached at an earlier point, so no separate
+    propagation step is needed here.
+    """
+    link = await db.trusted_circle_links.find_one({"id": link_id})
+    if not link:
+        raise HTTPException(404, "Invitation not found")
+    if link["owner_id"] != user["id"]:
+        raise HTTPException(403, "Not your trusted circle")
+    if link["status"] not in ("pending", "accepted"):
+        raise HTTPException(400, f"Cannot change permissions on a {link['status']} link")
+    changes = body.dict(exclude_unset=True)
+    if not changes:
+        return {"ok": True, "permissions": link.get("permissions", {})}
+    await db.trusted_circle_links.update_one(
+        {"id": link_id},
+        {"$set": {f"permissions.{k}": v for k, v in changes.items()}},
+    )
+    updated = await db.trusted_circle_links.find_one({"id": link_id})
+    return {"ok": True, "permissions": updated.get("permissions", {})}
 
 
 @router.get("/trusted-circle/accepted")
