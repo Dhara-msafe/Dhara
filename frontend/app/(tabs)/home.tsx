@@ -9,6 +9,11 @@ import { tr } from '@/src/ui18n';
 import { useComplaints, isDraftReady, complaintTitle, complaintProgress } from '@/src/home/complaints';
 import { useUserProfile } from '@/src/userProfile';
 import { unreadCount } from '@/src/trustedCircle/api';
+import { useFamilyJourneyEnabled } from '@/src/familyJourney/store';
+import { FJ_SEND_ENABLED } from '@/src/familyJourney/flags';
+
+/** Same gate as women-shield.tsx — when Head Out is off, fall back to the shield. */
+const HEAD_OUT_ENABLED = process.env.EXPO_PUBLIC_SAFETY_SESSION_V1 === 'true';
 
 const c = theme.colors;
 const TRUSTED_CIRCLE_RECIPIENT = process.env.EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT === 'true';
@@ -23,6 +28,7 @@ export default function Home() {
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === 'web' && width >= 768;
   const [alertCount, setAlertCount] = useState(0);
+  const { enabled: familyJourneyEnabled } = useFamilyJourneyEnabled();
 
   const refreshAlertCount = useCallback(() => {
     if (TRUSTED_CIRCLE_RECIPIENT && token) unreadCount(token).then(setAlertCount);
@@ -227,10 +233,37 @@ export default function Home() {
             </View>
             <Text style={[styles.forYouTitle, { color: c.ink }]}>Heading out?</Text>
             <Text style={[styles.forYouBody, { color: c.muted }]}>Start a safe-journey check-in with your trusted circle.</Text>
-            <Pressable style={styles.navyBtn} onPress={() => router.push('/women-shield')}>
+            <Pressable
+              style={styles.navyBtn}
+              onPress={() => router.push(HEAD_OUT_ENABLED ? '/women/head-out' : '/women-shield')}
+              testID="home-heading-out-start"
+            >
               <Text style={styles.navyBtnTxt}>Start</Text>
             </Pressable>
           </View>
+
+          {/* ── Family Journey (Phase 1 preview) — hidden when switched off ── */}
+          {familyJourneyEnabled && (
+            <Pressable
+              style={[styles.forYouCard, styles.forYouCardLight]}
+              onPress={() => router.push('/family-journey')}
+              testID="home-family-journey-card"
+            >
+              <View style={styles.forYouTag}>
+                <Ionicons name="people-outline" size={13} color={c.darkGold} />
+                <Text style={[styles.forYouTagTxt, { color: c.darkGold }]}>{FJ_SEND_ENABLED ? 'YOU PRESS SEND' : 'PREVIEW'}</Text>
+              </View>
+              <Text style={[styles.forYouTitle, { color: c.ink }]}>Family Journey</Text>
+              <Text style={[styles.forYouBody, { color: c.muted }]} numberOfLines={3}>
+                {FJ_SEND_ENABLED
+                  ? 'Plan a trip and choose who can be told. Your SMS app opens with the text ready — you press Send.'
+                  : 'Plan a trip and see exactly what a trusted contact would be told. Nothing is sent in this version.'}
+              </Text>
+              <View style={styles.navyBtn}>
+                <Text style={styles.navyBtnTxt}>Open</Text>
+              </View>
+            </Pressable>
+          )}
 
           {/* ── Profile-specific card — changes with user interest ─── */}
           {primaryInterest && (

@@ -682,6 +682,18 @@ async def get_guardian_view(token: str, user: dict = Depends(current_user)):
     return body
 
 
+def _public_details_enabled() -> bool:
+    """Owner's decision (read at request time so it can be flipped without a
+    code change): show the traveller's name and journey details on the public
+    Guardian link, or serve the static privacy notice.
+
+    Even when enabled, live location — coordinates, area name, accuracy and
+    any map — stays withheld from this anonymous page. Location is only ever
+    released through the signed-in, per-recipient route above.
+    """
+    return os.environ.get("GUARDIAN_PUBLIC_PAGE_DETAILS", "").strip().lower() in ("1", "true", "yes")
+
+
 @router.get("/journey/status/{token}", response_class=HTMLResponse, include_in_schema=False)
 async def journey_status_page(token: str):
     """Public HTML status page — PR-1B1 static privacy notice.
@@ -713,10 +725,18 @@ async def journey_status_page(token: str):
     Per-recipient, sign-in-gated access to journey metadata is deferred to a
     later batch (PR-1B full) which will bind the signed-in viewer to a selected,
     accepted recipient link with current permissions.
+
+    When GUARDIAN_PUBLIC_PAGE_DETAILS is enabled the owner has chosen to
+    disclose the traveller's name, destination and journey timestamps to
+    anyone holding the link. Live location, area name and maps remain
+    withheld on this anonymous page in every journey state.
     """
+    body = _private_html()
+    if _public_details_enabled():
+        body = await _details_html_for(token)
     # Phase 1 hardening — S3-H1 / S4-H1,2,3,4 (see token_url_exposure_report.md)
     return HTMLResponse(
-        content=_private_html(),
+        content=body,
         headers={
             "Referrer-Policy":        "no-referrer",
             "Cache-Control":          "no-store, no-cache, max-age=0, must-revalidate",
@@ -731,6 +751,38 @@ async def journey_status_page(token: str):
 # functions (see test_pr1a_guardian_containment.py) but are no longer invoked
 # by journey_status_page after PR-1B1.  _private_html() is the only template
 # currently called from the route.
+
+async def _details_html_for(token: str) -> str:
+    """Render the journey page for a holder of the link.
+
+    Unknown token → the neutral "link not found" page. Past expiry → the
+    expired page. Otherwise the status page with name, destination and
+    timestamps. HTTP 200 in every case: the status code itself must not
+    confirm whether a token exists.
+    """
+    rec = await db.safety_journeys.find_one({"token": token})
+    if not rec:
+        return _not_found_html()
+
+    expires_at = rec.get("expires_at")
+    if expires_at:
+        try:
+            if datetime.now(timezone.utc) > datetime.fromisoformat(expires_at):
+                return _expired_html(rec)
+        except Exception:
+            pass   # malformed date — show the journey rather than block
+
+    if rec.get("sharing_revoked_at"):
+        # The traveller withdrew sharing: disclose nothing further, not even
+        # the name or destination that were visible a moment ago.
+        return _private_html()
+
+    if rec.get("status") == "safe":
+        label, colour, icon = "Arrived safely", "#15803d", "&#9989;"
+    else:
+        label, colour, icon = "Journey in progress", "#1A3F74", "&#128694;"
+    return _status_html(rec, label, colour, icon)
+
 
 def _private_html() -> str:
     """PR-1B1: Static generic privacy notice served for every Guardian URL.
@@ -814,12 +866,11 @@ def _private_html() -> str:
 
 def _status_html(rec: dict, label: str, colour: str, icon: str) -> str:
     name   = _escape(rec.get("user_display", "User"))
-    # PR-1A destination redaction: the destination field may contain an
-    # address, place name or coordinates. It is withheld from the anonymous
-    # HTML page on the same basis as location coordinates — a journey token
-    # does not establish recipient authorization.  The stored journey record
-    # is unchanged; only this rendering is suppressed.
-    dest   = "Destination on file"
+    # The owner has chosen (GUARDIAN_PUBLIC_PAGE_DETAILS) to show the
+    # destination the traveller typed when starting the journey. Live
+    # location — coordinates, area name, accuracy, maps — stays withheld
+    # below in every journey state.
+    dest   = _escape(rec.get("destination") or "") or "Destination on file"
     start  = _fmt_dt(rec.get("started_at"))
     checkin = _fmt_dt(rec.get("expected_checkin_at"))
     safe_at = _fmt_dt(rec.get("safe_at")) if rec.get("safe_at") else ""
@@ -845,7 +896,7 @@ def _status_html(rec: dict, label: str, colour: str, icon: str) -> str:
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="referrer" content="strict-origin"/>
+  <meta name="referrer" content="no-referrer"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <meta http-equiv="refresh" content="30"/>
   <title>DHARA — {name}'s journey</title>
@@ -941,11 +992,19 @@ def _escape(s: str) -> str:
 
 
 def _fmt_dt(iso: Optional[str]) -> str:
+    """Render a stored UTC timestamp in India Standard Time, labelled.
+
+    Guardians read this page in India; an unlabelled UTC time is read as local
+    time and misleads by five and a half hours.
+    """
     if not iso:
         return "—"
     try:
         dt = datetime.fromisoformat(iso)
-        # Format: "15 Jan 2024, 10:30 AM"
-        return dt.strftime("%-d %b %Y, %I:%M %p")
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.astimezone(timezone(timedelta(hours=5, minutes=30)))
+        # Format: "15 Jan 2024, 10:30 AM IST"
+        return dt.strftime("%-d %b %Y, %I:%M %p IST")
     except Exception:
         return iso[:16]

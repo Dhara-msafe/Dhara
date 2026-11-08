@@ -1,0 +1,33 @@
+{
+  "summary": "Frontend-only retest of the DHARA Family Journey Phase 1 fixes, done with Playwright on the web preview at 375x667, logged in as voicetest2026@example.com. FIX 1 (instant master switch), FIX 3 (no Help FAB on /family-journey/*), FIX 4 (off screen on direct links) and FIX 5 (error clears on typing, Close-only preview sheet, Hindi Me row) pass. FIX 2 passes as specified: there is only one active screen, 'See all previews' then 'Back to journey' returns to the journey, and Stop goes to the hub with the stack cleared. One stack bug remains: after 'Change the plan' on a running journey, 'Back to journey' opens Choose contacts instead of the journey. Also, the plan and contacts screens stay behind the running journey, so the header Back from the active screen reopens Choose contacts and then 'Change the plan'. The core flow passes end to end with exact wording, and the regression pages load without errors. Family Journey made no POST/PUT, notification, SMS or location calls; its only API call is GET /api/trusted-circle/accepted. No deprecated Expo packages were found in the Family Journey files.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Preview 'Back to journey' after Change the plan", "issue": "Steps: on a running journey, tap Change the plan, then Choose contacts, then See the preview, then Back to journey. The app goes to /family-journey/contacts, not /family-journey/active, because fj-preview-back-active calls router.back() and the screen behind preview is contacts. Reference: app/family-journey/preview.tsx:111-114", "testID": "fj-preview-back-active", "priority": "MEDIUM"},
+      {"component": "Stack behind the running journey", "issue": "Start uses replace, which only swaps out the preview screen. Hub, new and contacts stay mounted behind /active. Header Back (fj-back) from a just-started journey opens Choose contacts, and Back again opens /new titled 'Change the plan'. This goes against the comment in preview.tsx:39-41 ('plan/contacts/preview screens are not stacked behind the running journey').", "testID": "fj-back", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Me tab (Hindi)", "issues": ["The Family Journey row label is translated ('फैमिली जर्नी'), but its value 'Preview' is still hard-coded in English (me.tsx:35)."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/tests/family_journey_ui_test.py", "/app/test_reports/iteration_79.json"],
+  "action_items": [
+    "preview.tsx 'Back to journey': use router.dismissTo('/family-journey/active') (fall back to replace) instead of router.back(), so it returns to the journey even after the Change the plan detour.",
+    "preview.tsx start(): clear the planning screens before opening the journey, e.g. router.dismissTo('/family-journey') and then router.push('/family-journey/active'). Header Back from the journey would then go to the hub, not Choose contacts.",
+    "Optional: translate the 'Preview' value on the Me row (me.tsx:35)."
+  ],
+  "critical_code_review_comments": [
+    "store.ts setFamilyJourneyEnabled updates listeners before AsyncStorage.setItem finishes. A hook that mounts during that gap could read the old value. In practice the gap is tiny and not observed.",
+    "Sub-screens render the feature for a moment before switchLoaded becomes true. When the switch is off, a direct link can briefly show the feature before fj-off-screen appears. Not observed as a problem; it could gate on !switchLoaded.",
+    "new.tsx:52 has the JourneyHeader on the same line as the root View (formatting only)."
+  ],
+  "updated_files": ["/app/tests/family_journey_ui_test.py (comments only)"],
+  "success_rate": {"backend": "N/A (not requested)", "frontend": "~93% (all 5 requested fixes and the regression and core-flow checks pass; one residual stack bug in the Change the plan → Back to journey path)"},
+  "seed_data_creation": "Only on-device localStorage for the test account: fj_journey_v1_<uid> (TEST_Library, TEST_Hostel, TEST_Back) and fj_enabled_v1_<uid>. Journeys were removed and the switch left ON. No server data was created or changed. The Trusted Circle accepted invite (acbe369c..., 'QA Recipient Scoped') is unchanged.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Fast auth: on /language, page.evaluate a fetch POST /api/auth/login, then set gk_token, gk_user, gk_consent_prefs, gk_consent_version='2026-10-01', gk_lang and lang_onboarded_v1_<uid>='1', then goto the route. To test 'no reload' flows, start at /home and use the home-family-journey-card, fj-back and tab-me controls. The Me row testID is 'me-me.familyJourney' and Data & Privacy is 'me-me.privacy'. To get the overdue card, seed an active journey with checkinMins=30 and lastCheckinAt=now-1h. Register a dialog handler for the alerts on the Data & Privacy page.",
+  "rca_of_issue": "fj-preview-back-active uses router.back(). That is correct only when preview was opened straight from active. When the user goes active → new → contacts → preview, the screen behind preview is contacts. Mitigation: use dismissTo('/family-journey/active')."
+}

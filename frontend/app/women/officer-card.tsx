@@ -7,7 +7,7 @@ import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { useRightsCard } from '@/src/hooks/useRightsCard';
 import { useScreenSpeech } from '@/src/hooks/useScreenSpeech';
-import { EmergencyNotActiveNotice } from '@/src/components/dhara/EmergencyNumberStatic';
+import { openPhone } from '@/src/women/helpActions';
 
 const c = theme.colors;
 
@@ -33,6 +33,7 @@ export default function OfficerCard() {
   const speech = useScreenSpeech();
   const stopSpeech = speech.stop;
   const insets = useSafeAreaInsets();
+  const [callStatus, setCallStatus] = useState('');
   const [showSource, setShowSource] = useState(false);
   const [showRefused, setShowRefused] = useState(false);
   const [silent, setSilent] = useState(false);
@@ -139,16 +140,16 @@ export default function OfficerCard() {
           </>
         )}
         {!!speech.error && <Text testID="officer-speech-error" accessibilityLiveRegion="polite" style={styles.why}>{speech.error}</Text>}
+        {!!callStatus && <Text testID="officer-call-status" style={styles.why}>{callStatus}</Text>}
 
         <View style={styles.hlRow}>
           {(res?.services || []).slice(0, 3).map(s => (
-            <View key={s.service_id} testID={`officer-call-${s.number}`} style={styles.hl}>
+            <Pressable key={s.service_id} testID={`officer-call-${s.number}`} style={styles.hl} onPress={async () => setCallStatus(await openPhone(s.number))}>
               <Text style={styles.hlNum}>{s.number}</Text>
               <Text style={styles.hlName} numberOfLines={1}>{s.name}</Text>
-            </View>
+            </Pressable>
           ))}
         </View>
-        {(res?.services || []).length > 0 && <EmergencyNotActiveNotice />}
       </ScrollView>
     </View>
   );

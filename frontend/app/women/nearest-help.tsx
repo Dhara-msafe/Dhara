@@ -174,8 +174,7 @@ export default function NearestHelp() {
         )}
 
         {!!status && <Text testID="nearest-help-status" accessibilityLiveRegion="polite" style={styles.note}>{status}</Text>}
-        <EmergencyNumberStatic label="Immediate danger? Call" number="112" testID="nearest-call-112" />
-        <EmergencyNotActiveNotice />
+        <Pressable testID="nearest-call-112" style={styles.card} onPress={async () => setStatus(await openPhone('112'))}><Text style={styles.label}>Immediate danger? Call 112</Text></Pressable>
       </ScrollView>
     </View>
   );

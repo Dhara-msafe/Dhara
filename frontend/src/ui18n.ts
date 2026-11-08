@@ -46,6 +46,7 @@ export const UI: Record<string, L> = {
   'home.myFiles':    { en: 'My files', hi: 'मेरी फाइलें', mr: 'माझ्या फायली', ta: 'எனது கோப்புகள்' },
   'home.seeAll':     { en: 'See all', hi: 'सभी देखें', mr: 'सर्व पहा', ta: 'அனைத்தையும்' },
   'common.new':      { en: 'NEW', hi: 'नया', mr: 'नवीन', ta: 'புதிது' },
+  'common.preview':  { en: 'Preview', hi: 'प्रीव्यू', mr: 'प्रिव्ह्यू', ta: 'முன்னோட்டம்' },
 
   // ── Journey tiles ────────────────────────────────────────────────
   'j.shield':        { en: 'Women\u2019s Shield', hi: 'महिला सुरक्षा', mr: 'महिला सुरक्षा', ta: 'பெண்கள் கவசம்' },
@@ -213,6 +214,7 @@ export const UI: Record<string, L> = {
   'me.settings':     { en: 'Settings', hi: 'सेटिंग्स', mr: 'सेटिंग्ज', ta: 'அமைப்புகள்' },
   'me.editProfile':  { en: 'Edit profile', hi: 'प्रोफ़ाइल संपादित करें', mr: 'प्रोफाइल संपादित करा', ta: 'சுயவிவரத்தைத் திருத்து' },
   'me.trustedCircle':{ en: 'Trusted Circle', hi: 'ट्रस्टेड सर्कल', mr: 'ट्रस्टेड सर्कल', ta: 'நம்பகமான வட்டம்' },
+  'me.familyJourney':{ en: 'Family Journey', hi: 'फैमिली जर्नी', mr: 'फॅमिली जर्नी', ta: 'குடும்பப் பயணம்' },
   'me.notifications':{ en: 'Notifications', hi: 'सूचनाएं', mr: 'सूचना', ta: 'அறிவிப்புகள்' },
   'me.privacy':      { en: 'Privacy & Security', hi: 'गोपनीयता और सुरक्षा', mr: 'गोपनीयता आणि सुरक्षा', ta: 'தனியுரிமை & பாதுகாப்பு' },
   'me.help':         { en: 'Help & Support', hi: 'सहायता और समर्थन', mr: 'मदत आणि समर्थन', ta: 'உதவி & ஆதரவு' },

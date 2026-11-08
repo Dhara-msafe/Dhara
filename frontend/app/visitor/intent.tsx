@@ -3,14 +3,14 @@
  * Selects between Emergency and Lost Passport workflows.
  */
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { loadVisitorSession, VisitorSession, getStateLocalLang, HINDI_LANG } from '@/src/visitor/session';
 
-import { EmergencyNumberStatic, EmergencyNotActiveNotice } from '@/src/components/dhara/EmergencyNumberStatic';
+import { openExternal } from '@/src/outbound';
 const C = theme.colors;
 
 const WORKFLOWS = [
@@ -94,7 +94,7 @@ export default function VisitorIntent() {
 
   return (
     <SafeAreaView style={s.safe} edges={['bottom']}>
-      <View style={s.content}>
+      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         <View style={s.topBadge}>
           <Ionicons name="location-outline" size={14} color={C.primary} />
           <Text style={s.topBadgeText}>{session.indianStateName} · {session.touristLang.native}</Text>
@@ -126,16 +126,20 @@ export default function VisitorIntent() {
           ℹ️ In any emergency, call <Text style={{ fontWeight: '800' }}>112</Text> immediately.
         </Text>
 
-        <EmergencyNumberStatic label="Emergency" number="112" testID="visitor-intent-call-112" />
-        <EmergencyNotActiveNotice />
-      </View>
+        <Pressable style={s.callBtn} testID="visitor-intent-call-112" onPress={() => {
+          openExternal('tel:112');
+        }}>
+          <Ionicons name="call" size={20} color="#fff" />
+          <Text style={s.callBtnText}>Call 112 — Emergency</Text>
+        </Pressable>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
   safe:    { flex: 1, backgroundColor: C.background },
-  content: { flex: 1, padding: 20 },
+  content: { padding: 20, paddingBottom: 40, flexGrow: 1 },
 
   topBadge:     {
     flexDirection: 'row', alignItems: 'center', gap: 6,

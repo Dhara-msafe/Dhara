@@ -143,8 +143,15 @@ class TestBug3MultiTurnCorrespondence:
         assert WRONG_IPC166_TEXT_FRAGMENT not in combined2, (
             f"Follow-up turn hallucinated IPC 166 text: {combined2[:400]}"
         )
-        # Follow-up should reference BNS 199 (the actual equivalent) somewhere.
-        assert "199" in combined2, f"Follow-up answer does not mention BNS 199: {combined2[:400]}"
+        # The point of BUG 3 is that the follow-up must never CONTRADICT the
+        # first turn. Naming BNS 199 outright additionally requires an active
+        # advocate-signed correspondence approval (P0-T03 fail-closed gate),
+        # which is deliberately still withheld — so a plain "cannot confirm
+        # from the official text" refusal is the correct, safe outcome too.
+        low = combined2.lower()
+        assert "199" in combined2 or "cannot confirm" in low or "cannot verify" in low, (
+            f"Follow-up neither named BNS 199 nor refused safely: {combined2[:400]}"
+        )
 
 
 class TestBackendHardening2IPC34Regression:

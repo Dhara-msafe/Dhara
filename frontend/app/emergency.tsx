@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -6,6 +7,7 @@ import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
 import { QuickExit } from '@/src/components/dhara/SosPill';
+import { openPhone } from '@/src/women/helpActions';
 
 const c = theme.colors;
 
@@ -14,6 +16,7 @@ export default function Emergency() {
   const router = useRouter();
   const { language } = useAuth();
   const lang = language.code;
+  const [callStatus, setCallStatus] = useState('');
 
   const tiles = [
     { id: 'silent-alert', icon: 'people-outline', title: tr('em.silent', lang), sub: tr('em.silent.sub', lang), route: '/women/silent-alert' },
@@ -33,11 +36,12 @@ export default function Emergency() {
           <QuickExit />
         </View>
 
-        <View style={[styles.callCircle, { opacity: 0.6 }]} testID="call-112">
-          <Ionicons name="call-outline" size={34} color={c.emergencyRed} />
+        <Pressable style={styles.callCircle} onPress={async () => setCallStatus(await openPhone('112'))} testID="call-112" accessibilityRole="button" accessibilityLabel="Open dialler for 112">
+          <Ionicons name="call" size={34} color={c.emergencyRed} />
           <Text style={styles.callNum}>112</Text>
-        </View>
-        <Text testID="emergency-call-status" style={styles.oneNumber}>Emergency calling is not active in this test version. Dial 112 on your phone if you need help.</Text>
+          <Text style={styles.callTap}>{tr('em.tapcall', lang)}</Text>
+        </Pressable>
+        {!!callStatus && <Text testID="emergency-call-status" accessibilityLiveRegion="polite" style={styles.oneNumber}>{callStatus}</Text>}
 
         <Text style={styles.oneNumber}>{tr('em.oneNumber', lang)}</Text>
 

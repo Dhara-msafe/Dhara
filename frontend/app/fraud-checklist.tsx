@@ -8,7 +8,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '@/src/theme';
 
 import { openExternal } from '@/src/outbound';
-import { EmergencyNumberStatic, EmergencyNotActiveNotice } from '@/src/components/dhara/EmergencyNumberStatic';
 /**
  * Golden-hour cyber fraud checklist.
  *
@@ -234,21 +233,14 @@ export default function FraudChecklist() {
                 </View>
               </Pressable>
               {!!s.action && (
-                s.action.url.startsWith('tel:') ? (
-                  <View style={{ marginTop: 10 }}>
-                    <EmergencyNumberStatic label={s.action.label} number={s.action.url.replace('tel:', '')} testID={`fraud-action-${s.id}`} />
-                    <EmergencyNotActiveNotice />
-                  </View>
-                ) : (
-                  <Pressable
-                    testID={`fraud-action-${s.id}`}
-                    style={styles.actionBtn}
-                    onPress={() => open(s.action!.url)}
-                  >
-                    <Ionicons name={s.action.icon} size={16} color={theme.colors.onBrandSecondary} />
-                    <Text style={styles.actionText}>{s.action.label}</Text>
-                  </Pressable>
-                )
+                <Pressable
+                  testID={`fraud-action-${s.id}`}
+                  style={styles.actionBtn}
+                  onPress={() => open(s.action!.url)}
+                >
+                  <Ionicons name={s.action.icon} size={16} color={theme.colors.onBrandSecondary} />
+                  <Text style={styles.actionText}>{s.action.label}</Text>
+                </Pressable>
               )}
             </View>
           );
