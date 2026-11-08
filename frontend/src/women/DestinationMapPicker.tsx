@@ -1,9 +1,10 @@
 /**
  * DestinationMapPicker — native (iOS/Android) implementation.
  *
- * Replaces the pilot placeholder. Renders Google Maps (Android) /
- * Apple Maps (iOS) with a single draggable destination pin and a radius
- * circle labelled as the PLANNED ARRIVAL AREA — not active geofencing.
+ * Replaces the pilot placeholder. Renders Google Maps (PROVIDER_GOOGLE, both
+ * Android and iOS — no Apple Maps path exists) with a single draggable
+ * destination pin and a radius circle labelled as the PLANNED ARRIVAL AREA —
+ * not active geofencing.
  *
  * Privacy contract (enforced in this file):
  *  • showsUserLocation is NEVER enabled → no GPS permission is requested.
@@ -14,8 +15,9 @@
  *
  * Metro platform-extension resolution:
  *  iOS/Android → this file
- *  Web        → DestinationMapPicker.web.tsx (Google Maps JavaScript API,
- *               EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY — migrated off Leaflet)
+ *  Web        → DestinationMapPicker.web.tsx (Google Maps JavaScript API when
+ *               EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY is set; otherwise a free
+ *               Leaflet/OpenStreetMap fallback — see LeafletDestinationMapPicker.web.tsx)
  *
  * Key wiring: EXPO_PUBLIC_GOOGLE_MAPS_API_KEY is consumed by app.config.js
  * and injected by expo-modules-core as com.google.android.geo.API_KEY.

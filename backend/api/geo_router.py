@@ -8,19 +8,17 @@ pair so that when the feature flag below is OFF, nothing about today's
 behaviour changes at all.
 
 Design — provider seam:
-  `GeoProvider` is a tiny interface (`autocomplete`, `details`). Two
-  implementations exist today:
-    - `GooglePlacesProvider`  — Places API (New), server-side key only,
-      never shipped to the client. Primary provider when the feature is on.
-    - `NominatimFallbackProvider` — wraps the same free OpenStreetMap
-      Nominatim lookup used by geocode_router.py, reshaped to the same
-      suggestion/details contract. Used as an automatic, same-request
-      fallback if the Google call errors or times out (keeps the dropdown
-      useful instead of going blank), and is also what powers things when
-      the Google key/flag isn't configured at all but an operator still
-      wants best-effort type-ahead later. "place_id" for this provider is a
-      self-contained encoded token (no server state, no second HTTP call
-      needed for `details`).
+  `GeoProvider` is a tiny interface (`autocomplete`, `details`).
+  `GooglePlacesProvider` — Places API (New), server-side key only, never
+  shipped to the client — is the only implementation. There is
+  deliberately no OpenStreetMap/Nominatim fallback behind this pilot: if
+  Google errors, times out, or the flag/key isn't configured, both
+  endpoints fail closed (503/502) rather than silently substituting a
+  different provider's results under the same "it's working" UI state.
+  The actual fallback for address search living alongside this pilot is
+  the pre-existing, fully separate `/api/geocode/search` manual
+  Search-button flow in geocode_router.py — visibly a different action
+  the user takes, never swapped in transparently.
 
 Feature flag (default OFF): FEATURE_GOOGLE_PLACES_V1. When OFF, both
 endpoints respond 503 so the frontend's fail-closed logic falls back to the
@@ -36,13 +34,10 @@ Mounted at /api/geo/ via server.py.
 """
 from __future__ import annotations
 
-import base64
 import logging
 import math
 import os
 import re
-import time
-import asyncio
 from typing import List, Optional, Protocol
 
 import httpx
@@ -83,16 +78,6 @@ AUTOCOMPLETE_FIELD_MASK = (
 DETAILS_FIELD_MASK = "id,displayName,formattedAddress,location"
 
 _SESSION_TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
-
-# Nominatim fallback reuses the same fair-use pacing already proven safe in
-# geocode_router.py (max ~1 request/second, short cache).
-_NOMINATIM_SEARCH_URL = "https://nominatim.openstreetmap.org/search"
-_NOMINATIM_USER_AGENT = "DHARA-Safety-App/1.0 (destination-search pilot; interactive single-user use only)"
-_fallback_cache: dict[str, tuple[float, list]] = {}
-_fallback_last_request = 0.0
-_fallback_lock = asyncio.Lock()
-_FALLBACK_CACHE_TTL_S = 300
-_FALLBACK_MIN_INTERVAL_S = 1.0
 
 
 class GeoSuggestion(BaseModel):
@@ -183,78 +168,6 @@ class GooglePlacesProvider:
         return GeoDetails(label=label, latitude=loc["latitude"], longitude=loc["longitude"], provider=self.name)
 
 
-class NominatimFallbackProvider:
-    """
-    Free OSM fallback — used automatically if Google errors/times out, and
-    available as the sole provider once an operator later wants OSM-only
-    mode without any frontend changes. No server-side session state: the
-    "place_id" is a self-describing base64 token carrying label+coords, so
-    `details()` never needs a second network call or a stored session.
-    """
-    name = "osm"
-
-    @staticmethod
-    def _encode(label: str, lat: float, lon: float) -> str:
-        raw = f"{lat:.6f}|{lon:.6f}|{label}".encode("utf-8")
-        return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
-
-    @staticmethod
-    def _decode(token: str) -> Optional[tuple[float, float, str]]:
-        try:
-            padded = token + "=" * (-len(token) % 4)
-            raw = base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8")
-            lat_s, lon_s, label = raw.split("|", 2)
-            return float(lat_s), float(lon_s), label
-        except Exception:
-            return None
-
-    async def autocomplete(self, query: str, session_token: str, limit: int) -> List[GeoSuggestion]:
-        global _fallback_last_request
-        key = f"{query.strip().lower()}|{limit}"
-        now = time.monotonic()
-        cached = _fallback_cache.get(key)
-        if cached and (now - cached[0]) < _FALLBACK_CACHE_TTL_S:
-            raw = cached[1]
-        else:
-            async with _fallback_lock:
-                wait = _FALLBACK_MIN_INTERVAL_S - (time.monotonic() - _fallback_last_request)
-                if wait > 0:
-                    await asyncio.sleep(wait)
-                async with httpx.AsyncClient(timeout=6.0) as client:
-                    resp = await client.get(
-                        _NOMINATIM_SEARCH_URL,
-                        params={"q": query.strip(), "format": "jsonv2", "addressdetails": 1, "limit": limit},
-                        headers={"User-Agent": _NOMINATIM_USER_AGENT, "Accept-Language": "en"},
-                    )
-                _fallback_last_request = time.monotonic()
-                resp.raise_for_status()
-                raw = resp.json()
-            _fallback_cache[key] = (now, raw)
-
-        out: List[GeoSuggestion] = []
-        for item in raw[:limit]:
-            try:
-                label = item["display_name"]
-                lat, lon = float(item["lat"]), float(item["lon"])
-            except (KeyError, ValueError, TypeError):
-                continue
-            parts = [p.strip() for p in label.split(",") if p.strip()]
-            main = parts[0] if parts else label
-            secondary = ", ".join(parts[1:3])
-            out.append(GeoSuggestion(
-                place_id=self._encode(label, lat, lon),
-                main_text=main, secondary_text=secondary, provider=self.name,
-            ))
-        return out
-
-    async def details(self, place_id: str, session_token: str) -> Optional[GeoDetails]:
-        decoded = self._decode(place_id)
-        if not decoded:
-            return None
-        lat, lon, label = decoded
-        return GeoDetails(label=label, latitude=lat, longitude=lon, provider=self.name)
-
-
 def _active_provider() -> Optional[GeoProvider]:
     if not FEATURE_GOOGLE_PLACES_V1 or not GOOGLE_PLACES_SERVER_KEY:
         return None
@@ -283,42 +196,168 @@ async def geo_autocomplete(
     except HTTPException:
         raise
     except Exception as e:
-        logger.warning("geo_autocomplete: %s provider failed (%s), trying OSM fallback", provider.name, e)
-        try:
-            fallback = NominatimFallbackProvider()
-            suggestions = await fallback.autocomplete(input.strip(), session_token, limit)
-            return {"suggestions": [s.model_dump() for s in suggestions], "provider": fallback.name}
-        except Exception as e2:
-            logger.warning("geo_autocomplete: OSM fallback also failed: %s", e2)
-            raise HTTPException(502, "Address search is temporarily unavailable. Try again shortly.")
+        # Fail closed — no silent OSM substitution under the same "it worked"
+        # response shape. The frontend's existing fail-closed handling hides
+        # this dropdown on any error; the visibly separate manual Search
+        # button (/api/geocode/search) remains the real fallback.
+        logger.warning("geo_autocomplete: %s provider failed (%s)", provider.name, e)
+        raise HTTPException(502, "Address search is temporarily unavailable. Try again shortly.")
 
 
 @router.get("/geo/details", response_model=dict)
 async def geo_details(
     place_id: str = Query(..., min_length=1, max_length=512),
     session_token: str = Query(..., min_length=8, max_length=64),
-    provider: str = Query("google", pattern="^(google|osm)$"),
+    provider: str = Query("google", pattern="^google$"),
 ):
     if not _SESSION_TOKEN_RE.match(session_token):
         raise HTTPException(400, "Invalid session token")
 
-    if provider == "osm":
-        result = await NominatimFallbackProvider().details(place_id, session_token)
-    else:
-        active = _active_provider()
-        if active is None:
-            raise HTTPException(503, "Places autocomplete is not enabled")
-        try:
-            result = await active.details(place_id, session_token)
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.warning("geo_details: google provider failed: %s", e)
-            raise HTTPException(502, "Could not fetch address details. Try again shortly.")
+    active = _active_provider()
+    if active is None:
+        raise HTTPException(503, "Places autocomplete is not enabled")
+    try:
+        result = await active.details(place_id, session_token)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning("geo_details: google provider failed: %s", e)
+        raise HTTPException(502, "Could not fetch address details. Try again shortly.")
 
     if result is None:
         raise HTTPException(404, "Place not found")
     return result.model_dump()
+
+
+# ── Nearest Help (in-app Nearby/Text Search — replaces external-maps-only) ──
+# Same flag/key as the autocomplete pilot above (FEATURE_GOOGLE_PLACES_V1,
+# GOOGLE_PLACES_SERVER_KEY) — this is the same Places API (New) product,
+# same billing/quota pool. Fails closed (503/502) with no OSM equivalent;
+# the frontend's existing "open in external Maps" action is the fallback.
+#
+# Results are raw Google Places data — never labelled as officially
+# verified government facilities. The frontend must keep that framing.
+
+PLACES_NEARBY_URL = "https://places.googleapis.com/v1/places:searchNearby"
+PLACES_TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
+NEARBY_RESULT_FIELD_MASK = (
+    "places.id,places.displayName,places.formattedAddress,"
+    "places.location,places.nationalPhoneNumber"
+)
+_NEARBY_INCLUDED_TYPES = {"police": ["police"], "hospital": ["hospital"]}
+
+
+class NearbyPlace(BaseModel):
+    place_id: str
+    name: str
+    address: str
+    latitude: float
+    longitude: float
+    phone: Optional[str] = None
+    distance_meters: int
+
+
+def _parse_places_response(data: dict, origin_lat: float, origin_lng: float) -> List[NearbyPlace]:
+    out: List[NearbyPlace] = []
+    for p in data.get("places", []):
+        loc = p.get("location") or {}
+        plat, plng = loc.get("latitude"), loc.get("longitude")
+        if plat is None or plng is None:
+            continue
+        out.append(NearbyPlace(
+            place_id=p.get("id", ""),
+            name=(p.get("displayName") or {}).get("text") or "Unnamed location",
+            address=p.get("formattedAddress", ""),
+            latitude=plat,
+            longitude=plng,
+            phone=p.get("nationalPhoneNumber"),
+            distance_meters=round(_haversine_meters(origin_lat, origin_lng, plat, plng)),
+        ))
+    out.sort(key=lambda r: r.distance_meters)
+    return out
+
+
+@router.get("/geo/nearby", response_model=dict)
+async def geo_nearby(
+    category: str = Query(..., pattern="^(police|hospital)$"),
+    lat: float = Query(..., ge=-90, le=90),
+    lng: float = Query(..., ge=-180, le=180),
+    radius_meters: int = Query(5000, ge=200, le=50000),
+):
+    if not FEATURE_GOOGLE_PLACES_V1 or not GOOGLE_PLACES_SERVER_KEY:
+        raise HTTPException(503, "Nearby search is not enabled")
+    headers = {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": GOOGLE_PLACES_SERVER_KEY,
+        "X-Goog-FieldMask": NEARBY_RESULT_FIELD_MASK,
+    }
+    payload = {
+        "includedTypes": _NEARBY_INCLUDED_TYPES[category],
+        "maxResultCount": 10,
+        "languageCode": "en",
+        "locationRestriction": {
+            "circle": {"center": {"latitude": lat, "longitude": lng}, "radius": float(radius_meters)},
+        },
+    }
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.post(PLACES_NEARBY_URL, headers=headers, json=payload)
+        resp.raise_for_status()
+        results = _parse_places_response(resp.json(), lat, lng)
+    except Exception as e:
+        logger.warning("geo_nearby: %s search failed: %s", category, e)
+        raise HTTPException(502, "Nearby search is temporarily unavailable. Try again shortly.")
+    return {"results": [r.model_dump() for r in results], "provider": "google"}
+
+
+@router.get("/geo/search-text", response_model=dict)
+async def geo_search_text(
+    query: str = Query(..., min_length=3, max_length=120),
+    lat: Optional[float] = Query(None, ge=-90, le=90),
+    lng: Optional[float] = Query(None, ge=-180, le=180),
+):
+    if not FEATURE_GOOGLE_PLACES_V1 or not GOOGLE_PLACES_SERVER_KEY:
+        raise HTTPException(503, "Text search is not enabled")
+    headers = {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": GOOGLE_PLACES_SERVER_KEY,
+        "X-Goog-FieldMask": NEARBY_RESULT_FIELD_MASK,
+    }
+    payload: dict = {"textQuery": query.strip(), "languageCode": "en"}
+    has_location = lat is not None and lng is not None
+    if has_location:
+        payload["locationBias"] = {
+            "circle": {"center": {"latitude": lat, "longitude": lng}, "radius": 20000.0},
+        }
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.post(PLACES_TEXT_SEARCH_URL, headers=headers, json=payload)
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        logger.warning("geo_search_text: search failed: %s", e)
+        raise HTTPException(502, "Search is temporarily unavailable. Try again shortly.")
+
+    if has_location:
+        results = [r.model_dump() for r in _parse_places_response(data, lat, lng)]
+    else:
+        # No distance to sort/compute by — still return results, omitting it.
+        results = []
+        for p in data.get("places", []):
+            loc = p.get("location") or {}
+            plat, plng = loc.get("latitude"), loc.get("longitude")
+            if plat is None or plng is None:
+                continue
+            results.append({
+                "place_id": p.get("id", ""),
+                "name": (p.get("displayName") or {}).get("text") or "Unnamed location",
+                "address": p.get("formattedAddress", ""),
+                "latitude": plat,
+                "longitude": plng,
+                "phone": p.get("nationalPhoneNumber"),
+                "distance_meters": None,
+            })
+    return {"results": results, "provider": "google"}
 
 
 # ── Directions (Head Out: live route line, ETA, route-adherence) ────────────

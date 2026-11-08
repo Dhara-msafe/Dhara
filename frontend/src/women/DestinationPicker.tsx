@@ -59,6 +59,15 @@ export interface DestinationValue {
    */
   latitude?: number | null;
   longitude?: number | null;
+  /**
+   * Where latitude/longitude came from — only set when coordinates were just
+   * (re)resolved by this component, so the backend can track Google Places
+   * storage-compliance (30-day cache cap; see safety_router.py). Omitted
+   * (not just undefined-on-purpose) when unchanged from a loaded saved place.
+   */
+  coordsSource?: 'google' | 'osm' | 'manual';
+  /** Google Place ID for the current coordinates, when coordsSource is 'google'. */
+  googlePlaceId?: string;
 }
 
 export interface SavedPlace {
@@ -68,6 +77,10 @@ export interface SavedPlace {
   longitude: number | null;
   radius_meters: number;
   radius_label: string;
+  google_place_id?: string | null;
+  /** True when Google-sourced coordinates are past the 30-day cache cap and
+   * should be refreshed (re-searched) rather than reused as-is. */
+  needs_refresh?: boolean;
 }
 
 export interface AddressSuggestion {
@@ -76,12 +89,14 @@ export interface AddressSuggestion {
   longitude: number;
 }
 
-/** A Google Places (New) / OSM-fallback autocomplete row (pilot). */
+/** A Google Places (New) autocomplete row (pilot). No OSM fallback behind
+ * this dropdown — on any error it fails closed and the separate manual
+ * Search button (OSM-backed /api/geocode/search) is the real fallback. */
 export interface PlacesSuggestion {
   place_id: string;
   main_text: string;
   secondary_text: string;
-  provider: string; // "google" | "osm"
+  provider: string; // "google"
 }
 
 interface Props {

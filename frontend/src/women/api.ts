@@ -182,3 +182,40 @@ export async function setCheckin(v: boolean): Promise<void> {
   if (!key) return;
   await AsyncStorage.setItem(key, v ? '1' : '0');
 }
+
+// ── Nearest Help — in-app Places (New) search pilot (default OFF) ──────────
+// Same FEATURE_GOOGLE_PLACES_V1 pilot as destination search. Both calls
+// THROW on any non-2xx/network error so the caller can fail closed to the
+// pre-existing "open in external Maps" action — never a silent provider
+// swap. Results are raw Google Places data, never labelled as officially
+// verified government facilities.
+export type NearbyPlace = {
+  place_id: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  phone: string | null;
+  distance_meters: number | null;
+};
+
+export async function fetchNearbyPlaces(
+  category: 'police' | 'hospital', lat: number, lng: number,
+): Promise<NearbyPlace[]> {
+  const r = await fetch(
+    `${API_BASE}/api/geo/nearby?category=${category}&lat=${lat}&lng=${lng}`
+  );
+  if (!r.ok) throw new Error(`geo_nearby_${r.status}`);
+  const j = await r.json();
+  return j.results ?? [];
+}
+
+export async function fetchPlacesTextSearch(
+  query: string, lat?: number, lng?: number,
+): Promise<NearbyPlace[]> {
+  const loc = (lat != null && lng != null) ? `&lat=${lat}&lng=${lng}` : '';
+  const r = await fetch(`${API_BASE}/api/geo/search-text?query=${encodeURIComponent(query)}${loc}`);
+  if (!r.ok) throw new Error(`geo_search_text_${r.status}`);
+  const j = await r.json();
+  return j.results ?? [];
+}

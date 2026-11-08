@@ -49,6 +49,8 @@ interface SavedPlace {
   longitude: number | null;
   radius_meters: number;
   radius_label: string;
+  google_place_id?: string | null;
+  needs_refresh?: boolean;
 }
 
 /** A plain OSM result — coordinates are already known, no further lookup needed. */
@@ -67,7 +69,7 @@ interface PlacesSuggestionRow {
   kind: 'places';
   place_id: string;
   label: string;
-  provider: string; // "google" normally; can be "osm" if the backend's own Google call failed and it silently substituted its fallback before replying
+  provider: string; // always "google" — the backend fails closed (no OSM substitution) on any Google error, see geo_router.py
 }
 
 type UnifiedSuggestion = CoordSuggestion | PlacesSuggestionRow;
