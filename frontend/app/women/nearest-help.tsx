@@ -5,7 +5,6 @@ import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { theme } from '@/src/theme';
-import { EmergencyNumberStatic, EmergencyNotActiveNotice } from '@/src/components/dhara/EmergencyNumberStatic';
 import { fetchNearbyPlaces, fetchPlacesTextSearch, type NearbyPlace } from '@/src/women/api';
 import { openPhone } from '@/src/women/helpActions';
 

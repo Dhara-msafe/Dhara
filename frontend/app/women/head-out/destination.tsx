@@ -68,18 +68,35 @@ interface CoordSuggestion {
   longitude: number;
 }
 
-/** A Google Places result — coordinates are deliberately NOT fetched yet.
- * Places bills autocomplete and place-details as separate line items; a
- * details() call only happens if the user actually selects this row, same
- * discipline DestinationPicker.tsx's Places pilot already follows. */
+/** A row from /api/geo/autocomplete — coordinates are deliberately NOT
+ * fetched yet. Places bills autocomplete and place-details as separate line
+ * items; a details() call only happens if the user actually selects this
+ * row, same discipline DestinationPicker.tsx's Places pilot already follows.
+ *
+ * `provider` is NOT always "google": when FEATURE_GOOGLE_PLACES_V1 is off or
+ * unconfigured, geo_router.py now serves OSM results directly through this
+ * same endpoint (see _active_provider()/NominatimFallbackProvider there),
+ * labelled `provider: "osm"` — still `kind: 'places'` here since it came
+ * back through this endpoint, not through fetchOsmSuggestions(). The
+ * visible-fallback banner below checks this field precisely because of
+ * that — `kind` alone no longer tells you who actually answered. */
 interface PlacesSuggestionRow {
   kind: 'places';
   place_id: string;
   label: string;
-  provider: string; // always "google" — the backend fails closed (no OSM substitution) on any Google error, see geo_router.py
+  provider: string; // "google" or "osm" — see note above
 }
 
 type UnifiedSuggestion = CoordSuggestion | PlacesSuggestionRow;
+
+/** True for any suggestion that did NOT actually come from Google — either a
+ * 'coords' row (the separate /api/geocode/search fallback call) or a
+ * 'places' row whose own provider field says "osm" (geo_router.py serving
+ * OSM directly through /api/geo/autocomplete when Google isn't configured).
+ * See PlacesSuggestionRow's doc comment for why both checks are needed. */
+function isOsmSourced(s: UnifiedSuggestion): boolean {
+  return s.kind === 'coords' ? true : s.provider !== 'google';
+}
 
 async function fetchSavedPlaces(base: string, token: string): Promise<SavedPlace[]> {
   try {
@@ -386,12 +403,17 @@ export default function ChooseDestination() {
             Source labelling: searchAddressesLayered() never mixes providers
             within a single result set (it early-returns Places results if
             there are any, otherwise returns OSM results) — so checking the
-            first row tells us which provider answered the whole list. This
-            banner is what makes that fallback a *visible* one rather than a
-            silent blend — the review's explicit requirement. */}
+            first row tells us which provider answered the whole list. Two
+            separate signals both mean "not actually Google" here: a 'coords'
+            row (came from the separate /api/geocode/search fallback call),
+            or a 'places' row whose own `provider` field says "osm" (came
+            back through /api/geo/autocomplete, which now serves OSM directly
+            when the Places flag/key isn't configured — see PlacesSuggestionRow's
+            doc comment). This banner is what makes either fallback *visible*
+            rather than a silent blend — the review's explicit requirement. */}
         {showAddressDropdown && addressSuggestions.length > 0 && (
           <View style={styles.suggestionsBox} testID="headout-address-suggestions">
-            {addressSuggestions[0].kind === 'coords' && (
+            {isOsmSourced(addressSuggestions[0]) && (
               <View style={styles.suggestionSourceBanner}>
                 <Ionicons name="information-circle-outline" size={13} color={c.muted} />
                 <Text style={styles.suggestionSourceTxt}>
