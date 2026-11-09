@@ -6,7 +6,10 @@
  * only stores a DRAFT (headOutWizardStore) — nothing is sent to the backend
  * and no journey is created until the wizard's final step ("Start journey").
  *
- * ADDRESS SEARCH — layered, same pattern DestinationPicker.tsx already uses:
+ * ADDRESS SEARCH — layered (NOTE: this is its own implementation, not the
+ * same pattern as DestinationPicker.tsx's search — that component keeps
+ * Places and OSM on two visibly separate affordances; this screen instead
+ * chains them into one box, so the UI-level distinction below matters):
  *   1. Try /api/geo/autocomplete (Google Places API, New) — only live when
  *      the backend has FEATURE_GOOGLE_PLACES_V1=true AND a real
  *      GOOGLE_PLACES_SERVER_KEY configured. Neither exists in this repo
@@ -18,6 +21,10 @@
  *      endpoint this screen used before this layering was added. This keeps
  *      suggestions working today, with zero configuration, regardless of
  *      whether the Places pilot is ever turned on in production.
+ *   The fallback in step 2 is NOT silent: the dropdown shows a visible
+ *   "Showing OpenStreetMap results — Google address search is currently
+ *   unavailable" banner whenever the current result set came from OSM, so a
+ *   user (and a reviewer) can always tell which provider actually answered.
  * This is a SEPARATE session/instance from DestinationPicker.tsx's own Places
  * pilot — same backend contract, independent client-side state.
  */
@@ -148,7 +155,11 @@ async function fetchPlaceDetails(
 }
 
 /** The layered search itself: Places first, OSM if that's unavailable or
- * comes back empty. A session token is minted on first use and handed back
+ * comes back empty. Never mixes providers within one result set — it
+ * early-returns Places results if there are any, otherwise returns only OSM
+ * results — which is what lets the caller label the whole dropdown by
+ * checking just the first row's `kind` (see the visible-fallback banner at
+ * the render site). A session token is minted on first use and handed back
  * via sessionTokenRef so the caller can reuse it for the matching details()
  * call and then clear it once the search concludes (Places billing
  * semantics — one token per search session, reused across every keystroke's
@@ -370,9 +381,24 @@ export default function ChooseDestination() {
         {/* Real-world address suggestions — debounced, independent of the
             Saved/Recent lists below, which keep filtering live underneath.
             A Places row (kind: 'places') resolves its coordinates only once
-            tapped, so it has no lat/lng yet to key on here. */}
+            tapped, so it has no lat/lng yet to key on here.
+
+            Source labelling: searchAddressesLayered() never mixes providers
+            within a single result set (it early-returns Places results if
+            there are any, otherwise returns OSM results) — so checking the
+            first row tells us which provider answered the whole list. This
+            banner is what makes that fallback a *visible* one rather than a
+            silent blend — the review's explicit requirement. */}
         {showAddressDropdown && addressSuggestions.length > 0 && (
           <View style={styles.suggestionsBox} testID="headout-address-suggestions">
+            {addressSuggestions[0].kind === 'coords' && (
+              <View style={styles.suggestionSourceBanner}>
+                <Ionicons name="information-circle-outline" size={13} color={c.muted} />
+                <Text style={styles.suggestionSourceTxt}>
+                  Showing OpenStreetMap results — Google address search is currently unavailable
+                </Text>
+              </View>
+            )}
             {addressSuggestions.map((s, i) => (
               <Pressable
                 key={s.kind === 'coords' ? `coords-${s.latitude}-${s.longitude}-${i}` : `places-${s.place_id}`}
@@ -518,6 +544,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.lines,
   },
   suggestionTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, lineHeight: 18 },
+  suggestionSourceBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8,
+    backgroundColor: c.navySoft, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.lines,
+  },
+  suggestionSourceTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 11, color: c.muted, lineHeight: 15 },
   tabRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
   tab: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines },
   tabActive: { backgroundColor: c.navySoft, borderColor: c.navy },
