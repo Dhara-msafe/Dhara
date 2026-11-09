@@ -6,7 +6,10 @@
  * only stores a DRAFT (headOutWizardStore) — nothing is sent to the backend
  * and no journey is created until the wizard's final step ("Start journey").
  *
- * ADDRESS SEARCH — layered, same pattern DestinationPicker.tsx already uses:
+ * ADDRESS SEARCH — layered (NOTE: this is its own implementation, not the
+ * same pattern as DestinationPicker.tsx's search — that component keeps
+ * Places and OSM on two visibly separate affordances; this screen instead
+ * chains them into one box, so the UI-level distinction below matters):
  *   1. Try /api/geo/autocomplete (Google Places API, New) — only live when
  *      the backend has FEATURE_GOOGLE_PLACES_V1=true AND a real
  *      GOOGLE_PLACES_SERVER_KEY configured. Neither exists in this repo
@@ -18,6 +21,10 @@
  *      endpoint this screen used before this layering was added. This keeps
  *      suggestions working today, with zero configuration, regardless of
  *      whether the Places pilot is ever turned on in production.
+ *   The fallback in step 2 is NOT silent: the dropdown shows a visible
+ *   "Showing OpenStreetMap results — Google address search is currently
+ *   unavailable" banner whenever the current result set came from OSM, so a
+ *   user (and a reviewer) can always tell which provider actually answered.
  * This is a SEPARATE session/instance from DestinationPicker.tsx's own Places
  * pilot — same backend contract, independent client-side state.
  */
@@ -61,18 +68,35 @@ interface CoordSuggestion {
   longitude: number;
 }
 
-/** A Google Places result — coordinates are deliberately NOT fetched yet.
- * Places bills autocomplete and place-details as separate line items; a
- * details() call only happens if the user actually selects this row, same
- * discipline DestinationPicker.tsx's Places pilot already follows. */
+/** A row from /api/geo/autocomplete — coordinates are deliberately NOT
+ * fetched yet. Places bills autocomplete and place-details as separate line
+ * items; a details() call only happens if the user actually selects this
+ * row, same discipline DestinationPicker.tsx's Places pilot already follows.
+ *
+ * `provider` is NOT always "google": when FEATURE_GOOGLE_PLACES_V1 is off or
+ * unconfigured, geo_router.py now serves OSM results directly through this
+ * same endpoint (see _active_provider()/NominatimFallbackProvider there),
+ * labelled `provider: "osm"` — still `kind: 'places'` here since it came
+ * back through this endpoint, not through fetchOsmSuggestions(). The
+ * visible-fallback banner below checks this field precisely because of
+ * that — `kind` alone no longer tells you who actually answered. */
 interface PlacesSuggestionRow {
   kind: 'places';
   place_id: string;
   label: string;
-  provider: string; // always "google" — the backend fails closed (no OSM substitution) on any Google error, see geo_router.py
+  provider: string; // "google" or "osm" — see note above
 }
 
 type UnifiedSuggestion = CoordSuggestion | PlacesSuggestionRow;
+
+/** True for any suggestion that did NOT actually come from Google — either a
+ * 'coords' row (the separate /api/geocode/search fallback call) or a
+ * 'places' row whose own provider field says "osm" (geo_router.py serving
+ * OSM directly through /api/geo/autocomplete when Google isn't configured).
+ * See PlacesSuggestionRow's doc comment for why both checks are needed. */
+function isOsmSourced(s: UnifiedSuggestion): boolean {
+  return s.kind === 'coords' ? true : s.provider !== 'google';
+}
 
 async function fetchSavedPlaces(base: string, token: string): Promise<SavedPlace[]> {
   try {
@@ -148,7 +172,11 @@ async function fetchPlaceDetails(
 }
 
 /** The layered search itself: Places first, OSM if that's unavailable or
- * comes back empty. A session token is minted on first use and handed back
+ * comes back empty. Never mixes providers within one result set — it
+ * early-returns Places results if there are any, otherwise returns only OSM
+ * results — which is what lets the caller label the whole dropdown by
+ * checking just the first row's `kind` (see the visible-fallback banner at
+ * the render site). A session token is minted on first use and handed back
  * via sessionTokenRef so the caller can reuse it for the matching details()
  * call and then clear it once the search concludes (Places billing
  * semantics — one token per search session, reused across every keystroke's
@@ -370,9 +398,29 @@ export default function ChooseDestination() {
         {/* Real-world address suggestions — debounced, independent of the
             Saved/Recent lists below, which keep filtering live underneath.
             A Places row (kind: 'places') resolves its coordinates only once
-            tapped, so it has no lat/lng yet to key on here. */}
+            tapped, so it has no lat/lng yet to key on here.
+
+            Source labelling: searchAddressesLayered() never mixes providers
+            within a single result set (it early-returns Places results if
+            there are any, otherwise returns OSM results) — so checking the
+            first row tells us which provider answered the whole list. Two
+            separate signals both mean "not actually Google" here: a 'coords'
+            row (came from the separate /api/geocode/search fallback call),
+            or a 'places' row whose own `provider` field says "osm" (came
+            back through /api/geo/autocomplete, which now serves OSM directly
+            when the Places flag/key isn't configured — see PlacesSuggestionRow's
+            doc comment). This banner is what makes either fallback *visible*
+            rather than a silent blend — the review's explicit requirement. */}
         {showAddressDropdown && addressSuggestions.length > 0 && (
           <View style={styles.suggestionsBox} testID="headout-address-suggestions">
+            {isOsmSourced(addressSuggestions[0]) && (
+              <View style={styles.suggestionSourceBanner}>
+                <Ionicons name="information-circle-outline" size={13} color={c.muted} />
+                <Text style={styles.suggestionSourceTxt}>
+                  Showing OpenStreetMap results — Google address search is currently unavailable
+                </Text>
+              </View>
+            )}
             {addressSuggestions.map((s, i) => (
               <Pressable
                 key={s.kind === 'coords' ? `coords-${s.latitude}-${s.longitude}-${i}` : `places-${s.place_id}`}
@@ -518,6 +566,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.lines,
   },
   suggestionTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, lineHeight: 18 },
+  suggestionSourceBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8,
+    backgroundColor: c.navySoft, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.lines,
+  },
+  suggestionSourceTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 11, color: c.muted, lineHeight: 15 },
   tabRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
   tab: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines },
   tabActive: { backgroundColor: c.navySoft, borderColor: c.navy },
