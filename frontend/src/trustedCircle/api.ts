@@ -8,7 +8,7 @@ import { uploadForm } from '../utils/upload';
 
 const base = `${API_BASE}/api`;
 
-function authHeaders(token: string | null) {
+function authHeaders(token: string | null): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -49,11 +49,12 @@ export async function getPhotoViewToken(token: string): Promise<string | null> {
 export type Permissions = { journey_status: boolean; expected_arrival: boolean; missed_checkin: boolean; temp_location: boolean; emergency_requests: boolean };
 export type InviteLink = {
   id: string; owner_id: string; owner_name: string; contact_name: string; contact_phone: string;
+  relationship: string | null;
   invitee_user_id: string | null; permissions: Permissions; status: string; muted: boolean;
   created_at: string; responded_at: string | null;
 };
 
-export async function inviteContact(token: string, body: { name: string; phone: string; permissions?: Partial<Permissions> }): Promise<{ ok: boolean; id: string; matched_existing_user: boolean }> {
+export async function inviteContact(token: string, body: { name: string; phone: string; permissions?: Partial<Permissions>; relationship?: string }): Promise<{ ok: boolean; id: string; matched_existing_user: boolean }> {
   const r = await fetch(`${base}/trusted-circle/invite`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders(token) }, body: JSON.stringify(body),
   });
@@ -92,6 +93,19 @@ export async function muteCircle(token: string, id: string, muted: boolean) {
     method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders(token) }, body: JSON.stringify({ muted }),
   });
   return r.ok;
+}
+/** Owner-only. Changes what this person receives GOING FORWARD (a standing
+ * setting on the link, same as what inviteContact() sets once at invite
+ * time) — NOT scoped to a single journey. There is no per-journey override
+ * layer; journey alert fan-out reads a link's standing permissions
+ * directly. Any caller presenting this as a toggle must say so, not imply
+ * it only affects the journey currently being set up. */
+export async function updateLinkPermissions(token: string, id: string, patch: Partial<Permissions>): Promise<Permissions> {
+  const r = await fetch(`${base}/trusted-circle/invitations/${id}/permissions`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders(token) }, body: JSON.stringify(patch),
+  });
+  if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.detail || 'Could not update permissions');
+  return (await r.json()).permissions;
 }
 export async function listAcceptedRecipients(token: string): Promise<InviteLink[]> {
   try {

@@ -38,6 +38,17 @@ RADIUS_MIN_M = 50
 RADIUS_MAX_M = 2000
 RADIUS_PRESETS = {100, 200, 300}
 
+# Google Places (New) storage compliance: Place IDs may be stored
+# indefinitely, but the place DATA (address, coordinates) obtained via
+# Places content may only be cached for up to 30 consecutive calendar days
+# before it must be refreshed or deleted — see
+# https://developers.google.com/maps/documentation/places/web-service/policies.
+# Saved places sourced from OSM or a manually-dropped pin carry no such
+# restriction (coords_source stays "osm"/"manual", coords_cached_at stays
+# null) — this clock only applies to coords_source == "google".
+PLACES_CACHE_MAX_DAYS = 30
+VALID_COORDS_SOURCES = {"google", "osm", "manual"}
+
 COLLECTION = "safety_saved_places"
 META_COLLECTION = "safety_meta"
 INDEX_META_ID = "safety_saved_places_indexes_v1"
@@ -68,6 +79,13 @@ class SavedPlaceIn(BaseModel):
     longitude: Optional[float] = Field(None, ge=-180.0, le=180.0)
     radius_meters: int = Field(200, ge=RADIUS_MIN_M, le=RADIUS_MAX_M,
                                description="Planned arrival area radius. NOT an active geofence.")
+    # Google Places (New) storage compliance — see PLACES_CACHE_MAX_DAYS above.
+    # Both optional and independent of any other field, so existing callers
+    # (OSM search, manual pin) are unaffected.
+    google_place_id: Optional[str] = Field(None, max_length=512)
+    coords_source: Optional[str] = Field(
+        None, description="Where latitude/longitude came from: 'google' | 'osm' | 'manual'"
+    )
 
     @field_validator("radius_meters")
     @classmethod
@@ -86,12 +104,21 @@ class SavedPlaceIn(BaseModel):
             raise ValueError("label must not be blank")
         return cleaned
 
+    @field_validator("coords_source")
+    @classmethod
+    def coords_source_must_be_valid(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in VALID_COORDS_SOURCES:
+            raise ValueError(f"coords_source must be one of {sorted(VALID_COORDS_SOURCES)}")
+        return v
+
 
 class SavedPlacePatchIn(BaseModel):
     label: Optional[str] = Field(None, min_length=1, max_length=80)
     latitude: Optional[float] = Field(None, ge=-90.0, le=90.0)
     longitude: Optional[float] = Field(None, ge=-180.0, le=180.0)
     radius_meters: Optional[int] = Field(None, ge=RADIUS_MIN_M, le=RADIUS_MAX_M)
+    google_place_id: Optional[str] = Field(None, max_length=512)
+    coords_source: Optional[str] = Field(None)
 
     @field_validator("label")
     @classmethod
@@ -102,17 +129,46 @@ class SavedPlacePatchIn(BaseModel):
                 raise ValueError("label must not be blank")
         return v
 
+    @field_validator("coords_source")
+    @classmethod
+    def coords_source_must_be_valid(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in VALID_COORDS_SOURCES:
+            raise ValueError(f"coords_source must be one of {sorted(VALID_COORDS_SOURCES)}")
+        return v
+
+
+def _is_places_cache_stale(doc: dict) -> bool:
+    """True only for Google-sourced coordinates older than the 30-day cap.
+    OSM/manual-pin coordinates (or docs with no recorded source — created
+    before this field existed) are never subject to this Google-specific
+    retention rule."""
+    if doc.get("coords_source") != "google":
+        return False
+    cached_at = doc.get("coords_cached_at")
+    if not cached_at:
+        return False
+    try:
+        cached = datetime.fromisoformat(cached_at)
+    except ValueError:
+        return False
+    age_days = (datetime.now(timezone.utc) - cached).total_seconds() / 86400
+    return age_days > PLACES_CACHE_MAX_DAYS
+
 
 def _public(doc: dict) -> dict:
     return {
-        "place_id":      doc["place_id"],
-        "label":         doc["label"],
-        "latitude":      doc.get("latitude"),
-        "longitude":     doc.get("longitude"),
-        "radius_meters": doc["radius_meters"],
-        "radius_label":  _radius_label(doc["radius_meters"]),
-        "created_at":    doc["created_at"],
-        "updated_at":    doc.get("updated_at", doc["created_at"]),
+        "place_id":        doc["place_id"],
+        "label":           doc["label"],
+        "latitude":        doc.get("latitude"),
+        "longitude":       doc.get("longitude"),
+        "radius_meters":   doc["radius_meters"],
+        "radius_label":    _radius_label(doc["radius_meters"]),
+        "created_at":      doc["created_at"],
+        "updated_at":      doc.get("updated_at", doc["created_at"]),
+        "google_place_id": doc.get("google_place_id"),
+        # True when Google-sourced coordinates are past the 30-day cache cap —
+        # the frontend should prompt a re-search rather than keep using them.
+        "needs_refresh":   _is_places_cache_stale(doc),
     }
 
 
@@ -149,15 +205,19 @@ async def create_saved_place(body: SavedPlaceIn, user: dict = Depends(current_us
     now = datetime.now(timezone.utc).isoformat()
     place_id = str(uuid.uuid4())
     doc = {
-        "place_id":      place_id,
-        "owner_id":      user["id"],
-        "label":         body.label,
-        "latitude":      body.latitude,
-        "longitude":     body.longitude,
-        "radius_meters": body.radius_meters,
-        "created_at":    now,
-        "updated_at":    now,
-        "deleted_at":    None,
+        "place_id":         place_id,
+        "owner_id":         user["id"],
+        "label":            body.label,
+        "latitude":         body.latitude,
+        "longitude":        body.longitude,
+        "radius_meters":    body.radius_meters,
+        "created_at":       now,
+        "updated_at":       now,
+        "deleted_at":       None,
+        "google_place_id":  body.google_place_id,
+        "coords_source":    body.coords_source,
+        # Only Google-sourced coordinates start the 30-day cache clock.
+        "coords_cached_at": now if body.coords_source == "google" else None,
     }
     # Lazy index creation on first write
     await _ensure_indexes_once()
@@ -181,7 +241,8 @@ async def update_saved_place(
     if existing["owner_id"] != user["id"]:
         raise HTTPException(403, "Not authorised to modify this place")
 
-    updates: dict = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    now = datetime.now(timezone.utc).isoformat()
+    updates: dict = {"updated_at": now}
     if body.label is not None:
         updates["label"] = body.label
     if body.latitude is not None:
@@ -190,6 +251,14 @@ async def update_saved_place(
         updates["longitude"] = body.longitude
     if body.radius_meters is not None:
         updates["radius_meters"] = body.radius_meters
+    if body.google_place_id is not None:
+        updates["google_place_id"] = body.google_place_id
+    if body.coords_source is not None:
+        # The refresh path: a user re-selecting this destination from the
+        # live Places/OSM search resets the 30-day Google cache clock (or
+        # clears it entirely if the new source isn't Google).
+        updates["coords_source"] = body.coords_source
+        updates["coords_cached_at"] = now if body.coords_source == "google" else None
 
     await db[COLLECTION].update_one({"place_id": place_id}, {"$set": updates})
     updated = {**existing, **updates}

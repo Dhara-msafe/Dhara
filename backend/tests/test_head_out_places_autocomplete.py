@@ -50,7 +50,8 @@ class TestGeoAutocompleteFlagState:
             assert r.status_code == 200
             data = r.json()
             assert "suggestions" in data and "provider" in data
-            assert data["provider"] in ("google", "osm")
+            # No OSM fallback behind this pilot — a 200 means Google answered.
+            assert data["provider"] == "google"
             if data["suggestions"]:
                 s = data["suggestions"][0]
                 assert "place_id" in s and "main_text" in s and "provider" in s

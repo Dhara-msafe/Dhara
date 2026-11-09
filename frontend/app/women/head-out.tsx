@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Linking, Modal, AppState } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { View, Text, Pressable, StyleSheet, ScrollView, Linking, Modal, AppState, TextInput, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,19 +7,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '@/src/theme';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { getCircle, type Contact } from '@/src/women/api';
-import { DestinationPicker, type DestinationValue } from '@/src/women/DestinationPicker';
 import { useAuth } from '@/src/auth';
 import { useJourneyGPS } from '@/src/hooks/useJourneyGPS';
 import { API_BASE } from '@/src/apiBase';
-import { listAcceptedRecipients, type InviteLink } from '@/src/trustedCircle/api';
 import { getLastLocation } from '@/src/safety/locationCache';
 import { formatLocationFix } from '@/src/safety/locationPresentation';
 import { useLocationUpload } from '@/src/hooks/useLocationUpload';
+import { ActiveJourneyMap } from '@/src/women/ActiveJourneyMap';
+import { DestinationMapPicker } from '@/src/women/DestinationMapPicker';
+import { isValidCoord, isValidRadius, haversineMeters, distanceToPolylineMeters } from '@/src/utils/mapValidation';
+import { listAcceptedRecipients, getPhotoViewToken, type InviteLink } from '@/src/trustedCircle/api';
 
 import { openExternal } from '@/src/outbound';
 const c = theme.colors;
 const GUARDIAN_SHARE_ENABLED   = process.env.EXPO_PUBLIC_GUARDIAN_SHARE === 'true';
-const DESTINATION_PICKER_ENABLED = process.env.EXPO_PUBLIC_DESTINATION_PICKER === 'true';
 // GO1B: Live GPS tracking — default OFF; guardian status page shows last known area
 const GO1B_GPS_ENABLED = process.env.EXPO_PUBLIC_GO1B_GPS === 'true';
 const TRUSTED_CIRCLE_RECIPIENT = process.env.EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT === 'true';
@@ -28,14 +29,64 @@ const TRUSTED_CIRCLE_RECIPIENT = process.env.EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIEN
 // SMS composer. Default ON for this isolated pilot. Set to "false" to
 // restore the original production sms: intent behaviour everywhere.
 const ALERT_SIMULATION_MODE = process.env.EXPO_PUBLIC_ALERT_SIMULATION_MODE !== 'false';
+// GO1C: live route map, ETA, arrival-zone detection, route-deviation
+// detection. Independently gated from GO1B (raw GPS upload) — GO1C reuses
+// GO1B's position stream but adds the Directions fetch + client-side
+// geofence/deviation math, so an operator can keep GO1B (location sharing
+// with the circle) on while leaving this heavier/newer layer off.
+const GO1C_LIVE_ROUTE_ENABLED = process.env.EXPO_PUBLIC_GO1C_LIVE_ROUTE === 'true';
+const DEFAULT_ARRIVAL_RADIUS_M = 200;
+// Re-fetch the route/ETA at most this often — a live safety map should stay
+// reasonably current, but re-querying Directions on every 30s GPS tick would
+// multiply a billed API's call volume for no real accuracy gain at this scale.
+const DIRECTIONS_REFRESH_MS = 2 * 60 * 1000;
+// "Outside the expected route" trigger: perpendicular distance from the route
+// line. Wide enough to absorb ordinary GPS drift and minor path choices
+// (crossing a street, the other side of a block) without false-alarming.
+const ROUTE_DEVIATION_METERS = 150;
+// "Moving away from your destination" trigger: this many consecutive GPS
+// fixes with strictly increasing distance-to-destination, not just one noisy
+// reading.
+const MOVING_AWAY_STREAK = 3;
+// How long a dismissed arrived/deviated prompt stays dismissed before it's
+// eligible to reappear (it can still reappear sooner if the underlying
+// condition clears and re-triggers, e.g. leaving and re-entering the zone).
+const DISMISS_COOLDOWN_MS = 5 * 60 * 1000;
+// If a deviation persists this long with no sign of heading back AND the
+// traveller hasn't dismissed it, auto-notify the trusted circle — product
+// decision: 15 minutes (the low end of "15 to 20" — short enough to still be
+// useful as an early warning, long enough to absorb a GPS blip or someone
+// just not glancing at their phone right away).
+const DEVIATION_ESCALATION_MS = 15 * 60 * 1000;
+// "Heading back toward the destination" means the current distance is at
+// least this much closer than it was when the deviation episode started —
+// a small buffer so ordinary GPS jitter doesn't get read as course-correcting.
+const HEADING_BACK_MARGIN_METERS = 30;
 
-const DURATIONS = [
-  { label: '30 min', mins: 30 },
-  { label: '1 hour', mins: 60 },
-  { label: '2 hours', mins: 120 },
-  { label: '4 hours', mins: 240 },
-];
+// "Check-in not received" screen (shown once the check-in timer expires).
+// GRACE_MINUTES must match deadline_worker.py's _GRACE_MINUTES on the
+// backend — this is purely a DISPLAY countdown to the same server-side grace
+// window that already exists; it does not independently control when the
+// server actually escalates (changing one without the other would make this
+// countdown lie about when the circle actually gets notified).
+const GRACE_MINUTES = 5;
+// A GPS fix older than this is shown as "looks offline" — this can't know
+// the phone's actual network state, only that we haven't heard a new
+// position in a while, which is the honest signal actually available here.
+const OFFLINE_THRESHOLD_MS = 2 * 60 * 1000;
 
+interface RouteInfo {
+  polyline: [number, number][];
+  distanceMeters: number;
+  durationSeconds: number;
+  provider: string;
+  fetchedAt: number;
+}
+
+// Must match head-out/destination.tsx, radius.tsx and circle.tsx's own
+// SESSION_KEY literal exactly — those screens write a session here; this one
+// only ever reads it. Setup itself now lives in the 3-step wizard
+// (app/women/head-out/*) — this screen redirects there when no session exists.
 const SESSION_KEY = 'ws_head_out_session';
 
 interface HeadOutSession {
@@ -46,6 +97,21 @@ interface HeadOutSession {
   savedPlaceId?: string;   // GO1A: optional reference to a saved place
   latitude?: number | null;  // GO1A map pilot: manual pin position, never device GPS
   longitude?: number | null;
+  /** Trusted Circle link ids to notify for this journey — persisted (unlike
+   * the old selectedRecipients React state) so a journey record can still be
+   * created/recreated for this session after a remount, e.g. when the Head
+   * Out wizard hands off a freshly created session that hasn't gotten its
+   * journey token yet. Undefined for sessions created before this field existed. */
+  recipientLinkIds?: string[];
+  /** Minutes before expected_checkin_at the OWNER gets a reminder push.
+   * null/undefined = no reminder. Undefined for sessions created before this
+   * field existed. See deadline_worker.py's _run_reminders. */
+  remindBeforeMins?: number | null;
+  /** Whether a missed check-in should actually escalate to the trusted
+   * circle. Undefined is treated as true (matches the backend's default —
+   * sessions created before this field existed keep the original always-notify
+   * behaviour). See deadline_worker.py's auto_notify_on_no_response gate. */
+  autoNotifyOnNoResponse?: boolean;
 }
 
 function formatCountdown(secs: number): string {
@@ -62,13 +128,12 @@ export default function HeadOut() {
   const router = useRouter();
   const { token: authToken, user } = useAuth() as any;
 
-  const [destination, setDestination] = useState('');
-  // GO1A: DestinationPicker state (used when DESTINATION_PICKER_ENABLED)
-  const [destValue, setDestValue] = useState<DestinationValue>({ label: '', radiusMeters: 200 });
-  const [selectedMins, setSelectedMins] = useState(60);
   const [session, setSession] = useState<HeadOutSession | null>(null);
   const [secsLeft, setSecsLeft] = useState(0);
   const [expired, setExpired] = useState(false);
+  // Seconds remaining in the post-expiry grace window before the server's
+  // own deadline_worker would auto-notify the circle — null until expired.
+  const [graceSecsLeft, setGraceSecsLeft] = useState<number | null>(null);
   const [circle, setCircle] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   // GO1B: journey token created when session starts (so GPS can start immediately)
@@ -78,13 +143,56 @@ export default function HeadOut() {
   const [locationConsentGiven, setLocationConsentGiven] = useState(false);
   // showPermDeniedSettings: hook reported canAskAgain=false — show "Open Settings" prompt
   const [showPermDeniedSettings, setShowPermDeniedSettings] = useState(false);
-  // Part B/P4: accepted Trusted Circle recipients eligible to be alerted for THIS journey
-  const [recipients, setRecipients] = useState<InviteLink[]>([]);
-  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Pilot simulation preview for "Prepare alert" (Batch 2) — holds the
   // message body + recipient names shown in the preview Modal; never sent.
   const [simPreview, setSimPreview] = useState<{ body: string; recipients: string[] } | null>(null);
+  // Guards the journey-recovery effect below so it only ever attempts a
+  // create once per session — see that effect for the full race-prevention story.
+  const journeyCreateAttemptedRef = useRef(false);
+  // Who to notify for this journey now comes from the session itself (set by
+  // the Head Out wizard's Trusted Circle step), not from a checkbox list on
+  // this screen — this screen no longer has one.
+  // useMemo (not a plain `?? []`) so this is the SAME array reference across
+  // renders when recipientLinkIds is absent — otherwise every render would
+  // hand effects/deps a fresh empty-array identity and re-run them needlessly.
+  const selectedRecipients = useMemo(() => session?.recipientLinkIds ?? [], [session?.recipientLinkIds]);
+
+  // "Check-in not received" screen: who specifically will be notified, with
+  // their name/photo — reuses the same Trusted Circle API circle.tsx already
+  // uses, fetched only once we actually need it (the journey has expired),
+  // not on every Head Out screen load.
+  const [notifyRecipients, setNotifyRecipients] = useState<InviteLink[]>([]);
+  const [notifyPhotoToken, setNotifyPhotoToken] = useState<string | null>(null);
+  const [failedNotifyPhotos, setFailedNotifyPhotos] = useState<Record<string, boolean>>({});
+  const notifyFetchedRef = useRef(false);
+  useEffect(() => {
+    if (!expired || notifyFetchedRef.current || !authToken || selectedRecipients.length === 0) return;
+    notifyFetchedRef.current = true;
+    Promise.all([listAcceptedRecipients(authToken), getPhotoViewToken(authToken)])
+      .then(([all, token]) => {
+        setNotifyRecipients(all.filter(l => selectedRecipients.includes(l.id)));
+        setNotifyPhotoToken(token);
+      })
+      .catch(() => {});
+  }, [expired, authToken, selectedRecipients]);
+  useEffect(() => { if (!expired) notifyFetchedRef.current = false; }, [expired]);
+
+  const notifyPhotoUri = (ownerId: string | null) =>
+    ownerId && notifyPhotoToken ? `${API_BASE}/api/profile/photo/${ownerId}?token=${encodeURIComponent(notifyPhotoToken)}` : null;
+
+  // GO1C: live route / ETA / arrival / deviation
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+  const distanceHistoryRef = useRef<number[]>([]);   // recent distance-to-destination readings, oldest first
+  const [arrivedDismissedAt, setArrivedDismissedAt] = useState<number | null>(null);
+  const [deviatedDismissedAt, setDeviatedDismissedAt] = useState<number | null>(null);
+  const [extending, setExtending] = useState(false);
+  const [extendError, setExtendError] = useState<string | null>(null);
+  const [showChangeDest, setShowChangeDest] = useState(false);
+  const [changeDestLabel, setChangeDestLabel] = useState('');
+  const [changeDestCoord, setChangeDestCoord] = useState<{ lat: number; lng: number } | null>(null);
+  const [changingDest, setChangingDest] = useState(false);
+  const [changeDestError, setChangeDestError] = useState<string | null>(null);
 
   // Load persisted session + circle on mount
   useEffect(() => {
@@ -101,62 +209,69 @@ export default function HeadOut() {
     })();
   }, []);
 
-  // Tick the countdown whenever session changes
+  // Journey-token recovery: creates the backend journey record for a session
+  // that doesn't have one yet — the ONLY journey-creation path now that the
+  // Head Out wizard (app/women/head-out/*) writes the session directly and
+  // hands off here. Also covers this screen remounting after the app was
+  // closed and reopened mid-session, since journeyToken has never been
+  // persisted — only the session itself is.
+  useEffect(() => {
+    if (
+      !session || expired || !GO1B_GPS_ENABLED || !authToken ||
+      journeyToken || journeyCreateAttemptedRef.current
+    ) return;
+    journeyCreateAttemptedRef.current = true;
+    fetch(`${API_BASE}/api/journey/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+      body: JSON.stringify({
+        destination: session.destination,
+        duration_mins: session.durationMins,
+        recipient_link_ids: session.recipientLinkIds ?? [],
+        remind_before_mins: session.remindBeforeMins ?? null,
+        auto_notify_on_no_response: session.autoNotifyOnNoResponse ?? true,
+      }),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.token) setJourneyToken(data.token); })
+      .catch(() => {});   // non-fatal — GPS tracking stays best-effort
+  }, [session, expired, authToken, journeyToken]);
+
+  // Tick the countdown whenever session changes. Keeps running past the main
+  // deadline (instead of stopping dead at 0) so it can also surface a live
+  // "time until the server actually notifies your circle" grace countdown —
+  // only stops once BOTH the check-in deadline AND the grace window have
+  // fully elapsed, since nothing on this screen needs to keep updating after that.
   useEffect(() => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-    if (!session) { setSecsLeft(0); setExpired(false); return; }
+    if (!session) { setSecsLeft(0); setExpired(false); setGraceSecsLeft(null); return; }
 
     const tick = () => {
       const deadline = session.startTime + session.durationMins * 60 * 1000;
       const left = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
       setSecsLeft(left);
-      if (left === 0) {
-        setExpired(true);
-        if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+      if (left > 0) {
+        setExpired(false);
+        setGraceSecsLeft(null);
+        return;
       }
+      setExpired(true);
+      const graceDeadline = deadline + GRACE_MINUTES * 60 * 1000;
+      const graceLeft = Math.max(0, Math.floor((graceDeadline - Date.now()) / 1000));
+      setGraceSecsLeft(graceLeft);
+      if (graceLeft === 0 && timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     };
     tick();
     timerRef.current = setInterval(tick, 1000);
     return () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
   }, [session]);
 
+  // No session → nothing to do here anymore; send the user into the wizard's
+  // first step instead of rendering an inline form (that form now lives at
+  // app/women/head-out/destination.tsx, as Step 1 of 3).
   useEffect(() => {
-    if (TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && authToken) {
-      listAcceptedRecipients(authToken).then(setRecipients).catch(() => {});
-    }
-  }, [authToken]);
-
-  const startSession = useCallback(async () => {
-    // Resolve destination label from whichever input mode is active
-    const label = DESTINATION_PICKER_ENABLED ? destValue.label.trim() : destination.trim();
-    if (!label) return;
-    const ses: HeadOutSession = {
-      destination: label,
-      startTime: Date.now(),
-      durationMins: selectedMins,
-      ...(DESTINATION_PICKER_ENABLED && {
-        radiusMeters: destValue.radiusMeters,
-        savedPlaceId: destValue.savedPlaceId,
-        latitude: destValue.latitude ?? null,
-        longitude: destValue.longitude ?? null,
-      }),
-    };
-    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(ses)).catch(() => {});
-    setSession(ses);
-    setExpired(false);
-
-    // GO1B: create backend journey record so GPS tracking starts immediately
-    if (GO1B_GPS_ENABLED && authToken) {
-      fetch(`${API_BASE}/api/journey/status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ destination: label, duration_mins: selectedMins, recipient_link_ids: selectedRecipients }),
-      })
-        .then(r => r.ok ? r.json() : null)
-        .then(data => { if (data?.token) setJourneyToken(data.token); })
-        .catch(() => {});   // non-fatal — GPS is best-effort
-    }
-  }, [destination, destValue, selectedMins, authToken, selectedRecipients]);
+    if (!loading && !session) router.replace('/women/head-out/destination');
+  }, [loading, session, router]);
 
   const endSession = useCallback(async () => {
     // Part B/P4: tell linked recipients this journey completed safely — best-effort
@@ -168,23 +283,71 @@ export default function HeadOut() {
     await AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
     setSession(null);
     setExpired(false);
-    setDestination('');
-    setDestValue({ label: '', radiusMeters: 200 });
     setJourneyToken(null);
-    setSelectedRecipients([]);
+    setSharingRevoked(false);
+    setRouteInfo(null);
+    referenceRouteRef.current = null;
+    referenceRouteProviderRef.current = null;
+    distanceHistoryRef.current = [];
+    deviationStartedAtRef.current = null;
+    deviationBaselineDistanceRef.current = null;
+    deviationEscalatedRef.current = false;
+    journeyCreateAttemptedRef.current = false; // a future session may need its own journey created
   }, [authToken, journeyToken]);
 
-  // Part B/P4: report a missed check-in to the backend exactly once per expiry
+  // Part B/P4: report a missed check-in to the backend — waits out the SAME
+  // grace window shown on the "Check-in not received" screen (GRACE_MINUTES)
+  // rather than firing the instant the timer hits zero, so "Will notify your
+  // circle in X" on that screen is an honest countdown, not a lie about a
+  // notification that already went out. "Raise alert now" (below) is the
+  // only way to skip this wait deliberately. Idempotent either way —
+  // deadline_worker.py's own server-side grace period (independent of this
+  // client-driven call) would eventually fire the same alert if this device
+  // goes offline/backgrounded before the countdown finishes; both paths
+  // share one idempotency key per journey+recipient, so the circle is never
+  // double-notified regardless of which path actually fires first.
   const missedReportedRef = useRef(false);
+  const [alertRaised, setAlertRaised] = useState(false);
   useEffect(() => {
-    if (expired && GO1B_GPS_ENABLED && authToken && journeyToken && !missedReportedRef.current) {
+    if (graceSecsLeft === 0 && GO1B_GPS_ENABLED && authToken && journeyToken && !missedReportedRef.current) {
       missedReportedRef.current = true;
+      setAlertRaised(true);
       fetch(`${API_BASE}/api/journey/status/${journeyToken}/missed-checkin`, {
         method: 'POST', headers: { Authorization: `Bearer ${authToken}` },
       }).catch(() => {});
     }
-    if (!expired) missedReportedRef.current = false;
-  }, [expired, authToken, journeyToken]);
+    if (!expired) { missedReportedRef.current = false; setAlertRaised(false); }
+  }, [expired, graceSecsLeft, authToken, journeyToken]);
+
+  const raiseAlertNow = useCallback(() => {
+    if (!GO1B_GPS_ENABLED || !authToken || !journeyToken || missedReportedRef.current) return;
+    missedReportedRef.current = true;
+    setAlertRaised(true);
+    fetch(`${API_BASE}/api/journey/status/${journeyToken}/missed-checkin`, {
+      method: 'POST', headers: { Authorization: `Bearer ${authToken}` },
+    }).catch(() => {});
+  }, [authToken, journeyToken]);
+
+  // "Stop sharing" — withdraws location/status sharing without claiming
+  // arrival (distinct from endSession/"I'm home safely"). Reuses the same
+  // /revoke endpoint guardian-share.tsx already calls; this is just the first
+  // time it's exposed from the main Head Out screen itself rather than only
+  // the separate guardian-link flow. The check-in timer keeps running —
+  // revoking sharing stops what your circle can see, it doesn't end the journey.
+  const [sharingRevoked, setSharingRevoked] = useState(false);
+  const [revokingShare, setRevokingShare] = useState(false);
+  const stopSharing = useCallback(async () => {
+    if (!journeyToken || !authToken || revokingShare) return;
+    setRevokingShare(true);
+    try {
+      const r = await fetch(`${API_BASE}/api/journey/status/${journeyToken}/revoke`, {
+        method: 'POST', headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (r.ok) setSharingRevoked(true);
+    } catch {} finally {
+      setRevokingShare(false);
+    }
+  }, [journeyToken, authToken, revokingShare]);
 
   const requestHelp = useCallback(() => {
     if (GO1B_GPS_ENABLED && authToken && journeyToken) {
@@ -194,6 +357,127 @@ export default function HeadOut() {
     }
   }, [authToken, journeyToken]);
 
+  // GO1C: "Extend time" — pushes the check-in deadline forward without
+  // ending the session. Updates the LOCAL session too (startTime/durationMins
+  // math) so the on-device countdown stays in sync with the server's new
+  // expected_checkin_at rather than drifting until the next recovery effect run.
+  const handleExtendTime = useCallback(async (additionalMins: number) => {
+    if (!authToken || !journeyToken || !session || extending) return;
+    setExtending(true);
+    setExtendError(null);
+    try {
+      const r = await fetch(`${API_BASE}/api/journey/status/${journeyToken}/extend`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ additional_mins: additionalMins }),
+      });
+      if (!r.ok) throw new Error();
+      const updated = { ...session, durationMins: session.durationMins + additionalMins };
+      await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(updated)).catch(() => {});
+      setSession(updated);
+      setArrivedDismissedAt(Date.now());   // the prompt that led here shouldn't immediately reappear
+    } catch {
+      setExtendError('Could not extend your check-in time. Try again.');
+    } finally {
+      setExtending(false);
+    }
+  }, [authToken, journeyToken, session, extending]);
+
+  const handleDismissArrived = useCallback(() => setArrivedDismissedAt(Date.now()), []);
+
+  // "Check in now" (post-expiry): handleExtendTime ADDS minutes to the
+  // existing deadline, which is correct for the 'arrived' screen (deadline is
+  // still in the future there). Here, the deadline may already be well in the
+  // past (the whole point of this screen), so a flat +15 could still land in
+  // the past if more than 15 minutes have elapsed since expiry. This instead
+  // computes however many minutes are needed to land the deadline at
+  // "now + 15 min" specifically, then reuses handleExtendTime with THAT value.
+  const handleCheckInNow = useCallback(async () => {
+    if (!session || extending) return;
+    const desiredDeadline = Date.now() + 15 * 60 * 1000;
+    const currentDeadline = session.startTime + session.durationMins * 60 * 1000;
+    const additionalMins = Math.max(1, Math.ceil((desiredDeadline - currentDeadline) / 60000));
+    if (authToken && journeyToken) {
+      handleExtendTime(additionalMins);   // keeps the server record (and its grace/reminder tracking) in sync too
+      return;
+    }
+    // No backend journey record at all (GO1B_GPS_ENABLED off) — "check in"
+    // still means something locally: reset the on-device timer.
+    const updated = { ...session, durationMins: session.durationMins + additionalMins };
+    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(updated)).catch(() => {});
+    setSession(updated);
+  }, [session, extending, authToken, journeyToken, handleExtendTime]);
+
+  // "I'm okay" acknowledges the deviation AND re-plans from here — forcing a
+  // fresh Directions fetch (rather than waiting up to DIRECTIONS_REFRESH_MS)
+  // so the reference route the next deviation check runs against reflects
+  // where the traveller actually is now, not the path they already left.
+  const handleOkayDeviated = useCallback(() => {
+    setDeviatedDismissedAt(Date.now());
+    setRouteInfo(null);
+    // An explicit "I'm okay" always cancels any pending auto-escalation for
+    // this episode — a human just affirmatively responded, so there is
+    // nothing left to escalate about. A future deviation starts a fresh
+    // episode with its own full 15-minute window, never an immediate re-fire.
+    deviationStartedAtRef.current = null;
+    deviationBaselineDistanceRef.current = null;
+    deviationEscalatedRef.current = false;
+  }, []);
+
+  // GO1C: "Change destination" — a lightweight inline picker rather than
+  // re-entering the full 3-step wizard (which is designed for first-time
+  // setup, not editing a journey already in progress).
+  const handleOpenChangeDestination = useCallback(() => {
+    setChangeDestLabel(session?.destination ?? '');
+    setChangeDestCoord(
+      isValidCoord(session?.latitude ?? null, session?.longitude ?? null)
+        ? { lat: session!.latitude!, lng: session!.longitude! } : null,
+    );
+    setChangeDestError(null);
+    setShowChangeDest(true);
+  }, [session]);
+
+  const handleSaveChangeDestination = useCallback(async () => {
+    if (!session || !changeDestLabel.trim() || changingDest) return;
+    setChangingDest(true);
+    setChangeDestError(null);
+    try {
+      if (authToken && journeyToken) {
+        const r = await fetch(`${API_BASE}/api/journey/status/${journeyToken}/destination`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+          body: JSON.stringify({
+            destination: changeDestLabel.trim(),
+            lat: changeDestCoord?.lat ?? null,
+            lng: changeDestCoord?.lng ?? null,
+          }),
+        });
+        if (!r.ok) throw new Error();
+      }
+      const updated: HeadOutSession = {
+        ...session,
+        destination: changeDestLabel.trim(),
+        latitude: changeDestCoord?.lat ?? session.latitude ?? null,
+        longitude: changeDestCoord?.lng ?? session.longitude ?? null,
+      };
+      await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(updated)).catch(() => {});
+      setSession(updated);
+      setRouteInfo(null);                // force a fresh Directions fetch for the new destination
+      referenceRouteRef.current = null;  // old route is meaningless against a different destination
+      referenceRouteProviderRef.current = null;
+      distanceHistoryRef.current = [];   // old trend data no longer means anything against a new destination
+      deviationStartedAtRef.current = null;   // same reasoning as handleOkayDeviated — a new destination is a fresh start
+      deviationBaselineDistanceRef.current = null;
+      deviationEscalatedRef.current = false;
+      setDeviatedDismissedAt(null);
+      setShowChangeDest(false);
+    } catch {
+      setChangeDestError('Could not update your destination. Try again.');
+    } finally {
+      setChangingDest(false);
+    }
+  }, [session, changeDestLabel, changeDestCoord, changingDest, authToken, journeyToken]);
+
   // GO1B: GPS tracking — active only when session running, flag on, AND user
   // has seen the pre-permission rationale (handle_permissions_contract).
   const gps = useJourneyGPS(
@@ -201,6 +485,158 @@ export default function HeadOut() {
     GO1B_GPS_ENABLED && !!session && !expired && locationConsentGiven,
     () => setShowPermDeniedSettings(true),
   );
+
+  const hasDestCoord = isValidCoord(session?.latitude ?? null, session?.longitude ?? null);
+
+  // GO1C: fetch/refresh the route line + ETA. Runs once a live fix is
+  // available, then again whenever DIRECTIONS_REFRESH_MS has elapsed or the
+  // destination itself changed (routeInfo reset to null by handleSaveChangeDestination).
+  useEffect(() => {
+    if (!GO1C_LIVE_ROUTE_ENABLED || expired || !hasDestCoord || !isValidCoord(gps.latitude, gps.longitude)) return;
+    if (routeInfo && Date.now() - routeInfo.fetchedAt < DIRECTIONS_REFRESH_MS) return;
+    let cancelled = false;
+    fetch(
+      `${API_BASE}/api/geo/directions?origin_lat=${gps.latitude}&origin_lng=${gps.longitude}` +
+      `&dest_lat=${session!.latitude}&dest_lng=${session!.longitude}`,
+    )
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (cancelled || !data) return;
+        setRouteInfo({
+          polyline: data.polyline, distanceMeters: data.distance_meters,
+          durationSeconds: data.duration_seconds, provider: data.provider,
+          fetchedAt: Date.now(),
+        });
+      })
+      .catch(() => {});   // non-fatal — map/ETA just stays on the previous (or no) route
+    return () => { cancelled = true; };
+  }, [gps.latitude, gps.longitude, hasDestCoord, expired, routeInfo, session]);
+
+  // GO1C: arrival-zone + route-deviation detection — pure client-side math on
+  // data already being collected (no extra network calls beyond the
+  // Directions fetch above). Recomputes on every GPS fix.
+  const distanceToDestination = useMemo(() => {
+    if (!hasDestCoord || !isValidCoord(gps.latitude, gps.longitude)) return null;
+    return haversineMeters(gps.latitude!, gps.longitude!, session!.latitude!, session!.longitude!);
+  }, [gps.latitude, gps.longitude, hasDestCoord, session]);
+
+  useEffect(() => {
+    if (distanceToDestination == null) return;
+    const hist = distanceHistoryRef.current;
+    hist.push(distanceToDestination);
+    if (hist.length > MOVING_AWAY_STREAK) hist.shift();
+  }, [distanceToDestination]);
+
+  const arrivalRadius = session?.radiusMeters && isValidRadius(session.radiusMeters)
+    ? session.radiusMeters : DEFAULT_ARRIVAL_RADIUS_M;
+
+  const hasArrived = GO1C_LIVE_ROUTE_ENABLED && distanceToDestination != null && distanceToDestination <= arrivalRadius;
+
+  const movingAway = useMemo(() => {
+    const hist = distanceHistoryRef.current;
+    if (hist.length < MOVING_AWAY_STREAK) return false;
+    for (let i = 1; i < hist.length; i++) if (hist[i] <= hist[i - 1]) return false;
+    return true;
+    // distanceToDestination is read via distanceHistoryRef (a ref, not reactive)
+    // below, so it's listed as a dependency purely as the recompute TRIGGER each
+    // time a new GPS fix lands — removing it, as the linter suggests, would make
+    // this memo never recompute at all.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [distanceToDestination]);
+
+  // Deviation must be checked against a STABLE reference route, not whatever
+  // routeInfo happens to be this instant. routeInfo refreshes every 2 min
+  // from the traveller's CURRENT position — if deviation math used routeInfo
+  // directly, every refresh would silently clear an active deviation (a route
+  // recalculated from where you already are always has ~0 distance to you).
+  // referenceRouteRef only adopts a new route while the traveller is NOT
+  // currently flagged as deviated, so a genuine deviation persists until the
+  // user acknowledges it (handleOkayDeviated / handleSaveChangeDestination),
+  // not until the next unrelated ETA refresh happens to fire.
+  const referenceRouteRef = useRef<[number, number][] | null>(null);
+  const referenceRouteProviderRef = useRef<string | null>(null);
+
+  const offRoute = GO1C_LIVE_ROUTE_ENABLED
+    && !!referenceRouteRef.current
+    && referenceRouteProviderRef.current === 'google'   // only meaningful against a real road route
+    && isValidCoord(gps.latitude, gps.longitude)
+    && distanceToPolylineMeters(gps.latitude!, gps.longitude!, referenceRouteRef.current) > ROUTE_DEVIATION_METERS;
+
+  const hasDeviated = GO1C_LIVE_ROUTE_ENABLED && !hasArrived && (offRoute || movingAway);
+
+  useEffect(() => {
+    if (!routeInfo) return;
+    if (!hasDeviated) {
+      referenceRouteRef.current = routeInfo.polyline;
+      referenceRouteProviderRef.current = routeInfo.provider;
+    }
+    // else: leave the existing reference route in place — see comment above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeInfo]);
+
+  const now = Date.now();
+  const arrivedDismissed = !!arrivedDismissedAt && now - arrivedDismissedAt < DISMISS_COOLDOWN_MS;
+  const deviatedDismissed = !!deviatedDismissedAt && now - deviatedDismissedAt < DISMISS_COOLDOWN_MS;
+
+  const journeyPhase: 'normal' | 'arrived' | 'deviated' =
+    hasArrived && !arrivedDismissed ? 'arrived'
+    : hasDeviated && !deviatedDismissed ? 'deviated'
+    : 'normal';
+
+  // Reset dismissals once their underlying condition clears, so a genuinely
+  // new arrival/deviation later in the same journey isn't silently suppressed
+  // by an old dismissal that never gets cleared otherwise.
+  useEffect(() => { if (!hasArrived) setArrivedDismissedAt(null); }, [hasArrived]);
+  useEffect(() => { if (!hasDeviated) setDeviatedDismissedAt(null); }, [hasDeviated]);
+
+  // GO1C: deviation → trusted-circle auto-escalation after sustained silence.
+  // Tracks one "episode" per continuous hasDeviated streak: when it starts,
+  // the distance-to-destination baseline at that moment, and whether this
+  // episode has already escalated (so retries/re-renders don't re-fire).
+  // handleOkayDeviated / handleSaveChangeDestination explicitly clear
+  // deviationStartedAtRef — an acknowledged deviation never escalates later,
+  // even if hasDeviated happens to still read true right after.
+  const deviationStartedAtRef = useRef<number | null>(null);
+  const deviationBaselineDistanceRef = useRef<number | null>(null);
+  const deviationEscalatedRef = useRef(false);
+
+  useEffect(() => {
+    if (hasDeviated && deviationStartedAtRef.current == null) {
+      deviationStartedAtRef.current = Date.now();
+      deviationBaselineDistanceRef.current = distanceToDestination;
+      deviationEscalatedRef.current = false;
+    } else if (!hasDeviated) {
+      deviationStartedAtRef.current = null;
+      deviationBaselineDistanceRef.current = null;
+      deviationEscalatedRef.current = false;
+    }
+  }, [hasDeviated, distanceToDestination]);
+
+  useEffect(() => {
+    const startedAt = deviationStartedAtRef.current;
+    if (
+      !GO1C_LIVE_ROUTE_ENABLED || !startedAt || deviationEscalatedRef.current ||
+      !authToken || !journeyToken || session?.autoNotifyOnNoResponse === false ||
+      Date.now() - startedAt < DEVIATION_ESCALATION_MS
+    ) return;
+
+    const baseline = deviationBaselineDistanceRef.current;
+    const headingBack = baseline != null && distanceToDestination != null
+      && baseline - distanceToDestination > HEADING_BACK_MARGIN_METERS;
+    if (headingBack) {
+      // Clearly correcting course — don't escalate, and let this episode end
+      // naturally (hasDeviated should clear on its own shortly as offRoute/
+      // movingAway stop being true against the improving distance).
+      return;
+    }
+
+    deviationEscalatedRef.current = true;   // claim BEFORE the async call — a slow response must not double-fire
+    fetch(`${API_BASE}/api/journey/status/${journeyToken}/route-deviation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+      body: JSON.stringify({ started_at: new Date(startedAt).toISOString() }),
+    }).catch(() => {});   // best-effort — a failed escalation call must not crash the journey screen
+  }, [distanceToDestination, authToken, journeyToken, session]);
 
   // F2b / F2c: battery-aware upload hook + stable refs for the AppState handler
   const { lastGaspUpload } = useLocationUpload(authToken, journeyToken);
@@ -292,7 +728,9 @@ export default function HeadOut() {
     }
   }, [circle, session, user]);
 
-  if (loading) return null;
+  // Loading, or no session yet (the redirect effect above is about to send
+  // the user into the wizard) — nothing for this screen to render either way.
+  if (loading || !session) return null;
 
   return (
     <ScrollView
@@ -303,105 +741,205 @@ export default function HeadOut() {
     >
       <ScreenHeader title="Head out safely" subtitle="Set a check-in timer — nothing is sent automatically" />
 
-      {!session ? (
-        <>
-          <Text style={styles.note}>
-            {'Tell DHARA where you\'re going. If you do not tap "I\'m home safely" before your timer expires, DHARA will help you prepare an SMS alert for your trusted circle. Nothing is sent without your action.'}
-          </Text>
+      {expired ? (
+            <View style={[styles.activeCard, styles.expiredCard]} testID="headout-expired-card">
+              <Ionicons name="cloud-offline-outline" size={32} color={c.emergencyRed} />
+              <Text style={styles.expiredTitle}>Check-in not received</Text>
+              <Text style={styles.note}>{"We haven't received your check-in."}</Text>
 
-          {DESTINATION_PICKER_ENABLED ? (
-            // GO1A: full DestinationPicker with saved places + radius
-            <DestinationPicker
-              testID="headout-destination-picker"
-              value={destValue}
-              onChange={setDestValue}
-              authToken={authToken ?? undefined}
-              gpsForegroundEnabled={GO1B_GPS_ENABLED}
-            />
-          ) : (
-            // Original plain TextInput — unchanged
-            <>
-              <Text style={styles.fieldLabel}>Where are you going?</Text>
-              <TextInput
-                testID="headout-destination"
-                value={destination}
-                onChangeText={setDestination}
-                placeholder="e.g. Office, market, bus stop…"
-                placeholderTextColor={c.muted}
-                style={styles.input}
-                returnKeyType="done"
-                accessibilityLabel="Destination"
-              />
-            </>
-          )}
+              {GO1B_GPS_ENABLED && (
+                <View style={styles.statusCard} testID="headout-phone-status">
+                  <Ionicons
+                    name={gps.lastFixAt && Date.now() - gps.lastFixAt < OFFLINE_THRESHOLD_MS ? 'wifi-outline' : 'cloud-offline-outline'}
+                    size={20} color={gps.lastFixAt && Date.now() - gps.lastFixAt < OFFLINE_THRESHOLD_MS ? c.verifiedGreen : '#B45309'}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.statusCardLabel}>Phone status</Text>
+                    <Text style={styles.statusCardValue}>
+                      {gps.lastFixAt == null
+                        ? 'No location received yet'
+                        : Date.now() - gps.lastFixAt < OFFLINE_THRESHOLD_MS
+                          ? 'Looks online'
+                          : `Looks offline (last location ${Math.round((Date.now() - gps.lastFixAt) / 60000)} min ago)`}
+                    </Text>
+                  </View>
+                </View>
+              )}
 
-          <Text style={styles.fieldLabel}>Expected return time</Text>
-          <View style={styles.durationRow}>
-            {DURATIONS.map(d => (
+              {TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && journeyToken && selectedRecipients.length > 0 && (
+                <View style={styles.statusCard} testID="headout-server-alert-status">
+                  <Ionicons name="time-outline" size={20} color={c.navy} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.statusCardLabel}>Server alert status</Text>
+                    <Text style={styles.statusCardValue}>
+                      {session.autoNotifyOnNoResponse === false
+                        ? "Won't auto-notify — you chose \"Do nothing\" in Step 3"
+                        : alertRaised || graceSecsLeft === 0
+                          ? 'Your trusted circle has been notified'
+                          : `Will notify your circle in ${formatCountdown(graceSecsLeft ?? 0)}`}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {notifyRecipients.length > 0 && (
+                <View style={styles.notifyListBlock} testID="headout-notify-list">
+                  <Text style={styles.togglesHeader}>Your Trusted Circle</Text>
+                  {notifyRecipients.map(link => {
+                    const uri = !failedNotifyPhotos[link.id] ? notifyPhotoUri(link.invitee_user_id) : null;
+                    return (
+                      <View key={link.id} style={styles.notifyRow}>
+                        {uri ? (
+                          <Image source={{ uri }} style={styles.avatar} onError={() => setFailedNotifyPhotos(f => ({ ...f, [link.id]: true }))} />
+                        ) : (
+                          <View style={styles.avatarFallback}><Ionicons name="person" size={16} color={c.muted} /></View>
+                        )}
+                        <Text style={styles.notifyName}>{link.contact_name}</Text>
+                        <View style={{ flex: 1 }} />
+                        <Text style={styles.notifyEta}>
+                          {session.autoNotifyOnNoResponse === false
+                            ? 'Not auto-notified'
+                            : alertRaised || graceSecsLeft === 0
+                              ? 'Notified'
+                              : `In ${formatCountdown(graceSecsLeft ?? 0)}`}
+                        </Text>
+                        <Ionicons name="time-outline" size={14} color={c.muted} />
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+
               <Pressable
-                key={d.mins}
-                testID={`headout-dur-${d.mins}`}
-                style={[styles.durChip, selectedMins === d.mins && styles.durChipActive]}
-                onPress={() => setSelectedMins(d.mins)}
-                accessibilityRole="radio"
-                aria-checked={selectedMins === d.mins}
-                accessibilityState={{ checked: selectedMins === d.mins }}
-                accessibilityLabel={d.label}
+                testID="headout-check-in-now"
+                disabled={extending}
+                style={[styles.button, { marginTop: 14 }]}
+                onPress={handleCheckInNow}
+                accessibilityRole="button"
+                accessibilityLabel="Check in now"
               >
-                <Text style={[styles.durTxt, selectedMins === d.mins && styles.durTxtActive]}>{d.label}</Text>
+                <Ionicons name="checkmark-done-outline" size={18} color="#fff" />
+                <Text style={styles.buttonText}>{extending ? 'Checking in…' : 'Check in now'}</Text>
               </Pressable>
-            ))}
-          </View>
+              {!!extendError && <Text style={styles.inlineError}>{extendError}</Text>}
 
-          {TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && recipients.length > 0 && (
-            <>
-              <Text style={styles.fieldLabel}>Alert these Trusted Circle members for this journey</Text>
-              {recipients.map(r => {
-                const sel = selectedRecipients.includes(r.id);
-                return (
-                  <Pressable
-                    key={r.id}
-                    testID={`headout-recipient-${r.id}`}
-                    style={[styles.recipientRow, sel && styles.recipientRowActive]}
-                    onPress={() => setSelectedRecipients(cur => sel ? cur.filter(x => x !== r.id) : [...cur, r.id])}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: sel }}
-                  >
-                    <Ionicons name={sel ? 'checkbox' : 'square-outline'} size={20} color={sel ? c.navy : c.muted} />
-                    <Text style={styles.recipientTxt}>{r.contact_name}</Text>
-                  </Pressable>
-                );
-              })}
-            </>
-          )}
+              {TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && journeyToken && selectedRecipients.length > 0 && !alertRaised && graceSecsLeft !== 0 && (
+                <Pressable testID="headout-raise-alert-now" onPress={raiseAlertNow} accessibilityRole="button" accessibilityLabel="Raise alert now">
+                  <Text style={[styles.linkTxt, styles.linkTxtUnderline]}>Raise alert now</Text>
+                </Pressable>
+              )}
 
-          <Pressable
-            testID="headout-start"
-            style={[styles.button, !(DESTINATION_PICKER_ENABLED ? destValue.label.trim() : destination.trim()) && styles.buttonDisabled]}
-            disabled={!(DESTINATION_PICKER_ENABLED ? destValue.label.trim() : destination.trim())}
-            onPress={startSession}
-            accessibilityRole="button"
-            accessibilityLabel="Head out — start timer"
-          >
-            <Ionicons name="navigate-outline" size={18} color="#fff" />
-            <Text style={styles.buttonText}>Head out — start timer</Text>
-          </Pressable>
-
-          {circle.length === 0 && (
-            <View style={styles.warningCard}>
-              <View style={styles.warningRow}>
-                <Ionicons name="people-outline" size={18} color={c.darkGold} />
-                <Text style={styles.warningTxt}>Your trusted circle is empty. Add contacts so DHARA can help prepare an alert if you miss check-in.</Text>
+              {/* Distinct, older, local-device-only system — NOT the same
+                  "Trusted Circle" shown above. Kept visually secondary
+                  (outline, not solid) and clearly separated so it doesn't
+                  read as a duplicate of the automated flow above it. */}
+              <View style={styles.smsDivider}>
+                <View style={styles.smsDividerLine} />
+                <Text style={styles.smsDividerTxt}>or text someone directly</Text>
+                <View style={styles.smsDividerLine} />
               </View>
-              <Pressable testID="headout-add-circle" onPress={() => router.push('/women/trusted-circle')}>
-                <Text style={styles.linkTxt}>Set up trusted circle →</Text>
+              <Pressable
+                testID="headout-alert-circle"
+                style={[styles.button, styles.outlineAlertBtn]}
+                onPress={prepareAlertSMS}
+                accessibilityRole="button"
+                accessibilityLabel="Text my emergency contacts"
+              >
+                <Ionicons name="chatbubble-outline" size={18} color={c.emergencyRed} />
+                <Text style={[styles.buttonText, { color: c.emergencyRed }]}>Text my emergency contacts</Text>
               </Pressable>
             </View>
-          )}
-        </>
+      ) : journeyPhase === 'arrived' ? (
+            <View style={styles.activeCard} testID="headout-arrived-card">
+              {hasDestCoord && (
+                <ActiveJourneyMap
+                  testID="headout-arrived-map"
+                  currentLat={gps.latitude} currentLng={gps.longitude}
+                  destLat={session.latitude!} destLng={session.longitude!}
+                  radiusMeters={arrivalRadius} routePolyline={routeInfo?.polyline ?? null}
+                />
+              )}
+              <Ionicons name="checkmark-circle-outline" size={28} color={c.verifiedGreen} />
+              <Text style={styles.activeTitle}>{"You're at your destination"}</Text>
+              <Text style={styles.note}>
+                {`We've detected you're within the arrival zone (${Math.round(arrivalRadius)} m) of "${session.destination}". This doesn't automatically mean you're safe — confirm below.`}
+              </Text>
+              <Pressable
+                testID="headout-i-arrived"
+                style={[styles.button, styles.safeButton]}
+                onPress={endSession}
+                accessibilityRole="button"
+                accessibilityLabel="Confirm I arrived"
+              >
+                <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+                <Text style={styles.buttonText}>I arrived</Text>
+              </Pressable>
+              <Pressable testID="headout-not-here-yet" onPress={handleDismissArrived} accessibilityRole="button" accessibilityLabel="Not here yet">
+                <Text style={styles.linkTxt}>Not here yet</Text>
+              </Pressable>
+              <Pressable
+                testID="headout-extend-time"
+                disabled={extending}
+                onPress={() => handleExtendTime(15)}
+                accessibilityRole="button"
+                accessibilityLabel="Extend check-in time by 15 minutes"
+              >
+                <Text style={[styles.linkTxt, styles.linkTxtUnderline]}>{extending ? 'Extending…' : 'Extend time (+15 min)'}</Text>
+              </Pressable>
+              {!!extendError && <Text style={styles.inlineError}>{extendError}</Text>}
+            </View>
+      ) : journeyPhase === 'deviated' ? (
+            <View style={[styles.activeCard, styles.deviatedCard]} testID="headout-deviated-card">
+              {hasDestCoord && (
+                <ActiveJourneyMap
+                  testID="headout-deviated-map"
+                  currentLat={gps.latitude} currentLng={gps.longitude}
+                  destLat={session.latitude!} destLng={session.longitude!}
+                  radiusMeters={arrivalRadius} routePolyline={routeInfo?.polyline ?? null}
+                />
+              )}
+              <Ionicons name="warning-outline" size={28} color="#B45309" />
+              <Text style={styles.activeTitle}>Your journey changed</Text>
+              <Text style={styles.note}>You are outside the expected route or moving away from your destination.</Text>
+              <Text style={[styles.note, styles.areYouOkayTxt]}>Are you okay?</Text>
+              <Pressable
+                testID="headout-im-okay"
+                style={[styles.button, styles.safeButton]}
+                onPress={handleOkayDeviated}
+                accessibilityRole="button"
+                accessibilityLabel="I'm okay"
+              >
+                <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+                <Text style={styles.buttonText}>{"I'm okay"}</Text>
+              </Pressable>
+              <Pressable
+                testID="headout-change-destination"
+                style={[styles.button, styles.guardianBtn]}
+                onPress={handleOpenChangeDestination}
+                accessibilityRole="button"
+                accessibilityLabel="Change destination"
+              >
+                <Text style={[styles.buttonText, { color: c.navy }]}>Change destination</Text>
+              </Pressable>
+              {TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && journeyToken && selectedRecipients.length > 0 && (
+                <Pressable
+                  testID="headout-deviated-need-help"
+                  style={[styles.button, styles.alertButton]}
+                  onPress={requestHelp}
+                  accessibilityRole="button"
+                  accessibilityLabel="Request help from your Trusted Circle"
+                >
+                  <Ionicons name="warning-outline" size={18} color="#fff" />
+                  <Text style={styles.buttonText}>Need help</Text>
+                </Pressable>
+              )}
+              <Text style={styles.disclosureNote}>
+                {session.autoNotifyOnNoResponse === false
+                  ? 'Your Trusted Circle is not told about this automatically — you chose "Do nothing" for missed responses in Step 3. They\'re only notified if you tap "Need help" above.'
+                  : 'If this continues for 15 minutes with no sign of you heading back, DHARA will let your Trusted Circle know — tap "I\'m okay" or "Change destination" any time before then to cancel that.'}
+              </Text>
+            </View>
       ) : (
-        <>
-          {!expired ? (
             <View style={styles.activeCard} testID="headout-active-card">
               <View style={styles.activeHeader}>
                 <Ionicons name="navigate-circle-outline" size={26} color={c.navy} />
@@ -417,7 +955,22 @@ export default function HeadOut() {
                     : `Planned area: ${session.radiusMeters} m · Monitoring not active`}
                 </Text>
               )}
-              <Text style={styles.timerLbl}>Check-in in</Text>
+              {GO1C_LIVE_ROUTE_ENABLED && hasDestCoord && (
+                <ActiveJourneyMap
+                  testID="headout-active-map"
+                  currentLat={gps.latitude} currentLng={gps.longitude}
+                  destLat={session.latitude!} destLng={session.longitude!}
+                  radiusMeters={arrivalRadius} routePolyline={routeInfo?.polyline ?? null}
+                />
+              )}
+              {!!routeInfo && (
+                <Text style={styles.etaTxt} testID="headout-eta">
+                  {routeInfo.provider === 'approximate' ? '~' : ''}Arriving in {Math.max(1, Math.round(routeInfo.durationSeconds / 60))} min
+                  {' · ETA '}{new Date(Date.now() + routeInfo.durationSeconds * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                  {routeInfo.provider === 'approximate' ? ' (estimated)' : ''}
+                </Text>
+              )}
+              <Text style={styles.timerLbl}>Next check-in in</Text>
               <Text testID="headout-timer" style={styles.timerDisplay}>{formatCountdown(secsLeft)}</Text>
               <Text style={styles.note}>{'Tap "I\'m home safely" when you\'re back. DHARA will help you alert your circle if this timer runs out.'}</Text>
               {GUARDIAN_SHARE_ENABLED && (
@@ -468,20 +1021,26 @@ export default function HeadOut() {
                     </View>
                   )}
 
-                  {/* Step 2: tracking indicator — shown once consent given */}
+                  {/* Step 2: tracking indicator — shown once consent given.
+                      gps.error is set once and only for the known, permanent
+                      "web doesn't support this" case (see useJourneyGPS's web
+                      branch) — distinct from "still starting up", which is
+                      transient and resolves within a second or two on native. */}
                   {locationConsentGiven && !showPermDeniedSettings && (
-                    <View style={styles.gpsRow} accessibilityLabel={gps.tracking ? `GPS tracking active, last area: ${gps.area}` : 'GPS starting'}>
+                    <View style={styles.gpsRow} accessibilityLabel={gps.tracking ? `GPS tracking active, last area: ${gps.area}` : (gps.error ?? 'GPS starting')}>
                       <Ionicons
-                        name={gps.tracking ? 'location' : 'location-outline'}
+                        name={gps.tracking ? 'location' : gps.error ? 'information-circle-outline' : 'location-outline'}
                         size={14}
                         color={gps.tracking ? '#16a34a' : c.muted}
                       />
                       <Text style={[styles.gpsLabel, gps.tracking && { color: '#16a34a' }]}>
                         {gps.denied
                           ? 'Location access denied — guardian page will not show your area'
-                          : gps.tracking
-                            ? `Tracking active${gps.area ? ` · ${gps.area}` : ''}`
-                            : 'Starting location tracking…'}
+                          : gps.error
+                            ? 'Live location isn’t available in this web preview — use the DHARA app on your phone for live tracking'
+                            : gps.tracking
+                              ? `Tracking active${gps.area ? ` · ${gps.area}` : ''}`
+                              : 'Starting location tracking…'}
                       </Text>
                     </View>
                   )}
@@ -521,26 +1080,27 @@ export default function HeadOut() {
                   <Text style={styles.buttonText}>Need help</Text>
                 </Pressable>
               )}
+              {GO1B_GPS_ENABLED && journeyToken && (
+                sharingRevoked ? (
+                  <Text style={styles.disclosureNote} testID="headout-sharing-revoked-note">
+                    {"Sharing stopped. Your trusted circle can no longer see this journey's location or status."}
+                  </Text>
+                ) : (
+                  <Pressable
+                    testID="headout-stop-sharing"
+                    disabled={revokingShare}
+                    style={[styles.button, styles.stopSharingBtn, { marginTop: 10 }]}
+                    onPress={stopSharing}
+                    accessibilityRole="button"
+                    accessibilityLabel="Stop sharing this journey with your trusted circle"
+                  >
+                    <Ionicons name="stop-circle-outline" size={18} color={c.muted} />
+                    <Text style={[styles.buttonText, { color: c.muted }]}>{revokingShare ? 'Stopping…' : 'Stop sharing'}</Text>
+                  </Pressable>
+                )
+              )}
             </View>
-          ) : (
-            <View style={[styles.activeCard, styles.expiredCard]} testID="headout-expired-card">
-              <Ionicons name="alert-circle-outline" size={32} color={c.emergencyRed} />
-              <Text style={styles.expiredTitle}>Check-in missed</Text>
-              <Text style={styles.note}>
-                {'Your timer for "' + session.destination + '" has expired. You can prepare an alert for your trusted circle below, or mark yourself safe.'}
-              </Text>
-              <Pressable
-                testID="headout-alert-circle"
-                style={[styles.button, styles.alertButton]}
-                onPress={prepareAlertSMS}
-                accessibilityRole="button"
-                accessibilityLabel="Prepare alert for trusted circle"
-              >
-                <Ionicons name="chatbubble-outline" size={18} color="#fff" />
-                <Text style={styles.buttonText}>Prepare alert for trusted circle</Text>
-              </Pressable>
-            </View>
-          )}
+      )}
 
           <Pressable
             testID="headout-end"
@@ -553,11 +1113,9 @@ export default function HeadOut() {
             <Text style={styles.buttonText}>{"I'm home safely"}</Text>
           </Pressable>
 
-          <Text style={styles.disclosureNote}>
-            Nothing has been sent. Your session is saved on this device only.
-          </Text>
-        </>
-      )}
+      <Text style={styles.disclosureNote}>
+        Nothing has been sent. Your session is saved on this device only.
+      </Text>
 
       {/* Pilot simulation preview — replaces the real sms: intent while
           ALERT_SIMULATION_MODE is on. Clearly labelled, nothing is sent. */}
@@ -595,6 +1153,57 @@ export default function HeadOut() {
           </View>
         </View>
       </Modal>
+
+      {/* GO1C: Change destination — a lightweight inline picker, not the full
+          first-time-setup wizard (see handleOpenChangeDestination). */}
+      <Modal
+        visible={showChangeDest}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowChangeDest(false)}
+      >
+        <View style={styles.simOverlay}>
+          <View style={styles.simBox} testID="headout-change-dest-modal">
+            <Text style={styles.simTitle}>Change destination</Text>
+            <TextInput
+              testID="headout-change-dest-input"
+              value={changeDestLabel}
+              onChangeText={setChangeDestLabel}
+              placeholder="Where are you heading now?"
+              placeholderTextColor={c.muted}
+              style={styles.changeDestInput}
+            />
+            <DestinationMapPicker
+              testID="headout-change-dest-map"
+              latitude={changeDestCoord?.lat ?? null}
+              longitude={changeDestCoord?.lng ?? null}
+              radiusMeters={arrivalRadius}
+              onPositionChange={(lat, lng) => setChangeDestCoord({ lat, lng })}
+              mapHeight={180}
+            />
+            {!!changeDestError && <Text style={styles.inlineError}>{changeDestError}</Text>}
+            <Pressable
+              testID="headout-change-dest-save"
+              disabled={changingDest || !changeDestLabel.trim()}
+              style={[styles.button, (changingDest || !changeDestLabel.trim()) && styles.buttonDisabled, { marginTop: 8 }]}
+              onPress={handleSaveChangeDestination}
+              accessibilityRole="button"
+              accessibilityLabel="Save new destination"
+            >
+              <Text style={styles.buttonText}>{changingDest ? 'Saving…' : 'Save new destination'}</Text>
+            </Pressable>
+            <Pressable
+              testID="headout-change-dest-cancel"
+              style={{ marginTop: 10, alignItems: 'center' }}
+              onPress={() => setShowChangeDest(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel"
+            >
+              <Text style={styles.linkTxt}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -603,39 +1212,14 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
   content: { padding: 20, gap: 16 },
   note: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, lineHeight: 21 },
-  fieldLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.ink, marginBottom: 8, marginTop: 4 },
-  input: {
-    backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines,
-    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13,
-    fontFamily: theme.fonts.body, fontSize: 16, color: c.ink, marginBottom: 12,
-  },
-  durationRow: { flexDirection: 'row', gap: 10, marginBottom: 20, flexWrap: 'wrap' },
-  durChip: {
-    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20,
-    borderWidth: 1.5, borderColor: c.lines, backgroundColor: c.surface,
-  },
-  durChipActive: { borderColor: c.navy, backgroundColor: c.navySoft },
-  durTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.muted },
-  durTxtActive: { color: c.navy },
   button: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, backgroundColor: c.navy, borderRadius: 14, paddingVertical: 16,
   },
-  buttonDisabled: { opacity: 0.4 },
   buttonText: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: '#fff' },
   safeButton: { backgroundColor: c.verifiedGreen },
   alertButton: { backgroundColor: c.emergencyRed },
-  guardianBtn: { backgroundColor: c.navySoft, borderWidth: 1.5, borderColor: c.navy, paddingHorizontal: 18 },
-  warningCard: {
-    backgroundColor: c.goldMuted, borderRadius: 14, borderWidth: 1,
-    borderColor: c.goldSoft, padding: 16, gap: 10,
-  },
-  warningRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
-  recipientRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 8, minHeight: 44 },
-  recipientRowActive: { borderColor: c.navy, backgroundColor: '#EEF2F7' },
-  recipientTxt: { fontFamily: theme.fonts.bodyMedium, fontSize: 14, color: c.ink },
-  warningTxt: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, lineHeight: 19, flex: 1 },
-  linkTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.navy },
+  guardianBtn: { backgroundColor: c.navySoft, borderWidth: 1.5, borderColor: c.navy },
   activeCard: {
     backgroundColor: c.surface, borderRadius: 18, borderWidth: 1,
     borderColor: c.lines, padding: 20, gap: 8, alignItems: 'center', marginBottom: 4,
@@ -686,4 +1270,47 @@ const styles = StyleSheet.create({
   simHint: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 19, marginBottom: 6 },
   simLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.muted, marginTop: 6, textTransform: 'uppercase', letterSpacing: 0.4 },
   simValue: { fontFamily: theme.fonts.body, fontSize: 14, color: c.ink, lineHeight: 20 },
+  // GO1C: live route / arrival / deviation
+  buttonDisabled: { opacity: 0.6 },
+  stopSharingBtn: { backgroundColor: c.surfaceSecondary, borderWidth: 1, borderColor: c.lines },
+  // "Check-in not received" screen
+  statusCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'stretch',
+    backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines,
+    borderRadius: 12, padding: 12, marginTop: 10,
+  },
+  statusCardLabel: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.muted },
+  statusCardValue: { fontFamily: theme.fonts.bodyBold, fontSize: 13.5, color: c.ink, marginTop: 1 },
+  togglesHeader: {
+    fontFamily: theme.fonts.bodySemiBold, fontSize: 11, color: c.navy,
+    textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2,
+  },
+  notifyListBlock: { alignSelf: 'stretch', marginTop: 14, gap: 6 },
+  notifyRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines,
+    borderRadius: 10, padding: 10,
+  },
+  notifyName: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.ink },
+  notifyEta: { fontFamily: theme.fonts.body, fontSize: 11.5, color: c.muted },
+  avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.navySoft },
+  avatarFallback: {
+    width: 28, height: 28, borderRadius: 14, backgroundColor: c.navySoft,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  smsDivider: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'stretch', marginTop: 16, marginBottom: 2 },
+  smsDividerLine: { flex: 1, height: 1, backgroundColor: c.lines },
+  smsDividerTxt: { fontFamily: theme.fonts.body, fontSize: 11.5, color: c.muted },
+  outlineAlertBtn: { backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.emergencyRed },
+  deviatedCard: { borderColor: '#B45309', backgroundColor: '#FFFBEB' },
+  areYouOkayTxt: { fontFamily: theme.fonts.bodyBold, color: c.ink, fontSize: 16 },
+  etaTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy, marginTop: 2 },
+  linkTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.navy, paddingVertical: 6 },
+  linkTxtUnderline: { textDecorationLine: 'underline' },
+  inlineError: { fontFamily: theme.fonts.body, fontSize: 12, color: c.emergencyRed, textAlign: 'center' },
+  changeDestInput: {
+    backgroundColor: c.background, borderWidth: 1, borderColor: c.lines, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 12, fontFamily: theme.fonts.body, fontSize: 15,
+    color: c.ink, marginTop: 10, marginBottom: 10,
+  },
 });

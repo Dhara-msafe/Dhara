@@ -1,9 +1,10 @@
 /**
  * DestinationMapPicker — native (iOS/Android) implementation.
  *
- * Replaces the pilot placeholder. Renders Google Maps (Android) /
- * Apple Maps (iOS) with a single draggable destination pin and a radius
- * circle labelled as the PLANNED ARRIVAL AREA — not active geofencing.
+ * Replaces the pilot placeholder. Renders Google Maps (PROVIDER_GOOGLE, both
+ * Android and iOS — no Apple Maps path exists) with a single draggable
+ * destination pin and a radius circle labelled as the PLANNED ARRIVAL AREA —
+ * not active geofencing.
  *
  * Privacy contract (enforced in this file):
  *  • This file never requests a permission. showsUserLocation is enabled only
@@ -17,7 +18,9 @@
  *
  * Metro platform-extension resolution:
  *  iOS/Android → this file
- *  Web        → DestinationMapPicker.web.tsx (Leaflet/OpenStreetMap)
+ *  Web        → DestinationMapPicker.web.tsx (Google Maps JavaScript API when
+ *               EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY is set; otherwise a free
+ *               Leaflet/OpenStreetMap fallback — see LeafletDestinationMapPicker.web.tsx)
  *
  * Key wiring: EXPO_PUBLIC_GOOGLE_MAPS_API_KEY is consumed by app.config.js
  * and injected by expo-modules-core as com.google.android.geo.API_KEY.
@@ -68,6 +71,10 @@ export interface Props {
   /** Bump to recentre the map on the live position. */
   followUserKey?: number;
   testID?: string;
+  /** Map height in px. Defaults to 220 (the original embedded-preview size)
+   * so every existing call site is unaffected; pass a larger value for a
+   * full-screen map step (e.g. the arrival-radius wizard screen). */
+  mapHeight?: number;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -81,6 +88,7 @@ export function DestinationMapPicker({
   userLocation,
   followUserKey,
   testID,
+  mapHeight = 220,
 }: Props) {
   // react-native-maps MapView is a class component; cast to any keeps
   // TypeScript happy across library versions while preserving runtime behaviour.
@@ -162,7 +170,7 @@ export function DestinationMapPicker({
       <MapView
         ref={mapRef}
         testID="destination-map-picker-mapview"
-        style={styles.map}
+        style={[styles.map, { height: mapHeight }]}
         // Google Maps on both Android and iOS (requires EXPO_PUBLIC_GOOGLE_MAPS_IOS_API_KEY
         // to be injected via app.config.js → ios.config.googleMapsApiKey for iOS).
         provider={PROVIDER_GOOGLE}
@@ -212,7 +220,7 @@ export function DestinationMapPicker({
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: 14 },
+  wrap: { marginBottom: 14, alignSelf: 'stretch', width: '100%' },
   map: { height: 220, width: '100%', borderRadius: 14 },
   hint: {
     fontFamily: theme.fonts.body,
