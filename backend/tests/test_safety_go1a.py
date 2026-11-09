@@ -40,7 +40,13 @@ def _run(coro):
 # ── Auth helper ───────────────────────────────────────────────────────────────
 
 def _register_and_login(suffix: str) -> str:
-    """Create a fresh test user and return a valid Bearer token."""
+    """Create (or reuse) a dedicated test user and return a valid Bearer token.
+
+    The account is deliberately stable across runs, so its saved places are
+    cleared on every login: without this the 10-place cap from an earlier run
+    makes every later create return 400 and the whole file fails for a reason
+    that is pure leftover state, not a product bug.
+    """
     email = f"safety_test_{suffix}@example.com"
     pw = "TestPass123!"
     # Derive a unique 10-digit phone so parallel runs don't collide
@@ -57,7 +63,18 @@ def _register_and_login(suffix: str) -> str:
     r = requests.post(f"{BASE}/auth/login", json={"email": email, "password": pw})
     assert r.status_code == 200, f"Login failed: {r.text}"
     data = r.json()
-    return data.get("access_token") or data.get("token")
+    token = data.get("access_token") or data.get("token")
+    _clear_places(token)
+    return token
+
+
+def _clear_places(token: str) -> None:
+    """Delete every saved place this test account still holds."""
+    r = requests.get(f"{BASE}/safety/places", headers=auth(token))
+    if r.status_code != 200:
+        return
+    for place in r.json().get("places", []):
+        requests.delete(f"{BASE}/safety/places/{place['place_id']}", headers=auth(token))
 
 
 def auth(token: str) -> dict:

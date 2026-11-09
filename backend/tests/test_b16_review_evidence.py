@@ -159,6 +159,11 @@ def test_concurrent_failures_counted_atomically(multiworker, db):
                                  timeout=60).status_code
 
         with ThreadPoolExecutor(max_workers=MAX_FAILURES) as pool:
+            # Clear the per-IP dimension immediately before the burst: it is
+            # SHARED with anything else logging in from this address (the other
+            # xdist worker), and an IP lock already in force would 429 these
+            # attempts before the account counter ever sees them.
+            db[COLLECTION].delete_many({"kind": "ip"})
             codes = list(pool.map(attempt, range(MAX_FAILURES)))
 
         rec = db[COLLECTION].find_one({"_id": key})

@@ -19,6 +19,7 @@ import os
 import uuid
 import asyncio
 import requests
+from datetime import datetime, timezone
 
 from _guardian_contract import assert_private_page
 import pytest
@@ -81,7 +82,11 @@ async def _insert_synthetic_alert(link_id, recipient_user_id, owner_id, area_tag
         "payload": {"destination": "QA Dest", "journey_status": "in_progress",
                     "last_location": {"lat": 12.9, "lng": 77.5, "accuracy": 10, "area": area_tag, "age_minutes": 1}},
         "state": "QUEUED", "idempotency_key": f"qa-final-{alert_id}",
-        "created_at": "2026-06-01T09:00:00Z", "read_at": None, "acknowledged_at": None,
+        # Current time, not a fixed past date: /api/alerts returns only the
+        # newest 200 rows, so a back-dated synthetic alert drops off the list
+        # once enough QA alerts exist and the lookup below finds nothing.
+        "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "read_at": None, "acknowledged_at": None,
     })
     client.close()
     return alert_id

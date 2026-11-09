@@ -220,8 +220,11 @@ console.log('\n── GPS / location guard (source-level) ───────�
 
 const src = readFileSync('/app/frontend/src/women/DestinationMapPicker.tsx', 'utf8');
 
-test('showsUserLocation is false (never requests GPS)', () => {
-  assert.ok(src.includes('showsUserLocation={false}'), 'showsUserLocation={false} must be set');
+test('showsUserLocation is bound to the parent-supplied position only', () => {
+  // Owner-approved change: the live dot may be shown, but only when the parent
+  // passes a position it already has permission for — never a literal `true`.
+  assert.ok(src.includes('showsUserLocation={!!userLocation}'), 'showsUserLocation must follow the userLocation prop');
+  assert.ok(!src.includes('showsUserLocation={true}'), 'showsUserLocation must never be hardcoded on');
 });
 test('followsUserLocation is false', () => {
   assert.ok(src.includes('followsUserLocation={false}'));

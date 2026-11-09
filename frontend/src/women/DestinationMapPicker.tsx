@@ -7,8 +7,11 @@
  * not active geofencing.
  *
  * Privacy contract (enforced in this file):
- *  • showsUserLocation is NEVER enabled → no GPS permission is requested.
- *  • followsUserLocation / showsMyLocationButton are both false.
+ *  • This file never requests a permission. showsUserLocation is enabled only
+ *    when the parent passes a live position, which it does only after the
+ *    user has allowed it; the position is drawn and nothing else.
+ *  • followsUserLocation / showsMyLocationButton stay false — no background
+ *    following, no upload.
  *  • The starting centre uses parent-supplied coordinates (if valid) or a
  *    clearly-labelled generic demo point (New Delhi). Device GPS is never
  *    read here.
@@ -63,6 +66,10 @@ export interface Props {
    * onPositionChange callback and must be ignored to prevent loops.
    */
   recenterKey?: string | number;
+  /** The user's own live position — shown on this device only, never uploaded. */
+  userLocation?: { latitude: number; longitude: number; accuracy: number | null } | null;
+  /** Bump to recentre the map on the live position. */
+  followUserKey?: number;
   testID?: string;
   /** Map height in px. Defaults to 220 (the original embedded-preview size)
    * so every existing call site is unaffected; pass a larger value for a
@@ -78,6 +85,8 @@ export function DestinationMapPicker({
   radiusMeters,
   onPositionChange,
   recenterKey,
+  userLocation,
+  followUserKey,
   testID,
   mapHeight = 220,
 }: Props) {
@@ -85,8 +94,8 @@ export function DestinationMapPicker({
   // TypeScript happy across library versions while preserving runtime behaviour.
   const mapRef = useRef<any>(null);
 
-  const pinLat = isValidCoord(latitude, longitude) ? latitude! : DEMO_LAT;
-  const pinLng = isValidCoord(latitude, longitude) ? longitude! : DEMO_LNG;
+  const pinLat = isValidCoord(latitude, longitude) ? latitude! : (userLocation?.latitude ?? DEMO_LAT);
+  const pinLng = isValidCoord(latitude, longitude) ? longitude! : (userLocation?.longitude ?? DEMO_LNG);
   const hasPin = isValidCoord(latitude, longitude);
 
   // Internal marker position — owned by this component after mount.
@@ -110,6 +119,22 @@ export function DestinationMapPicker({
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recenterKey]);
+
+  // ── Recentre on the live position when the user asks for it ───────────────
+  useEffect(() => {
+    if (!followUserKey || !userLocation) return;
+    if (!hasPin) setMarkerCoord({ latitude: userLocation.latitude, longitude: userLocation.longitude });
+    mapRef.current?.animateToRegion(
+      {
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        latitudeDelta: DELTA,
+        longitudeDelta: DELTA,
+      },
+      350,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followUserKey]);
 
   // ── Tap-to-move ────────────────────────────────────────────────────────────
   const handleMapPress = useCallback(
@@ -150,8 +175,9 @@ export function DestinationMapPicker({
         // to be injected via app.config.js → ios.config.googleMapsApiKey for iOS).
         provider={PROVIDER_GOOGLE}
         initialRegion={initialRegion}
-        // ── Privacy: device GPS is NEVER requested ────────────────────────────
-        showsUserLocation={false}
+        // ── Live position: drawn by the OS map only after the parent has the
+        //    user's permission. Never followed, never uploaded. ───────────────
+        showsUserLocation={!!userLocation}
         followsUserLocation={false}
         showsMyLocationButton={false}
         // ─────────────────────────────────────────────────────────────────────
@@ -187,7 +213,7 @@ export function DestinationMapPicker({
       <Text style={styles.hint} testID="destination-map-picker-hint">
         {hasPin
           ? 'Drag the pin or tap the map to adjust your planned arrival area.'
-          : 'Demo view \u2014 drag the pin or tap the map to set a planned arrival area. No device location is used.'}
+          : 'Drag the pin or tap the map to set a planned arrival area.'}
       </Text>
     </View>
   );

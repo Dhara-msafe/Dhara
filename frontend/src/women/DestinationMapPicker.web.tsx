@@ -14,8 +14,11 @@
  *  • Responds to recenterKey prop for saved-place selection
  *
  * Privacy contract:
- *  • No device GPS is ever requested or read.
- *  • Starting position uses parent-supplied coords or the New Delhi demo point.
+ *  • This component never requests permission itself. The parent passes
+ *    `userLocation` only after the user has allowed it, and the coordinates
+ *    are drawn here and nowhere else — never uploaded, never stored.
+ *  • Starting position uses parent-supplied coords, the live position when
+ *    offered, or the New Delhi demo point.
  *  • No geocoding or address lookup is performed.
  *
  * LoadScript is lazy (only loads the Maps JS bundle when this component
@@ -72,10 +75,34 @@ export interface Props {
   radiusMeters: number;
   onPositionChange: (lat: number, lng: number) => void;
   recenterKey?: string | number;
+  /** The user's own live position — drawn here only, never uploaded. */
+  userLocation?: { latitude: number; longitude: number; accuracy: number | null } | null;
+  /** Bump to recentre the map on the live position. */
+  followUserKey?: number;
   testID?: string;
   /** Map height in px. Defaults to 220 (the original embedded-preview size). */
   mapHeight?: number;
 }
+
+const USER_DOT_OPTIONS: google.maps.CircleOptions = {
+  fillColor: '#1A73E8',
+  fillOpacity: 1,
+  strokeColor: '#FFFFFF',
+  strokeOpacity: 1,
+  strokeWeight: 2,
+  clickable: false,
+  zIndex: 3,
+};
+
+const USER_ACCURACY_OPTIONS: google.maps.CircleOptions = {
+  fillColor: '#1A73E8',
+  fillOpacity: 0.12,
+  strokeColor: '#1A73E8',
+  strokeOpacity: 0.3,
+  strokeWeight: 1,
+  clickable: false,
+  zIndex: 2,
+};
 
 export function DestinationMapPicker({
   latitude,
@@ -83,15 +110,36 @@ export function DestinationMapPicker({
   radiusMeters,
   onPositionChange,
   recenterKey,
+  userLocation,
+  followUserKey,
   testID,
   mapHeight = 220,
 }: Props) {
   const hasPin = isValidCoord(latitude, longitude);
-  const initLat = hasPin ? latitude! : DEMO_LAT;
-  const initLng = hasPin ? longitude! : DEMO_LNG;
+  // With no destination chosen yet, start where the user is (if they have
+  // shared it) so the pin is on screen instead of at the generic demo point.
+  const fallbackLat = userLocation?.latitude ?? DEMO_LAT;
+  const fallbackLng = userLocation?.longitude ?? DEMO_LNG;
+  const initLat = hasPin ? latitude! : fallbackLat;
+  const initLng = hasPin ? longitude! : fallbackLng;
 
   const [markerPos, setMarkerPos] = useState<google.maps.LatLngLiteral>({ lat: initLat, lng: initLng });
   const mapRef = useRef<google.maps.Map | null>(null);
+  // The map centre follows the pin, except right after the user asks to be
+  // recentred on their own position.
+  const [center, setCenter] = useState<google.maps.LatLngLiteral>({ lat: initLat, lng: initLng });
+
+  useEffect(() => { setCenter(markerPos); }, [markerPos]);
+
+  // Recentre on the live position when the user taps "Use my location".
+  useEffect(() => {
+    if (!followUserKey || !userLocation) return;
+    const at = { lat: userLocation.latitude, lng: userLocation.longitude };
+    setCenter(at);
+    if (!hasPin) setMarkerPos(at);   // no destination yet — keep the pin visible
+    mapRef.current?.panTo(at);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followUserKey]);
 
   // Re-centre map when recenterKey changes (saved place selected by parent)
   useEffect(() => {
@@ -169,6 +217,22 @@ export function DestinationMapPicker({
             onDragEnd={handleDragEnd}
             title="Planned destination"
           />
+          {/* Live position: a blue dot with its accuracy ring, updated as the
+              position changes. Display only — nothing is uploaded. */}
+          {userLocation && (
+            <>
+              <Circle
+                center={{ lat: userLocation.latitude, lng: userLocation.longitude }}
+                radius={Math.max(8, userLocation.accuracy ?? 30)}
+                options={USER_ACCURACY_OPTIONS}
+              />
+              <Circle
+                center={{ lat: userLocation.latitude, lng: userLocation.longitude }}
+                radius={20}
+                options={USER_DOT_OPTIONS}
+              />
+            </>
+          )}
           {isValidRadius(radiusMeters) && (
             <Circle
               center={markerPos}

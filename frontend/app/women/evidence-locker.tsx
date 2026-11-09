@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Platform, AppState, Image, TextInput, Linking } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Platform, AppState, Image, TextInput, Linking, Modal } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,7 +19,7 @@ import {
   saveSegment, createSegmentedParent, loadSegments, loadVisibleRecordings,
 } from '@/src/women/evidenceStore';
 import { hasPin, setPin, verifyPin, getLockoutRemainingMs } from '@/src/women/evidenceLock';
-import { getManifestEntry, type ManifestEntry, type GpsPoint } from '@/src/women/evidenceManifest';
+import { getManifestEntry, markManifestDeleted, type ManifestEntry, type GpsPoint } from '@/src/women/evidenceManifest';
 import { anchorItem, backupItem } from '@/src/women/evidenceBackup';
 import { fetchFlags } from '@/src/women/api';
 import { markPendingTemp, clearPendingTemp, listPendingTemps } from '@/src/women/evidencePendingTemp';
@@ -221,6 +221,9 @@ export default function EvidenceLocker() {
   const [status, setStatus] = useState('');
   const [playing, setPlaying] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [toast, setToast] = useState('');
   const [photoUris, setPhotoUris] = useState<Record<string, string>>({});
   const [previewLoading, setPreviewLoading] = useState<string | null>(null);
   const [videoPreview, setVideoPreview] = useState<{ id: string; uri: string; wasDecrypted: boolean } | null>(null);
@@ -704,6 +707,8 @@ export default function EvidenceLocker() {
     } finally { setPreviewLoading(null); }
   }, [videoPreview, scope, closeVideoPreview]);
   const remove = useCallback(async (item: RecordingItem) => {
+    setDeleteError('');
+    setDeleteBusy(true);
     try {
       stopPlayer();
       if (videoPreview?.id === item.id) closeVideoPreview();
@@ -713,9 +718,34 @@ export default function EvidenceLocker() {
       if (item.recording_format_version === 2 && item.session_id) {
         await deleteSession(scope, item.session_id).catch(() => {});
       }
-      owned.current = owned.current.filter(row => row.id !== item.id); setItems(owned.current); setDeleting(null); setStatus('Recording deleted from this device.');
-    } catch { setStatus('Could not delete this recording. Please try again.'); setDeleting(null); }
-  }, [scope, stopPlayer, videoPreview, closeVideoPreview, photoUris]);
+      // This item's own metadata only — never another item's.
+      await markManifestDeleted(scope, item.id).catch(() => {});
+      setManifestMap(prev => { const next = { ...prev }; delete next[item.id]; return next; });
+      if (notesMap[item.id] !== undefined) {
+        const nextNotes = { ...notesMap };
+        delete nextNotes[item.id];
+        setNotesMap(nextNotes);
+        await AsyncStorage.setItem(`evidence_notes_${scope}`, JSON.stringify(nextNotes)).catch(() => {});
+      }
+      owned.current = owned.current.filter(row => row.id !== item.id);
+      setItems(owned.current);
+      setDeleting(null);
+      setStatus('Recording deleted from this device.');
+      setToast('Recording deleted from this device.');
+    } catch (e: any) {
+      // Visible failure with a reason class, so a silent failure can't look
+      // like a successful delete.
+      const raw = String(e?.message || e || '');
+      const reason = /storage|IndexedDB|quota/i.test(raw) ? 'device storage'
+        : /not be found|no longer|missing/i.test(raw) ? 'item not found'
+        : /file/i.test(raw) ? 'file access'
+        : 'unexpected error';
+      setDeleteError(`Could not delete this recording (${reason}). Nothing was removed — you can try again.`);
+      setStatus(`Could not delete this recording (${reason}). Nothing was removed.`);
+    } finally {
+      setDeleteBusy(false);
+    }
+  }, [scope, stopPlayer, videoPreview, closeVideoPreview, photoUris, notesMap]);
 
   // ── P0-B: Recover an interrupted session ──────────────────────────────────
   const handleRecover = useCallback(async (session: EvidenceSession) => {
@@ -887,6 +917,15 @@ export default function EvidenceLocker() {
     catch { setStatus('Could not export the certificate. Please try again.'); }
   }, [manifestMap]);
 
+  // The item whose delete confirmation is open (if any).
+  const deleteTarget = deleting ? items.find(row => row.id === deleting) ?? null : null;
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(''), 5000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
   if (!unlocked) return <PinGate onUnlock={() => setUnlocked(true)} />;
 
   return (
@@ -997,8 +1036,15 @@ export default function EvidenceLocker() {
               </Pressable>
             )}
           </View>
-          <Pressable testID={`recording-delete-${item.id}`} style={[styles.control, deleting === item.id && styles.controlDanger]} onPress={() => deleting === item.id ? remove(item) : setDeleting(item.id)}><Text style={[styles.label, deleting === item.id && { color: c.emergencyRed }]}>{deleting === item.id ? '⚠️ Confirm delete — this is permanent' : 'Delete'}</Text></Pressable>
-          {deleting === item.id && <Pressable testID={`recording-keep-${item.id}`} style={styles.control} onPress={() => setDeleting(null)}><Text style={styles.label}>Cancel</Text></Pressable>}
+          <Pressable
+            testID={`recording-delete-${item.id}`}
+            style={styles.control}
+            onPress={() => { setDeleteError(''); setDeleting(item.id); }}
+            accessibilityRole="button"
+            accessibilityLabel="Delete this recording"
+          >
+            <Text style={[styles.label, { color: c.emergencyRed }]}>Delete</Text>
+          </Pressable>
           {EVIDENCE_ACTIONS_ENABLED && (
             <View style={[styles.vaultRow, { marginTop: 8 }]}>
               {editingNoteId === item.id ? (
@@ -1030,6 +1076,63 @@ export default function EvidenceLocker() {
         </View>)}
         <Text testID="evidence-other-media-notice" style={styles.note}>Items are encrypted on this device (AES-256) and only decrypted briefly to preview, play or share. A PIN protects this screen itself. Scan a notice remains a separate tool, not evidence storage.</Text>
       </ScrollView>
+
+      {/* Success banner — floats above the list so the confirmation of a
+          delete is visible wherever the item sat in a long list. */}
+      {!!toast && (
+        <View style={[styles.toast, { bottom: insets.bottom + 16 }]} testID="evidence-delete-toast" accessibilityLiveRegion="polite">
+          <Text style={styles.toastTxt}>{toast}</Text>
+        </View>
+      )}
+
+      {/* One explicit confirmation, used for every item type. */}
+      <Modal
+        visible={!!deleteTarget}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { if (!deleteBusy) { setDeleting(null); setDeleteError(''); } }}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => { if (!deleteBusy) { setDeleting(null); setDeleteError(''); } }}
+          testID="recording-delete-backdrop"
+        >
+          <Pressable style={styles.modalCard} onPress={() => {}} testID="recording-delete-dialog">
+            <Text style={styles.modalTitle}>Delete this recording?</Text>
+            <Text style={styles.modalBody}>
+              This permanently deletes this recording from this device. This cannot be undone. Once deleted, it cannot be retrieved.
+            </Text>
+            {!!deleteTarget && manifestMap[deleteTarget.id]?.backup && (
+              <Text style={styles.modalBody} testID="recording-delete-cloud-note">
+                A copy you backed up to secure cloud storage stays in the cloud — this removes the copy on this device only.
+              </Text>
+            )}
+            {!!deleteError && (
+              <Text style={styles.modalError} testID="recording-delete-error" accessibilityLiveRegion="polite">{deleteError}</Text>
+            )}
+            <Pressable
+              testID={deleteTarget ? `recording-delete-confirm-${deleteTarget.id}` : 'recording-delete-confirm'}
+              style={[styles.modalDanger, deleteBusy && { opacity: 0.6 }]}
+              disabled={deleteBusy}
+              onPress={() => { if (deleteTarget) void remove(deleteTarget); }}
+              accessibilityRole="button"
+            >
+              {deleteBusy
+                ? <ActivityIndicator color={c.onBrandPrimary} />
+                : <Text style={styles.modalDangerTxt}>Delete</Text>}
+            </Pressable>
+            <Pressable
+              testID={deleteTarget ? `recording-keep-${deleteTarget.id}` : 'recording-keep'}
+              style={styles.modalKeep}
+              disabled={deleteBusy}
+              onPress={() => { setDeleting(null); setDeleteError(''); }}
+              accessibilityRole="button"
+            >
+              <Text style={styles.modalKeepTxt}>Keep</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -1043,6 +1146,20 @@ const styles = StyleSheet.create({
   secondary: { borderRadius: 14, borderWidth: 1, borderColor: c.lines, padding: 16, backgroundColor: c.surface },
   label: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.navy },
   control: { minHeight: 44, justifyContent: 'center', marginTop: 8 },
+  toast: {
+    position: 'absolute', left: 20, right: 20, backgroundColor: c.navy, borderRadius: 12,
+    paddingVertical: 14, paddingHorizontal: 16,
+  },
+  toastTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.onBrandPrimary, textAlign: 'center' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(14,39,64,0.45)', justifyContent: 'center', padding: 20 },
+  modalCard: { backgroundColor: c.surface, borderRadius: 16, padding: 20, gap: 12 },
+  modalTitle: { fontFamily: theme.fonts.displayBold, fontSize: 21, color: c.ink },
+  modalBody: { fontFamily: theme.fonts.body, fontSize: 15, lineHeight: 23, color: c.muted },
+  modalError: { fontFamily: theme.fonts.bodyBold, fontSize: 15, lineHeight: 22, color: c.emergencyRed },
+  modalDanger: { minHeight: 52, borderRadius: 12, backgroundColor: c.emergencyRed, alignItems: 'center', justifyContent: 'center' },
+  modalDangerTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 17, color: c.onBrandPrimary },
+  modalKeep: { minHeight: 52, borderRadius: 12, borderWidth: 1, borderColor: c.lines, alignItems: 'center', justifyContent: 'center' },
+  modalKeepTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 17, color: c.navy },
   controlDanger: { borderRadius: 8, backgroundColor: '#fff0f0', paddingHorizontal: 8, borderWidth: 1, borderColor: '#fecaca' },
   vaultRow: { marginTop: 4, gap: 6, borderTopWidth: 1, borderTopColor: c.lines, paddingTop: 8 },
   captureRow: { flexDirection: 'row', gap: 12 },

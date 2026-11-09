@@ -19,7 +19,7 @@ import { answersKey, clearSupport, loadSupport, mapUrl, MissingPhoto, MissingSup
 import rightsData    from '@/src/content/missing_rights.json';
 import { indiaEntity } from '@/src/operatorIdentity';
 
-import { EmergencyNotActiveNotice } from '@/src/components/dhara/EmergencyNumberStatic';
+import { openExternal } from '@/src/outbound';
 type Lang = 'en' | 'hi' | 'mr';
 
 const NAVY = theme.colors.primary;
@@ -116,6 +116,10 @@ function buildDraftHtml(answers: Record<string, string>, lang: Lang, support: Mi
 function RightsCard({ lang, onShare }: { lang: Lang; onShare: () => void }) {
   const card = rightsData.card;
 
+  const makeCall = (number: string) => {
+    openExternal(`tel:${number}`).catch(() => {});
+  };
+
   return (
     <View style={rc.card}>
       <Text style={rc.title}>{t(card.title, lang)}</Text>
@@ -123,13 +127,12 @@ function RightsCard({ lang, onShare }: { lang: Lang; onShare: () => void }) {
       {/* Emergency chips */}
       <View style={rc.chips}>
         {card.emergency_numbers.map(en => (
-          <View key={en.number} style={[rc.chip, { opacity: 0.7 }]}>
+          <Pressable key={en.number} style={rc.chip} onPress={() => makeCall(en.number)}>
             <Text style={rc.chipNum}>📞 {en.number}</Text>
             <Text style={rc.chipLabel}>{t(en.label, lang)}</Text>
-          </View>
+          </Pressable>
         ))}
       </View>
-      <EmergencyNotActiveNotice />
 
       {/* Rights panels */}
       {card.rights.map(right => (

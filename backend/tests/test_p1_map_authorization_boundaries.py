@@ -16,7 +16,7 @@ import uuid
 import pytest
 import requests
 
-from _guardian_contract import assert_private_page
+from _guardian_contract import assert_private_page, direct_origin
 import motor.motor_asyncio
 import asyncio
 from datetime import datetime, timezone, timedelta
@@ -239,8 +239,13 @@ class TestForwardedGuardianLink:
 
         session_person_1 = requests.Session()
         session_person_2 = requests.Session()
-        resp1 = session_person_1.get(f"{BASE_URL}/api/journey/status/{token}")
-        resp2 = session_person_2.get(f"{BASE_URL}/api/journey/status/{token}")
+        # Fetch the page from the backend directly: through the public host,
+        # Cloudflare injects a unique per-request challenge <script>, so two
+        # identical pages never compare equal for a reason unrelated to
+        # authorization.
+        page_base = direct_origin(BASE_URL)
+        resp1 = session_person_1.get(f"{page_base}/api/journey/status/{token}")
+        resp2 = session_person_2.get(f"{page_base}/api/journey/status/{token}")
         assert resp1.status_code == 200 and resp2.status_code == 200
         # Compare the meaningful content, not raw byte-equality - a relative
         # "updated Xs/Xm ago" timestamp string can legitimately tick over
@@ -277,13 +282,19 @@ class TestForwardedGuardianLink:
                         json={"lat": SYN_LAT, "lng": SYN_LNG, "accuracy": 12, "area": "QA Forward Area"}, headers=h_o)
 
         forwarded_viewer = requests.Session()
-        before = forwarded_viewer.get(f"{BASE_URL}/api/journey/status/{token}")
+        # Direct origin: the public host injects a unique Cloudflare challenge
+        # script per request, which would break this before/after comparison.
+        page_base = direct_origin(BASE_URL)
+        before = forwarded_viewer.get(f"{page_base}/api/journey/status/{token}")
         assert str(SYN_LAT) not in before.text   # PR-1B1: never shown, even before safe
 
         requests.patch(f"{BASE_URL}/api/journey/status/{token}/safe", headers=h_o)
 
-        after = forwarded_viewer.get(f"{BASE_URL}/api/journey/status/{token}")
-        assert after.text == before.text
+        after = forwarded_viewer.get(f"{page_base}/api/journey/status/{token}")
+        # With GUARDIAN_PUBLIC_PAGE_DETAILS on, the status label legitimately
+        # changes to "Arrived safely"; what must not change is that location
+        # is absent both before and after.
+        assert str(SYN_LAT) not in after.text and "QA Forward Area" not in after.text
         assert_private_page(BASE_URL, token, "QA Forward Area", str(SYN_LAT), str(SYN_LNG))
 
     def test_expiry_behaviour_unaffected_by_safe_change(self, owner_token):

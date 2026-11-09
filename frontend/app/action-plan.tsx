@@ -9,7 +9,7 @@ import { tr } from '@/src/ui18n';
 import { useScreenSpeech } from '@/src/hooks/useScreenSpeech';
 import { useRightsCard } from '@/src/hooks/useRightsCard';
 
-import { EmergencyNumberStatic, EmergencyNotActiveNotice } from '@/src/components/dhara/EmergencyNumberStatic';
+import { openExternal } from '@/src/outbound';
 const c = theme.colors;
 
 // Maps each "Know your rights" scenario to the i18n key used for its chip
@@ -91,9 +91,14 @@ export default function ActionPlan() {
           <View style={styles.safetyGateCard} testID="safety-emergency">
             <Ionicons name="warning" size={28} color="#B91C1C" />
             <Text style={styles.safetyGateTitle}>Get to safety first — help is one tap away</Text>
-            <EmergencyNumberStatic label="Call Police" number="112" testID="safety-gate-call-112" />
-            <EmergencyNumberStatic label="Women's Emergency" number="1091" testID="safety-gate-call-1091" />
-            <EmergencyNotActiveNotice />
+            <Pressable style={styles.safetyEmergencyBtn} testID="safety-call-112" onPress={() => openExternal('tel:112').catch(() => {})}>
+              <Ionicons name="call" size={20} color="#fff" />
+              <Text style={styles.safetyGateDangerTxt}>Call Police — 112</Text>
+            </Pressable>
+            <Pressable style={[styles.safetyEmergencyBtn, { backgroundColor: c.darkGold }]} testID="safety-call-1091" onPress={() => openExternal('tel:1091').catch(() => {})}>
+              <Ionicons name="call" size={20} color="#fff" />
+              <Text style={styles.safetyGateDangerTxt}>Women&apos;s Emergency — 1091</Text>
+            </Pressable>
             <Pressable testID="safety-gate-recheck" onPress={() => setSafetyStatus('unknown')}>
               <Text style={styles.safetyGateUnsureTxt}>Actually, I am safe now — show legal steps</Text>
             </Pressable>
@@ -102,8 +107,10 @@ export default function ActionPlan() {
           <View style={styles.safetyGateCard} testID="safety-unsure">
             <Ionicons name="help-circle-outline" size={28} color={c.darkGold} />
             <Text style={styles.safetyGateTitle}>If you&apos;re not sure, talk to someone trained to help first</Text>
-            <EmergencyNumberStatic label="Women's Helpline" number="181" testID="safety-gate-call-181" />
-            <EmergencyNotActiveNotice />
+            <Pressable style={styles.safetyEmergencyBtn} testID="safety-call-181" onPress={() => openExternal('tel:181').catch(() => {})}>
+              <Ionicons name="call" size={20} color="#fff" />
+              <Text style={styles.safetyGateDangerTxt}>Women&apos;s Helpline — 181</Text>
+            </Pressable>
             <Pressable testID="safety-gate-continue" onPress={() => setSafetyStatus('safe')}>
               <Text style={styles.safetyGateUnsureTxt}>I&apos;ve decided I&apos;m safe — show legal steps</Text>
             </Pressable>
@@ -155,17 +162,10 @@ export default function ActionPlan() {
             <View style={{ flex: 1 }}>
               <Text style={styles.stepTitle}>{s.title}</Text>
               <Text style={styles.stepBody}>{s.body}</Text>
-              {s.route.startsWith('tel:') ? (
-                <View style={{ marginTop: 12 }}>
-                  <EmergencyNumberStatic label={s.btn} number={s.route.replace('tel:', '')} testID={`action-plan-step-${s.n}`} />
-                  <EmergencyNotActiveNotice />
-                </View>
-              ) : (
-                <Pressable testID={`action-plan-step-${s.n}`} style={[styles.stepBtn, s.n === 1 && styles.stepBtnPrimary]} onPress={() => router.push(s.route === '/women/officer-card' ? { pathname: s.route, params: { scenario: scenarioKey } } as any : s.route as any)}>
-                  <Ionicons name={s.icon as any} size={16} color={s.n === 1 ? '#fff' : c.navy} />
-                  <Text style={[styles.stepBtnTxt, s.n === 1 && { color: '#fff' }]}>{s.btn}</Text>
-                </Pressable>
-              )}
+              <Pressable testID={`action-plan-step-${s.n}`} style={[styles.stepBtn, s.n === 1 && styles.stepBtnPrimary]} onPress={() => s.route.startsWith('tel:') ? openExternal(s.route) : router.push(s.route === '/women/officer-card' ? { pathname: s.route, params: { scenario: scenarioKey } } as any : s.route as any)}>
+                <Ionicons name={s.icon as any} size={16} color={s.n === 1 ? '#fff' : c.navy} />
+                <Text style={[styles.stepBtnTxt, s.n === 1 && { color: '#fff' }]}>{s.btn}</Text>
+              </Pressable>
             </View>
           </View>
         ))}

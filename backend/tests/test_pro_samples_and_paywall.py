@@ -1,7 +1,7 @@
 """Iteration 5 backend tests — Dhara/MSafe Legal Aid.
 
-Focus: pro-sample counter + paywall behaviour, updated pricing (₹50 / $5),
-razorpay.me config (calviltech), /auth/me new fields.
+Focus: pro-sample counter + paywall behaviour, pricing + razorpay.me config
+(both read from env, so a price change is not a test failure), /auth/me fields.
 """
 import json
 import os
@@ -78,7 +78,17 @@ def _get_me(headers):
     return r.json()
 
 
-# ---------- Health & pricing (updated to ₹50 / $5) ----------
+# ---------- Health & pricing ----------
+# Price and payee are CONFIGURATION, not product behaviour: read them from the
+# same env the server reads, so changing the price never breaks these tests.
+PRICE_INR_LABEL = os.environ.get("PRO_PRICE_LABEL", "₹99")
+PRICE_INR_PAISE = int(os.environ.get("PRO_PRICE_INR", "9900"))
+PRICE_USD_LABEL = os.environ.get("PRO_PRICE_USD_LABEL", "$5")
+PRICE_USD_CENTS = int(os.environ.get("PRO_PRICE_USD", "500"))
+RZP_HANDLE = os.environ.get("RAZORPAY_ME_HANDLE", "calviltech")
+RZP_URL = os.environ.get("RAZORPAY_ME_URL", f"https://razorpay.me/@{RZP_HANDLE}")
+
+
 def test_health():
     r = requests.get(f"{API}/health", timeout=15)
     assert r.status_code == 200
@@ -90,16 +100,16 @@ def test_pricing_new_amounts_and_providers():
     r = requests.get(f"{API}/billing/pricing", timeout=15)
     assert r.status_code == 200
     j = r.json()
-    assert j["pro_price_label"] == "₹50", j
-    assert j["pro_price_usd_label"] == "$5", j
-    assert j["pro_price_inr_paise"] == 5000
-    assert j["pro_price_usd_cents"] == 500
+    assert j["pro_price_label"] == PRICE_INR_LABEL, j
+    assert j["pro_price_usd_label"] == PRICE_USD_LABEL, j
+    assert j["pro_price_inr_paise"] == PRICE_INR_PAISE
+    assert j["pro_price_usd_cents"] == PRICE_USD_CENTS
     providers = j["providers"]
     assert "stripe" in providers and "razorpay" in providers
-    assert providers["razorpay"]["amount_label"] == "₹50"
-    assert providers["razorpay"]["handle"] == "calviltech"
-    assert providers["razorpay"]["link_url"] == "https://razorpay.me/@calviltech"
-    assert providers["stripe"]["amount_label"] == "$5"
+    assert providers["razorpay"]["amount_label"] == PRICE_INR_LABEL
+    assert providers["razorpay"]["handle"] == RZP_HANDLE
+    assert providers["razorpay"]["link_url"] == RZP_URL
+    assert providers["stripe"]["amount_label"] == PRICE_USD_LABEL
     assert isinstance(j["features"], list) and len(j["features"]) >= 4
 
 
@@ -107,10 +117,10 @@ def test_razorpay_config_returns_calviltech_link():
     r = requests.get(f"{API}/billing/razorpay/config", timeout=15)
     assert r.status_code == 200
     j = r.json()
-    assert j["handle"] == "calviltech"
-    assert j["link_url"] == "https://razorpay.me/@calviltech"
-    assert j["amount_label"] == "₹50"
-    assert j["amount_paise"] == 5000
+    assert j["handle"] == RZP_HANDLE
+    assert j["link_url"] == RZP_URL
+    assert j["amount_label"] == PRICE_INR_LABEL
+    assert j["amount_paise"] == PRICE_INR_PAISE
     assert j["currency"] == "INR"
 
 
@@ -172,8 +182,8 @@ def test_pro_mode_samples_then_paywall(auth_headers):
     assert detail.get("reason") == "pro_samples_exhausted"
     assert detail.get("samples_used") == 5
     assert detail.get("samples_limit") == 5
-    assert detail.get("pro_price_label") == "₹50"
-    assert detail.get("pro_price_usd_label") == "$5"
+    assert detail.get("pro_price_label") == PRICE_INR_LABEL
+    assert detail.get("pro_price_usd_label") == PRICE_USD_LABEL
     assert isinstance(detail.get("message"), str) and len(detail["message"]) > 10
 
 

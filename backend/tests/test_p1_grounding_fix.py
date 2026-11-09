@@ -33,6 +33,7 @@ from engine.answer_generator import (  # noqa: E402
     build_cannot_verify_response,
     all_provisions_dead,
 )
+from engine.approval_evidence import compute_content_hash  # noqa: E402
 
 
 # ── Live-DB checks against the actual seeded records ─────────────────────────
@@ -138,7 +139,25 @@ class TestBnsFamilyIdentifierCheck:
 class TestHypothesisResponseIsHedgedNeverAssertive:
     def test_response_never_declares_section_invalid(self):
         hyp = {"bns_section": "199", "what_changed": "x", "source_link": "y"}
-        text = build_bns_identifier_hypothesis_response("Bharatiya Nyaya Sanhita", "166A", hyp)
+        # The successor section may only be NAMED when an active, hash-bound
+        # correspondence approval exists (P0-T03 fail-closed gate). The real
+        # registry carries no approval for IPC 166A -> BNS 199 yet (advocate
+        # sign-off T-02/T-03 is deliberately withheld), so the approved branch
+        # is exercised with a synthetic in-memory record.
+        approval = {
+            "approval_id": "TEST-CORR-P1", "record_type": "correspondence",
+            "subject_key": "IPC:166A->BNS:199",
+            "section_from": "IPC:166A", "section_to": "BNS:199",
+            "content_hash": compute_content_hash("IPC:166A->BNS:199"),
+            "status": "active", "revoked": False, "revoked_at": None,
+            "reviewer_id": "test-reviewer",
+            "approved_at": "2026-01-15T10:00:00+00:00",
+            "review_artifact_id": "TEST-ARTIFACT-P1",
+            "review_artifact_digest": "sha256:" + "0" * 64,
+        }
+        text = build_bns_identifier_hypothesis_response(
+            "Bharatiya Nyaya Sanhita", "166A", hyp, _approval_registry=[approval],
+        )
         lowered = text.lower()
         # Must hedge ("can't confirm it does/doesn't exist either way"), never
         # bare-assert non-existence or call the identifier "invalid".
@@ -147,6 +166,20 @@ class TestHypothesisResponseIsHedgedNeverAssertive:
         assert "don't have a verified record" in lowered
         assert "can't independently confirm" in lowered
         assert "199" in text
+        assert "licensed advocate" in lowered
+
+    def test_unapproved_correspondence_never_names_a_successor(self):
+        """With no approval record the reply must stay hedged AND must not
+        name a successor section — the fail-closed half of the same gate."""
+        hyp = {"bns_section": "199", "what_changed": "x", "source_link": "y"}
+        text = build_bns_identifier_hypothesis_response(
+            "Bharatiya Nyaya Sanhita", "166A", hyp, _approval_registry=[],
+        )
+        lowered = text.lower()
+        assert "invalid" not in lowered
+        assert "don't have a verified record" in lowered
+        assert "cannot reliably name its successor" in lowered
+        assert "199" not in text
         assert "licensed advocate" in lowered
 
     def test_response_never_swaps_the_users_act(self):
