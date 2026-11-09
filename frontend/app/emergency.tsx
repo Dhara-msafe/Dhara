@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -7,7 +6,6 @@ import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
 import { QuickExit } from '@/src/components/dhara/SosPill';
-import { openPhone } from '@/src/women/helpActions';
 
 const c = theme.colors;
 
@@ -16,7 +14,6 @@ export default function Emergency() {
   const router = useRouter();
   const { language } = useAuth();
   const lang = language.code;
-  const [callStatus, setCallStatus] = useState('');
 
   const tiles = [
     { id: 'silent-alert', icon: 'people-outline', title: tr('em.silent', lang), sub: tr('em.silent.sub', lang), route: '/women/silent-alert' },
@@ -36,18 +33,17 @@ export default function Emergency() {
           <QuickExit />
         </View>
 
-        <Pressable style={styles.callCircle} onPress={async () => setCallStatus(await openPhone('112'))} testID="call-112" accessibilityRole="button" accessibilityLabel="Open dialler for 112">
-          <Ionicons name="call" size={34} color={c.emergencyRed} />
+        <View style={styles.callCircle} testID="call-112" accessibilityLabel="112 — Emergency. Calling not yet active.">
+          <Ionicons name="call-outline" size={34} color={c.emergencyRed} />
           <Text style={styles.callNum}>112</Text>
           <Text style={styles.callTap}>{tr('em.tapcall', lang)}</Text>
-        </Pressable>
-        {!!callStatus && <Text testID="emergency-call-status" accessibilityLiveRegion="polite" style={styles.oneNumber}>{callStatus}</Text>}
+        </View>
 
         <Text style={styles.oneNumber}>{tr('em.oneNumber', lang)}</Text>
 
         <View style={styles.grid}>
           {tiles.map(t => (
-            <Pressable key={t.id} testID={`help-${t.id}`} accessibilityRole="button" style={({ pressed }) => [styles.tile, pressed && { opacity: 0.7 }]} onPress={() => router.push(t.route as any)}>
+            <Pressable key={t.id} testID={`help-${t.id}`} accessibilityRole="button" accessibilityLabel={`${t.title} — ${t.sub}`} style={({ pressed }) => [styles.tile, pressed && { opacity: 0.7 }]} onPress={() => router.push(t.route as any)}>
               <Ionicons name={t.icon as any} size={24} color="#fff" />
               <Text testID={`help-${t.id}-title`} style={styles.tileTitle}>{t.title}</Text>
               <Text testID={`help-${t.id}-description`} style={styles.tileSub}>{t.sub}</Text>
@@ -60,7 +56,7 @@ export default function Emergency() {
         </View>
       </ScrollView>
 
-      <Pressable style={styles.safeBtn} onPress={() => router.replace('/(tabs)/home')} testID="im-safe">
+      <Pressable style={styles.safeBtn} onPress={() => router.replace('/(tabs)/home')} testID="im-safe" accessibilityRole="button" accessibilityLabel={tr('em.safe', lang)}>
         <Text style={styles.safeTxt}>{tr('em.safe', lang)}</Text>
       </Pressable>
     </View>

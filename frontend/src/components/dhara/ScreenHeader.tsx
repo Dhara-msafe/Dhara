@@ -12,7 +12,7 @@ export function ScreenHeader({ title, subtitle }: { title: string; subtitle?: st
   const router = useRouter();
   return (
     <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-      <Pressable onPress={() => router.back()} style={styles.back} testID="screen-back">
+      <Pressable onPress={() => router.back()} style={styles.back} testID="screen-back" accessibilityRole="button" accessibilityLabel="Go back">
         <Ionicons name="chevron-back" size={24} color="#fff" />
       </Pressable>
       <View style={{ flex: 1 }}>

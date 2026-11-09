@@ -60,7 +60,14 @@ export default function Rights() {
     <SafeAreaView style={styles.safe} edges={['top']} testID="rights-screen">
       <View style={styles.header}>
         <Text style={styles.h1}>
-          {primaryInterest ? `Your ${primaryInterest.label} Rights` : 'Know Your Rights'}
+          {/* DEF-008 fix: labels like "Women's Rights" / "Consumer Rights"
+              already end in "Rights" — appending " Rights" unconditionally
+              produced "Your Women's Rights Rights". Only append it when the
+              label doesn't already end with it, so this stays correct for
+              every current and future interest label. */}
+          {primaryInterest
+            ? `Your ${primaryInterest.label}${/rights$/i.test(primaryInterest.label) ? '' : ' Rights'}`
+            : 'Know Your Rights'}
         </Text>
         <Text style={styles.h2}>
           {primaryInterest ? primaryInterest.chatSubline : 'Rights that no one can take from you.'}

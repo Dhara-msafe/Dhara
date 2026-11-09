@@ -3,7 +3,6 @@ import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 
-import { openExternal } from '@/src/outbound';
 type Helpline = {
   label: string;
   number: string;
@@ -33,11 +32,6 @@ export function SOSButton({
 }: { variant?: 'chip' | 'floating'; inline?: boolean }) {
   const [open, setOpen] = useState(false);
 
-  const dial = (number: string) => {
-    setOpen(false);
-    openExternal(`tel:${number}`).catch(() => {});
-  };
-
   return (
     <>
       {variant === 'floating' ? (
@@ -51,7 +45,7 @@ export function SOSButton({
           <Text style={styles.floatingText}>SOS</Text>
         </Pressable>
       ) : (
-        <Pressable testID="sos-button" style={styles.headerChip} onPress={() => setOpen(true)}>
+        <Pressable testID="sos-button" style={styles.headerChip} onPress={() => setOpen(true)} accessibilityRole="button" accessibilityLabel="Open emergency helplines">
           <Ionicons name="call" size={13} color="#FFFFFF" />
           <Text style={styles.headerChipText}>SOS</Text>
         </Pressable>
@@ -63,28 +57,27 @@ export function SOSButton({
             <View style={styles.sheetHeader}>
               <Ionicons name="call" size={20} color={theme.colors.error} />
               <Text style={styles.sheetTitle}>Emergency Helplines</Text>
-              <Pressable testID="sos-close" onPress={() => setOpen(false)} hitSlop={10}>
+              <Pressable testID="sos-close" onPress={() => setOpen(false)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
                 <Ionicons name="close" size={24} color={theme.colors.onSurfaceSecondary} />
               </Pressable>
             </View>
             {HELPLINES.map((h) => (
-              <Pressable
+              <View
                 key={h.number}
                 testID={`sos-dial-${h.number}`}
                 style={styles.row}
-                onPress={() => dial(h.number)}
+                accessibilityLabel={`${h.number} — ${h.label}. Calling not yet active.`}
               >
                 <View style={styles.rowIcon}>
                   <Ionicons name={h.icon} size={20} color={theme.colors.error} />
                 </View>
                 <Text style={styles.rowLabel}>{h.label}</Text>
                 <View style={styles.numberPill}>
-                  <Ionicons name="call" size={12} color={theme.colors.onBrandPrimary} />
                   <Text style={styles.numberText}>{h.number}</Text>
                 </View>
-              </Pressable>
+              </View>
             ))}
-            <Text style={styles.note}>Calls go directly to government helplines. Dhara is not an emergency service.</Text>
+            <Text style={styles.note}>Calling will be enabled in a future update. Dhara is not an emergency service.</Text>
           </Pressable>
         </Pressable>
       </Modal>

@@ -39,7 +39,7 @@ export default function Me() {
     { icon: 'shield-checkmark-outline', key: 'me.privacy', route: '/settings/data-privacy' },
     { icon: 'globe-outline', key: 'me.language', value: language.native, route: '/language' },
     { icon: 'help-buoy-outline', key: 'me.help', route: '/(tabs)/settings' },
-    { icon: 'location-outline', key: 'me.state', value: user?.state_name || '—', route: '/state' },
+    { icon: 'location-outline', key: 'me.state', value: user?.state_name || 'Add your state', route: '/state' },
     { icon: 'chatbubbles-outline', key: 'me.history', route: '/(tabs)/history' },
     { icon: 'bookmark-outline', key: 'me.saved', route: '/(tabs)/saved' },
     { icon: 'briefcase-outline', key: 'me.advocate', route: '/(tabs)/advocate' },
@@ -52,7 +52,7 @@ export default function Me() {
         <Text style={styles.title}>{tr('me.title', lang)}</Text>
 
         <View style={styles.profile}>
-          <Pressable onPress={() => router.push('/edit-profile')} testID="me-avatar">
+          <Pressable onPress={() => router.push('/edit-profile')} testID="me-avatar" accessibilityRole="button" accessibilityLabel="Edit profile photo">
             {photoSrc ? (
               <Image source={{ uri: photoSrc }} style={styles.avatarImg} />
             ) : (
@@ -66,25 +66,39 @@ export default function Me() {
           {user?.is_pro && <View style={styles.proPill}><Ionicons name="star" size={13} color={c.navy} /><Text style={styles.proTxt}>PRO</Text></View>}
         </View>
 
-        {/* Emergency / SOS — moved here from Home so Home stays calm. */}
-        <Pressable
-          style={styles.emergencyCard}
-          onPress={() => router.push('/emergency')}
-          testID="me-emergency-card"
-        >
-          <View style={styles.emergencyIcon}>
-            <Ionicons name="alert-circle" size={22} color="#fff" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.emergencyTitle}>Emergency Help</Text>
-            <Text style={styles.emergencySub}>Helplines, SOS numbers, what to do next</Text>
-          </View>
+        {/* Emergency / SOS — moved here from Home so Home stays calm.
+            NOTE: SOSButton renders its own Pressable (opens the helpline
+            sheet) — it must be a SIBLING of the "open /emergency" Pressable
+            below, never nested inside it, or web renders a <button> inside
+            a <button> (invalid HTML) which pops a blocking dev warning. */}
+        <View style={styles.emergencyCard} testID="me-emergency-card">
+          <Pressable
+            style={styles.emergencyCardTap}
+            onPress={() => router.push('/emergency')}
+            accessibilityRole="button"
+            accessibilityLabel="Open emergency help — helplines, SOS numbers, what to do next"
+          >
+            <View style={styles.emergencyIcon}>
+              <Ionicons name="alert-circle" size={22} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.emergencyTitle}>Emergency Help</Text>
+              <Text style={styles.emergencySub}>Helplines, SOS numbers, what to do next</Text>
+            </View>
+          </Pressable>
           <SOSButton variant="chip" />
-        </Pressable>
+        </View>
 
         <View style={styles.card}>
           {rows.map((r, i) => (
-            <Pressable key={r.key} style={[styles.row, i < rows.length - 1 && styles.rowBorder]} onPress={() => r.route && router.push(r.route as any)} testID={`me-${r.key}`}>
+            <Pressable
+              key={r.key}
+              style={[styles.row, i < rows.length - 1 && styles.rowBorder]}
+              onPress={() => r.route && router.push(r.route as any)}
+              testID={`me-${r.key}`}
+              accessibilityRole="button"
+              accessibilityLabel={r.value ? `${r.label ?? tr(r.key, lang)}, ${r.value}` : (r.label ?? tr(r.key, lang))}
+            >
               <View style={styles.rowIcon}><Ionicons name={r.icon} size={20} color={c.navy} /></View>
               <Text style={styles.rowLabel}>{r.label ?? tr(r.key, lang)}</Text>
               {r.value && <Text style={styles.rowValue} numberOfLines={1}>{r.value}</Text>}
@@ -110,6 +124,8 @@ export default function Me() {
                 <Pressable
                   key={interest.key}
                   testID={`interest-chip-${interest.key}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${interest.label}${isOn ? ', selected' : ''}`}
                   style={[
                     styles.interestChip,
                     isOn && { backgroundColor: interest.bgColor, borderColor: interest.color },
@@ -155,7 +171,7 @@ export default function Me() {
           )}
         </View>
 
-        <Pressable style={styles.signout} onPress={async () => { await logout(); router.replace('/login'); }} testID="me-signout">
+        <Pressable style={styles.signout} onPress={async () => { await logout(); router.replace('/login'); }} testID="me-signout" accessibilityRole="button" accessibilityLabel={tr('me.signout', lang)}>
           <Ionicons name="log-out-outline" size={20} color={c.error} />
           <Text style={styles.signoutTxt}>{tr('me.signout', lang)}</Text>
         </Pressable>
@@ -176,6 +192,7 @@ const styles = StyleSheet.create({
   proPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.gold, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   proTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.navy },
   emergencyCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.errorSoft || '#FEE2E2', borderRadius: 16, borderWidth: 1, borderColor: c.error, padding: 14, marginTop: 14 },
+  emergencyCardTap: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   emergencyIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.error, alignItems: 'center', justifyContent: 'center' },
   emergencyTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink },
   emergencySub: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 1 },

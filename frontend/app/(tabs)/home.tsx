@@ -110,14 +110,14 @@ export default function Home() {
             </View>
             <View style={styles.headerActions}>
               {TRUSTED_CIRCLE_RECIPIENT && (
-                <Pressable style={styles.bellBtn} onPress={() => router.push('/alerts' as any)} testID="home-alerts-bell">
+                <Pressable style={styles.bellBtn} onPress={() => router.push('/alerts' as any)} testID="home-alerts-bell" accessibilityRole="button" accessibilityLabel={alertCount > 0 ? `View alerts, ${alertCount} unread` : 'View alerts'}>
                   <Ionicons name="notifications-outline" size={20} color="#fff" />
                   {alertCount > 0 && (
                     <View style={styles.bellBadge}><Text style={styles.bellBadgeTxt}>{alertCount > 9 ? '9+' : alertCount}</Text></View>
                   )}
                 </Pressable>
               )}
-              <Pressable style={styles.langPill} onPress={() => router.push('/language')}>
+              <Pressable style={styles.langPill} onPress={() => router.push('/language')} accessibilityRole="button" accessibilityLabel={`Change language, currently ${language.native}`}>
                 <Ionicons name="globe-outline" size={14} color="#fff" />
                 <Text style={styles.langTxt} numberOfLines={1}>{language.native}</Text>
               </Pressable>
@@ -142,16 +142,16 @@ export default function Home() {
         <View style={styles.askCard}>
           <Text style={styles.askTitle}>{tr('home.askTitle', lang)}</Text>
           <Text style={styles.askSub}>{tr('home.askSub', lang)}</Text>
-          <Pressable style={styles.micBtn} onPress={() => router.push({ pathname: '/(tabs)', params: { autostartMic: Date.now().toString() } })} testID="home-mic">
+          <Pressable style={styles.micBtn} onPress={() => router.push({ pathname: '/(tabs)', params: { autostartMic: Date.now().toString() } })} testID="home-mic" accessibilityRole="button" accessibilityLabel="Ask DHARA a question by voice">
             <Ionicons name="mic" size={40} color={c.navy} />
           </Pressable>
           <Text style={styles.holdTxt}>{tr('home.holdToSpeak', lang)}</Text>
           <View style={styles.askActions}>
-            <Pressable style={styles.askAction} onPress={() => router.push('/(tabs)')} testID="home-type-button">
+            <Pressable style={styles.askAction} onPress={() => router.push('/(tabs)')} testID="home-type-button" accessibilityRole="button" accessibilityLabel="Type your question instead">
               <Ionicons name="create-outline" size={18} color={c.navy} />
               <Text style={styles.askActionTxt}>{tr('home.type', lang)}</Text>
             </Pressable>
-            <Pressable style={styles.askAction} onPress={() => router.push('/scan')}>
+            <Pressable style={styles.askAction} onPress={() => router.push('/scan')} accessibilityRole="button" accessibilityLabel="Scan a document">
               <Ionicons name="camera-outline" size={18} color={c.navy} />
               <Text style={styles.askActionTxt}>{tr('home.scan', lang)}</Text>
             </Pressable>
@@ -164,6 +164,8 @@ export default function Home() {
             <Pressable
               key={idx}
               style={styles.tryChip}
+              accessibilityRole="button"
+              accessibilityLabel={`Ask: ${q.replace(/^"|"$/g, '')}`}
               onPress={() => {
                 const clean = q.replace(/^"|"$/g, '');
                 router.push({ pathname: '/(tabs)', params: { draft: clean, entry: Date.now().toString() } } as any);
@@ -179,6 +181,8 @@ export default function Home() {
               style={styles.onboardCard}
               onPress={() => router.push('/(tabs)/me')}
               testID="home-onboarding-card"
+              accessibilityRole="button"
+              accessibilityLabel="Set your interests on the Me tab to personalize suggestions"
             >
               <View style={{ flex: 1 }}>
                 <Text style={styles.onboardTitle}>✨ What matters to you?</Text>
@@ -209,7 +213,7 @@ export default function Home() {
               </View>
               <Text style={styles.forYouTitle} numberOfLines={2}>{complaintTitle(primaryCase)}</Text>
               <Text style={styles.forYouBody} numberOfLines={2}>{primaryProgress.label}</Text>
-              <Pressable style={styles.goldBtn} onPress={() => openCase(primaryCase)} testID="foryou-case-cta">
+              <Pressable style={styles.goldBtn} onPress={() => openCase(primaryCase)} testID="foryou-case-cta" accessibilityRole="button" accessibilityLabel={isDraftReady(primaryCase) ? 'View your complaint draft' : 'Continue your case'}>
                 <Text style={styles.goldBtnTxt}>{isDraftReady(primaryCase) ? 'View draft' : 'Continue'}</Text>
               </Pressable>
             </View>
@@ -221,7 +225,7 @@ export default function Home() {
               </View>
               <Text style={styles.forYouTitle}>Start your first case</Text>
               <Text style={styles.forYouBody}>Tell DHARA what happened — we’ll help you draft a complaint, step by step.</Text>
-              <Pressable style={styles.goldBtn} onPress={() => router.push('/engine')} testID="foryou-start-case">
+              <Pressable style={styles.goldBtn} onPress={() => router.push('/engine')} testID="foryou-start-case" accessibilityRole="button" accessibilityLabel="Start your first case">
                 <Text style={styles.goldBtnTxt}>Start</Text>
               </Pressable>
             </View>
@@ -237,6 +241,8 @@ export default function Home() {
               style={styles.navyBtn}
               onPress={() => router.push(HEAD_OUT_ENABLED ? '/women/head-out' : '/women-shield')}
               testID="home-heading-out-start"
+              accessibilityRole="button"
+              accessibilityLabel="Start a safe journey check-in"
             >
               <Text style={styles.navyBtnTxt}>Start</Text>
             </Pressable>
@@ -248,6 +254,8 @@ export default function Home() {
               style={[styles.forYouCard, styles.forYouCardLight]}
               onPress={() => router.push('/family-journey')}
               testID="home-family-journey-card"
+              accessibilityRole="button"
+              accessibilityLabel="Open Family Journey"
             >
               <View style={styles.forYouTag}>
                 <Ionicons name="people-outline" size={13} color={c.darkGold} />
@@ -271,6 +279,8 @@ export default function Home() {
               style={[styles.forYouCard, { backgroundColor: primaryInterest.bgColor, borderWidth: 1.5, borderColor: primaryInterest.color + '40' }]}
               onPress={() => router.push(primaryInterest.forYouCard.route as any)}
               testID="home-profile-foryou-card"
+              accessibilityRole="button"
+              accessibilityLabel={primaryInterest.forYouCard.title}
             >
               <View style={styles.forYouTag}>
                 <Text style={[styles.forYouTagTxt, { color: primaryInterest.color }]}>
@@ -297,7 +307,7 @@ export default function Home() {
               <Text style={styles.h2}>{tr('home.journeys', lang)}</Text>
               <Text style={styles.h2sub}>{tr('home.journeysSub', lang)}</Text>
             </View>
-            <Pressable onPress={() => router.push('/all-help')}>
+            <Pressable onPress={() => router.push('/all-help')} accessibilityRole="button" accessibilityLabel="See all help journeys">
               <Text style={styles.link}>{tr('home.allHelp', lang)}</Text>
             </Pressable>
           </View>
@@ -310,6 +320,8 @@ export default function Home() {
                   style={[styles.tile, j.navy && styles.tileNavy, isForYou && styles.tileForYou]}
                   onPress={() => router.push(j.route as any)}
                   testID={`journey-${j.key}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open ${jLabel(j.key)}`}
                 >
                   {j.isNew && <View style={styles.newBadge}><Text style={styles.newTxt}>{tr('common.new', lang)}</Text></View>}
                   {isForYou && !j.isNew && (
@@ -328,7 +340,7 @@ export default function Home() {
         {/* DHARA-B024: removed placeholder legal text; replaced with a
             neutral, non-legal message per the acceptance criteria (no
             specific legal claim is asserted here). */}
-        <Pressable style={styles.verified} onPress={() => router.push('/(tabs)/rights')} testID="rights-reminder-banner">
+        <Pressable style={styles.verified} onPress={() => router.push('/(tabs)/rights')} testID="rights-reminder-banner" accessibilityRole="button" accessibilityLabel="Learn about your rights">
           <Ionicons name="shield-checkmark" size={20} color={c.verifiedGreen} />
           <Text style={styles.verifiedTxt}>
             {primaryInterest
@@ -342,10 +354,10 @@ export default function Home() {
         <View style={styles.section}>
           <View style={styles.rowBetween}>
             <Text style={styles.h2}>{tr('home.myFiles', lang)}</Text>
-            <Pressable onPress={() => router.push('/(tabs)/myfiles')}><Text style={styles.link}>{tr('home.seeAll', lang)}</Text></Pressable>
+            <Pressable onPress={() => router.push('/(tabs)/myfiles')} accessibilityRole="button" accessibilityLabel="See all your files"><Text style={styles.link}>{tr('home.seeAll', lang)}</Text></Pressable>
           </View>
           {primaryCase && primaryProgress ? (
-            <Pressable style={styles.fileCard} onPress={() => router.push('/(tabs)/myfiles')} testID="home-myfiles-preview">
+            <Pressable style={styles.fileCard} onPress={() => router.push('/(tabs)/myfiles')} testID="home-myfiles-preview" accessibilityRole="button" accessibilityLabel={`Open your file, ${complaintTitle(primaryCase)}`}>
               <View style={styles.fileIcon}><Ionicons name="lock-closed-outline" size={20} color={c.darkGold} /></View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.fileTitle} numberOfLines={1}>{complaintTitle(primaryCase)}</Text>
@@ -361,7 +373,7 @@ export default function Home() {
               <Ionicons name="chevron-forward" size={20} color={c.onSurfaceTertiary} />
             </Pressable>
           ) : (
-            <Pressable style={styles.fileCard} onPress={() => router.push('/engine')} testID="home-myfiles-empty">
+            <Pressable style={styles.fileCard} onPress={() => router.push('/engine')} testID="home-myfiles-empty" accessibilityRole="button" accessibilityLabel="Start your first complaint">
               <View style={styles.fileIcon}><Ionicons name="add-outline" size={20} color={c.darkGold} /></View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.fileTitle}>{casesLoading ? 'Loading your cases…' : 'No cases yet'}</Text>

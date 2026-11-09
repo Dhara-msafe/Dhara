@@ -277,7 +277,7 @@ export default function WomenShield() {
             <Text style={styles.h2}>Campus safety</Text>
             <Text style={styles.h2sub}>Resources for students and campus communities</Text>
             <View style={styles.toolCard}>
-              <ToolRow icon="school-outline" title="Anti-Ragging helpline" sub="National helpline: 1800-180-5522 (free call)" action="Call" onPress={() => openExternal('tel:18001805522')} />
+              <ToolRow icon="school-outline" title="Anti-Ragging helpline" sub="National helpline: 1800-180-5522 (calling not yet active)" />
               <Divider />
               <ToolRow icon="briefcase-outline" title="POSH / Internal Complaints" sub="Your institution's Internal Complaints Committee (ICC)" action="How to find" onPress={() => router.push({ pathname: '/all-help', params: { q: 'POSH committee' } })} />
               <Divider />
@@ -296,11 +296,11 @@ export default function WomenShield() {
           <Text style={styles.h2sub}>{tr('ws.talk.sub', lang)}</Text>
           <View style={styles.hlGrid}>
             {shownHelplines.map(h => (
-              <Pressable key={h.num} style={styles.hlCard} onPress={() => openExternal(`tel:${h.num}`)} testID={`hl-${h.num}`} accessibilityRole="button" accessibilityLabel={`Call ${h.label}, ${h.num}`}>
+              <View key={h.num} style={styles.hlCard} testID={`hl-${h.num}`} accessibilityLabel={`${h.num} — ${h.label}. Calling not yet active.`}>
                 {h.verified && <Ionicons name="checkmark-circle" size={13} color={c.verifiedGreen} style={styles.hlVerified} />}
                 <Text style={styles.hlNum}>{h.num}</Text>
                 <Text style={styles.hlLabel} numberOfLines={1}>{h.label}</Text>
-              </Pressable>
+              </View>
             ))}
           </View>
         </View>
@@ -323,7 +323,29 @@ export default function WomenShield() {
   );
 }
 
-function ToolRow({ icon, title, sub, action, onPress }: { icon: any; title: string; sub: string; action: string; onPress: () => void }) {
+// onPress is optional: when omitted, this renders as a plain, non-interactive
+// row (no Pressable, no button role, no onPress) — used for the Anti-Ragging
+// helpline row, which displays a number but must not be tappable until the
+// app is live (SOS-numbers-inactive policy; calling stays off everywhere
+// except through the explicit dialler consent flow this policy doesn't cover).
+function ToolRow({ icon, title, sub, action, onPress }: { icon: any; title: string; sub: string; action?: string; onPress?: () => void }) {
+  const content = (
+    <>
+      <View style={styles.toolIcon}><Ionicons name={icon} size={20} color={c.navy} /></View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.toolTitle}>{title}</Text>
+        <Text style={styles.toolSub}>{sub}</Text>
+      </View>
+      {!!action && <Text style={styles.toolAction}>{action}</Text>}
+    </>
+  );
+  if (!onPress) {
+    return (
+      <View style={styles.toolRow} testID={`ws-tool-${icon}`} accessibilityLabel={`${title}. ${sub}`}>
+        {content}
+      </View>
+    );
+  }
   return (
     <Pressable
       style={styles.toolRow}
@@ -333,12 +355,7 @@ function ToolRow({ icon, title, sub, action, onPress }: { icon: any; title: stri
       accessibilityLabel={`${title} — ${action}`}
       accessibilityHint={sub}
     >
-      <View style={styles.toolIcon}><Ionicons name={icon} size={20} color={c.navy} /></View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.toolTitle}>{title}</Text>
-        <Text style={styles.toolSub}>{sub}</Text>
-      </View>
-      <Text style={styles.toolAction}>{action}</Text>
+      {content}
     </Pressable>
   );
 }

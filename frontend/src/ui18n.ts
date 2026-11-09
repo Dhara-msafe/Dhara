@@ -134,7 +134,7 @@ export const UI: Record<string, L> = {
   'ws.code.sub':     { en: 'An ordinary sentence that opens help', hi: 'एक सामान्य वाक्य जो मदद खोलता है', mr: 'मदत उघडणारे सामान्य वाक्य', ta: 'உதவியைத் திறக்கும் சாதாரண வாக்கியம்' },
   'ws.setup':        { en: 'Set up', hi: 'सेट करें', mr: 'सेट करा', ta: 'அமை' },
   'ws.talk':         { en: 'Talk to someone', hi: 'किसी से बात करें', mr: 'कोणाशी बोला', ta: 'யாரிடமாவது பேசுங்கள்' },
-  'ws.talk.sub':     { en: 'Tap to call — DHARA picks the right one for you', hi: 'कॉल करने के लिए दबाएं — DHARA सही नंबर चुनती है', mr: 'कॉल करण्यासाठी दाबा — DHARA योग्य क्रमांक निवडते', ta: 'அழைக்க தட்டவும் — DHARA சரியானதைத் தேர்வுசெய்யும்' },
+  'ws.talk.sub':     { en: 'Emergency numbers (calling will be enabled in a future update)', hi: 'आपातकालीन नंबर (कॉलिंग भविष्य के अपडेट में सक्षम होगी)', mr: 'आपत्कालीन क्रमांक (कॉलिंग भविष्यातील अपडेटमध्ये सक्षम होईल)', ta: 'அவசர எண்கள் (அழைப்பு எதிர்கால புதுப்பிப்பில் இயக்கப்படும்)' },
   'ws.plan':         { en: 'My safety plan', hi: 'मेरी सुरक्षा योजना', mr: 'माझी सुरक्षा योजना', ta: 'எனது பாதுகாப்பு திட்டம்' },
   'ws.plan.sub':     { en: 'Answer 8 questions at your own pace. Nothing is shared unless you choose.', hi: '8 सवालों के जवाब अपनी गति से दें। जब तक आप न चाहें, कुछ साझा नहीं होता।', mr: '8 प्रश्नांची उत्तरे तुमच्या गतीने द्या. तुम्ही निवडल्याशिवाय काहीही शेअर होत नाही.', ta: '8 கேள்விகளுக்கு உங்கள் வேகத்தில் பதிலளியுங்கள். நீங்கள் தேர்வுசெய்யாவிட்டால் எதுவும் பகிரப்படாது.' },
   'ws.start':        { en: 'Start', hi: 'शुरू करें', mr: 'सुरू करा', ta: 'தொடங்கு' },
@@ -148,7 +148,7 @@ export const UI: Record<string, L> = {
   // ── Emergency ────────────────────────────────────────────────────
   'em.danger':       { en: 'YOU MAY BE IN DANGER', hi: 'आप खतरे में हो सकते हैं', mr: 'तुम्ही धोक्यात असू शकता', ta: 'நீங்கள் ஆபத்தில் இருக்கலாம்' },
   'em.quickexit':    { en: 'Quick exit', hi: 'तुरंत बाहर', mr: 'त्वरित बाहेर', ta: 'விரைவு வெளியேறு' },
-  'em.tapcall':      { en: 'Tap to call', hi: 'कॉल करने के लिए दबाएं', mr: 'कॉल करण्यासाठी दाबा', ta: 'அழைக்க தட்டவும்' },
+  'em.tapcall':      { en: 'Calling not yet active', hi: 'कॉलिंग अभी सक्रिय नहीं है', mr: 'कॉलिंग अद्याप सक्रिय नाही', ta: 'அழைப்பு இன்னும் செயலில் இல்லை' },
   'em.oneNumber':    { en: 'Police · ambulance · women\u2019s help — one number', hi: 'पुलिस · एम्बुलेंस · महिला मदद — एक नंबर' },
   'em.silent':       { en: 'Silent alert', hi: 'मौन अलर्ट' },
   'em.silent.sub':   { en: 'Prepare a message to my circle', hi: 'मेरे लोगों के लिए संदेश तैयार करें', mr: 'विश्वासू व्यक्तींना संदेश तयार करा', ta: 'நம்பகமானவர்களுக்கு செய்தி தயாரிக்கவும்' },

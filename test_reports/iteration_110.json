@@ -1,0 +1,47 @@
+{
+  "summary": "Verified BATCH 1 (SOS non-tappable), BATCH 6 (text fixes), and BATCH 4 (accessibility labels, spot check) fixes live on preview with account voicetest2026@example.com. All requested fixes CONFIRMED WORKING. Also re-verified Head Out wizard full flow + Trusted Circle page (unchanged, still working), My files and Code Phrase routing (both correct, no 404/misroute), backend health (200), and Issue Reporter FAB presence. Found ONE new defect not in scope but discovered during testing: a React DOM nested-<button> hydration warning on /(tabs)/me — the 'Emergency Help' card (me-emergency-card, a Pressable/button) wraps <SOSButton variant=\"chip\"> which renders its own Pressable/button (sos-button) inside it. On web this triggers a persistent LogBox dev-overlay ('button cannot contain a nested button... app/(tabs)/me.tsx:70') that fully covers the screen on every re-render of Me, blocking taps until manually dismissed/reloaded — a real usability issue on web preview, not just a console nuisance.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "/(tabs)/me.tsx — me-emergency-card wrapping SOSButton (chip variant)",
+        "issue": "Nested interactive elements: me-emergency-card is a Pressable (renders as <button> on web) and it contains <SOSButton variant=\"chip\"> which is itself a Pressable/<button> (testID=sos-button). This is invalid HTML (button-in-button) and triggers React's LogBox warning overlay on web every time Me re-renders, which visually covers the entire screen and blocks further taps until dismissed. Did not block my testing permanently (worked around via full page reload/direct URL nav) but is a real defect for any web-preview user who taps near the Emergency Help card repeatedly.",
+        "testID": "me-emergency-card / sos-button",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "User interest selection (Me > Personalize your DHARA) does not appear to persist across a fresh page load/new session for this account — selecting 'Women's Rights' showed the '✓ Saved' confirmation but a hard reload of the app reset the interest picker to 'No selection'. This is NOT in the current batch's scope and may be pre-existing, but it meant the rights.tsx heading fix could only be verified by selecting the interest and navigating to Rights within the SAME session (worked correctly there) rather than across a reload. Recommend main agent check useUserProfile's persistence (is it actually posting to a backend profile endpoint or only local/in-memory state for this account?).",
+        "affected_testIDs": ["interest-chip-women", "rights-screen"]
+      }
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "BATCH 1, 6, 4 fixes all verified working as-is — no action needed on those.",
+    "Investigate/report the nested <button> (me-emergency-card > SOSButton chip) DOM warning on /(tabs)/me — consider rendering the SOS chip without its own Pressable wrapper when nested inside another Pressable, or make the emergency card a plain View with the SOS chip as the only tappable element inside it.",
+    "Investigate whether selected interests (Me > Personalize your DHARA) persist to the backend profile for this account across sessions/reloads -- observed reset to 'no selection' after full reload despite showing a save confirmation moments earlier. Not in this round's scope, but worth a look since it affects the rights.tsx personalization feature end-to-end."
+  ],
+  "critical_code_review_comments": [
+    "women-shield.tsx: HELPLINES/Talk-to-someone cards (hlCard) correctly changed from Pressable to plain View with no onPress, aria-label includes 'Calling not yet active.', header text read via tr('ws.talk')/tr('ws.talk.sub') with no 'Call' wording visible in UI. Confirmed live.",
+    "women-shield.tsx ToolRow: Anti-Ragging row correctly omits the onPress prop, rendering a plain View (not Pressable) with sub text '... (calling not yet active)' and no action pill. Confirmed live.",
+    "emergency.tsx: callCircle is a plain View (not Pressable) with accessibilityLabel '112 — Emergency. Calling not yet active.' Tapping does nothing, confirmed live via unchanged page.url before/after click.",
+    "SOSButton.tsx: helpline rows (HELPLINES.map) are plain Views (not Pressable), aria-label ends in 'Calling not yet active.', footer note reads 'Calling will be enabled in a future update. Dhara is not an emergency service.' Confirmed via modal opened from /me page's sos-button chip.",
+    "rights.tsx: heading logic `Your ${primaryInterest.label}${/rights$/i.test(primaryInterest.label) ? '' : ' Rights'}` correctly avoids 'Rights Rights' duplication for any label already ending in 'Rights' (covers both Women's Rights and Consumer Rights cases). Confirmed live: selecting Women's Rights interest and visiting Rights tab showed exactly 'Your Women's Rights'.",
+    "me.tsx: State row value correctly falls back to 'Add your state' (not '—') when user.state_name is unset. Confirmed live.",
+    "Accessibility spot-check across home.tsx, me.tsx, and head-out/radius.tsx (via screen-back) all returned non-empty, descriptive aria-label values (e.g. 'Start a safe journey check-in', 'Ask DHARA a question by voice', 'Go back', 'Sign out') -- consistent with the BATCH 4 app-wide audit having been applied."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (health check 200; journey create/safe endpoints functioned correctly during Head Out regression)", "frontend": "100% for all requested BATCH 1/6/4 items and regression items verified this round"},
+  "seed_data_creation": "Created and then ended 2 test Head Out journeys with destination labels 'TEST_QA Regression Destination' / 'TEST_QA Regression2' / 'TEST_QA Regression Final' (only the last fully completed Start Journey -> active session -> I'm home safely cycle; earlier ones were abandoned mid-wizard with no backend record created, only the Final one reached journey creation and was properly ended via headout-end). No test data left active.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All items in this round's review request (BATCH 1 SOS non-tappable across women-shield/emergency/SOSButton modal, BATCH 6 rights heading + state row text fixes, BATCH 4 accessibility label spot check, Head Out/Trusted Circle regression, My files/Code Phrase routing, backend health) are CONFIRMED WORKING. Two new findings surfaced during testing, neither of which were in the original request scope: (1) a nested-button DOM/hydration warning on /(tabs)/me caused by SOSButton being nested inside the Pressable emergency card -- cosmetic/dev-overlay issue on web but a real markup defect worth fixing; (2) user interest selection on Me tab did not survive a full page reload for this test account, which is separate from (and does not invalidate) the rights.tsx heading fix itself -- the heading logic was verified correct within a session.",
+  "rca_of_issue": "Nested button issue: SOSButton.tsx's 'chip' variant renders its own top-level <Pressable testID=\"sos-button\"> unconditionally; when a parent screen (me.tsx's emergencyCard, also a Pressable) renders <SOSButton variant=\"chip\" /> as a child, React Native Web outputs a <button> inside a <button>, which is invalid HTML and triggers the DOM nesting validation warning / LogBox overlay in dev mode on web."
+}
