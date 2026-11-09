@@ -7,10 +7,10 @@
  * "arrived". Duration, trusted circle and reminder settings all live on
  * Step 3 now.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { theme } from '@/src/theme';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { useHeadOutWizard } from '@/src/women/headOutWizardStore';
@@ -29,9 +29,23 @@ export default function ArrivalRadius() {
   // No destination chosen yet (e.g. this URL was opened directly, or the
   // wizard store was reset mid-flow) — send back to Step 1 instead of
   // letting the user set a radius for nothing.
-  useEffect(() => {
-    if (!draft.label.trim()) router.replace('/women/head-out/destination');
-  }, [draft.label, router]);
+  //
+  // MUST be useFocusEffect, not a plain useEffect keyed on draft.label:
+  // router.push keeps this screen mounted (not unmounted) underneath Step 3
+  // (circle.tsx) in the stack. circle.tsx's "Start Journey" action calls
+  // resetWizard() (clearing the shared store's destination back to '')
+  // BEFORE navigating to the active session screen — with a plain
+  // useEffect, THIS hidden, unfocused screen would see that store change,
+  // its guard would fire, and its own router.replace('.../destination')
+  // would race with (and silently win over) circle.tsx's navigation to the
+  // active session screen, bouncing the user back to Step 1 every time.
+  // Scoping this to focus means the guard only ever runs while the user is
+  // actually looking at this screen.
+  useFocusEffect(
+    useCallback(() => {
+      if (!draft.label.trim()) router.replace('/women/head-out/destination');
+    }, [draft.label, router]),
+  );
 
   if (!draft.label.trim()) return null;
 

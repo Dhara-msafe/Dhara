@@ -1,0 +1,39 @@
+{
+  "summary": "PRIMARY CRITICAL FIX VERIFIED: Ran the full Head Out wizard end-to-end on the live preview (tap home-heading-out-start -> Step 1 destination.tsx with typed custom destination -> Step 2 radius.tsx tap Next -> Step 3 circle.tsx tap Start Journey) THREE separate times (once in isolation, twice in a single-session start->end->restart regression test) and it landed cleanly on the active /women/head-out session screen every time (headout-active-card + headout-timer both present, countdown showing 59:55, correct destination label shown) with ZERO bounce-back to Step 1. The radius.tsx useFocusEffect fix (converting the plain useEffect guard to a focus-scoped one) has resolved the bug described in the review request. Also verified the 'end session -> start a fresh journey a second time in the same sitting' regression scenario: tapped 'I'm home safely' (headout-end), confirmed clean redirect back to Step 1 (session cleared, no stale timer/destination), then ran the wizard again and the active card correctly showed the NEW destination label with a fresh 59:55 timer -- no stale state carried over. Backend logs confirm POST /api/journey/status returned 201 Created and PATCH .../safe returned 200 OK on both runs.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/profile/photo/{owner_id}?token=...",
+        "issue": "Returns 404 for the test account voicetest2026@example.com (no profile photo uploaded for that user). Pre-existing, unrelated to the Head Out wizard bug; does not block any flow (UI falls back to the avatar placeholder icon correctly)."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Automated test tooling only (NOT a real user-facing issue): after a journey ends via router.replace to destination.tsx and a brand-new journey's wizard is started, TWO DOM instances of [data-testid=\"headout-destination-search\"] (and other step-1 testIDs) exist simultaneously -- one hidden/stale from the previous wizard run, one freshly mounted and visible. Playwright's `.first()` without a visibility filter picked the stale hidden one and failed the click. Real users never hit this because only the visible instance is interactable, but it confirms the codebase accumulates multiple backgrounded screen instances per wizard run in the router stack (consistent with the same router.push-keeps-screens-mounted behavior that caused the original bug). Worth a light look at whether old wizard screen instances should eventually be popped/cleared from the stack to avoid unbounded accumulation over many journeys in one app session (memory, not correctness, since the focus-guard fix already protects against stale-screen reactions)."
+      }
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional/non-blocking: consider whether the Head Out wizard's step screens (destination.tsx, radius.tsx, circle.tsx) should be popped from the native-stack history once a journey starts (e.g. router.replace to a stack root before pushing the wizard, or resetting the stack on Start Journey) so repeated journeys across one app session don't keep accumulating hidden mounted screen instances indefinitely. Not urgent -- the useFocusEffect fix already neutralizes the correctness risk this previously caused.",
+    "Lower-priority spot-check items from the request (Nearest Help typeahead, OSM/Places autocomplete dropdown, Guardian public share-link page, Issue Reporter FAB drag, Admin issues dashboard) were NOT exercised this round -- all available time went to thoroughly confirming the primary fix (3 full end-to-end runs) and the end/restart regression, per the request's stated priority ordering."
+  ],
+  "critical_code_review_comments": [
+    "radius.tsx's useFocusEffect fix is implemented correctly: the guard `if (!draft.label.trim()) router.replace('/women/head-out/destination')` is now wrapped in useCallback and registered via useFocusEffect, so it only evaluates while radius.tsx is actually the focused screen -- exactly the pattern already used elsewhere (circle.tsx's loadCircle, head-out/index.tsx's session-load effect). This correctly prevents the hidden/backgrounded radius.tsx instance from reacting to circle.tsx's resetWizard() store clear and racing its own navigation against circle.tsx's router.replace.",
+    "Reviewed destination.tsx for an analogous issue as requested -- confirmed no equivalent unfocus-unsafe effect exists there. destination.tsx has no effect that reads draft.label and navigates away on an empty/cleared value; its only navigation call is from handleNext (user-initiated, not reactive to store state), so it is not at risk of the same race.",
+    "circle.tsx's handleStartJourney -> resetWizard() -> router.replace('/women/head-out') ordering is unchanged and still technically racy in principle (store clears before navigation call resolves), but since radius.tsx (the only other screen that was reacting to resetWizard()) is now focus-scoped, there is no longer any other mounted screen with a reactive effect against the draft.label store value to race against. No further occurrence found in destination.tsx or circle.tsx itself."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (journey create/safe/consent/login/geocode all returned expected 2xx)", "frontend": "100% for the primary acceptance criterion (3/3 full end-to-end Start Journey runs landed correctly on the active session screen with zero bounce-back; end-session-then-restart regression also passed cleanly)"},
+  "seed_data_creation": "Created test journeys with destination labels 'TEST_Custom Destination QA', 'TEST_Second Fresh Journey', 'TEST_Regression First2'/'TEST_RegressionA', 'TEST_RegressionB' -- all were ended via the in-app 'I'm home safely' button during testing (PATCH .../safe called successfully), so no active test journeys remain for this account.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The primary bug (Start Journey bouncing back to Step 1) is CONFIRMED FIXED via the radius.tsx useFocusEffect change. Do not re-litigate this specific bug unless a future regression reintroduces a plain useEffect reacting to headOutWizardStore state in a screen that router.push keeps mounted in the background. The only thing flagged this round is a non-blocking architectural note about accumulating hidden wizard screen instances across repeated journeys in one session -- purely a test-tooling-visibility nuisance, not a user-facing defect, and not something that needs immediate action.",
+  "rca_of_issue": "Already correctly diagnosed and fixed by the main agent prior to this test round; this test round's job was verification only, which succeeded on all 3 full end-to-end attempts plus the end/restart regression check."
+}

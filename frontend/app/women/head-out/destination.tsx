@@ -69,7 +69,7 @@ interface PlacesSuggestionRow {
   kind: 'places';
   place_id: string;
   label: string;
-  provider: string; // always "google" — the backend fails closed (no OSM substitution) on any Google error, see geo_router.py
+  provider: string; // "google" when Places is configured, "osm" when it falls back to the free NominatimFallbackProvider (geo_router.py) — passed straight back to /api/geo/details so the backend knows which provider to resolve the place_id against.
 }
 
 type UnifiedSuggestion = CoordSuggestion | PlacesSuggestionRow;
