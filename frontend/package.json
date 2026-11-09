@@ -83,6 +83,7 @@
     "typescript": "~5.9.2"
   },
   "resolutions": {
+    "eslint-plugin-expo": "1.1.0",
     "@eslint/plugin-kit": "0.3.4",
     "postcss": "8.5.10",
     "uuid": "11.1.1",
