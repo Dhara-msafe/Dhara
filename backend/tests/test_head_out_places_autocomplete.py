@@ -43,17 +43,18 @@ class TestGeoAutocompleteFlagState:
         r = api_client.get(f"{BASE_URL}/api/geo/autocomplete", params={
             "input": "Mumbai", "session_token": SESSION_TOKEN
         })
-        if r.status_code == 503:
-            assert r.json().get("detail") == "Places autocomplete is not enabled"
-            pytest.skip("FEATURE_GOOGLE_PLACES_V1 is OFF (current/default state) — 503 confirmed correct")
-        else:
-            assert r.status_code == 200
-            data = r.json()
-            assert "suggestions" in data and "provider" in data
-            assert data["provider"] in ("google", "osm")
-            if data["suggestions"]:
-                s = data["suggestions"][0]
-                assert "place_id" in s and "main_text" in s and "provider" in s
+        # FEATURE_GOOGLE_PLACES_V1 OFF (current/default state) — the endpoint
+        # now serves free NominatimFallbackProvider suggestions (provider
+        # "osm") under the same 200 response shape, instead of failing
+        # closed, so typing still suggests places with zero Google billing.
+        # See geo_router.py's module docstring for the design rationale.
+        assert r.status_code == 200
+        data = r.json()
+        assert "suggestions" in data and "provider" in data
+        assert data["provider"] in ("google", "osm")
+        if data["suggestions"]:
+            s = data["suggestions"][0]
+            assert "place_id" in s and "main_text" in s and "provider" in s
 
     def test_autocomplete_invalid_session_token_when_on(self, api_client):
         r = api_client.get(f"{BASE_URL}/api/geo/autocomplete", params={

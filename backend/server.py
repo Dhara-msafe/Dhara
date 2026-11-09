@@ -1857,6 +1857,21 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def _startup():
+    # Google Places (New) pilot — one-line startup confirmation so flipping
+    # FEATURE_GOOGLE_PLACES_V1 + GOOGLE_PLACES_SERVER_KEY on redeploy is
+    # immediately visible in server logs, with no separate script needed.
+    # Never logs the key value itself — presence only.
+    try:
+        from api.geo_router import FEATURE_GOOGLE_PLACES_V1 as _places_flag, GOOGLE_PLACES_SERVER_KEY as _places_key
+        if _places_flag and _places_key:
+            logger.info("[startup] Google Places (New) pilot: ACTIVE — destination search and Nearest Help are live on Google")
+        elif _places_flag and not _places_key:
+            logger.warning("[startup] Google Places (New) pilot: FEATURE_GOOGLE_PLACES_V1=true but GOOGLE_PLACES_SERVER_KEY is unset — falling back to OSM/external-Maps, not an error")
+        else:
+            logger.info("[startup] Google Places (New) pilot: OFF (FEATURE_GOOGLE_PLACES_V1 not set) — using OSM/external-Maps as before")
+    except Exception as e:
+        logger.warning(f"[startup] Google Places pilot status check warning: {e}")
+
     # Object Storage (profile photos) — best-effort warm-up, never blocks startup
     try:
         from services.object_storage import init_storage as _init_object_storage

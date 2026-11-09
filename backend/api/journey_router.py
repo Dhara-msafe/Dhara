@@ -152,10 +152,22 @@ async def _guardian_access_check(
     return rec, GuardianAccessLevel.HISTORICAL_ONLY, link
 
 
-async def _notify_linked_recipients(user: dict, rec: dict, type_: str, extra_payload: Optional[dict] = None) -> None:
+async def _notify_linked_recipients(
+    user: dict, rec: dict, type_: str, extra_payload: Optional[dict] = None,
+    idempotency_suffix: Optional[str] = None,
+) -> None:
     """Fan out a safety alert to every ACCEPTED trusted-circle link selected
     for this journey (rec['recipient_link_ids']). Best-effort — a push/alert
-    failure must never break the journey action that triggered it."""
+    failure must never break the journey action that triggered it.
+
+    idempotency_suffix: for alert types that can legitimately fire more than
+    once in the same journey (e.g. "route_deviation" — a traveller could
+    deviate, course-correct, then deviate again), the default per-journey
+    idempotency key (token:type:link_id) would wrongly dedupe the SECOND
+    episode as "already sent". Callers of such types pass something that
+    uniquely identifies the episode (e.g. when it started) so each episode
+    gets its own key, while retries of the SAME episode's call still dedupe.
+    """
     link_ids = rec.get("recipient_link_ids") or []
     if not link_ids:
         return
@@ -190,10 +202,12 @@ async def _notify_linked_recipients(user: dict, rec: dict, type_: str, extra_pay
             link = await db.trusted_circle_links.find_one({"id": link_id, "owner_id": user["id"]})
             if not link:
                 continue
+            base_key = f"{rec['token']}:{type_}:{link_id}" if type_ != "journey_status" else None
+            idempotency_key = f"{base_key}:{idempotency_suffix}" if base_key and idempotency_suffix else base_key
             await create_alert_and_notify(
                 type_=type_, owner_id=user["id"], owner_name=user.get("name") or "A DHARA user",
                 link=link, payload=payload, journey_token=rec["token"],
-                idempotency_key=f"{rec['token']}:{type_}:{link_id}" if type_ != "journey_status" else None,
+                idempotency_key=idempotency_key,
             )
         except Exception as e:
             logger.warning("[journey] alert fan-out failed for link %s: %s", link_id, e)
@@ -205,6 +219,14 @@ class JourneyIn(BaseModel):
     destination: str = Field(..., min_length=1, max_length=_MAX_LABEL)
     duration_mins: int = Field(..., ge=1, le=1440)   # 1 min – 24 h
     recipient_link_ids: list[str] = Field(default_factory=list)   # accepted trusted_circle_links chosen for THIS journey
+    # How many minutes before expected_checkin_at the OWNER (not the circle) gets a
+    # reminder push. None = no reminder. Consumed by deadline_worker._run_reminders.
+    remind_before_mins: Optional[int] = Field(default=None, ge=1, le=120)
+    # Whether deadline_worker should actually notify the trusted circle once the
+    # grace period after expected_checkin_at elapses. True preserves the existing
+    # (pre-existing) automatic missed-checkin behaviour; False lets the owner opt
+    # out of automatic escalation for this journey while the deadline is still tracked.
+    auto_notify_on_no_response: bool = True
 
 
 class LocationIn(BaseModel):
@@ -212,6 +234,24 @@ class LocationIn(BaseModel):
     lng: float = Field(..., ge=-180, le=180)
     accuracy: float = Field(default=0, ge=0)
     area: str  = Field(default="", max_length=200)   # reverse-geocoded by device
+
+
+class ExtendIn(BaseModel):
+    additional_mins: int = Field(..., ge=1, le=360)
+
+
+class ChangeDestinationIn(BaseModel):
+    destination: str = Field(..., min_length=1, max_length=_MAX_LABEL)
+    lat: Optional[float] = Field(default=None, ge=-90, le=90)
+    lng: Optional[float] = Field(default=None, ge=-180, le=180)
+
+
+class RouteDeviationIn(BaseModel):
+    # ISO timestamp of when THIS deviation episode began, per the client's own
+    # tracking (head-out.tsx) — used only as an idempotency-key ingredient, see
+    # _notify_linked_recipients' idempotency_suffix. Not otherwise validated
+    # against server time since clock skew doesn't matter for that purpose.
+    started_at: str = Field(..., min_length=1, max_length=40)
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -236,6 +276,9 @@ async def create_journey(body: JourneyIn, user: dict = Depends(current_user)):
         "created_at":          now.isoformat(),
         "expires_at":          (now + timedelta(hours=_TTL_HOURS)).isoformat(),
         "recipient_link_ids":  body.recipient_link_ids,
+        "remind_before_mins":  body.remind_before_mins,
+        "reminder_sent_at":    None,
+        "auto_notify_on_no_response": body.auto_notify_on_no_response,
     }
     await db.safety_journeys.insert_one(doc)
     await _notify_linked_recipients(user, doc, "journey_started")
@@ -465,6 +508,98 @@ async def update_location(token: str, body: LocationIn, user: dict = Depends(cur
          "$push": {"location_log": {"$each": [location_doc], "$slice": -20}}},
     )
     return {"ok": True, "updated_at": location_doc["updated_at"]}
+
+
+@router.patch("/journey/status/{token}/extend", status_code=200)
+async def extend_checkin(token: str, body: ExtendIn, user: dict = Depends(current_user)):
+    """Owner pushes their own check-in deadline forward (Head Out's "Extend
+    time" action, shown when the traveller is inside the arrival zone but not
+    ready to confirm "I arrived" yet, or just wants more time generally).
+
+    Resets missed_checkin_notified_at / reminder_sent_at so the NEW deadline
+    gets its own fresh reminder + missed-checkin cycle from deadline_worker.py
+    — without this, extending a journey that already passed its old deadline
+    (and already got a missed-checkin alert sent) would leave those flags set,
+    so the worker would silently never watch the new deadline at all.
+    """
+    rec = await db.safety_journeys.find_one({"token": token})
+    if not rec:
+        raise HTTPException(404, "Journey not found")
+    if rec["user_id"] != user["id"]:
+        raise HTTPException(403, "Not your journey")
+    if _sharing_closed(rec):
+        raise HTTPException(409, "Journey already completed or sharing withdrawn")
+    try:
+        current_deadline = datetime.fromisoformat(rec["expected_checkin_at"])
+    except Exception:
+        current_deadline = datetime.now(timezone.utc)
+    new_deadline = current_deadline + timedelta(minutes=body.additional_mins)
+    await db.safety_journeys.update_one(
+        {"token": token},
+        {"$set": {
+            "expected_checkin_at":        new_deadline.isoformat(),
+            "missed_checkin_notified_at": None,
+            "reminder_sent_at":           None,
+        }},
+    )
+    return {"ok": True, "expected_checkin_at": new_deadline.isoformat()}
+
+
+@router.patch("/journey/status/{token}/destination", status_code=200)
+async def change_destination(token: str, body: ChangeDestinationIn, user: dict = Depends(current_user)):
+    """Owner changes where they're heading mid-journey (Head Out's "Change
+    destination" action, offered when the app detects the traveller moving
+    away from / off the route to their original destination).
+
+    Deliberately does NOT fire a new alert type — recipients with
+    temp_location already read `destination` live off this same record on
+    every guardian/alert view (see get_guardian_view, _notify_linked_recipients),
+    so the next time they check, they see the update. No separate
+    "destination_changed" notification is sent; this keeps the alert-type
+    surface from growing for a cosmetic mid-journey correction.
+    """
+    rec = await db.safety_journeys.find_one({"token": token})
+    if not rec:
+        raise HTTPException(404, "Journey not found")
+    if rec["user_id"] != user["id"]:
+        raise HTTPException(403, "Not your journey")
+    if _sharing_closed(rec):
+        raise HTTPException(409, "Journey already completed or sharing withdrawn")
+    update: dict = {"destination": body.destination.strip()}
+    if body.lat is not None and body.lng is not None:
+        update["destination_lat"] = body.lat
+        update["destination_lng"] = body.lng
+    await db.safety_journeys.update_one({"token": token}, {"$set": update})
+    return {"ok": True, "destination": update["destination"]}
+
+
+@router.post("/journey/status/{token}/route-deviation", status_code=200)
+async def report_route_deviation(token: str, body: RouteDeviationIn, user: dict = Depends(current_user)):
+    """Client calls this ONCE per deviation episode — after its own
+    client-side check (head-out.tsx) confirms the traveller has been off
+    their planned route or moving away from the destination for a sustained
+    window (15+ minutes, per product decision) with no sign of heading back,
+    AND the traveller hasn't dismissed the in-app prompt ("I'm okay" /
+    "Change destination" both cancel this before it fires).
+
+    Gated by the SAME `missed_checkin` permission as the existing "Late
+    arrival alert" toggle — deliberately not a new permission type, since a
+    sustained unexplained deviation is the same category of "something may be
+    off" signal as a missed check-in, just detected earlier. Respects the
+    owner's existing auto_notify_on_no_response choice the same way
+    deadline_worker.py's missed-checkin escalation does — if they chose
+    "Do nothing" there, the frontend skips calling this endpoint at all
+    (enforced client-side; this endpoint itself has no separate opt-out field).
+    """
+    rec = await db.safety_journeys.find_one({"token": token})
+    if not rec:
+        raise HTTPException(404, "Journey not found")
+    if rec["user_id"] != user["id"]:
+        raise HTTPException(403, "Not your journey")
+    if _sharing_closed(rec):
+        return {"ok": True, "skipped": "journey already completed or sharing withdrawn"}
+    await _notify_linked_recipients(user, rec, "route_deviation", idempotency_suffix=body.started_at)
+    return {"ok": True}
 
 
 @router.get("/journey/{token}/guardian", status_code=200)

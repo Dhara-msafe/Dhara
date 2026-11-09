@@ -11,7 +11,7 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { GoogleMap, LoadScript, Marker, Circle } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker, Circle } from '@react-google-maps/api';
 import { theme } from '@/src/theme';
 
 const c = theme.colors;
@@ -43,6 +43,10 @@ type Props = {
 
 export function AlertLocationMap({ lat, lng, accuracyMeters }: Props) {
   const center = { lat, lng };
+  // No `id` passed — shares the same default loader singleton as
+  // DestinationMapPicker.web.tsx / ActiveJourneyMap.web.tsx's useJsApiLoader
+  // calls, so this map never fights another one over who owns <LoadScript>.
+  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: WEB_API_KEY });
 
   if (!WEB_API_KEY) {
     return (
@@ -54,23 +58,27 @@ export function AlertLocationMap({ lat, lng, accuracyMeters }: Props) {
     );
   }
 
+  if (!isLoaded) {
+    return (
+      <View style={styles.wrap} testID="alert-location-map">
+        <View style={styles.fallback}><Text style={styles.txt}>Loading map…</Text></View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.wrap} testID="alert-location-map">
-      <LoadScript googleMapsApiKey={WEB_API_KEY} loadingElement={
-        <View style={styles.fallback}><Text style={styles.txt}>Loading map…</Text></View>
-      }>
-        <GoogleMap
-          mapContainerStyle={MAP_CONTAINER_STYLE}
-          center={center}
-          zoom={15}
-          options={MAP_OPTIONS}
-        >
-          <Marker position={center} title="Last known location" />
-          {!!accuracyMeters && accuracyMeters > 0 && (
-            <Circle center={center} radius={accuracyMeters} options={CIRCLE_OPTIONS} />
-          )}
-        </GoogleMap>
-      </LoadScript>
+      <GoogleMap
+        mapContainerStyle={MAP_CONTAINER_STYLE}
+        center={center}
+        zoom={15}
+        options={MAP_OPTIONS}
+      >
+        <Marker position={center} title="Last known location" />
+        {!!accuracyMeters && accuracyMeters > 0 && (
+          <Circle center={center} radius={accuracyMeters} options={CIRCLE_OPTIONS} />
+        )}
+      </GoogleMap>
     </View>
   );
 }

@@ -58,16 +58,19 @@ test('T0: phrase-detected trigger calls startEvidenceRecording directly — no P
     let navigated = false;
     const result = await triggerSafetySequence({
       scope: 'user_1',
-      // This signature — (scope: string) => Promise<boolean> — is the ENTIRE
-      // contract. There is no PIN/unlock argument to satisfy, so a correct
-      // caller (EvidenceRecorderProvider.startTriggerRecording) cannot be
-      // blocked by one, and an incorrect caller could not require one
-      // without breaking this type.
-      startEvidenceRecording: async (scope) => { calls++; assert.equal(scope, 'user_1'); return true; },
+      // This signature — (scope: string) => Promise<{started, reason?}> — is
+      // the ENTIRE contract. There is no PIN/unlock argument to satisfy, so a
+      // correct caller (EvidenceRecorderProvider.startTriggerRecording) cannot
+      // be blocked by one, and an incorrect caller could not require one
+      // without breaking this type. `reason` only distinguishes *why* a
+      // failure happened (already recording / permission denied / error) —
+      // it is never a gate the caller must satisfy to proceed.
+      startEvidenceRecording: async (scope) => { calls++; assert.equal(scope, 'user_1'); return { started: true }; },
       navigateToSilentAlert: () => { navigated = true; },
     });
     assert.equal(calls, 1, 'startEvidenceRecording must be called exactly once, synchronously in the trigger path');
     assert.equal(result.evidenceStarted, true);
+    assert.equal(result.evidenceFailureReason, undefined);
     assert.equal(result.flagOff, false);
     assert.equal(navigated, true);
   } finally {
@@ -75,16 +78,28 @@ test('T0: phrase-detected trigger calls startEvidenceRecording directly — no P
   }
 });
 
-test('T0: a recorder that fails/denies permission fails closed, silently — no throw, no leak', async () => {
+test('T0: a recorder that denies permission fails closed, silently — no throw, no leak', async () => {
   process.env.EXPO_PUBLIC_SAFE_WORD_V1 = 'true';
   const result = await triggerSafetySequence({
     scope: 'user_1',
-    startEvidenceRecording: async () => false, // e.g. mic permission denied
+    startEvidenceRecording: async () => ({ started: false, reason: 'permission_denied' }), // mic permission denied
     navigateToSilentAlert: () => {},
   });
   assert.equal(result.evidenceStarted, false);
+  assert.equal(result.evidenceFailureReason, 'permission_denied');
   // Navigation to the (silent, non-PIN) Silent Alert screen still happens —
   // the cover action is independent of whether the recorder itself started.
+});
+
+test('T0: a recorder already owned elsewhere (e.g. Evidence Locker) fails closed with the correct reason, not a permission claim', async () => {
+  process.env.EXPO_PUBLIC_SAFE_WORD_V1 = 'true';
+  const result = await triggerSafetySequence({
+    scope: 'user_1',
+    startEvidenceRecording: async () => ({ started: false, reason: 'already_recording' }),
+    navigateToSilentAlert: () => {},
+  });
+  assert.equal(result.evidenceStarted, false);
+  assert.equal(result.evidenceFailureReason, 'already_recording');
 });
 
 test('T0: flag off — no recording attempt, no audit entry, no navigation', async () => {
@@ -92,7 +107,7 @@ test('T0: flag off — no recording attempt, no audit entry, no navigation', asy
   let calls = 0;
   const result = await triggerSafetySequence({
     scope: 'user_1',
-    startEvidenceRecording: async () => { calls++; return true; },
+    startEvidenceRecording: async () => { calls++; return { started: true }; },
     navigateToSilentAlert: () => { throw new Error('must not be called when flag is off'); },
   });
   assert.equal(calls, 0);
@@ -106,7 +121,7 @@ test('T0: Silent Alert "Prepare SMS + evidence" path also calls startEvidenceRec
   let calls = 0;
   const result = await triggerFromSilentAlert({
     scope: 'user_1',
-    startEvidenceRecording: async () => { calls++; return true; },
+    startEvidenceRecording: async () => { calls++; return { started: true }; },
   });
   assert.equal(calls, 1);
   assert.equal(result.evidenceStarted, true);

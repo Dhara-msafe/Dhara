@@ -11,10 +11,11 @@
  * If any step fails it is logged and skipped — the sequence never throws.
  */
 import { appendAuditEntry } from './privacyAuditLog';
+import type { StartRecordingFailureReason, StartRecordingOutcome } from './EvidenceRecorderProvider';
 
 export interface TriggerCallbacks {
   /** Start recording via EvidenceRecorderProvider.startTriggerRecording(). */
-  startEvidenceRecording?: (scope: string) => Promise<boolean>;
+  startEvidenceRecording?: (scope: string) => Promise<StartRecordingOutcome>;
   /** Navigate to /women/silent-alert (phrase path only). */
   navigateToSilentAlert?: () => void;
   /** User scope (user ID or 'device'). */
@@ -23,8 +24,24 @@ export interface TriggerCallbacks {
 
 export interface TriggerResult {
   evidenceStarted: boolean;
+  /** Why evidence recording did not start. Only set when evidenceStarted is false. */
+  evidenceFailureReason?: StartRecordingFailureReason;
   alertNavigated: boolean;
   flagOff: boolean;
+}
+
+/** User-facing explanation for a failed evidence-recording attempt, so the UI
+ * never blames microphone permission when the real reason is that the
+ * recorder was already in use elsewhere (e.g. the Evidence Locker). */
+export function describeEvidenceFailure(reason?: StartRecordingFailureReason): string {
+  switch (reason) {
+    case 'already_recording':
+      return 'Evidence recording is already active elsewhere on this device — preparing alert without starting a new recording.';
+    case 'permission_denied':
+      return 'Evidence recording needs microphone access — preparing alert without recording.';
+    default:
+      return 'Evidence recording could not start — preparing alert anyway.';
+  }
 }
 
 /** Called when code phrase is detected in Ask DHARA. */
@@ -40,12 +57,16 @@ export async function triggerSafetySequence(
   await appendAuditEntry('CODE_PHRASE_TRIGGERED');
 
   let evidenceStarted = false;
+  let evidenceFailureReason: StartRecordingFailureReason | undefined;
   if (callbacks.startEvidenceRecording) {
     await appendAuditEntry('EVIDENCE_START_REQUESTED');
     try {
-      evidenceStarted = await callbacks.startEvidenceRecording(callbacks.scope);
+      const outcome = await callbacks.startEvidenceRecording(callbacks.scope);
+      evidenceStarted = outcome.started;
+      evidenceFailureReason = outcome.started ? undefined : outcome.reason;
       await appendAuditEntry(evidenceStarted ? 'EVIDENCE_STARTED' : 'EVIDENCE_START_FAILED');
     } catch {
+      evidenceFailureReason = 'error';
       await appendAuditEntry('EVIDENCE_START_FAILED');
     }
   }
@@ -59,7 +80,7 @@ export async function triggerSafetySequence(
     try { callbacks.navigateToSilentAlert(); alertNavigated = true; } catch {}
   }
 
-  return { evidenceStarted, alertNavigated, flagOff: false };
+  return { evidenceStarted, evidenceFailureReason, alertNavigated, flagOff: false };
 }
 
 /**
@@ -75,14 +96,18 @@ export async function triggerFromSilentAlert(
   await appendAuditEntry('SILENT_ALERT_TRIGGERED');
 
   let evidenceStarted = false;
+  let evidenceFailureReason: StartRecordingFailureReason | undefined;
   if (callbacks.startEvidenceRecording) {
     await appendAuditEntry('EVIDENCE_START_REQUESTED');
     try {
-      evidenceStarted = await callbacks.startEvidenceRecording(callbacks.scope);
+      const outcome = await callbacks.startEvidenceRecording(callbacks.scope);
+      evidenceStarted = outcome.started;
+      evidenceFailureReason = outcome.started ? undefined : outcome.reason;
       await appendAuditEntry(evidenceStarted ? 'EVIDENCE_STARTED' : 'EVIDENCE_START_FAILED');
     } catch {
+      evidenceFailureReason = 'error';
       await appendAuditEntry('EVIDENCE_START_FAILED');
     }
   }
-  return { evidenceStarted, alertNavigated: false, flagOff: false };
+  return { evidenceStarted, evidenceFailureReason, alertNavigated: false, flagOff: false };
 }

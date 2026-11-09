@@ -39,6 +39,7 @@ _TITLES = {
     "journey_started":       "Journey started",
     "journey_status":        "Journey update",
     "missed_checkin":        "Missed check-in",
+    "route_deviation":       "Possible route deviation",
     "help_requested":        "Help requested",
     "arrival_confirmed":     "Arrived safely",
     "journey_completed":     "Journey completed",
@@ -61,6 +62,10 @@ _TYPE_PERMISSION_KEY = {
     "sharing_ended":        "journey_status",
     "location_unavailable": "journey_status",
     "missed_checkin":       "missed_checkin",
+    # Reuses the same toggle as missed_checkin ("Late arrival alert" in
+    # circle.tsx) — a sustained unexplained deviation is the same category of
+    # signal, just caught earlier than waiting for the final deadline.
+    "route_deviation":      "missed_checkin",
     "help_requested":       "emergency_requests",
     "arrival_confirmed":    "expected_arrival",
     "journey_completed":    "expected_arrival",
@@ -238,7 +243,7 @@ async def unread_count(user: dict = Depends(current_user)):
 async def list_alerts(filter: str = "all", user: dict = Depends(current_user)):
     q: dict = {"recipient_user_id": user["id"]}
     if filter == "active":
-        q["type"] = {"$in": ["journey_started", "journey_status", "missed_checkin", "help_requested", "location_unavailable"]}
+        q["type"] = {"$in": ["journey_started", "journey_status", "missed_checkin", "route_deviation", "help_requested", "location_unavailable"]}
     elif filter == "completed":
         q["type"] = {"$in": ["arrival_confirmed", "journey_completed", "sharing_ended"]}
     alerts = [a async for a in db.safety_alerts.find(q).sort("created_at", -1).limit(200)]

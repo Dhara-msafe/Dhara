@@ -1,57 +1,44 @@
-# DHARA Family Journey — Student-Controlled Trip Sharing (Phase 1: Preview)
+# DHARA — GitHub Synchronization, Environment Audit & Release Readiness Check
 
-A way for an adult user — including a student living away from home — to plan a journey, decide who could be told about it and exactly what they'd see, and preview that sharing on their own phone before any of it is real. Nothing is sent to anyone in this phase; it proves the idea and the consent flow safely before any real sharing exists.
+DHARA is a women's safety app (SOS alerts, a live "Head Out" journey tracker, Trusted Circle guardians, Nearest Help, an AI legal assistant). This task does not change what the app does — it reconciles the existing Emergent workspace with the GitHub source of truth, audits the environment/feature-flag configuration, and produces an honest report of what works, what doesn't, and what's still unverified.
 
 ## Who it's for
+- The DHARA team, who need one trustworthy codebase (not two diverging copies between GitHub and Emergent) before continuing product validation.
+- Indirectly, the app's existing users (travellers and their trusted guardians), whose safety-critical flows must keep working exactly as they do today — nothing about their experience should change as a result of this task.
 
-Adult DHARA users who want to plan a trip and think through sharing it with a trusted contact — most often a parent, but the feature is not limited to any one relationship or gender — before turning real sharing on in a later release.
+## Core features and experience (being checked, not redesigned)
+- Head Out journey wizard: destination → radius → Trusted Circle → active journey → arrival / route deviation / missed check-in screens.
+- Trusted Circle: recipients, permissions, notification settings, consent.
+- Nearest Help, including its existing OSM fallback behaviour.
+- Saved Places and any other workflow touched by the files being synchronized.
+- Google Maps / Places / Directions integration — only inspected and flag-gated, never turned on as part of this task.
 
-## Core features and experience
-
-- **Create a journey**: a destination label, expected departure/arrival/return windows, and an optional check-in reminder interval.
-- **Pick contacts**: choose from the student's existing Trusted Circle for this journey. This only reads the existing contact list to populate a picker — no invitation or message is sent to anyone.
-- **Four separate sharing permissions, not stacked levels** — each one requires its own explicit confirmation and can be turned on or off independently:
-  - *Local-only* — nothing leaves the phone (the default).
-  - *Arrival notification* — a contact would be told when the student confirms arrival.
-  - *Late / missed check-in notification* — confirmed separately from arrival; uses fixed, neutral wording only ("Check-in not received") and never implies the student is safe or in danger.
-  - *Student-initiated help request* — a deliberate action the student takes themselves; never automatic.
-  - *(Temporary location sharing is a distinct, later-phase permission — not part of this phase at all.)*
-- **Live preview**: for every contact and every mode chosen, the student sees — on their own device only — exactly what that contact would receive, worded exactly as it would be worded for real, clearly labelled **"Preview — nothing has been sent."**
-- **Journey controls**: manual check-in, "I've arrived," change the plan, or stop — all instant, local, and available with one tap and no reason required.
-- **Help stays reachable**: SOS, calling for help, and DHARA's existing legal-help tools remain visible and usable from every Family Journey screen, with no subscription or payment requirement.
-- **No institution** (school, employer, hostel, etc.) ever receives any journey information in this phase.
-- **No location data of any kind** — not even a last-known point — is collected, stored, or shown in this phase.
-
-## User flow
-
-1. The student opens Family Journey from its own section and creates a journey: destination label, timing, optional check-in interval.
-2. The student picks one or more Trusted Circle contacts and a sharing mode for each, or leaves everything local-only.
-3. Before finishing, the student sees a preview screen per contact and per mode — exactly what that contact would see, clearly marked as a preview.
-4. The student starts the journey; reminders appear only as local notifications on their own phone.
-5. The student checks in, marks arrival, changes the plan, or stops at any time, with one tap and no explanation required.
-6. If a check-in is missed, the student's own preview reflects "check-in not received" — nothing leaves the phone, and nothing is shown as a finding of safety or danger.
-7. A visible path to SOS, emergency calling, or legal help stays one tap away throughout.
+## User flow (of the task itself)
+1. **Inspect** the current Emergent workspace (commit, uncommitted changes, env files, config) and compare it to GitHub `main` at `ccf18bf2` — already confirmed as the current head of `main`, so no version ambiguity.
+2. **Synchronize**: update files that should match GitHub, add files that are missing, and flag any local file whose change would destroy existing work instead of silently overwriting it.
+3. **Verify**: walk through Head Out, Trusted Circle, Nearest Help, API contracts, and Saved Places against the synchronized code; fix small, clear-cut breakage found along the way (a broken import, an obviously missing file reference); leave anything structural (a real contract mismatch, an incomplete feature) unfixed and written up for a separate decision.
+4. **Audit environment variables and feature flags** against what the synchronized code actually implements — not against assumptions — and apply only Preview changes; Production stays untouched.
+5. **Run available build/lint/test checks** and label each result honestly by what kind of evidence it actually is (a syntax check is not an integration test; a browser preview is not a real Android device).
+6. **Deliver the five reports** (sync summary, environment variables, feature verification, defects/blockers, final status) before anything touching Production or app stores is even discussed.
 
 ## UI/UX feel
-
-Calm and plain, consistent with the rest of DHARA — no urgency styling, no red "danger" badges triggered by a missed check-in, no countdown that feels punitive. Wherever a contact-facing screen is being previewed, the **"Preview — nothing has been sent"** label is visually distinct and unmissable, so the student is never confused about what is and isn't real yet.
+Unchanged. No visual, layout, or interaction redesign is in scope anywhere in this task.
 
 ## Implementation phases
 
-**Phase 1 (MVP — built now)**
-Everything described above. Entirely on the student's device: no server-side timers, no notification queue, no real notifications, no real location, no screen a contact can actually open, and no payment. Open to every user by default, with a quick app-wide switch to turn the whole feature off if needed. Built as its own, separate piece of the app so it cannot change how Women's Shield, Guardian Journey, SOS, or Trusted Circle behave today.
+**Phase 1 — MVP (build now)**
+Baseline inspection → GitHub-to-Emergent synchronization (existing DB, secrets, and Emergent config files preserved; missing files added; conflicting files flagged rather than overwritten) → post-sync verification of Head Out, Trusted Circle, Nearest Help, API contracts, and Saved Places, fixing small clear-cut breakage inline → environment/feature-flag audit applied to Preview only → available build/lint/test checks run and honestly labeled → all five reports delivered, ending with a request for approval before touching anything Production-related.
 
-**Phase 2**
-Real delivery: arrival and missed-check-in notices actually reach the chosen contact. Requires a backend scheduling and delivery system built and reviewed on its own terms — offline phones, clock and time-zone changes, retries, and duplicate sends all need to be handled correctly before this phase ships. Still no location sharing.
+**Phase 2 (not now)**
+Act on whatever Phase 1's reports flag as needing a real decision: larger defects or incomplete implementations that were only reported (not fixed), and any approved Production environment changes.
 
-**Phase 3**
-Temporary location sharing, plus a secure, time-limited way for a contact (such as a parent) to view a journey's status — using something that expires and re-checks permission every time it's opened, not a link that keeps working forever. Any payment or subscription question only becomes relevant from this phase onward, once there is a real feature behind it.
+**Phase 3 (not now)**
+Anything gated on native builds or outside credentials: real Android/iOS device verification, turning on Google Places/Directions once their implementation and credentials are fully confirmed, and native background-GPS testing.
 
 ## Assumptions
-
-- Phase 1 only reads the existing Trusted Circle list to populate the contact picker; it does not reuse or modify any existing safety-session, SOS, or Guardian Journey logic, so none of today's behavior there can be affected.
-- There is nothing for a parent or any other contact to install, log into, or view in Phase 1 — that is entirely Phase 3 scope.
-- No payment or subscription is attached to Phase 1, since nothing real is being shared yet.
-- The wording "Check-in not received" is used exactly as written, and is never paired with language suggesting the student is safe or in danger.
-- An app-wide switch to disable Family Journey entirely is built in from the start as a safety net, even though the feature ships visible to all users rather than a limited group.
-- All consent and mode choices made in Phase 1 are stored only on the student's own device; nothing is synced to any contact or institution.
+- The GitHub repo is public and already at the intended commit, so no access token is needed for this sync; the credential you pasted is a Google Maps/Places/Directions key, which will be collected later through the secure Secrets panel — never from the chat message — exactly when the Phase 1 environment audit needs it.
+- Work already built this session directly inside Emergent (journey map components, the 3-step Head Out wizard, the draggable Issue Reporter button, the admin issues dashboard, the earlier map-loading crash fix, the session-reload fix) is preserved as local-only additions if GitHub `main` doesn't yet have them — treated as "not yet synchronized," not deleted.
+- All three named flags (`EXPO_PUBLIC_GPS_BACKGROUND`, `FEATURE_GOOGLE_PLACES_V1`, `FEATURE_GOOGLE_DIRECTIONS_V1`) stay off in both Preview and Production unless the audit proves the feature behind them is fully implemented and credentialed.
+- The other flags referred to only by nickname (GPS, Trusted Circle recipient, Live Route) will be matched to their real variable names by searching the synchronized codebase during Phase 1, rather than guessed in advance.
+- "Fix small clear-cut issues now" covers things like a broken import path or an obviously missing file reference surfaced during verification; anything structural (a real API contract mismatch, a half-built feature) is written up in the defects report for a separate decision, not fixed in this pass.
+- No Production configuration, app-store submission, or native build happens in this task.

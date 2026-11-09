@@ -1,0 +1,35 @@
+{
+  "summary": "SDK-56 retest (post Leaflet-fix) BLOCKED again by a THIRD, separate dangling-import bug. The Leaflet fix in DestinationMapPicker.web.tsx IS confirmed resolved (verified in code, no lazy/Suspense import remains). However, app/women/head-out/circle.tsx and app/women/head-out/destination.tsx both import `useHeadOutWizard` from `@/src/women/headOutWizardStore` — a file that does NOT exist anywhere in the repo (only `src/women/headOutWizardDraft.ts` exists, which radius.tsx correctly uses via loadWizardDraft/saveWizardDraft instead of a hook). Because expo-router's `app (require.context)` eagerly scans every file under app/ to build its route manifest, this single unresolvable import breaks Metro's bundling for the ENTIRE app, not just the Head Out wizard screens. On first page load the app initially rendered (stale Metro cache: language screen, consent screen reachable), but on every subsequent fresh reload the app now consistently shows a full-screen Resolution Error ('Unable to resolve module @/src/women/headOutWizardStore') and nothing else renders. This is a full outage, not limited to the wizard flow. Per the decision framework (Metro bundler crash / red screen error), testing was stopped and this is reported immediately rather than attempting further flows.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {
+        "component": "app/women/head-out/circle.tsx and app/women/head-out/destination.tsx",
+        "issue": "Both import `useHeadOutWizard` from '@/src/women/headOutWizardStore', a file that does not exist anywhere in the repo. Only src/women/headOutWizardDraft.ts exists (plain AsyncStorage get/set functions, no hook/store export), which is what radius.tsx correctly uses instead. This is a THIRD piece of incomplete/pasted code (same pattern as the earlier Leaflet dangling import) and currently breaks Metro's bundling of the entire app via expo-router's require.context route-manifest scan — every fresh page load now shows a full-screen 'Resolution Error' overlay with zero functional UI, not just the head-out wizard."
+      }
+    ]
+  },
+  "test_report_links": ["/app/test_reports/sdk56_01_boot.jpeg (early load before cache invalidated, showed language screen OK)", "/app/test_reports/sdk56_10_recheck.jpeg (current state: full Resolution Error on every reload)"],
+  "action_items": [
+    "CRITICAL / BLOCKER: Create the missing src/women/headOutWizardStore.ts (zustand or equivalent) exporting `useHeadOutWizard` with at least: destination, selectedRecipientIds, setSelectedRecipientIds, reset (used by circle.tsx), OR refactor destination.tsx and circle.tsx to use the existing headOutWizardDraft.ts AsyncStorage helpers (loadWizardDraft/saveWizardDraft) the same way radius.tsx already does — the latter is likely the intended, simpler fix given radius.tsx's file header explicitly describes `destination.tsx -> radius.tsx -> circle.tsx` as sharing one draft mechanism.",
+    "After fixing, re-verify the ENTIRE app boots (not just head-out wizard) since this bug currently breaks the whole bundle, then retest: home tab, AppTabBar, nearest-help, DestinationMapPicker (Google Maps render + drag pin), and the full Head Out wizard happy path end to end.",
+    "Confirmed already working (verified in code, not blocked by this bug): the Leaflet dangling-import fix in src/women/DestinationMapPicker.web.tsx is correctly applied (no lazy/Suspense import remains, clean static fallback added) and the nearest-help.tsx dead import removal is also correctly applied.",
+    "Recommend main agent do a repo-wide grep for any other `from '@/src/...'` or `from './...'` imports pointing to files that don't exist before the next retest, since this is now the third such incident found across consecutive iterations."
+  ],
+  "critical_code_review_comments": [
+    "destination.tsx and circle.tsx reference a store module (headOutWizardStore) that is inconsistent with radius.tsx, which uses a completely different mechanism (headOutWizardDraft.ts plain async functions) for the same wizard draft state. This split/inconsistency strongly suggests circle.tsx and destination.tsx were pasted from a different branch/version of the wizard that was never fully merged with the AsyncStorage-based implementation."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested this pass", "frontend": "0% - app bundle broken, blocked before any functional flow could be exercised"},
+  "seed_data_creation": "none",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Do NOT retest until src/women/headOutWizardStore.ts is created (or destination.tsx/circle.tsx refactored to use headOutWizardDraft.ts) and the app is confirmed to boot past a fresh page reload (not just from stale Metro cache). The actual SDK-56 code changes (useIsFocused from expo-router in app/(tabs)/index.tsx, and the AppTabBar.tsx local TabBar type interface) were reviewed in code and look correct/low-risk, but could not be exercised at runtime because the whole app bundle fails. The Leaflet fix and nearest-help.tsx dead-import removal from the prior iteration are both confirmed correctly applied in code.",
+  "rca_of_issue": "Root cause: app/women/head-out/circle.tsx (line 28) and app/women/head-out/destination.tsx (line 34) import `{ useHeadOutWizard }` from '@/src/women/headOutWizardStore', a module that was never created in this repo. The only related file, src/women/headOutWizardDraft.ts, exports plain async functions (loadWizardDraft/saveWizardDraft/clearWizardDraft), not a hook — and is the mechanism radius.tsx actually uses. Reproduction: fresh browser load of http://localhost:3000 (not a stale/cached tab) immediately shows Metro's red 'Resolution Error' overlay citing 'Unable to resolve module @/src/women/headOutWizardStore', because expo-router's require.context for route registration eagerly imports every file under app/, so one broken import anywhere under app/ fails the whole bundle, not just that screen."
+}

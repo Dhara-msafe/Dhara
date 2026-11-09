@@ -28,6 +28,15 @@ const DISTANCE_METERS   = 50;        // only update after >50 m movement
 export type GPSState = {
   area:        string | null;   // reverse-geocoded area name
   accuracy:    number | null;   // metres
+  /** Last known fix, for callers that need the raw coordinate (e.g. drawing
+   * a live position marker or computing arrival/deviation against the
+   * destination) — most callers only need `area`/`tracking` above. */
+  latitude:    number | null;
+  longitude:   number | null;
+  /** Client clock time (Date.now()) of the last successful fix — used as a
+   * "looks offline" proxy (a stale fix means we haven't heard from this
+   * device in a while; it doesn't literally know the phone's network state). */
+  lastFixAt:   number | null;
   granted:     boolean;
   denied:      boolean;
   canAskAgain: boolean;
@@ -36,7 +45,7 @@ export type GPSState = {
 };
 
 const INITIAL: GPSState = {
-  area: null, accuracy: null,
+  area: null, accuracy: null, latitude: null, longitude: null, lastFixAt: null,
   granted: false, denied: false, canAskAgain: true,
   error: null, tracking: false,
 };
@@ -97,7 +106,7 @@ export function useJourneyGPS(
   const handlePosition = useCallback(async (pos: Location.LocationObject) => {
     const { latitude, longitude, accuracy } = pos.coords;
     const area = await geocode(latitude, longitude);
-    setState(s => ({ ...s, area, accuracy: accuracy ?? null, tracking: true }));
+    setState(s => ({ ...s, area, accuracy: accuracy ?? null, latitude, longitude, lastFixAt: Date.now(), tracking: true }));
     await pushUpdate(latitude, longitude, accuracy ?? 0, area);
   }, [geocode, pushUpdate]);
 

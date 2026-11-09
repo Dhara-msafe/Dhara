@@ -7,9 +7,10 @@
  * on web, so `react-native-maps` (a native-only module) is never imported
  * into the web bundle — avoiding a bundling/runtime crash on web/Expo Go.
  *
- * Uses Apple Maps on iOS (no API key needed) and Google Maps on Android
- * (requires EXPO_PUBLIC_GOOGLE_MAPS_API_KEY / the react-native-maps config
- * plugin key in app.json — currently a placeholder; see frontend/.env).
+ * Uses Google Maps (PROVIDER_GOOGLE) on both iOS and Android — no Apple Maps
+ * path exists. Requires EXPO_PUBLIC_GOOGLE_MAPS_API_KEY (Android) and
+ * EXPO_PUBLIC_GOOGLE_MAPS_IOS_API_KEY (iOS); see app.config.js and
+ * frontend/.env.example.
  *
  * P1 Map Integration — scope: marker + accuracy circle + static preview
  * only. No continuous tracking / live watch — this renders a single

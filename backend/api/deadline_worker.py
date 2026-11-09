@@ -27,6 +27,12 @@ import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
+try:
+    from push import send_push
+except Exception:   # pragma: no cover — push relay optional in some envs
+    async def send_push(*a, **kw):  # type: ignore
+        return None
+
 logger = logging.getLogger("deadline_worker")
 
 _GRACE_MINUTES: int = 5
@@ -80,6 +86,17 @@ async def _run_once(db) -> int:
         # mark_safe.  Deferred import breaks the potential circular import
         # chain (server.py → deadline_worker → journey_router → server-level
         # objects) that would occur at module load time.
+        # Owner's "If I don't respond" choice, set at journey creation (circle.tsx).
+        # Default True preserves the original always-notify behaviour for journeys
+        # created before this field existed (missing key -> True, not False).
+        if not rec.get("auto_notify_on_no_response", True):
+            logger.info(
+                "[deadline] journey %s missed its check-in but owner opted out of "
+                "auto-notify — circle not alerted", journey_token,
+            )
+            count += 1
+            continue
+
         try:
             from api.journey_router import _notify_linked_recipients  # noqa: PLC0415
             pseudo_user = {"id": owner_id, "name": owner.get("name") or "A DHARA user"}
@@ -91,6 +108,67 @@ async def _run_once(db) -> int:
             logger.error(
                 "[deadline] fan-out failed for journey %s: %s", journey_token, exc
             )
+
+        count += 1
+
+    return count
+
+
+async def _run_reminders(db) -> int:
+    """Single scan pass for the OWNER's own "remind me before alerting" setting
+    (distinct from the missed-checkin circle-notification pass above — this
+    never touches the trusted circle, only pings the traveller themselves).
+
+    Fires once per journey, `remind_before_mins` minutes ahead of
+    expected_checkin_at, strictly before that deadline passes — a journey
+    already past its deadline is left to the missed-checkin pass instead.
+    """
+    now = datetime.now(timezone.utc)
+
+    cursor = db.safety_journeys.find({
+        "status":                "in_progress",
+        "sharing_revoked_at":    None,
+        "reminder_sent_at":      None,
+        "remind_before_mins":    {"$ne": None},
+    })
+
+    count = 0
+    async for rec in cursor:
+        journey_token = rec.get("token")
+        remind_before = rec.get("remind_before_mins")
+        try:
+            expected_at = datetime.fromisoformat(rec["expected_checkin_at"])
+        except Exception:
+            continue
+        remind_at = expected_at - timedelta(minutes=remind_before)
+        if now < remind_at or now >= expected_at:
+            continue   # not yet time, or already past the deadline
+
+        # Atomic guard — same claim-before-send pattern as the missed-checkin pass.
+        result = await db.safety_journeys.update_one(
+            {"token": journey_token, "reminder_sent_at": None},
+            {"$set": {"reminder_sent_at": now.isoformat()}},
+        )
+        if result.modified_count == 0:
+            continue
+
+        try:
+            await send_push(
+                recipients=[rec["user_id"]],
+                data={
+                    "title": "Check-in coming up",
+                    "message": (
+                        f"Your DHARA check-in for \"{rec.get('destination', 'your trip')}\" "
+                        f"is in {remind_before} minutes. Open the app to confirm you're safe "
+                        f"or extend your journey."
+                    ),
+                    "action_url": "/women/head-out",
+                },
+                idempotency_key=f"{journey_token}:reminder",
+            )
+            logger.info("[deadline] reminder sent for journey %s", journey_token)
+        except Exception as exc:
+            logger.warning("[deadline] reminder push failed for journey %s: %s", journey_token, exc)
 
         count += 1
 
@@ -112,6 +190,14 @@ async def _loop(db) -> None:
             raise          # propagate so the task terminates cleanly
         except Exception as exc:
             logger.error("[deadline] unexpected scan error: %s", exc)
+        try:
+            r = await _run_reminders(db)
+            if r:
+                logger.info("[deadline] reminder scan complete: reminded %d journey(s)", r)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.error("[deadline] unexpected reminder scan error: %s", exc)
         await asyncio.sleep(_SCAN_SECONDS)
 
 

@@ -1,8 +1,11 @@
 /**
- * DestinationMapPicker — web implementation (Google Maps JavaScript API).
+ * DestinationMapPicker — web implementation.
  *
- * Replaced from the previous OpenStreetMap/Leaflet implementation.
- * Uses @react-google-maps/api with EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY.
+ * Primary renderer is Google Maps (JavaScript API), matching native. When
+ * EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY isn't configured, this falls back to a
+ * simple static placeholder (no map drawn) rather than silently showing a
+ * broken screen — a real Leaflet/OpenStreetMap fallback is a reasonable
+ * future enhancement but isn't built yet, so it's not referenced here.
  *
  * Features:
  *  • Draggable destination pin
@@ -27,7 +30,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import {
   GoogleMap,
-  LoadScript,
+  useJsApiLoader,
   Marker,
   Circle,
 } from '@react-google-maps/api';
@@ -42,7 +45,9 @@ const DEMO_LNG = 77.209;
 
 const WEB_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY ?? '';
 
-const MAP_CONTAINER_STYLE = { width: '100%', height: '220px', borderRadius: '14px' };
+function mapContainerStyle(heightPx: number) {
+  return { width: '100%', height: `${heightPx}px`, borderRadius: '14px' };
+}
 
 const MAP_OPTIONS: google.maps.MapOptions = {
   disableDefaultUI: true,
@@ -70,6 +75,8 @@ export interface Props {
   /** Bump to recentre the map on the live position. */
   followUserKey?: number;
   testID?: string;
+  /** Map height in px. Defaults to 220 (the original embedded-preview size). */
+  mapHeight?: number;
 }
 
 const USER_DOT_OPTIONS: google.maps.CircleOptions = {
@@ -101,6 +108,7 @@ export function DestinationMapPicker({
   userLocation,
   followUserKey,
   testID,
+  mapHeight = 220,
 }: Props) {
   const hasPin = isValidCoord(latitude, longitude);
   // With no destination chosen yet, start where the user is (if they have
@@ -161,11 +169,36 @@ export function DestinationMapPicker({
     [onPositionChange],
   );
 
+  // No `id` passed — this intentionally shares the SAME default loader
+  // singleton ("__googleMapsScriptId") as ActiveJourneyMap.web.tsx's own
+  // useJsApiLoader call. @react-google-maps/api's <LoadScript> only supports
+  // ONE mounted instance across the whole page; the Head Out wizard (this
+  // component) and the active-journey screen (ActiveJourneyMap) can both be
+  // reached in the same session, so both now load the script through this
+  // shared hook instead of each wrapping their own <LoadScript> — that
+  // caused a hard crash ("google api is already presented") when both tried
+  // to mount their own instance back to back.
+  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: WEB_API_KEY });
+
   if (!WEB_API_KEY) {
     return (
       <View style={styles.wrap} testID={testID ?? 'destination-map-picker'}>
-        <View style={styles.fallback}>
-          <Text style={styles.hint}>Map unavailable — web API key not configured.</Text>
+        <View style={[styles.fallback, { height: mapHeight }]}>
+          <Text style={styles.hint}>Map preview isn&apos;t available right now.</Text>
+        </View>
+        <Text style={styles.hint} testID="destination-map-picker-hint">
+          You can still set a planned arrival area without the map — pick a saved place above, or continue;
+          a pin isn&apos;t required to head out.
+        </Text>
+      </View>
+    );
+  }
+
+  if (!isLoaded) {
+    return (
+      <View style={styles.wrap} testID={testID ?? 'destination-map-picker'}>
+        <View style={[styles.fallback, { height: mapHeight }]}>
+          <Text style={styles.hint}>Loading map…</Text>
         </View>
       </View>
     );
@@ -173,59 +206,55 @@ export function DestinationMapPicker({
 
   return (
     <View style={styles.wrap} testID={testID ?? 'destination-map-picker'}>
-      <LoadScript googleMapsApiKey={WEB_API_KEY} loadingElement={
-        <View style={styles.fallback}><Text style={styles.hint}>Loading map…</Text></View>
-      }>
-        <GoogleMap
-          mapContainerStyle={MAP_CONTAINER_STYLE}
-          center={center}
-          zoom={15}
-          options={MAP_OPTIONS}
-          onClick={handleMapClick}
-          onLoad={(map) => { mapRef.current = map; }}
-        >
-          <Marker
-            position={markerPos}
-            draggable
-            onDragEnd={handleDragEnd}
-            title="Planned destination"
-          />
-          {/* Live position: a blue dot with its accuracy ring, updated as the
-              position changes. Display only — nothing is uploaded. */}
-          {userLocation && (
-            <>
-              <Circle
-                center={{ lat: userLocation.latitude, lng: userLocation.longitude }}
-                radius={Math.max(8, userLocation.accuracy ?? 30)}
-                options={USER_ACCURACY_OPTIONS}
-              />
-              <Circle
-                center={{ lat: userLocation.latitude, lng: userLocation.longitude }}
-                radius={20}
-                options={USER_DOT_OPTIONS}
-              />
-            </>
-          )}
-          {isValidRadius(radiusMeters) && (
+      <GoogleMap
+        mapContainerStyle={mapContainerStyle(mapHeight)}
+        center={markerPos}
+        zoom={15}
+        options={MAP_OPTIONS}
+        onClick={handleMapClick}
+        onLoad={(map) => { mapRef.current = map; }}
+      >
+        <Marker
+          position={markerPos}
+          draggable
+          onDragEnd={handleDragEnd}
+          title="Planned destination"
+        />
+        {/* Live position: a blue dot with its accuracy ring, updated as the
+            position changes. Display only — nothing is uploaded. */}
+        {userLocation && (
+          <>
             <Circle
-              center={markerPos}
-              radius={radiusMeters}
-              options={CIRCLE_OPTIONS}
+              center={{ lat: userLocation.latitude, lng: userLocation.longitude }}
+              radius={Math.max(8, userLocation.accuracy ?? 30)}
+              options={USER_ACCURACY_OPTIONS}
             />
-          )}
-        </GoogleMap>
-      </LoadScript>
+            <Circle
+              center={{ lat: userLocation.latitude, lng: userLocation.longitude }}
+              radius={20}
+              options={USER_DOT_OPTIONS}
+            />
+          </>
+        )}
+        {isValidRadius(radiusMeters) && (
+          <Circle
+            center={markerPos}
+            radius={radiusMeters}
+            options={CIRCLE_OPTIONS}
+          />
+        )}
+      </GoogleMap>
       <Text style={styles.hint} testID="destination-map-picker-hint">
         {hasPin
           ? 'Drag the pin or click the map to adjust your planned arrival area.'
-          : 'Click the map or drag the pin to set your planned arrival area.'}
+          : 'Demo view — click the map or drag the pin to set your planned arrival area. No device location is used.'}
       </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: 14 },
+  wrap: { marginBottom: 14, alignSelf: 'stretch', width: '100%' },
   fallback: {
     height: 220,
     borderRadius: 14,

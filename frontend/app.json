@@ -10,7 +10,6 @@
       "msafelegalaid"
     ],
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.msafesolutions.legalaid",
@@ -30,7 +29,6 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#48627E"
       },
-      "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.msafesolutions.legalaid",
       "googleServicesFile": "./google-services.json",
@@ -74,6 +72,11 @@
       ],
       "expo-audio",
       "expo-video",
+      "expo-asset",
+      "expo-font",
+      "expo-image",
+      "expo-secure-store",
+      "expo-sharing",
       [
         "expo-splash-screen",
         {

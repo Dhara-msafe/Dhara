@@ -99,11 +99,18 @@ export default function CodePhrase() {
     const trimmedPhrase = phrase.trim();
     // Reverse bidirectional guard: compare the new SOS input against the
     // PERSISTED hide phrase (not the in-state hidePhrase, which may be unsaved).
+    // Mirrors saveHide()'s Amendment 1 check: rejects an exact match AND a
+    // containment overlap in either direction (a string always "contains"
+    // itself, so this also covers the plain-equality case in one check).
     if (trimmedPhrase) {
       const persistedHide = await getHidePhrase();
-      if (phrasesConflict(trimmedPhrase, persistedHide)) {
-        setSosConflictsWithHide(true);
-        return;
+      if (persistedHide) {
+        const nSOS = normalizePhrase(trimmedPhrase);
+        const nHide = normalizePhrase(persistedHide);
+        if (nHide.length > 0 && (nSOS.includes(nHide) || nHide.includes(nSOS))) {
+          setSosConflictsWithHide(true);
+          return;
+        }
       }
     }
     setSosConflictsWithHide(false);
@@ -140,15 +147,37 @@ export default function CodePhrase() {
 
   const clear = async () => {
     if (Platform.OS === 'web') return;
-    setPhrase('');
+    const previousPhrase = phrase;
     setSaveStorageError(null);
     setSosConflictsWithHide(false);
     const result = await storePhrase('');
-    // Always clear UI state regardless of storage outcome — the user's intent is clear.
-    setArmed(false);
+
     if (result.outcome === 'saved') {
+      // Confirmed removed — safe to show OFF and clear the input.
+      setPhrase('');
+      setArmed(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+      return;
+    }
+
+    // Removal did NOT succeed — the phrase is still stored and still live.
+    // Never show OFF (or an empty input) when the underlying store still
+    // holds the old value; that would tell the user the trigger is disabled
+    // when it isn't. Restore the displayed phrase and surface a clear error,
+    // the same way save() does for every one of its own failure outcomes.
+    setPhrase(previousPhrase);
+    switch (result.outcome) {
+      case 'no_identity':
+        setSaveStorageError('Sign in to manage your phrase securely on this device.');
+        break;
+      case 'verification_failure':
+        setSaveStorageError('Removal could not be verified — your phrase is still saved. Please try again.');
+        break;
+      case 'storage_failure':
+      default:
+        setSaveStorageError('Could not remove the phrase — it is still saved. Please check available storage and try again.');
+        break;
     }
   };
 
@@ -251,8 +280,8 @@ export default function CodePhrase() {
           <View style={styles.conflictNotice}>
             <Ionicons name="alert-circle-outline" size={16} color="#b45309" />
             <Text style={styles.conflictNoticeTxt}>
-              This phrase is identical to your Privacy phrase. Use a different sentence so DHARA
-              can tell the two apart.
+              This phrase is the same as, or too close to, your Privacy phrase. Use a different
+              sentence so DHARA can tell the two apart.
             </Text>
           </View>
         )}
@@ -362,8 +391,8 @@ export default function CodePhrase() {
           <View style={styles.conflictNotice}>
             <Ionicons name="alert-circle-outline" size={16} color="#b45309" />
             <Text style={styles.conflictNoticeTxt}>
-              This phrase is identical to your SOS phrase. Use a different sentence so DHARA
-              can tell the two apart.
+              This phrase is the same as, or too close to, your SOS phrase. Use a different
+              sentence so DHARA can tell the two apart.
             </Text>
           </View>
         )}
