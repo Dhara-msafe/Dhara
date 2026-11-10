@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, Linking, Modal, AppState, TextInput, Image } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, Linking, Modal, AppState, TextInput, Image, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -745,9 +745,19 @@ export default function HeadOut() {
     }
   }, [circle, session, user]);
 
-  // Loading, or no session yet (the redirect effect above is about to send
-  // the user into the wizard) — nothing for this screen to render either way.
-  if (loading || !session) return null;
+  // Loading: show a spinner instead of a blank white screen while AsyncStorage
+  // is read. This takes < 300 ms on most devices but is visually noticeable
+  // without a placeholder.
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface }}>
+        <ActivityIndicator size="large" color={c.navy} />
+      </View>
+    );
+  }
+  // No session yet — the redirect effect above is about to send the user into
+  // the wizard. Return null so there is nothing to flash before the transition.
+  if (!session) return null;
 
   return (
     <ScrollView

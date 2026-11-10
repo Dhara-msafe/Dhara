@@ -309,7 +309,10 @@ export default function RootLayout() {
   const { width } = useWindowDimensions();
   // C9 adaptive web: on a wide browser, center the app in a phone-width column
   // instead of stretching the mobile layout edge-to-edge (which looked broken).
-  const isWideWeb = Platform.OS === 'web' && width >= 768;
+  // 1200px threshold ensures tablets and phones (even in landscape or desktop
+  // mode) always get the single-column mobile layout. The 3-column desktop
+  // shell only appears on actual laptop/desktop screens.
+  const isWideWeb = Platform.OS === 'web' && width >= 1200;
   // Safety net: never block app boot forever on a font fetch. If icons
   // haven't resolved within 4s (e.g. a stalled network request), render the
   // app anyway — icons repaint themselves the instant the font does arrive,
