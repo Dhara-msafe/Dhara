@@ -28,6 +28,38 @@ the TL as a naming-consistency improvement to consider (e.g. renaming to
 /admin/issues, /admin/issues/{id}), not fixing it myself since it's a
 URL/contract change a frontend or external tooling might depend on.
 
+ADDENDUM (same investigation, widened after the finding above): grepping
+the whole backend for "x_admin_key" turned up 6 files total, but this
+file's original scan only covered server.py and issues_router.py. The
+other 4 -- api/journeys_router.py, api/safety_router.py,
+api/upi_billing_router.py, api/women_router.py -- were unaudited. Counting
+"x_admin_key" mentions vs. "check_admin_key(x_admin_key)" calls per file
+found a real bug in api/safety_router.py: POST /safety/admin/init-indexes
+(init_indexes()) had its OWN inline admin-key check --
+`expected = os.getenv("ADMIN_KEY", ""); if not expected or x_admin_key !=
+expected: raise HTTPException(403, ...)` -- instead of calling the shared
+check_admin_key() helper every other admin route in the codebase uses.
+Two concrete problems with the inline version: (1) `!=` on strings is not
+constant-time, so a wrong guess is in principle timeable character-by-
+character, where check_admin_key()'s hmac.compare_digest() is immune to
+that; (2) it returned 403 instead of 401, inconsistent with every other
+admin route. Low severity in practice -- the endpoint is a one-time,
+idempotent index-creation utility, not something exposing user data -- but
+a duplicated, divergent copy of a security check is exactly the kind of
+thing that drifts out of sync the next time the shared one is hardened.
+Fixed: init_indexes() now takes x_admin_key via FastAPI's Header(None) (not
+a bare default, matching every other admin route's signature) and calls
+check_admin_key(x_admin_key) directly; the now-unused `import os` was
+removed from the file. The other three files (journeys_router.py,
+upi_billing_router.py, women_router.py) were checked and already call
+check_admin_key(x_admin_key) correctly on every route that declares the
+parameter -- no changes needed there. This file's scan is now extended to
+cover all four of these routers (by the parameter-based scan, not the URL
+prefix, since the issues_router.py finding above already showed prefix-only
+auditing misses real admin routes), so a future regression of this exact
+class (a new admin route reimplementing its own check) is caught
+automatically instead of needing another manual grep sweep to find it.
+
 MANUAL REVIEW PART (documented here, not re-tested -- already covered by
 this session's other work and cited by commit):
   - Every endpoint that touches a paid API or per-user state requires
@@ -160,6 +192,53 @@ class TestEveryAdminRouteChecksTheAdminKey:
         issues_routes = _routes_with_x_admin_key_param(os.path.join(BACKEND_DIR, "api", "issues_router.py"))
         assert len(server_routes) == 5, [n for n, _, _ in server_routes]
         assert len(issues_routes) == 3, [n for n, _, _ in issues_routes]
+
+    def test_safety_router_init_indexes_gates_on_admin_key(self):
+        # The safety_router.py fix (see this file's module docstring
+        # addendum): init_indexes() used to reimplement its own
+        # non-constant-time admin-key comparison instead of calling the
+        # shared check_admin_key() helper. Scanned by the x_admin_key
+        # parameter name, same as issues_router.py above (this file is a
+        # single POST route, not under /admin/*, so a prefix-based scan
+        # would again miss it).
+        routes = _routes_with_x_admin_key_param(os.path.join(BACKEND_DIR, "api", "safety_router.py"))
+        assert len(routes) == 1, [n for n, _, _ in routes]
+        name, lineno, func_src = routes[0]
+        assert name == "init_indexes"
+        assert any(gate in func_src for gate in _ADMIN_GATE_NAMES), (
+            f"api/safety_router.py:{lineno} async def {name}(...) declares "
+            f"x_admin_key but never calls {_ADMIN_GATE_NAMES} -- the "
+            f"parameter alone does nothing without the check"
+        )
+        # Pin the regression this test exists for: the old inline check
+        # used `!=` directly against x_admin_key, bypassing the shared
+        # timing-safe helper entirely.
+        assert "x_admin_key != expected" not in func_src
+        assert "os.getenv(\"ADMIN_KEY\"" not in func_src and "os.environ" not in func_src
+
+    def test_journeys_upi_billing_women_routers_all_gate_on_admin_key(self):
+        # These three were already correct before this pass (confirmed by
+        # grep during the same investigation that found the safety_router.py
+        # bug) -- added here so the whole x_admin_key surface area the repo
+        # grep found (6 files total) is now under one regression guard,
+        # not just the 2 files (server.py, issues_router.py) this file
+        # started with.
+        for rel_path, expected_min in [
+            (("api", "journeys_router.py"), 4),
+            (("api", "upi_billing_router.py"), 3),
+            (("api", "women_router.py"), 5),
+        ]:
+            file_path = os.path.join(BACKEND_DIR, *rel_path)
+            routes = _routes_with_x_admin_key_param(file_path)
+            assert len(routes) >= expected_min, (
+                f"{os.path.join(*rel_path)}: expected at least "
+                f"{expected_min} x_admin_key routes, found {len(routes)}"
+            )
+            for name, lineno, func_src in routes:
+                assert any(gate in func_src for gate in _ADMIN_GATE_NAMES), (
+                    f"{os.path.join(*rel_path)}:{lineno} async def {name}(...) "
+                    f"declares x_admin_key but never calls {_ADMIN_GATE_NAMES}"
+                )
 
 
 class TestCorsConfigurationIsTheSafeCombination:
