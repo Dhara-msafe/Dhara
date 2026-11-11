@@ -13,6 +13,9 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.msafesolutions.legalaid",
+      "config": {
+        "googleMapsApiKey": "AIzaSyB8vnwKPf3OJgU2UqyivkRDPHhe9TmV0lI"
+      },
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Speak questions or save local voice evidence",
         "NSCameraUsageDescription": "Take your profile photo or complaint evidence",
@@ -32,6 +35,11 @@
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.msafesolutions.legalaid",
       "googleServicesFile": "./google-services.json",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyB8vnwKPf3OJgU2UqyivkRDPHhe9TmV0lI"
+        }
+      },
       "permissions": [
         "RECORD_AUDIO",
         "android.permission.INTERNET",
@@ -77,6 +85,14 @@
       "expo-image",
       "expo-secure-store",
       "expo-sharing",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Share your area with your guardian during Head Out",
+          "isAndroidBackgroundLocationEnabled": false,
+          "isIosBackgroundLocationEnabled": false
+        }
+      ],
       [
         "expo-splash-screen",
         {
