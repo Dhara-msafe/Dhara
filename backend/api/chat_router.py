@@ -159,14 +159,29 @@ _DV_ACT_RE = re.compile(r"(PWDVA|Domestic Violence)", re.I)
 
 # Acute-danger phrases that indicate present danger ON THEIR OWN (no separate
 # time/state phrase needed): an armed person, being followed/chased right now,
-# or a direct "will kill / save me" in Hindi (Devanagari + romanised).
+# a completed/ongoing physical attack on the speaker, a home invasion in
+# progress, or a direct "will kill / save me" in Hindi (Devanagari + romanised).
 # Kept narrow on purpose: legal hypotheticals ("punishment for carrying a
-# knife") and "my case is being followed up" must NOT match.
+# knife", "what if someone breaks into my shop"), a past/closed incident
+# being discussed as a legal question ("my neighbor broke into my house last
+# month"), and "my case is being followed up" must NOT match.
+#
+# B-05 — this file previously had no pattern at all for a completed violent
+# act described in the past/present-continuous tense ("he stabbed me", "he is
+# cutting me") or a home invasion actually in progress ("someone is breaking
+# in") — both squarely immediate danger, distinct from mentioning a weapon's
+# mere presence. Added below, verified against both the true-positive phrases
+# they're meant to catch and the look-alike legal-question phrasings above,
+# which must keep returning False.
 _ACUTE_DANGER_RE = re.compile(
     r"(\b(he|she|they|someone|somebody|a man|a woman|a guy|my husband|husband|boyfriend)\s+"
     r"(has|have|had|is holding|is carrying|pulled out|took out|is waving)\s+(a |an )?(knife|gun|pistol|weapon|acid|blade)\b"
     r"|\b(i am|i'm|im|i am being|i'm being)\s+(being\s+)?(followed|stalked|chased)\b(?!\s+up)"
     r"|\b(someone|somebody|a man|he|they|a car|a bike)\s+(is|are|has been|keeps)\s+(following|chasing|stalking)\s+me\b"
+    r"|\b(he|she|they|someone|somebody|a man|a woman|my husband|husband|boyfriend)\s+"
+    r"(stabbed|cut|slashed|is stabbing|is cutting|is slashing)\s+me\b"
+    r"|\b(someone|somebody|a man|he|she|they)\s+(is|are)\s+(breaking|trying to break)\s+in\b"
+    r"|\bbreaking\s+into\s+my\s+(house|home|room|flat)\s*(right\s+now|now)?\b"
     r"|\bmaar\s*(dega|degi|denge|dalega|dalegi|daalega|daalegi|daalenge)\b|\bjaan\s+se\s+maar"
     r"|\bmujhe\s+bachao\b|मुझे\s*बचाओ|मार\s*डालेगा|मार\s*डालेगी"
     r"|\bmala\s+vachva\b|मला\s*वाचवा)",
