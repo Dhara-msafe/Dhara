@@ -1,14 +1,27 @@
 import { Platform } from 'react-native';
-import { openExternal, composeSms, OUTBOUND_LIVE, SIMULATED_TEXT } from '@/src/outbound';
+import { openExternal, composeSms, SIMULATED_TEXT } from '@/src/outbound';
 
-/** Opening a dialler/composer is not confirmation of a call or delivery. */
+/** Opening a dialler/composer is not confirmation of a call or delivery.
+ *
+ * B-14 — this used to pick its return text from OUTBOUND_LIVE alone, not
+ * from what openExternal actually did. OUTBOUND_LIVE is only the master
+ * switch; the per-channel build profile (internal_qa / closed_testing /
+ * production) can still simulate the dialler while the master switch is
+ * live (see outbound.ts's shouldDispatch/POLICY). In that combination the
+ * old code took the "live" branch — "Continue in your phone's dialler…" —
+ * right after openExternal's own guard had just shown a "Simulated —
+ * nothing sent" alert and silently skipped opening anything: two
+ * contradictory messages for the same tap. composeAlert already avoided
+ * this by branching on composeSms's actual result; openPhone now does the
+ * same by branching on openExternal's OpenResult ('opened' | 'blocked')
+ * instead of re-deriving it from OUTBOUND_LIVE. */
 export async function openPhone(number: string): Promise<string> {
-  if (!OUTBOUND_LIVE) {
-    await openExternal(`tel:${number.replace(/[^+\d]/g, '')}`);
-    return `${SIMULATED_TEXT}. QA mode — the dialler was not opened and no call was placed to ${number}.`;
-  }
+  const clean = number.replace(/[^+\d]/g, '');
   try {
-    await openExternal(`tel:${number.replace(/[^+\d]/g, '')}`);
+    const result = await openExternal(`tel:${clean}`);
+    if (result === 'blocked') {
+      return `${SIMULATED_TEXT}. QA mode — the dialler was not opened and no call was placed to ${number}.`;
+    }
     return `Continue in your phone's dialler. If it did not open, dial ${number} manually. DHARA has not placed a call.`;
   } catch {
     return `This device could not open a dialler. Use a phone to dial ${number}.`;
