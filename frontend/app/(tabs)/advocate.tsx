@@ -93,6 +93,12 @@ export default function AdvocateTab() {
   // Registered advocate dashboard
   const cards = [
     {
+      icon: 'mic-outline' as const,
+      title: 'Consultation Notes',
+      sub: 'Record consent, capture notes, and get an AI-structured draft',
+      onPress: () => router.push('/notetaker' as any),
+    },
+    {
       icon: 'people-outline' as const,
       title: 'Client Intakes',
       sub: 'Send a secure link, receive a structured brief',

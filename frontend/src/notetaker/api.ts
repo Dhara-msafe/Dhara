@@ -1,0 +1,144 @@
+/**
+ * api.ts — thin client for the Advocate Consultation Notetaker backend
+ * (/api/notetaker/*). Mirrors the Pydantic models in
+ * backend/api/advocate_notetaker_router.py exactly.
+ */
+import { API_BASE } from '@/src/auth';
+
+export type ConsultationState =
+  | 'DRAFT' | 'CONSENT_PENDING' | 'READY' | 'IMPORTING' | 'AUDIO_REVIEW'
+  | 'PROCESSING' | 'TRANSCRIPT_REVIEW' | 'NOTE_DRAFT' | 'APPROVED'
+  | 'FAILED' | 'CANCELLED' | 'INTERRUPTED';
+
+export type InputMethod = 'manual' | 'transcript_import' | 'audio_import';
+
+export interface NoteItem {
+  text: string;
+  source_ref?: string;
+  assignee?: string;
+}
+
+export interface NoteSections {
+  verified_facts: NoteItem[];
+  client_instructions: NoteItem[];
+  advice_given: NoteItem[];
+  open_uncertainties: NoteItem[];
+  proposed_actions: NoteItem[];
+}
+
+export interface StatuteCitation {
+  statute: string;
+  section?: string;
+  relevance?: string;
+}
+
+export interface NoteDraft {
+  version: number;
+  generated_at: string;
+  sections: NoteSections;
+  statute_citations: StatuteCitation[];
+  approved_at?: string;
+  approved_by?: string;
+  content_hash?: string;
+}
+
+export interface Consultation {
+  id: string;
+  matter_id: string;
+  owner_id: string;
+  title: string;
+  date: string;
+  purpose: string;
+  input_method: InputMethod;
+  language: string | null;
+  state: ConsultationState;
+  created_at: string;
+  updated_at: string;
+  manual_notes: string | null;
+  original_transcript: string | null;
+  working_transcript: string | null;
+  speaker_labels: any[];
+  audio_storage_key: string | null;
+  audio_original_name: string | null;
+  audio_size_bytes: number | null;
+  audio_content_type: string | null;
+  note_draft: NoteDraft | null;
+  note_versions: NoteDraft[];
+  approved_version: NoteDraft | null;
+  processing_error: string | null;
+}
+
+export interface Consent {
+  id: string;
+  consultation_id: string;
+  participant_name: string;
+  participant_role: string | null;
+  decision: 'given' | 'declined' | 'withdrawn';
+  recorded_at: string;
+}
+
+async function extractError(r: Response, fallback: string): Promise<string> {
+  try {
+    const ct = r.headers.get('content-type') || '';
+    if (ct.includes('application/json')) {
+      const err = await r.json();
+      if (typeof err?.detail === 'string' && err.detail) return err.detail;
+      if (Array.isArray(err?.detail) && err.detail.length > 0) {
+        const first = err.detail[0];
+        return (typeof first?.msg === 'string' && first.msg) || fallback;
+      }
+    }
+  } catch {
+    // fall through to fallback
+  }
+  return fallback;
+}
+
+function authHeaders(token: string): Record<string, string> {
+  return { Authorization: `Bearer ${token}` };
+}
+
+export async function apiGet<T>(token: string, path: string): Promise<T> {
+  const r = await fetch(`${API_BASE}/api/notetaker${path}`, { headers: authHeaders(token) });
+  if (!r.ok) throw new Error(await extractError(r, 'Request failed'));
+  return r.json();
+}
+
+export async function apiPost<T>(token: string, path: string, body?: any): Promise<T> {
+  const headers: Record<string, string> = authHeaders(token);
+  const init: RequestInit = { method: 'POST', headers };
+  if (body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+    init.body = JSON.stringify(body);
+  }
+  const r = await fetch(`${API_BASE}/api/notetaker${path}`, init);
+  if (!r.ok) throw new Error(await extractError(r, 'Request failed'));
+  return r.json();
+}
+
+export async function apiPatch<T>(token: string, path: string, body?: any): Promise<T> {
+  const headers: Record<string, string> = authHeaders(token);
+  const init: RequestInit = { method: 'PATCH', headers };
+  if (body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+    init.body = JSON.stringify(body);
+  }
+  const r = await fetch(`${API_BASE}/api/notetaker${path}`, init);
+  if (!r.ok) throw new Error(await extractError(r, 'Request failed'));
+  return r.json();
+}
+
+export async function apiDelete<T>(token: string, path: string): Promise<T> {
+  const r = await fetch(`${API_BASE}/api/notetaker${path}`, { method: 'DELETE', headers: authHeaders(token) });
+  if (!r.ok) throw new Error(await extractError(r, 'Request failed'));
+  return r.json();
+}
+
+/** The export endpoint returns PlainTextResponse, not JSON — read as text. */
+export async function fetchExportText(token: string, consultationId: string): Promise<string> {
+  const r = await fetch(`${API_BASE}/api/notetaker/consultations/${consultationId}/export?fmt=text`, {
+    headers: authHeaders(token),
+  });
+  if (!r.ok) throw new Error(await extractError(r, 'Export failed'));
+  return r.text();
+}

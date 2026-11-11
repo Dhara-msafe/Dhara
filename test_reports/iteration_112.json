@@ -1,0 +1,55 @@
+{
+  "summary": "Tested the new DHARA Advocate Consultation Notetaker (Phase 1): backend /api/notetaker/* (28/28 pytest cases passed) and all 4 new frontend screens (matter detail, new-consultation form, consultation workspace state machine) end-to-end via Playwright on mobile viewport (375x667), logged in as voicetest2026@example.com. Covered manual-notes path (consent -> notes -> Claude Sonnet 5.5 generation -> edit -> approve -> export/copy -> task drafts), transcript-import path (consent -> paste transcript -> import -> edit -> approve -> note draft), audio-upload path (upload via API confirmed 200 + AUDIO_REVIEW screen renders correctly), and the cancel flow. Found and FIXED one real (not test-tooling) bug: the Approve-note and Cancel-consultation confirm dialogs used React Native's raw Alert.alert with multiple buttons, which the codebase's own crossAlert.ts utility documents as silently non-functional on react-native-web (no buttons render, callback never fires) -- this completely blocked the Approve and Cancel flows on web before the fix. Swapped both call sites to the existing crossAlert() utility (same pattern already used elsewhere in the app); retested and both flows now work correctly on web.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "NoteDraftStep.tsx (approve) and app/notetaker/consultation/[id].tsx (cancel)",
+        "issue": "FIXED DURING THIS SESSION: both used RN's Alert.alert(title, message, [cancelBtn, confirmBtn]) directly. On react-native-web, multi-button Alert.alert renders nothing and never calls back -- 'Approve & finalise note' and 'Cancel' buttons were completely inert on the web preview (no visible error, state never changed). Swapped both to the pre-existing src/utils/crossAlert.ts helper (used elsewhere in the app for exactly this reason). Verified via Playwright: Approve now transitions NOTE_DRAFT->APPROVED and shows the banner; Cancel now transitions to CANCELLED and shows the terminal screen.",
+        "testID": "n/a - no testID on these Pressables",
+        "priority": "HIGH"
+      },
+      {
+        "component": "AudioStep.tsx",
+        "issue": "Minor cosmetic: uploaded file size is displayed only in MB with one decimal (e.g. a 16KB test file showed '0.0 MB'). Not blocking, just imprecise for small files.",
+        "testID": "n/a",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {
+        "component": "All Notetaker step components (ApprovedStep, AudioStep, ConsentStep, InputStep, TranscriptStep, consultation/new.tsx, notetaker/index.tsx)",
+        "issue": "These still use raw Alert.alert for single-button error/info toasts. Per the app's own crossAlert.ts documentation, single-button Alert.alert calls do fall back to window.alert() reliably on web, so these were not blocking -- but for consistency, the main agent may want to migrate all Notetaker Alert.alert calls to crossAlert in a follow-up pass."
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_notetaker_phase1.py"
+  ],
+  "action_items": [
+    "No remaining blocking issues found. Optionally: migrate the remaining single-button Alert.alert calls in Notetaker step files to crossAlert for consistency (low priority, not currently broken).",
+    "Optionally improve audio file size display to show KB for files under 1MB.",
+    "Did not fully exercise the Whisper transcription completion step (PROCESSING -> TRANSCRIPT_REVIEW) end-to-end in the UI due to time/flakiness constraints per instructions -- confirmed via API that audio upload succeeds and transitions to AUDIO_REVIEW, and confirmed AudioStep UI renders correctly with 'Start transcription' button. The actual Whisper call itself (triggered by /audio/transcribe) was not invoked in this session."
+  ],
+  "critical_code_review_comments": [
+    "advocate_notetaker_router.py is clean, well-documented, and all state-transition guards (403/404/409/400) matched expectations in every test.",
+    "notetaker/api.ts, ui.tsx and all step components are well-structured, properly typed, and consistently use the ownership-scoped backend endpoints.",
+    "The Alert.alert vs crossAlert inconsistency found here suggests this is a recurring risk pattern across the codebase when new screens are added without referencing crossAlert.ts -- consider a lint rule or code review checklist item banning direct multi-button Alert.alert imports outside crossAlert.ts itself."
+  ],
+  "updated_files": [
+    "/app/frontend/src/notetaker/steps/NoteDraftStep.tsx (swapped Alert.alert -> crossAlert for the Approve confirm)",
+    "/app/frontend/app/notetaker/consultation/[id].tsx (swapped Alert.alert -> crossAlert for the Cancel confirm)",
+    "/app/backend/tests/test_notetaker_phase1.py (new backend test suite)"
+  ],
+  "success_rate": {"backend": "100% (28/28 passed)", "frontend": "100% of tested flows pass after the crossAlert fix"},
+  "seed_data_creation": "Created several TEST_-prefixed matters/consultations via both pytest and Playwright (TEST_Matter_Phase1, TEST_Matter_Manual, TEST_Matter_Transcript, TEST_Matter_Cancel, TEST_UI_Matter_Playwright, TEST_UI_Matter_Full, TEST_UI_Cancel_Matter, TEST_UI_Transcript_Matter, TEST_Audio_Matter) under the voicetest2026@example.com advocate account, plus one throwaway non-advocate user (TEST_nt_nonadv_*) for the 403 check and one throwaway user for register-field discovery (TEST_nt_check2@example.com). All are clearly TEST_-prefixed and owned only by the designated test account; none of the existing seed/production data was modified.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Notetaker Phase 1 frontend+backend is functionally complete and verified end-to-end for manual-notes and transcript-import paths, plus audio-upload (backend call verified, UI screen verified, Whisper completion itself not exercised). The one real bug found (Alert.alert vs crossAlert breaking Approve/Cancel on web) has been fixed in this session -- if a future agent sees Approve or Cancel silently do nothing again in any OTHER new screen, check for the same raw-Alert.alert-with-multiple-buttons pattern first per the RCA below.",
+  "rca_of_issue": "React-native-web's Alert.alert implementation (via the polyfill shipped with this app) only reliably renders a plain window.alert() for single-button calls; when given a buttons array with more than one entry (e.g. ['Keep working'/'Cancel consultation'] or ['Not yet'/'Approve']), it renders nothing and never invokes any callback -- confirmed this directly: clicking 'Approve & finalise note' and 'Cancel' had zero effect (no modal appeared, no network call fired, state stayed unchanged) until the call sites were switched to the app's own crossAlert() utility (frontend/src/utils/crossAlert.ts), which falls back to window.confirm()/window.alert() on web and real Alert.alert on native. After the fix, both flows worked correctly in Playwright (NOTE_DRAFT->APPROVED and the various states ->CANCELLED, verified via screenshot and backend GET)."
+}
