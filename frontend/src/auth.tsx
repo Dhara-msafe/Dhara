@@ -91,8 +91,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ session_id: sid }),
               });
-              if (r.ok) {
-                const data = await r.json();
+              const data = r.ok ? await r.json() : null;
+              if (data && !(await _minorBlockedMessage(data.token))) {
                 await AsyncStorage.setItem(TOKEN_KEY, data.token);
                 await AsyncStorage.setItem(USER_KEY, JSON.stringify(data.user));
                 _setActiveUserIdCache(data.user);
@@ -362,13 +362,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (usedSessionIds.current.has(sid)) return; // dedup
     usedSessionIds.current.add(sid);
 
-    const r = await fetch(`${API}/api/auth/session`, {
+    const r = await _fetchAuth(`${API}/api/auth/session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ session_id: sid }),
     });
-    if (!r.ok) throw new Error((await r.json()).detail || 'Google sign-in failed');
+    if (!r.ok) throw new Error(await _extractError(r, 'Google sign-in failed. Please try again.'));
     const data = await r.json();
+    const minorMsg = await _minorBlockedMessage(data.token);
+    if (minorMsg) {
+      const err: any = new Error(minorMsg);
+      err.code = 'minor_blocked';
+      throw err;
+    }
     await persist(data.token, data.user);
   }, []);
 

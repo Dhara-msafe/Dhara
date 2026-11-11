@@ -47,6 +47,7 @@ export default function Login() {
       await loginWithGoogle();
       _postLoginNav();
     } catch (e: any) {
+      setMinorBlocked(e?.code === 'minor_blocked');
       setError(e?.message || 'Google sign-in failed');
     } finally {
       setGoogleLoading(false);
