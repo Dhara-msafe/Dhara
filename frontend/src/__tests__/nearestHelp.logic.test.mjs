@@ -138,6 +138,19 @@ test('manual "search in Maps instead" fallback is still present alongside result
   assert.ok(src.includes('nearest-help-manual-search'));
 });
 
+// N-02 (B-40): /api/geo/nearby and /api/geo/search-text now require an
+// authenticated session on the backend — these calls must send the Bearer
+// token, and must guard against calling with no token at all (would send a
+// bogus "Bearer null"/"Bearer undefined" header instead of a real one).
+test('nearby/search-text calls send the session auth token', () => {
+  assert.ok(src.includes("import { useAuth } from '@/src/auth'"));
+  assert.ok(/fetchNearbyPlaces\([^)]*authToken\)/.test(src));
+  assert.ok(/fetchPlacesTextSearch\([^)]*authToken[^)]*\)/.test(src));
+});
+test('skips the in-app search (falls to external Maps) when there is no auth token', () => {
+  assert.ok(/if \(authToken\) \{/.test(src));
+});
+
 // ── Summary ────────────────────────────────────────────────────────────────────
 console.log(`\n${'═'.repeat(60)}`);
 console.log(`  ${passed} passed   ${failed} failed   ${passed + failed} total`);
