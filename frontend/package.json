@@ -10,7 +10,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test:voice": "node --env-file-if-exists=.env --experimental-strip-types --import ./src/voice/core/__tests__/ts-resolve.mjs --test src/voice/core/__tests__/*.test.ts"
+    "test:voice": "node --env-file-if-exists=.env --experimental-strip-types --import ./src/voice/core/__tests__/test-flags.mjs --import ./src/voice/core/__tests__/ts-resolve.mjs --test src/voice/core/__tests__/*.test.ts"
   },
   "dependencies": {
     "@expo/metro-runtime": "~55.0.12",
