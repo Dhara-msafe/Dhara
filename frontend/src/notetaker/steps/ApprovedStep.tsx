@@ -11,6 +11,7 @@ import { crossAlert } from '@/src/utils/crossAlert';
 import { apiPost, fetchExportText, newIdempotencyKey, reviseNote } from '../api';
 import type { Consultation, NoteSections } from '../api';
 import ConfirmModal from '../ConfirmModal';
+import { LegacyConsentNotice } from '../ui';
 
 const c = theme.colors;
 
@@ -32,6 +33,7 @@ export default function ApprovedStep({
   const [reviseModalOpen, setReviseModalOpen] = useState(false);
   const approved = consultation.approved_version;
   if (!approved) return null;
+  const legacyBlocked = !!consultation.legacy_consent_incomplete;
 
   const doExport = async (mode: 'share' | 'copy') => {
     const setBusy = mode === 'share' ? setExporting : setCopying;
@@ -148,9 +150,13 @@ export default function ApprovedStep({
         {creatingTasks ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Create task drafts from actions</Text>}
       </Pressable>
 
-      <Pressable style={styles.reviseBtn} onPress={() => setReviseModalOpen(true)} disabled={revising}>
-        <Text style={styles.reviseBtnText}>Revise this note</Text>
-      </Pressable>
+      {legacyBlocked ? (
+        <LegacyConsentNotice />
+      ) : (
+        <Pressable style={styles.reviseBtn} onPress={() => setReviseModalOpen(true)} disabled={revising}>
+          <Text style={styles.reviseBtnText}>Revise this note</Text>
+        </Pressable>
+      )}
 
       <ConfirmModal
         visible={reviseModalOpen}

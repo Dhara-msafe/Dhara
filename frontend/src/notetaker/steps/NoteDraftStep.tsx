@@ -18,6 +18,7 @@ import { crossAlert } from '@/src/utils/crossAlert';
 import { apiPost, updateNote, approveNoteVersion, NoteVersionConflictError } from '../api';
 import type { Consultation, NoteSections, NoteDraft } from '../api';
 import ConfirmModal from '../ConfirmModal';
+import { LegacyConsentNotice } from '../ui';
 
 const c = theme.colors;
 
@@ -46,6 +47,7 @@ export default function NoteDraftStep({
   const [conflict, setConflict] = useState<Conflict | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [restoreTarget, setRestoreTarget] = useState<NoteDraft | null>(null);
+  const legacyBlocked = !!consultation.legacy_consent_incomplete;
 
   // Re-sync the local edit buffer whenever a NEW version arrives — every
   // save/(re)generate/revise bumps note_draft.version, so that (not
@@ -140,7 +142,9 @@ export default function NoteDraftStep({
           facts stated by participants, client instructions, advice given, open uncertainties, and proposed actions — each
           with a source reference. Nothing is invented.
         </Text>
-        {advocateVerified ? (
+        {legacyBlocked ? (
+          <LegacyConsentNotice />
+        ) : advocateVerified ? (
           <>
             <Pressable style={styles.primaryBtn} onPress={generate} disabled={generating}>
               {generating ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Generate AI draft</Text>}
@@ -194,6 +198,8 @@ export default function NoteDraftStep({
         <Text style={styles.reviseHint}>{draft.diff_summary}</Text>
       )}
       <Text style={styles.body}>Edit any item, remove anything inaccurate, then approve to finalise.</Text>
+
+      {legacyBlocked && <LegacyConsentNotice />}
 
       {(consultation.note_versions || []).length > 1 && (
         <Pressable onPress={() => setHistoryOpen(o => !o)} style={styles.historyToggle}>
@@ -259,11 +265,11 @@ export default function NoteDraftStep({
         </View>
       )}
 
-      <Pressable style={styles.secondaryBtn} onPress={saveEdits} disabled={saving}>
+      <Pressable style={styles.secondaryBtn} onPress={saveEdits} disabled={saving || legacyBlocked}>
         {saving ? <ActivityIndicator color={c.navy} size="small" /> : <Text style={styles.secondaryBtnText}>Save edits</Text>}
       </Pressable>
 
-      {advocateVerified ? (
+      {legacyBlocked ? null : advocateVerified ? (
         <>
           <Pressable style={styles.regenerateBtn} onPress={generate} disabled={generating}>
             {generating ? <ActivityIndicator color={c.navy} size="small" /> : <Text style={styles.regenerateBtnText}>Regenerate from source</Text>}

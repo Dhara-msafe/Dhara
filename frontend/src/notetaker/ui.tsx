@@ -174,3 +174,29 @@ const stepStyles = StyleSheet.create({
   label: { fontSize: 10, fontFamily: theme.fonts.body, color: c.muted, marginTop: 4 },
   labelActive: { color: c.navy, fontFamily: theme.fonts.bodySemiBold },
 });
+
+
+// ── Legacy consent incomplete notice ─────────────────────────────────────
+// BATCH N1-N2 follow-up fix #4: shown wherever a legacy-flagged
+// consultation would otherwise offer a further Save/Approve/Revise/
+// Regenerate action — explains why that action is disabled here.
+
+export function LegacyConsentNotice() {
+  return (
+    <View style={legacyStyles.box}>
+      <Text style={legacyStyles.title}>⚠️ Consent incomplete (legacy)</Text>
+      <Text style={legacyStyles.text}>
+        A required participant&apos;s recorded consent here is declined or unknown. This
+        predates per-save consent enforcement, so it was not caught earlier. No new save,
+        approval or revision is allowed until a fresh &quot;given&quot; decision is recorded for
+        them (use the Consent entry point above), or consent is withdrawn.
+      </Text>
+    </View>
+  );
+}
+
+const legacyStyles = StyleSheet.create({
+  box: { backgroundColor: '#FEF3C7', borderRadius: 10, padding: 14, marginBottom: 16 },
+  title: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: '#92400E', marginBottom: 4 },
+  text: { fontFamily: theme.fonts.body, fontSize: 12, color: '#92400E', lineHeight: 18 },
+});

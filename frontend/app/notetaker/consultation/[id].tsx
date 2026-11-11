@@ -243,6 +243,11 @@ export default function ConsultationScreen() {
       />
       <View style={styles.statusRow}>
         <StatusPill state={consultation.state} />
+        {!!consultation.legacy_consent_incomplete && (
+          <View style={styles.legacyPill}>
+            <Text style={styles.legacyPillText}>Consent incomplete (legacy)</Text>
+          </View>
+        )}
       </View>
       {!hideActions && <ProgressSteps labels={stages} activeIndex={activeIndex} />}
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
@@ -273,7 +278,9 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   errorText: { color: c.error, fontFamily: theme.fonts.body, fontSize: 15 },
-  statusRow: { paddingHorizontal: 16, paddingTop: 12 },
+  statusRow: { paddingHorizontal: 16, paddingTop: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  legacyPill: { backgroundColor: '#FEF3C7', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  legacyPillText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 11, color: '#92400E' },
   statusWrap: { alignItems: 'center', padding: 40, gap: 10 },
   statusIcon: { fontSize: 40 },
   statusText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 17, color: c.navy, textAlign: 'center' },

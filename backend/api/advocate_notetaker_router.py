@@ -28,6 +28,7 @@ import asyncio
 import hashlib
 import logging
 import os
+import re
 import uuid
 from datetime import datetime, timezone
 from enum import Enum
@@ -96,6 +97,21 @@ async def _get_matter(matter_id: str, user: dict) -> dict:
 
 _SECTION_KEYS = ["facts_stated", "client_instructions", "advice_given", "open_uncertainties", "proposed_actions"]
 
+# BATCH N1-N2 follow-up fix #2: some historical items have the literal
+# string "[advocate edit]" baked into the item TEXT itself (from before
+# per-item provenance existed). Stripped for DISPLAY only, at read time —
+# never rewritten in Mongo, never affects a stored content_hash. Provenance
+# now lives only in the "provenance" field / "Edited by advocate" UI tag;
+# no current write path ever inserts this marker into text again.
+_LEGACY_EDIT_MARKER_RE = re.compile(r"\s*\[\s*advocate edit\s*\]\s*", re.IGNORECASE)
+
+
+def _strip_legacy_edit_marker(text: Optional[str]) -> Optional[str]:
+    if not text or "[" not in text:
+        return text
+    stripped = _LEGACY_EDIT_MARKER_RE.sub(" ", text).strip()
+    return stripped if stripped != text else text
+
 
 def _normalize_sections(note: Optional[dict]) -> Optional[dict]:
     """
@@ -105,6 +121,8 @@ def _normalize_sections(note: Optional[dict]) -> Optional[dict]:
       (N2)   every item gets a "provenance" ("generated"|"edited") and a
              "generated_text" field; notes created before per-item
              provenance existed default every item to "generated"/None.
+      (N1-N2 follow-up) strips a leftover literal "[advocate edit]" marker
+             out of item text for display (see _strip_legacy_edit_marker).
     """
     if not note or not isinstance(note, dict):
         return note
@@ -120,10 +138,16 @@ def _normalize_sections(note: Optional[dict]) -> Optional[dict]:
             items = sections.get(key) or []
             new_items = []
             for item in items:
-                if "provenance" not in item:
-                    item = {**item, "provenance": "generated", "generated_text": item.get("generated_text")}
+                new_item = item
+                if "provenance" not in new_item:
+                    new_item = {**new_item, "provenance": "generated", "generated_text": new_item.get("generated_text")}
                     changed = True
-                new_items.append(item)
+                cleaned_text = _strip_legacy_edit_marker(new_item.get("text"))
+                cleaned_generated_text = _strip_legacy_edit_marker(new_item.get("generated_text"))
+                if cleaned_text != new_item.get("text") or cleaned_generated_text != new_item.get("generated_text"):
+                    new_item = {**new_item, "text": cleaned_text, "generated_text": cleaned_generated_text}
+                    changed = True
+                new_items.append(new_item)
             new_sections[key] = new_items
         for key, items in sections.items():
             if key not in _SECTION_KEYS:
@@ -336,6 +360,75 @@ def _consent_readiness(consents: list[dict]) -> dict:
     return {"status": "pending", "reason": "Waiting for required participants to respond.", **counts}
 
 
+# BATCH N1-N2 follow-up fix #3 (founder decision, 2026: "fully lock"): once
+# a consultation reaches CONSENT_WITHDRAWN, nobody — including the owning
+# advocate — may view note/transcript/audio content or export anything
+# further; the consultation is archived/read-blocked entirely. The consent
+# record trail (GET /consent) stays visible — that is the audit evidence of
+# WHY and WHEN it was locked, not "content" in the sense being blocked.
+# Nothing is ever deleted; content fields are simply omitted at read time.
+_LOCK_STRIPPED_FIELDS = [
+    "manual_notes", "original_transcript", "working_transcript", "speaker_labels",
+    "audio_storage_key", "audio_original_name", "audio_size_bytes", "audio_content_type",
+    "note_draft", "approved_version",
+]
+_LOCKED_REASON = (
+    "A participant withdrew consent. This consultation is fully locked: its content is "
+    "no longer viewable, editable or exportable by anyone. The consent record trail "
+    "remains visible as the audit evidence of this lock."
+)
+
+
+def _apply_lock(doc: dict) -> dict:
+    """Read-time only: strip content fields from a CONSENT_WITHDRAWN consultation doc."""
+    is_locked = doc.get("state") == ConsultationState.CONSENT_WITHDRAWN.value
+    doc = dict(doc)
+    doc["locked"] = is_locked
+    doc["locked_reason"] = _LOCKED_REASON if is_locked else None
+    if is_locked:
+        for field in _LOCK_STRIPPED_FIELDS:
+            if field in doc:
+                doc[field] = None
+        if "note_versions" in doc:
+            doc["note_versions"] = []
+    return doc
+
+
+# BATCH N1-N2 follow-up fix #4 (founder decision, 2026): a handful of
+# pre-existing ("legacy") consultations advanced past consent checks before
+# per-save/per-approve enforcement existed, even though a required
+# participant's latest decision is declined/unknown. These are labelled
+# "Consent incomplete (legacy)" and get no NEW Approve/Save/Revise action
+# until a fresh "given" decision is recorded (or the advocate withdraws).
+# Does not apply to DRAFT/CONSENT_PENDING (already blocked there) or
+# CONSENT_WITHDRAWN (handled by the full lock above), or to a consultation
+# explicitly running under the manual-only consent override.
+_LEGACY_INCOMPLETE_MSG = (
+    "Consent incomplete (legacy): a required participant's recorded consent is declined "
+    "or unknown. Record a fresh 'given' decision for them (or withdraw consent) before "
+    "continuing."
+)
+
+
+def _legacy_consent_incomplete(doc: dict, consents: list[dict]) -> bool:
+    if doc.get("manual_only_override"):
+        return False
+    if doc.get("state") in (
+        ConsultationState.DRAFT.value,
+        ConsultationState.CONSENT_PENDING.value,
+        ConsultationState.CONSENT_WITHDRAWN.value,
+    ):
+        return False
+    return _consent_readiness(consents)["status"] == "blocked"
+
+
+async def _guard_legacy_consent(consultation_id: str, doc: dict) -> None:
+    """Raise 409 if this consultation is legacy-consent-incomplete (see above)."""
+    consents = [c async for c in db.nt_consents.find({"consultation_id": consultation_id})]
+    if _legacy_consent_incomplete(doc, consents):
+        raise HTTPException(409, _LEGACY_INCOMPLETE_MSG)
+
+
 # ── Pydantic models ───────────────────────────────────────────────────────────
 
 class MatterIn(BaseModel):
@@ -537,7 +630,8 @@ async def list_consultations(
         d = _normalize_consultation_doc(d)
         consents = [c async for c in db.nt_consents.find({"consultation_id": d["id"]})]
         d["consent_summary"] = _consent_readiness(consents)
-        out.append(_strip_id(d))
+        d["legacy_consent_incomplete"] = _legacy_consent_incomplete(d, consents)
+        out.append(_apply_lock(_strip_id(d)))
     return out
 
 
@@ -549,7 +643,8 @@ async def get_consultation(
     doc = await _get_consultation(consultation_id, user)
     consents = [c async for c in db.nt_consents.find({"consultation_id": consultation_id})]
     doc["consent_summary"] = _consent_readiness(consents)
-    return _strip_id(doc)
+    doc["legacy_consent_incomplete"] = _legacy_consent_incomplete(doc, consents)
+    return _apply_lock(_strip_id(doc))
 
 
 @router.patch("/consultations/{consultation_id}/cancel")
@@ -731,7 +826,30 @@ async def withdraw_consent(
     (consultation moves to CONSENT_WITHDRAWN) and writes an audit event to
     nt_consent_audit. No data is deleted or modified — no retention policy
     is configured yet, so existing material is left exactly as it was.
+
+    Withdrawing a participant whose LATEST decision is already "withdrawn"
+    is a no-op: no duplicate consent record, no duplicate audit event, no
+    state change — it just returns the existing withdrawal.
     """
+    doc = await _get_consultation(consultation_id, user)
+    name = body.participant_name.strip()
+    existing_for_participant = [
+        c async for c in db.nt_consents.find({"consultation_id": consultation_id, "participant_name": name})
+    ]
+    if existing_for_participant:
+        latest = max(existing_for_participant, key=lambda c: c["recorded_at"])
+        if latest["decision"] == ConsentDecision.withdrawn.value:
+            all_consents = [c async for c in db.nt_consents.find({"consultation_id": consultation_id})]
+            summary = _consent_readiness(all_consents)
+            latest.pop("_id", None)
+            return {
+                **latest,
+                "consultation_state": doc["state"],
+                "consent_summary": summary,
+                "retention_policy": "not_configured",
+                "already_withdrawn": True,
+            }
+
     result = await _apply_consent_decision(
         consultation_id, user,
         participant_name=body.participant_name,
@@ -745,6 +863,7 @@ async def withdraw_consent(
         idempotency_key=idempotency_key,
     )
     result["retention_policy"] = "not_configured"
+    result["already_withdrawn"] = False
     return result
 
 
@@ -820,6 +939,7 @@ async def save_manual_notes(
         summary = _consent_readiness(consents)
         if summary["status"] != "ready":
             raise HTTPException(409, "Required participant consent must be granted before capturing notes.")
+    await _guard_legacy_consent(consultation_id, doc)
 
     await db.nt_consultations.update_one(
         {"id": consultation_id},
@@ -1086,6 +1206,7 @@ async def update_transcript(
     doc = await _get_consultation(consultation_id, user)
     if doc["state"] != ConsultationState.TRANSCRIPT_REVIEW.value:
         raise HTTPException(409, f"Transcript editing is only allowed in TRANSCRIPT_REVIEW state (current: {doc['state']}).")
+    await _guard_legacy_consent(consultation_id, doc)
 
     updates: dict = {"updated_at": _now()}
     if body.working_transcript is not None:
@@ -1110,6 +1231,7 @@ async def approve_transcript(
         raise HTTPException(409, f"Transcript approval is only allowed in TRANSCRIPT_REVIEW state (current: {doc['state']}).")
     if not (doc.get("working_transcript") or "").strip():
         raise HTTPException(400, "Working transcript is empty; cannot approve.")
+    await _guard_legacy_consent(consultation_id, doc)
 
     await db.nt_consultations.update_one(
         {"id": consultation_id},
@@ -1145,6 +1267,7 @@ async def generate_note(
             409,
             f"Note generation is only allowed in NOTE_DRAFT state (current: {doc['state']}).",
         )
+    await _guard_legacy_consent(consultation_id, doc)
 
     # Choose the input content
     input_method = doc["input_method"]
@@ -1202,6 +1325,8 @@ async def get_note(
     user: dict = Depends(_require_advocate),
 ):
     doc = await _get_consultation(consultation_id, user)
+    if doc["state"] == ConsultationState.CONSENT_WITHDRAWN.value:
+        raise HTTPException(403, _LOCKED_REASON)
     return {
         "note_draft": doc.get("note_draft"),
         "approved_version": doc.get("approved_version"),
@@ -1234,6 +1359,7 @@ async def update_note(
     current_draft = doc.get("note_draft")
     if not current_draft:
         raise HTTPException(400, "No draft exists yet. Generate one first.")
+    await _guard_legacy_consent(consultation_id, doc)
 
     current_version = current_draft.get("version", 1)
     if body.expected_version != current_version:
@@ -1295,6 +1421,7 @@ async def revise_note(
     approved = doc.get("approved_version")
     if not approved:
         raise HTTPException(400, "No approved version exists to revise.")
+    await _guard_legacy_consent(consultation_id, doc)
 
     new_entry = {
         "version": approved.get("version", 1) + 1,
@@ -1363,6 +1490,7 @@ async def approve_note(
     draft = doc.get("note_draft")
     if not draft:
         raise HTTPException(400, "No draft exists. Generate one before approving.")
+    await _guard_legacy_consent(consultation_id, doc)
 
     current_version = draft.get("version", 1)
     if body.expected_version != current_version:
@@ -1439,6 +1567,8 @@ async def export_note(
     PDF export is handled on the frontend via the device share sheet.
     """
     doc = await _get_consultation(consultation_id, user)
+    if doc["state"] == ConsultationState.CONSENT_WITHDRAWN.value:
+        raise HTTPException(403, _LOCKED_REASON)
     approved = doc.get("approved_version")
     if not approved:
         raise HTTPException(409, "No approved version exists for this consultation.")

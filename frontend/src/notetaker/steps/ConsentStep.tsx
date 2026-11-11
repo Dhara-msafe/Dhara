@@ -47,6 +47,22 @@ export default function ConsentStep({
   const [continuing, setContinuing] = useState(false);
   const [withdrawTarget, setWithdrawTarget] = useState<Consent | null>(null);
   const [withdrawing, setWithdrawing] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+
+  // One row per participant, showing only their LATEST decision — the full
+  // record list (every decision ever made, with its own timestamp/notice
+  // version/scope) stays available behind "View consent history" so nothing
+  // is lost, it just isn't shown as if every historical entry were current.
+  const byParticipant = new Map<string, Consent[]>();
+  for (const item of consents) {
+    const list = byParticipant.get(item.participant_name) || [];
+    list.push(item);
+    byParticipant.set(item.participant_name, list);
+  }
+  const current: Consent[] = Array.from(byParticipant.values()).map(
+    list => list.slice().sort((a, b) => a.recorded_at.localeCompare(b.recorded_at)).slice(-1)[0],
+  );
+  const hasHistory = consents.length > current.length;
 
   // Drive messaging from the backend's own readiness computation (every
   // required participant's LATEST decision), not a local "any given?"
@@ -116,6 +132,55 @@ export default function ConsentStep({
     setWithdrawing(false);
   };
 
+  const renderConsentCard = (item: Consent, key: string) => {
+    const isWithdrawn = item.decision === 'withdrawn';
+    return (
+      <View key={key} style={styles.consentRow}>
+        <View style={styles.consentRowTop}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.consentName}>{item.participant_name}</Text>
+            {!!item.participant_role && <Text style={styles.consentRole}>{item.participant_role}</Text>}
+          </View>
+          <View style={[
+            styles.decisionBadge,
+            item.decision === 'given' && styles.decisionGiven,
+            (item.decision === 'declined' || isWithdrawn) && styles.decisionDeclined,
+            item.decision === 'unknown' && styles.decisionUnknown,
+          ]}>
+            <Text style={[
+              styles.decisionText,
+              item.decision === 'given' && styles.decisionTextGiven,
+              (item.decision === 'declined' || isWithdrawn) && styles.decisionTextDeclined,
+              item.decision === 'unknown' && styles.decisionTextUnknown,
+            ]}>
+              {item.decision === 'given' ? 'Consent given'
+                : item.decision === 'declined' ? 'Declined'
+                : item.decision === 'unknown' ? 'Unknown'
+                : 'Withdrawn'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.consentMetaRow}>
+          {!!item.scope?.length && (
+            <Text style={styles.consentMetaText}>Scope: {item.scope.map(s => SCOPE_LABELS[s] || s).join(', ')}</Text>
+          )}
+          {!!item.consent_notice_version && (
+            <Text style={styles.consentMetaText}>Notice {item.consent_notice_version}</Text>
+          )}
+          <Text style={styles.consentMetaText}>{new Date(item.recorded_at).toLocaleString()}</Text>
+        </View>
+        {!!item.evidence_ref && <Text style={styles.consentMetaText}>Evidence: {item.evidence_ref}</Text>}
+
+        {!isWithdrawn && (
+          <Pressable style={styles.withdrawBtn} onPress={() => setWithdrawTarget(item)}>
+            <Text style={styles.withdrawBtnText}>Withdraw consent</Text>
+          </Pressable>
+        )}
+      </View>
+    );
+  };
+
   return (
     <View style={styles.wrap}>
       <Text style={styles.heading}>Participant consent</Text>
@@ -126,55 +191,25 @@ export default function ConsentStep({
         the consultation.
       </Text>
 
-      {consents.length > 0 && (
+      {current.length > 0 && (
         <View style={styles.list}>
-          {consents.map(item => {
-            const isWithdrawn = item.decision === 'withdrawn';
-            return (
-              <View key={item.id} style={styles.consentRow}>
-                <View style={styles.consentRowTop}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.consentName}>{item.participant_name}</Text>
-                    {!!item.participant_role && <Text style={styles.consentRole}>{item.participant_role}</Text>}
-                  </View>
-                  <View style={[
-                    styles.decisionBadge,
-                    item.decision === 'given' && styles.decisionGiven,
-                    (item.decision === 'declined' || isWithdrawn) && styles.decisionDeclined,
-                    item.decision === 'unknown' && styles.decisionUnknown,
-                  ]}>
-                    <Text style={[
-                      styles.decisionText,
-                      item.decision === 'given' && styles.decisionTextGiven,
-                      (item.decision === 'declined' || isWithdrawn) && styles.decisionTextDeclined,
-                      item.decision === 'unknown' && styles.decisionTextUnknown,
-                    ]}>
-                      {item.decision === 'given' ? 'Consent given'
-                        : item.decision === 'declined' ? 'Declined'
-                        : item.decision === 'unknown' ? 'Unknown'
-                        : 'Withdrawn'}
-                    </Text>
-                  </View>
-                </View>
+          {current.map(item => renderConsentCard(item, item.id))}
+        </View>
+      )}
 
-                <View style={styles.consentMetaRow}>
-                  {!!item.scope?.length && (
-                    <Text style={styles.consentMetaText}>Scope: {item.scope.map(s => SCOPE_LABELS[s] || s).join(', ')}</Text>
-                  )}
-                  {!!item.consent_notice_version && (
-                    <Text style={styles.consentMetaText}>Notice {item.consent_notice_version}</Text>
-                  )}
-                </View>
-                {!!item.evidence_ref && <Text style={styles.consentMetaText}>Evidence: {item.evidence_ref}</Text>}
-
-                {!isWithdrawn && (
-                  <Pressable style={styles.withdrawBtn} onPress={() => setWithdrawTarget(item)}>
-                    <Text style={styles.withdrawBtnText}>Withdraw consent</Text>
-                  </Pressable>
-                )}
-              </View>
-            );
-          })}
+      {hasHistory && (
+        <Pressable onPress={() => setHistoryOpen(o => !o)} style={styles.historyToggle}>
+          <Text style={styles.historyToggleText}>
+            {historyOpen ? 'Hide consent history' : `View consent history (${consents.length} record${consents.length === 1 ? '' : 's'})`}
+          </Text>
+        </Pressable>
+      )}
+      {historyOpen && (
+        <View style={styles.historyBox}>
+          {consents
+            .slice()
+            .sort((a, b) => b.recorded_at.localeCompare(a.recorded_at))
+            .map(item => renderConsentCard(item, `history-${item.id}`))}
         </View>
       )}
 

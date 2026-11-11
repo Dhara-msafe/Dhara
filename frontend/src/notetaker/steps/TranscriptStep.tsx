@@ -9,6 +9,7 @@ import { theme } from '@/src/theme';
 import { crossAlert } from '@/src/utils/crossAlert';
 import { apiPatch, apiPost } from '../api';
 import type { Consultation } from '../api';
+import { LegacyConsentNotice } from '../ui';
 
 const c = theme.colors;
 
@@ -20,6 +21,7 @@ export default function TranscriptStep({
   const [approving, setApproving] = useState(false);
   const [showOriginal, setShowOriginal] = useState(false);
   const dirty = text !== (consultation.working_transcript || '');
+  const legacyBlocked = !!consultation.legacy_consent_incomplete;
 
   const save = async () => {
     setSaving(true);
@@ -49,20 +51,23 @@ export default function TranscriptStep({
       <Text style={styles.heading}>Review the transcript</Text>
       <Text style={styles.body}>Edit for accuracy. The original import is always kept for reference.</Text>
 
+      {legacyBlocked && <LegacyConsentNotice />}
+
       <TextInput
         style={styles.textArea}
         value={text}
         onChangeText={setText}
         multiline
         textAlignVertical="top"
+        editable={!legacyBlocked}
       />
 
       <View style={styles.row}>
         <Pressable style={styles.linkBtn} onPress={() => setShowOriginal(s => !s)}>
           <Text style={styles.linkBtnText}>{showOriginal ? 'Hide original' : 'View original import'}</Text>
         </Pressable>
-        <Pressable style={styles.secondarySmallBtn} onPress={save} disabled={!dirty || saving}>
-          {saving ? <ActivityIndicator color={c.navy} size="small" /> : <Text style={[styles.secondarySmallBtnText, !dirty && { opacity: 0.4 }]}>Save changes</Text>}
+        <Pressable style={styles.secondarySmallBtn} onPress={save} disabled={!dirty || saving || legacyBlocked}>
+          {saving ? <ActivityIndicator color={c.navy} size="small" /> : <Text style={[styles.secondarySmallBtnText, (!dirty || legacyBlocked) && { opacity: 0.4 }]}>Save changes</Text>}
         </Pressable>
       </View>
 
@@ -73,9 +78,9 @@ export default function TranscriptStep({
       )}
 
       <Pressable
-        style={[styles.primaryBtn, (dirty || !text.trim()) && styles.disabledBtn, { marginTop: 20 }]}
+        style={[styles.primaryBtn, (dirty || !text.trim() || legacyBlocked) && styles.disabledBtn, { marginTop: 20 }]}
         onPress={approve}
-        disabled={dirty || !text.trim() || approving}
+        disabled={dirty || !text.trim() || approving || legacyBlocked}
       >
         {approving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Approve transcript & draft note</Text>}
       </Pressable>

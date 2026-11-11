@@ -111,6 +111,14 @@ export interface Consultation {
   approved_version: NoteDraft | null;
   processing_error: string | null;
   consent_summary?: ConsentSummary;
+  /** N1-N2 follow-up fix #4: a pre-existing record that advanced past consent checks
+   * despite a required participant's latest decision being declined/unknown. No new
+   * Approve/Save/Revise is allowed until a fresh "given" decision is recorded. */
+  legacy_consent_incomplete?: boolean;
+  /** N1-N2 follow-up fix #3: true once CONSENT_WITHDRAWN — content fields below are
+   * omitted (not deleted) and locked_reason explains why. */
+  locked?: boolean;
+  locked_reason?: string | null;
 }
 
 export const CONSENT_SCOPE_OPTIONS = ['notes', 'audio', 'transcription', 'storage'] as const;
