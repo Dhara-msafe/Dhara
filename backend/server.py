@@ -185,6 +185,39 @@ async def _validation_error_handler(request: Request, exc: RequestValidationErro
     )
 
 
+# N-05 (B-43): named, single-source-of-truth retention window for
+# db.error_events, instead of a magic 90*24*3600 buried inline at the TTL
+# index call site. A 4,000-character traceback per unhandled 500 adds up at
+# volume, so this collection must never grow unbounded — the matching TTL
+# index is created in the app's startup handler (_ensure_error_event_ttl,
+# further down this file) using this exact constant. If the TL wants a
+# different retention window, change it here only.
+ERROR_EVENTS_RETENTION_DAYS = 90
+
+# Same reasoning for the per-document size cap: named here so both the cap
+# and the retention window are documented in one place, next to each other.
+ERROR_EVENT_TRACEBACK_MAX_CHARS = 4000
+
+
+async def ensure_error_event_ttl_index(database) -> None:
+    """Create (or confirm) the TTL index that bounds db.error_events'
+    lifetime to ERROR_EVENTS_RETENTION_DAYS (N-05 / B-43).
+
+    Called once at startup, fire-and-forget (the app must never fail to boot
+    over an index-creation hiccup — see the try/except below). Takes the
+    database explicitly (instead of closing over the module-level `db`) so
+    it can be called directly against a fake/mock collection in a unit test
+    without needing a live Mongo instance or the FastAPI startup event.
+    """
+    try:
+        await database.error_events.create_index(
+            "created_at", expireAfterSeconds=ERROR_EVENTS_RETENTION_DAYS * 24 * 3600,
+            name="error_events_ttl",
+        )
+    except Exception as e:
+        logger.warning(f"[startup] error_events TTL index warning: {e}")
+
+
 def _record_error_event(request: Request, exc: Exception) -> None:
     """Persist a privacy-safe record of an unhandled server error.
 
@@ -194,13 +227,19 @@ def _record_error_event(request: Request, exc: Exception) -> None:
     PRIVACY — the record holds the route, method, error type, status code, a
     trimmed traceback and a timestamp. Never the request body, headers, tokens,
     query string, coordinates, message contents, phone numbers or e-mails.
+
+    RETENTION (N-05 / B-43) — capped at ERROR_EVENTS_RETENTION_DAYS via the
+    `error_events_ttl` TTL index (created once at startup, see
+    _ensure_error_event_ttl below) on this doc's `created_at` field, which is
+    stored as a real BSON date (not a string) so Mongo's TTL monitor can act
+    on it directly.
     """
     import asyncio as _asyncio
     import traceback as _tb
     from datetime import datetime as _dt, timezone as _tz
 
     try:
-        tb = "".join(_tb.format_exception(type(exc), exc, exc.__traceback__))[-4000:]
+        tb = "".join(_tb.format_exception(type(exc), exc, exc.__traceback__))[-ERROR_EVENT_TRACEBACK_MAX_CHARS:]
         doc = {
             "route": request.url.path,          # path only — query string dropped
             "method": request.method,
@@ -1988,20 +2027,11 @@ async def _startup():
     # Fire-and-forget: sweep any abandoned Evidence Vault upload temp dirs
     asyncio.create_task(cleanup_stale_upload_sessions())
 
-    # In-app issue reporter indexes + a 90-day TTL on automatic error events
-    # (they hold no personal data, and nobody needs a year-old traceback).
+    # In-app issue reporter indexes + a retention TTL on automatic error
+    # events (they hold no personal data, and nobody needs a year-old
+    # traceback) — N-05 (B-43).
     asyncio.create_task(_ensure_issue_indexes())
-
-    async def _ensure_error_event_ttl():
-        try:
-            await db.error_events.create_index(
-                "created_at", expireAfterSeconds=90 * 24 * 3600,
-                name="error_events_ttl",
-            )
-        except Exception as e:
-            logger.warning(f"[startup] error_events TTL index warning: {e}")
-
-    asyncio.create_task(_ensure_error_event_ttl())
+    asyncio.create_task(ensure_error_event_ttl_index(db))
 
     # Fire-and-forget background task, NOT awaited: the corpus migration
     # (see corpus_migration.py) starts automatically the instant this
