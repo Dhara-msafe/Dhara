@@ -16,8 +16,10 @@ const c = theme.colors;
  * never happens to trigger an outbound action) had no way to tell an
  * internal_qa build apart from a real one just by looking at it — exactly
  * the gap D-01 calls out: "Internal QA builds simulate emergency calls (QA
- * MODE banner, `-qa` version name, build check, release preflight)." The
- * version name/build check/preflight existed; the on-screen banner didn't.
+ * MODE banner, `-qa` version name, build check, release preflight)."
+ * Only the banner is added here — the "-qa" version name and build check
+ * are B-02's responsibility (see app.config.js); release preflight is
+ * tracked separately, not part of either item.
  *
  * Deliberately NOT dismissible and NOT per-screen opt-in: it must be
  * impossible to navigate away from or forget it's there, since its whole
