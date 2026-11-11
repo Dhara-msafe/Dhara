@@ -17,16 +17,15 @@ Indexes: created lazily on first write or via POST /api/safety/admin/init-indexe
 """
 from __future__ import annotations
 
-import os
 import uuid
 import logging
 from datetime import datetime, timezone
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
-from dependencies import db, current_user
+from dependencies import db, current_user, check_admin_key
 
 logger = logging.getLogger("safety_router")
 router = APIRouter()
@@ -293,15 +292,22 @@ async def delete_saved_place(place_id: str, user: dict = Depends(current_user)):
 # ── Admin: explicit index initialisation ─────────────────────────────────────
 
 @router.post("/safety/admin/init-indexes")
-async def init_indexes(x_admin_key: str = None):
+async def init_indexes(x_admin_key: Optional[str] = Header(None)):
     """
     One-time index creation for safety_saved_places.
     Requires X-Admin-Key header (same key used by /api/admin/* routes).
     Safe to call multiple times; idempotent.
     """
-    # Re-use the existing admin key from env (same pattern as check_admin_key dependency)
-    expected = os.getenv("ADMIN_KEY", "")
-    if not expected or x_admin_key != expected:
-        raise HTTPException(403, "Invalid or missing admin key")
+    # XC-SEC: this used to reimplement the admin-key check inline with a
+    # plain `!=` string comparison, instead of calling the shared
+    # check_admin_key() helper every other admin route in the codebase
+    # uses. check_admin_key() compares with hmac.compare_digest() (constant-
+    # time, so a wrong guess can't be timed character-by-character) and
+    # returns 401 (not 403) for an invalid/missing key, same as everywhere
+    # else. A duplicated, divergent copy of a security check is exactly the
+    # kind of thing that quietly drifts out of sync the next time the real
+    # one is hardened — so this now calls the one shared implementation
+    # instead of keeping its own.
+    check_admin_key(x_admin_key)
     created = await _ensure_indexes_once()
     return {"created": created, "message": "already existed" if not created else "indexes created"}
