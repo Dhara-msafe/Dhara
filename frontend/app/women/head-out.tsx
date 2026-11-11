@@ -112,6 +112,8 @@ interface HeadOutSession {
    * sessions created before this field existed keep the original always-notify
    * behaviour). See deadline_worker.py's auto_notify_on_no_response gate. */
   autoNotifyOnNoResponse?: boolean;
+  /** Server journey token, persisted so a remount never creates a second journey. */
+  journeyToken?: string | null;
 }
 
 function formatCountdown(secs: number): string {
@@ -203,7 +205,11 @@ export default function HeadOut() {
           getCircle(),
         ]);
         setCircle(contacts);
-        if (raw) setSession(JSON.parse(raw));
+        if (raw) {
+          const saved = JSON.parse(raw);
+          setSession(saved);
+          if (saved?.journeyToken) setJourneyToken(saved.journeyToken);
+        }
       } catch {}
       setLoading(false);
     })();
@@ -226,14 +232,24 @@ export default function HeadOut() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
       body: JSON.stringify({
         destination: session.destination,
-        duration_mins: session.durationMins,
+        // Send the time actually LEFT so the server deadline matches the on-screen timer.
+        duration_mins: Math.max(1, Math.ceil((session.startTime + session.durationMins * 60000 - Date.now()) / 60000)),
         recipient_link_ids: session.recipientLinkIds ?? [],
         remind_before_mins: session.remindBeforeMins ?? null,
         auto_notify_on_no_response: session.autoNotifyOnNoResponse ?? true,
+        destination_lat: session.latitude ?? null,
+        destination_lng: session.longitude ?? null,
+        radius_meters: session.radiusMeters ?? null,
       }),
     })
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data?.token) setJourneyToken(data.token); })
+      .then(data => {
+        if (!data?.token) return;
+        setJourneyToken(data.token);
+        const updated = { ...session, journeyToken: data.token };
+        setSession(updated);
+        AsyncStorage.setItem(SESSION_KEY, JSON.stringify(updated)).catch(() => {});
+      })
       .catch(() => {});   // non-fatal — GPS tracking stays best-effort
   }, [session, expired, authToken, journeyToken]);
 
@@ -530,7 +546,11 @@ export default function HeadOut() {
   const arrivalRadius = session?.radiusMeters && isValidRadius(session.radiusMeters)
     ? session.radiusMeters : DEFAULT_ARRIVAL_RADIUS_M;
 
-  const hasArrived = GO1C_LIVE_ROUTE_ENABLED && distanceToDestination != null && distanceToDestination <= arrivalRadius;
+  // Only trust a fix that is recent AND at least as precise as the arrival radius.
+  const fixIsFresh = gps.lastFixAt != null && Date.now() - gps.lastFixAt < OFFLINE_THRESHOLD_MS;
+  const fixIsAccurate = gps.accuracy != null && gps.accuracy <= arrivalRadius;
+  const hasArrived = GO1C_LIVE_ROUTE_ENABLED && distanceToDestination != null
+    && fixIsFresh && fixIsAccurate && distanceToDestination <= arrivalRadius;
 
   const movingAway = useMemo(() => {
     const hist = distanceHistoryRef.current;
@@ -739,7 +759,10 @@ export default function HeadOut() {
       keyboardShouldPersistTaps="handled"
       testID="head-out-screen"
     >
-      <ScreenHeader title="Head out safely" subtitle="Set a check-in timer — nothing is sent automatically" />
+      <ScreenHeader
+        title="Head out safely"
+        subtitle={GO1B_GPS_ENABLED ? 'Your trusted circle is told only as per your settings' : 'Set a check-in timer — nothing is sent automatically'}
+      />
 
       {expired ? (
             <View style={[styles.activeCard, styles.expiredCard]} testID="headout-expired-card">
@@ -943,9 +966,14 @@ export default function HeadOut() {
             <View style={styles.activeCard} testID="headout-active-card">
               <View style={styles.activeHeader}>
                 <Ionicons name="navigate-circle-outline" size={26} color={c.navy} />
-                <Text style={styles.activeTitle}>Session active</Text>
+                <Text style={styles.activeTitle}>Journey active</Text>
               </View>
               <Text style={styles.destTxt}>{session.destination}</Text>
+              {GO1C_LIVE_ROUTE_ENABLED && gps.tracking && !(fixIsFresh && fixIsAccurate) && (
+                <Text style={styles.note} testID="headout-location-uncertain">
+                  {"Location uncertain — DHARA can't confirm your arrival from this reading. Tap \"I'm safe\" or \"Need help\" yourself."}
+                </Text>
+              )}
               {!!session.radiusMeters && (
                 <Text style={styles.radiusTxt}>
                   {GO1B_GPS_ENABLED
@@ -972,7 +1000,7 @@ export default function HeadOut() {
               )}
               <Text style={styles.timerLbl}>Next check-in in</Text>
               <Text testID="headout-timer" style={styles.timerDisplay}>{formatCountdown(secsLeft)}</Text>
-              <Text style={styles.note}>{'Tap "I\'m home safely" when you\'re back. DHARA will help you alert your circle if this timer runs out.'}</Text>
+              <Text style={styles.note}>{'Tap "I\'m safe" when you reach. DHARA will help you alert your circle if this timer runs out.'}</Text>
               {GUARDIAN_SHARE_ENABLED && (
                 <Pressable
                   testID="headout-notify-guardian"
@@ -1107,14 +1135,18 @@ export default function HeadOut() {
             style={[styles.button, styles.safeButton]}
             onPress={endSession}
             accessibilityRole="button"
-            accessibilityLabel="I'm home safely"
+            accessibilityLabel="I'm safe"
           >
             <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
-            <Text style={styles.buttonText}>{"I'm home safely"}</Text>
+            <Text style={styles.buttonText}>{"I'm safe"}</Text>
           </Pressable>
 
       <Text style={styles.disclosureNote}>
-        Nothing has been sent. Your session is saved on this device only.
+        {GO1B_GPS_ENABLED && journeyToken && (session.recipientLinkIds?.length ?? 0) > 0
+          ? (session.autoNotifyOnNoResponse === false
+              ? 'Your selected trusted circle was told this journey started. They are not alerted automatically if you miss a check-in.'
+              : 'Your selected trusted circle was told this journey started. If you miss your check-in, they are alerted 5 minutes after the timer ends.')
+          : 'Nothing has been sent. Your session is saved on this device only.'}
       </Text>
 
       {/* Pilot simulation preview — replaces the real sms: intent while
