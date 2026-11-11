@@ -187,19 +187,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return fallback;
   };
 
+  // B-24: sign-in calls must not spin forever on a bad network.
+  const NETWORK_MSG = 'Could not reach DHARA. Check your internet connection and try again.';
+  const _fetchAuth = async (url: string, init: RequestInit, timeoutMs = 20000): Promise<Response> => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      return await fetch(url, { ...init, signal: ctrl.signal });
+    } catch {
+      throw new Error(NETWORK_MSG);
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
+  // B-35: an under-18 account gets 403 minor_blocked on every call. Detect it
+  // before signing in, so the user sees the guardian message instead of an app
+  // where nothing works.
+  const _minorBlockedMessage = async (tok: string): Promise<string | null> => {
+    try {
+      const r = await _fetchAuth(`${API}/api/auth/me`, { headers: { Authorization: `Bearer ${tok}` } });
+      if (r.status !== 403) return null;
+      const body = await r.json().catch(() => null);
+      const d = body?.detail;
+      return d?.code === 'minor_blocked'
+        ? (d.message || 'Please ask a parent or guardian to help you set up Dhara.')
+        : null;
+    } catch {
+      return null;
+    }
+  };
+
   const login = async (email: string, password: string) => {
-    const r = await fetch(`${API}/api/auth/login`, {
+    const r = await _fetchAuth(`${API}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
     if (!r.ok) throw new Error(await _extractError(r, 'Login failed'));
     const data = await r.json();
+    const minorMsg = await _minorBlockedMessage(data.token);
+    if (minorMsg) {
+      const err: any = new Error(minorMsg);
+      err.code = 'minor_blocked';
+      throw err;
+    }
     await persist(data.token, data.user);
   };
 
   const register = async (email: string, password: string, name: string, phone: string, terms_accepted: boolean, terms_version: string) => {
-    const r = await fetch(`${API}/api/auth/register`, {
+    const r = await _fetchAuth(`${API}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, name, phone, terms_accepted, terms_version }),
@@ -210,7 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const continueAsGuest = async (langCode?: string) => {
-    const r = await fetch(`${API}/api/auth/guest`, {
+    const r = await _fetchAuth(`${API}/api/auth/guest`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ language: langCode || language.code || 'en' }),

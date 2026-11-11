@@ -1907,6 +1907,15 @@ async def _startup():
     except Exception as e:
         logger.warning(f"[startup] court cache index creation warning: {e}")
 
+    # B-22: one account per email. Guests use unique "<id>@guest.dhara.local"
+    # addresses, so they never collide. If existing duplicates prevent the
+    # index, startup continues and the warning names the problem.
+    try:
+        await db.users.create_index("email", unique=True, name="users_email_unique")
+        logger.info("[startup] users.email unique index OK")
+    except Exception as e:
+        logger.warning(f"[startup] users.email unique index NOT created: {e}")
+
     # Advocate Door — ensure indexes exist (idempotent)
     try:
         await db.advocate_profiles.create_index("user_id", unique=True)

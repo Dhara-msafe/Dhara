@@ -6,6 +6,7 @@ Depends on: dependencies.py, config/settings.py
 import uuid
 import secrets
 import httpx
+from pymongo.errors import DuplicateKeyError
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -112,7 +113,10 @@ async def register(body: RegisterIn):
         "terms_accepted_at": now,
         "created_at": now,
     }
-    await db.users.insert_one(doc)
+    try:
+        await db.users.insert_one(doc)
+    except DuplicateKeyError:
+        raise HTTPException(400, "Email already registered")
     # Persist terms acknowledgement in a separate audit collection too
     await db.terms_acknowledgements.insert_one({
         "id": str(uuid.uuid4()),

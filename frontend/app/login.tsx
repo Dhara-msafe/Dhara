@@ -22,6 +22,7 @@ export default function Login() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [guestLoading, setGuestLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [minorBlocked, setMinorBlocked] = useState(false);
 
   const onSubmit = async () => {
     setError(null);
@@ -31,6 +32,7 @@ export default function Login() {
       await login(email.trim(), password);
       _postLoginNav();
     } catch (e: any) {
+      setMinorBlocked(e?.code === 'minor_blocked');
       setError(e?.message || 'Login failed');
     } finally {
       setLoading(false);
@@ -131,6 +133,13 @@ export default function Login() {
             </View>
 
             {error && <Text style={styles.error} testID="login-error">{error}</Text>}
+            {minorBlocked && (
+              <View testID="login-minor-help" style={{ flexDirection: 'row', gap: 16, marginTop: 8 }}>
+                <Pressable onPress={() => router.push('/emergency')} accessibilityRole="button" accessibilityLabel="Emergency helplines">
+                  <Text style={{ color: theme.colors.primary, fontWeight: '600' }}>Emergency helplines</Text>
+                </Pressable>
+              </View>
+            )}
 
             <Pressable testID="login-submit-button" style={[styles.btn, loading && { opacity: 0.6 }]} disabled={loading} onPress={onSubmit}>
               {loading ? <ActivityIndicator color={theme.colors.onBrandPrimary} /> : <Text style={styles.btnText}>Sign In</Text>}

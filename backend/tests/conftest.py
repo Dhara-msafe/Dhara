@@ -22,6 +22,20 @@ from pathlib import Path
 
 import pytest
 from dotenv import dotenv_values, load_dotenv
+
+
+def pytest_configure(config):
+    """B-16f: tests register users, reset login locks and clear usage counters.
+    They must never touch Preview or production data, so the suite refuses to
+    start unless DB_NAME (exported before pytest starts, e.g. by
+    tests/qa/run_isolated.sh) is an isolated QA database."""
+    db_name = os.environ.get("DB_NAME", "")
+    if not db_name.startswith("dhara_qa_"):
+        pytest.exit(
+            f"Refusing to run: DB_NAME={db_name or '(not set)'} is not an isolated QA "
+            "database. Export DB_NAME=dhara_qa_<name> or use tests/qa/run_isolated.sh.",
+            returncode=2,
+        )
 from pymongo import MongoClient
 
 _BACKEND_DIR = Path(__file__).resolve().parent.parent
