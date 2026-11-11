@@ -117,9 +117,22 @@ test('calling uses the outbound-guarded openPhone helper, not a raw dialler call
   assert.ok(src.includes("import { openPhone } from '@/src/women/helpActions'"));
   assert.ok(!src.includes('Linking.openURL'), 'must route through outbound.ts, not call Linking directly');
 });
-test('112 stays on the static, non-functional emergency display (unchanged scope)', () => {
-  assert.ok(src.includes('EmergencyNumberStatic'));
-  assert.ok(src.includes('EmergencyNotActiveNotice'));
+// N-01/B-39: this assertion used to pin 112 to the old static/disabled
+// display (EmergencyNumberStatic), written against a stale pre-0bbafb4
+// branch. That component was deleted on 2026-11-07 when the dialler was
+// intentionally restored here (same direction as B-02 / N-10 app-wide), but
+// the import lingered as dead code pointing at a file that no longer
+// exists — breaking the bundle — while this test kept "passing" because it
+// only substring-matched the import line, never checked it was rendered.
+// Asserting the real, current contract instead: 112 calls the live dialler
+// through the outbound-guarded helper, and the deleted component is gone
+// for good, not reintroduced.
+test('112 calls the real dialler via the outbound-guarded openPhone helper', () => {
+  assert.ok(/onPress=\{async \(\) => setStatus\(await openPhone\('112'\)\)\}/.test(src));
+});
+test('does not reintroduce the deleted static/disabled emergency display', () => {
+  assert.ok(!src.includes('EmergencyNumberStatic'));
+  assert.ok(!src.includes('EmergencyNotActiveNotice'));
 });
 test('manual "search in Maps instead" fallback is still present alongside results', () => {
   assert.ok(src.includes('nearest-help-manual-search'));
