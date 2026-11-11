@@ -1376,7 +1376,11 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
 
     # Daily LLM spend cap — only counted when we are actually going to call the
     # model (a refusal costs nothing, so it must not eat the user's allowance).
-    if not early_refusal:
+    # B-36 / DHARA-P0-4: an immediate-danger message must never be blocked by
+    # this cap (per-user or app-wide) — the quota wall must NEVER gate a
+    # life-safety response, exactly like the guest-expiry (B-04b) and
+    # Pro-paywall (B-04c) gates above.
+    if not early_refusal and not _emergency:
         await meter_llm_use(user, "question")
 
     # Derive native name — fall back to LANGUAGES table if client didn't send it
