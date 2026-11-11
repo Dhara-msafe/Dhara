@@ -101,6 +101,7 @@ def public_user(u: dict) -> dict:
         # Profile photo (P1) — additive; never embeds image bytes in the user doc.
         "photo_url": (f"/api/profile/photo/{u['id']}?v={u.get('photo_version')}" if u.get("photo_path") else None),
         "photo_visibility": u.get("photo_visibility", "only_me"),
+        "has_password": bool(u.get("password_hash")),
     }
 
 

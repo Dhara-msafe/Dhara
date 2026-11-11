@@ -127,6 +127,11 @@ export default function Settings() {
   };
 
   const submitDeleteAccount = async () => {
+    if (user?.has_password === false && !user?.is_guest) {
+      setShowDeleteModal(false);
+      router.push({ pathname: '/delete-account', params: { email: user.email } } as any);
+      return;
+    }
     if (!deletePassword) {
       setDeleteError('Enter your password to confirm.');
       return;

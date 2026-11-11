@@ -437,6 +437,12 @@ async def _finish_deletion(user_id: str) -> None:
 async def delete_account_in_app(body: DeleteAccountIn, user: dict = Depends(current_user)):
     """In-app path. Requires re-entering the account password as proof of
     intent — a bare button tap is not enough for an irreversible action."""
+    if not user.get("password_hash"):
+        raise HTTPException(400, {
+            "code": "use_email_code",
+            "message": "Your account signs in with Google, so it has no password. "
+                       "Please confirm deletion with a code sent to your email.",
+        })
     if not check_pw(body.password, user["password_hash"]):
         raise HTTPException(401, "Incorrect password.")
     await _finish_deletion(user["id"])

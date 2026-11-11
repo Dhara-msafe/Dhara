@@ -56,6 +56,29 @@ async def hard_delete_user(db, user_id: str) -> dict:
     usage_result = await db.usage_daily.delete_many({"user_id": user_id, "scope": "user"})
     counts["usage_daily"] = usage_result.deleted_count
 
+    # B-19 / GAP-06 (11 Nov 2026): user-linked collections the list above missed.
+    # Payment records, grievance tickets, advocate data and consent_log are
+    # deliberately NOT here — they wait for owner decisions (retention policy).
+    for name, flt in (
+        ("safety_journeys",       {"user_id": user_id}),
+        ("safety_alerts",         {"$or": [{"owner_id": user_id}, {"recipient_user_id": user_id}]}),
+        ("trusted_circle_links",  {"owner_id": user_id}),
+        ("safety_saved_places",   {"owner_id": user_id}),
+        ("scan_history",          {"user_id": user_id}),
+        ("data_export_requests",  {"user_id": user_id}),
+        ("account_deletion_otps", {"user_id": user_id}),
+        ("issue_reports",         {"user_id": user_id}),   # B-58
+    ):
+        counts[name] = (await db[name].delete_many(flt)).deleted_count
+    # Where this user was SOMEONE ELSE's trusted contact: that link belongs to
+    # the other person, so keep it but cut the tie to the deleted account.
+    unlinked = await db.trusted_circle_links.update_many(
+        {"invitee_user_id": user_id},
+        {"$set": {"invitee_user_id": None, "status": "revoked",
+                  "responded_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    counts["trusted_circle_links_unlinked"] = unlinked.modified_count
+
     # fir_sessions — NOT deleted here. Per the published retention policy
     # (/api/user/my-data → "fir_drafts: until account deletion + 30 days"),
     # FIR drafts get a 30-day grace period after account deletion, not an
@@ -67,6 +90,10 @@ async def hard_delete_user(db, user_id: str) -> dict:
         {"user_id": user_id}, {"$set": {"account_deleted_at": now_iso}}
     )
     counts["fir_sessions_tombstoned"] = fir_result.modified_count
+    drafts_result = await db.fir_drafts.update_many(
+        {"user_id": user_id}, {"$set": {"account_deleted_at": now_iso}}
+    )
+    counts["fir_drafts_tombstoned"] = drafts_result.modified_count
 
     # Evidence Vault (E2/A2) — storage objects first, then rows. Ownership is
     # user_id, or scope for legacy pre-migration rows (scope == user id since E1).

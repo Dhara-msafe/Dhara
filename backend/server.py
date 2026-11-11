@@ -2429,6 +2429,9 @@ async def run_retention_purge_loop():
             r = await db.fir_sessions.delete_many({"account_deleted_at": {"$lt": cutoff_30d}})
             if r.deleted_count:
                 logger.info(f"[retention] fir_sessions purged (post account-deletion grace period): {r.deleted_count}")
+            r = await db.fir_drafts.delete_many({"account_deleted_at": {"$lt": cutoff_30d}})
+            if r.deleted_count:
+                logger.info(f"[retention] fir_drafts purged (post account-deletion grace period): {r.deleted_count}")
 
             # ── usage_daily: 90 days (keyed on 'day' string YYYY-MM-DD) ────
             day_90 = (now - timedelta(days=90)).strftime("%Y-%m-%d")

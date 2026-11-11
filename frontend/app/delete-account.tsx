@@ -9,9 +9,9 @@ import {
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Link } from 'expo-router';
+import { Link, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { API_BASE } from '@/src/auth';
+import { API_BASE, useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
 
 /**
@@ -26,7 +26,9 @@ import { theme } from '@/src/theme';
  */
 export default function DeleteAccount() {
   const [step, setStep] = useState<'request' | 'verify' | 'done'>('request');
-  const [email, setEmail] = useState('');
+  const params = useLocalSearchParams<{ email?: string }>();
+  const { token, logout } = useAuth();
+  const [email, setEmail] = useState(typeof params.email === 'string' ? params.email : '');
   const [code, setCode] = useState('');
   const [confirmChecked, setConfirmChecked] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -83,6 +85,7 @@ export default function DeleteAccount() {
         return;
       }
       setStep('done');
+      if (token) logout().catch(() => {});
     } catch (e: any) {
       setError(e?.message || 'Network error. Please try again.');
     } finally {
