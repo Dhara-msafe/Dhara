@@ -536,8 +536,22 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
     is_pro_user = bool(user.get("is_pro"))
     samples_used = int(user.get("pro_samples_used", 0))
     is_sample_consumption = False
-    # Advocate mode: professional prompt for licensed advocates — no paywall
-    is_advocate_mode = (mode == "advocate")
+    # Advocate mode: professional prompt for licensed advocates — no paywall.
+    # B-37: this must only ever apply to a VERIFIED advocate. It previously
+    # trusted the client-supplied `mode` field with no server-side check at
+    # all, so any account (free, guest-adjacent, anyone) could send
+    # mode="advocate" and get the professional prompt with the Pro paywall
+    # skipped entirely. Mirror the same check intake_create() already uses
+    # elsewhere: a user only counts as an advocate if they have a row in
+    # advocate_profiles. Unverified callers fall back to the ordinary "pro"
+    # gate instead of silently getting free Pro-quality access.
+    is_advocate_mode = False
+    if mode == "advocate" and not is_guest:
+        _advocate_profile = await db.advocate_profiles.find_one({"user_id": user["id"]})
+        if _advocate_profile:
+            is_advocate_mode = True
+        else:
+            mode = "pro"
 
     if mode == "pro" and not is_pro_user and not is_advocate_mode:
         if samples_used >= PRO_FREE_SAMPLES:
