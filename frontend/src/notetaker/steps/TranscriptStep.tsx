@@ -4,8 +4,9 @@
  * before approving it to move into note drafting.
  */
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { theme } from '@/src/theme';
+import { crossAlert } from '@/src/utils/crossAlert';
 import { apiPatch, apiPost } from '../api';
 import type { Consultation } from '../api';
 
@@ -26,19 +27,19 @@ export default function TranscriptStep({
       await apiPatch(token, `/consultations/${consultation.id}/transcript`, { working_transcript: text });
       onChanged();
     } catch (e: any) {
-      Alert.alert('Could not save', e?.message || 'Please try again.');
+      crossAlert('Could not save', e?.message || 'Please try again.');
     }
     setSaving(false);
   };
 
   const approve = async () => {
-    if (dirty) { Alert.alert('Save changes first', 'Save your edits before approving the transcript.'); return; }
+    if (dirty) { crossAlert('Save changes first', 'Save your edits before approving the transcript.'); return; }
     setApproving(true);
     try {
       await apiPost(token, `/consultations/${consultation.id}/transcript/approve`);
       onChanged();
     } catch (e: any) {
-      Alert.alert('Could not approve', e?.message || 'Please try again.');
+      crossAlert('Could not approve', e?.message || 'Please try again.');
     }
     setApproving(false);
   };

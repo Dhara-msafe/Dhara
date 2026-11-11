@@ -6,9 +6,19 @@
 import * as Crypto from 'expo-crypto';
 import { API_BASE } from '@/src/auth';
 
-/** Fresh key for one logical write action (consent, consultation create, task drafts). */
+/**
+ * Fresh key for one logical write action (consent, consultation create,
+ * task drafts). Falls back to a non-crypto pseudo-UUID instead of throwing
+ * if the platform's crypto.randomUUID is unavailable (e.g. an insecure/HTTP
+ * context) — the Idempotency-Key header is a best-effort safety net, so
+ * generating it must never be able to block the actual request.
+ */
 export function newIdempotencyKey(): string {
-  return Crypto.randomUUID();
+  try {
+    return Crypto.randomUUID();
+  } catch {
+    return `fallback-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
 }
 
 export type ConsultationState =

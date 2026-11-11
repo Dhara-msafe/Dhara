@@ -5,10 +5,11 @@
  * consultation it came from.
  */
 import React, { useCallback, useState } from 'react';
-import { View, Text, Pressable, FlatList, ActivityIndicator, StyleSheet, Alert } from 'react-native';
+import { View, Text, Pressable, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
 import { useFocusEffect, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/src/theme';
+import { crossAlert } from '@/src/utils/crossAlert';
 import { useAuth } from '@/src/auth';
 import { listTasks, updateTaskStatus } from '@/src/notetaker/api';
 import { ScreenHeader } from '@/src/notetaker/ui';
@@ -46,7 +47,7 @@ export default function TasksScreen() {
       // Optimistic removal from the current tab's list.
       setTasks(prev => prev.filter(t => t.id !== task.id));
     } catch (e: any) {
-      Alert.alert('Could not update task', e?.message || 'Please try again.');
+      crossAlert('Could not update task', e?.message || 'Please try again.');
     }
     setUpdatingId(null);
   };

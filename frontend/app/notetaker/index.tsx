@@ -5,11 +5,12 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, Pressable, FlatList, ActivityIndicator,
-  StyleSheet, TextInput, Modal, KeyboardAvoidingView, Platform, Alert,
+  StyleSheet, TextInput, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useFocusEffect, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/src/theme';
+import { crossAlert } from '@/src/utils/crossAlert';
 import { API_BASE, useAuth } from '@/src/auth';
 
 const c = theme.colors;
@@ -47,7 +48,7 @@ export default function MatterListScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const createMatter = async () => {
-    if (!title.trim()) return;
+    if (!title.trim()) { crossAlert('Title required', 'Give this matter a title before creating it.'); return; }
     setCreating(true);
     try {
       const r = await fetch(`${API_BASE}/api/notetaker/matters`, {
@@ -61,10 +62,10 @@ export default function MatterListScreen() {
         setTitle(''); setClientRef('');
         router.push(`/notetaker/matter/${m.id}`);
       } else {
-        Alert.alert('Error', 'Could not create matter.');
+        crossAlert('Error', 'Could not create matter.');
       }
     } catch {
-      Alert.alert('Error', 'Network error.');
+      crossAlert('Error', 'Network error.');
     }
     setCreating(false);
   };
@@ -159,7 +160,7 @@ export default function MatterListScreen() {
               <Pressable
                 style={[styles.saveBtn, !title.trim() && styles.saveBtnDisabled]}
                 onPress={createMatter}
-                disabled={!title.trim() || creating}
+                disabled={creating}
               >
                 {creating
                   ? <ActivityIndicator color="#fff" size="small" />

@@ -5,12 +5,13 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, Pressable, ScrollView, StyleSheet,
-  ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
+  ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
+import { crossAlert } from '@/src/utils/crossAlert';
 import { apiPost, newIdempotencyKey } from '@/src/notetaker/api';
 import { ScreenHeader } from '@/src/notetaker/ui';
 import type { Consultation, InputMethod } from '@/src/notetaker/api';
@@ -57,7 +58,17 @@ export default function NewConsultationScreen() {
   const canSave = title.trim().length > 0 && purpose.trim().length > 0 && dateValid;
 
   const save = async () => {
-    if (!canSave || !matterId || !token) return;
+    if (!matterId) { crossAlert('Missing matter', 'Open this form from a matter so it knows where to file the consultation.'); return; }
+    if (!token) { crossAlert('Session expired', 'Please sign in again.'); return; }
+    if (!canSave) {
+      crossAlert(
+        'A few fields are missing',
+        !dateValid
+          ? 'Enter the date as YYYY-MM-DD.'
+          : 'Add a title and a purpose before creating the consultation.',
+      );
+      return;
+    }
     setSaving(true);
     try {
       const consultation = await apiPost<Consultation>(token, `/matters/${matterId}/consultations`, {
@@ -69,7 +80,7 @@ export default function NewConsultationScreen() {
       }, newIdempotencyKey());
       router.replace(`/notetaker/consultation/${consultation.id}`);
     } catch (e: any) {
-      Alert.alert('Could not create consultation', e?.message || 'Please try again.');
+      crossAlert('Could not create consultation', e?.message || 'Please try again.');
     }
     setSaving(false);
   };
@@ -143,7 +154,7 @@ export default function NewConsultationScreen() {
         <Pressable
           style={[styles.saveBtn, !canSave && styles.saveBtnDisabled]}
           onPress={save}
-          disabled={!canSave || saving}
+          disabled={saving}
         >
           {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Create consultation</Text>}
         </Pressable>

@@ -3,10 +3,11 @@
  * finalised, read-only note plus export (share/copy) and task-draft actions.
  */
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ActivityIndicator, Alert, Platform, Clipboard, Share } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ActivityIndicator, Platform, Clipboard, Share } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { theme } from '@/src/theme';
+import { crossAlert } from '@/src/utils/crossAlert';
 import { apiPost, fetchExportText, newIdempotencyKey } from '../api';
 import type { Consultation, NoteSections } from '../api';
 
@@ -36,7 +37,7 @@ export default function ApprovedStep({
       const text = await fetchExportText(token, consultation.id);
       if (mode === 'copy') {
         Clipboard.setString(text);
-        Alert.alert('Copied', 'The note was copied to your clipboard.');
+        crossAlert('Copied', 'The note was copied to your clipboard.');
       } else if (Platform.OS === 'web') {
         await Share.share({ message: text });
       } else {
@@ -51,7 +52,7 @@ export default function ApprovedStep({
         }
       }
     } catch (e: any) {
-      Alert.alert('Export failed', e?.message || 'Please try again.');
+      crossAlert('Export failed', e?.message || 'Please try again.');
     }
     setBusy(false);
   };
@@ -59,10 +60,16 @@ export default function ApprovedStep({
   const createTasks = async () => {
     setCreatingTasks(true);
     try {
-      const r = await apiPost<{ tasks_created: number }>(token, `/consultations/${consultation.id}/tasks`, {}, newIdempotencyKey());
-      Alert.alert('Task drafts created', `${r.tasks_created} task${r.tasks_created === 1 ? '' : 's'} created from proposed actions.`);
+      const r = await apiPost<{ tasks_created: number; already_created?: boolean }>(
+        token, `/consultations/${consultation.id}/tasks`, {}, newIdempotencyKey(),
+      );
+      if (r.already_created) {
+        crossAlert('Task drafts already created', 'These proposed actions already have task drafts — no new ones were created.');
+      } else {
+        crossAlert('Task drafts created', `${r.tasks_created} task${r.tasks_created === 1 ? '' : 's'} created from proposed actions.`);
+      }
     } catch (e: any) {
-      Alert.alert('Could not create tasks', e?.message || 'Please try again.');
+      crossAlert('Could not create tasks', e?.message || 'Please try again.');
     }
     setCreatingTasks(false);
   };
@@ -113,7 +120,7 @@ export default function ApprovedStep({
       {!advocateVerified && (
         <View style={styles.verificationNotice}>
           <Text style={styles.verificationNoticeText}>
-            Export is available once your advocate verification is reviewed and approved.
+            Export is not available for this account yet.
           </Text>
         </View>
       )}

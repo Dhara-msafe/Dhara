@@ -4,11 +4,12 @@
  * (file picker or live microphone recording — recording is native-only).
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Alert, Platform, Linking } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Platform, Linking } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useAudioRecorder, RecordingPresets, setAudioModeAsync, AudioModule } from 'expo-audio';
 import { theme } from '@/src/theme';
+import { crossAlert } from '@/src/utils/crossAlert';
 import { apiPost } from '../api';
 import { formatFileSize } from '../ui';
 import { uploadForm } from '@/src/utils/upload';
@@ -35,13 +36,13 @@ function ManualInput({ consultation, token, onChanged }: { consultation: Consult
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
-    if (!notes.trim()) { Alert.alert('Notes required', 'Write a few notes before continuing.'); return; }
+    if (!notes.trim()) { crossAlert('Notes required', 'Write a few notes before continuing.'); return; }
     setSaving(true);
     try {
       await apiPost(token, `/consultations/${consultation.id}/manual-notes`, { notes });
       onChanged();
     } catch (e: any) {
-      Alert.alert('Could not save', e?.message || 'Please try again.');
+      crossAlert('Could not save', e?.message || 'Please try again.');
     }
     setSaving(false);
   };
@@ -80,19 +81,19 @@ function TranscriptImport({ consultation, token, onChanged }: { consultation: Co
         setText(content);
       }
     } catch {
-      Alert.alert('Could not read file', 'Please paste the transcript text instead.');
+      crossAlert('Could not read file', 'Please paste the transcript text instead.');
     }
     setPicking(false);
   };
 
   const save = async () => {
-    if (!text.trim()) { Alert.alert('Transcript required', 'Paste or import a transcript before continuing.'); return; }
+    if (!text.trim()) { crossAlert('Transcript required', 'Paste or import a transcript before continuing.'); return; }
     setSaving(true);
     try {
       await apiPost(token, `/consultations/${consultation.id}/transcript`, { text });
       onChanged();
     } catch (e: any) {
-      Alert.alert('Could not import transcript', e?.message || 'Please try again.');
+      crossAlert('Could not import transcript', e?.message || 'Please try again.');
     }
     setSaving(false);
   };
@@ -149,18 +150,18 @@ function AudioImport({ consultation, token, onChanged }: { consultation: Consult
       const asset = result.assets[0];
       const ext = ('.' + (asset.name.split('.').pop() || '')).toLowerCase();
       if (!ALLOWED_EXT.includes(ext)) {
-        Alert.alert('Unsupported format', 'Please choose an MP3, WAV, or M4A file.');
+        crossAlert('Unsupported format', 'Please choose an MP3, WAV, or M4A file.');
         setPicking(false);
         return;
       }
       if ((asset.size || 0) > 25 * 1024 * 1024) {
-        Alert.alert('File too large', 'Maximum audio size is 25 MB.');
+        crossAlert('File too large', 'Maximum audio size is 25 MB.');
         setPicking(false);
         return;
       }
       setPicked({ uri: asset.uri, name: asset.name, mimeType: asset.mimeType || 'audio/mpeg', size: asset.size || 0 });
     } catch {
-      Alert.alert('Could not select file', 'Please try again.');
+      crossAlert('Could not select file', 'Please try again.');
     }
     setPicking(false);
   };
@@ -175,7 +176,7 @@ function AudioImport({ consultation, token, onChanged }: { consultation: Consult
       }
       if (!permResult.granted) {
         if (!permResult.canAskAgain) setPermBlocked(true);
-        else Alert.alert('Microphone needed', 'Allow microphone access to record this consultation live.');
+        else crossAlert('Microphone needed', 'Allow microphone access to record this consultation live.');
         return;
       }
       const claimResult = await withMicLease(
@@ -186,7 +187,7 @@ function AudioImport({ consultation, token, onChanged }: { consultation: Consult
           await recorder.prepareToRecordAsync();
         },
       );
-      if (!claimResult.ok) { Alert.alert('Microphone busy', MIC_BUSY_MESSAGE); return; }
+      if (!claimResult.ok) { crossAlert('Microphone busy', MIC_BUSY_MESSAGE); return; }
       micLeaseRef.current = claimResult.lease;
       recorder.record();
       setIsRecording(true);
@@ -194,7 +195,7 @@ function AudioImport({ consultation, token, onChanged }: { consultation: Consult
       timerRef.current = setInterval(() => setRecordSeconds(s => s + 1), 1000);
     } catch {
       micLeaseRef.current?.release(); micLeaseRef.current = null;
-      Alert.alert('Could not start recording', 'Check microphone permission and try again.');
+      crossAlert('Could not start recording', 'Check microphone permission and try again.');
     }
   };
 
@@ -217,7 +218,7 @@ function AudioImport({ consultation, token, onChanged }: { consultation: Consult
       } catch {}
       setPicked({ uri, name: `consultation-${Date.now()}.m4a`, mimeType: 'audio/m4a', size });
     } catch {
-      Alert.alert('Recording error', 'Could not finish the recording. Please try again.');
+      crossAlert('Recording error', 'Could not finish the recording. Please try again.');
     }
   };
 
@@ -236,7 +237,7 @@ function AudioImport({ consultation, token, onChanged }: { consultation: Consult
       }
       onChanged();
     } catch (e: any) {
-      Alert.alert('Upload failed', e?.message || 'Please try again.');
+      crossAlert('Upload failed', e?.message || 'Please try again.');
     }
     setUploading(false);
   };

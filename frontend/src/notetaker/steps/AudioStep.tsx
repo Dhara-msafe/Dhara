@@ -3,8 +3,9 @@
  * advocate confirm the uploaded file and kick off Whisper transcription.
  */
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { theme } from '@/src/theme';
+import { crossAlert } from '@/src/utils/crossAlert';
 import { apiPost } from '../api';
 import { formatFileSize } from '../ui';
 import type { Consultation } from '../api';
@@ -22,7 +23,7 @@ export default function AudioStep({
       await apiPost(token, `/consultations/${consultation.id}/audio/transcribe`);
       onChanged();
     } catch (e: any) {
-      Alert.alert('Could not start transcription', e?.message || 'Please try again.');
+      crossAlert('Could not start transcription', e?.message || 'Please try again.');
     }
     setStarting(false);
   };

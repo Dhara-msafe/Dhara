@@ -4,7 +4,7 @@
  * advocate edit/regenerate/approve an existing draft.
  */
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { theme } from '@/src/theme';
 import { crossAlert } from '@/src/utils/crossAlert';
 import { apiPatch, apiPost } from '../api';
@@ -46,7 +46,7 @@ export default function NoteDraftStep({
       await apiPost(token, `/consultations/${consultation.id}/note/generate`);
       onChanged();
     } catch (e: any) {
-      Alert.alert('Draft generation failed', e?.message || 'Please try again.');
+      crossAlert('Draft generation failed', e?.message || 'Please try again.');
     }
     setGenerating(false);
   };
@@ -69,7 +69,7 @@ export default function NoteDraftStep({
       await apiPatch(token, `/consultations/${consultation.id}/note`, { sections });
       onChanged();
     } catch (e: any) {
-      Alert.alert('Could not save', e?.message || 'Please try again.');
+      crossAlert('Could not save', e?.message || 'Please try again.');
     }
     setSaving(false);
   };
@@ -88,7 +88,7 @@ export default function NoteDraftStep({
               await apiPost(token, `/consultations/${consultation.id}/note/approve`);
               onChanged();
             } catch (e: any) {
-              Alert.alert('Could not approve', e?.message || 'Please try again.');
+              crossAlert('Could not approve', e?.message || 'Please try again.');
             }
             setApproving(false);
           },
@@ -116,8 +116,8 @@ export default function NoteDraftStep({
         ) : (
           <View style={styles.verificationNotice}>
             <Text style={styles.verificationNoticeText}>
-              AI drafting is available once your advocate verification is reviewed and approved. Your
-              manual notes are saved and will be ready to draft the moment you're verified.
+              AI drafting is not available for this account yet. Your manual notes are saved and will be
+              ready to draft as soon as this account can use it.
             </Text>
           </View>
         )}
@@ -189,7 +189,7 @@ export default function NoteDraftStep({
       ) : (
         <View style={[styles.verificationNotice, { marginTop: 16 }]}>
           <Text style={styles.verificationNoticeText}>
-            Approval and regeneration are available once your advocate verification is reviewed and approved.
+            Approval and regeneration are not available for this account yet.
           </Text>
         </View>
       )}

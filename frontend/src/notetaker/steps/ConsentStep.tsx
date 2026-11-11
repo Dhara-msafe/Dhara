@@ -7,7 +7,7 @@
  * documented way to proceed without recording or AI drafting.
  */
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { theme } from '@/src/theme';
 import { crossAlert } from '@/src/utils/crossAlert';
 import { apiPost, newIdempotencyKey } from '../api';
@@ -31,7 +31,7 @@ export default function ConsentStep({
   const status = summary?.status ?? (consents.length === 0 ? 'not_started' : 'pending');
 
   const submit = async (decision: 'given' | 'declined') => {
-    if (!name.trim()) { Alert.alert('Name required', "Enter the participant's name."); return; }
+    if (!name.trim()) { crossAlert('Name required', "Enter the participant's name."); return; }
     setSaving(decision);
     try {
       await apiPost(token, `/consultations/${consultation.id}/consent`, {
@@ -42,7 +42,7 @@ export default function ConsentStep({
       setName(''); setRole('');
       onChanged();
     } catch (e: any) {
-      Alert.alert('Could not record consent', e?.message || 'Please try again.');
+      crossAlert('Could not record consent', e?.message || 'Please try again.');
     }
     setSaving(null);
   };
@@ -61,7 +61,7 @@ export default function ConsentStep({
               await apiPost(token, `/consultations/${consultation.id}/consent/continue-manual-only`, undefined, newIdempotencyKey());
               onChanged();
             } catch (e: any) {
-              Alert.alert('Could not continue', e?.message || 'Please try again.');
+              crossAlert('Could not continue', e?.message || 'Please try again.');
             }
             setContinuing(false);
           },
@@ -147,7 +147,7 @@ export default function ConsentStep({
 
       {status === 'not_started' && (
         <View style={styles.noticeBox}>
-          <Text style={styles.noticeText}>Record at least the first participant's decision to get started.</Text>
+          <Text style={styles.noticeText}>Record at least the first participant&apos;s decision to get started.</Text>
         </View>
       )}
     </View>

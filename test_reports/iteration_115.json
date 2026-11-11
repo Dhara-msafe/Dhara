@@ -1,0 +1,51 @@
+{
+  "summary": "Tested the 3 BATCH N1 follow-up fixes (frontend-only) for the DHARA Advocate Consultation Notetaker. Backend regression 52/52 pass (unchanged). Fix #3 (reworded unverified-advocate notices) is CONFIRMED working exactly as specified. Fix #1 and Fix #2 are CODE-CORRECT (validation logic, backend idempotency both verified working) BUT BOTH ARE SILENTLY BROKEN ON THE WEB PREVIEW because they call plain `Alert.alert()` from 'react-native', which is a documented no-op stub in this project's react-native-web build (`class Alert { static alert() {} }` in node_modules/react-native-web/dist/exports/Alert/index.js). This exactly reproduces the ORIGINAL silent-no-op bug the user reported, just moved to a new trigger — critical since the user's manual retest was explicitly done 'in a real browser'.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "app/notetaker/consultation/new.tsx — save()",
+        "issue": "On web, tapping 'Create consultation' with Purpose empty (title filled, date valid) fires Alert.alert('A few fields are missing', ...) in code, but react-native-web's Alert.alert is a no-op stub, so NOTHING is shown to the user — no dialog, no on-page text, no network call. From the user's perspective in a browser this is indistinguishable from the original 'silently does nothing' bug. Confirmed via Playwright: no dialog event fired, no new text in body, no POST request captured.",
+        "testID": "N/A (no testID on save button)",
+        "priority": "CRITICAL"
+      },
+      {
+        "component": "src/notetaker/steps/ApprovedStep.tsx — createTasks()",
+        "issue": "On web, tapping 'Create task drafts from actions' a second time on the same approved note correctly calls the backend (confirmed via API: second call returns already_created:true, tasks_created:0) but the Alert.alert('Task drafts already created', ...) call is a no-op on web — no visible feedback of any kind appears after either the 1st or 2nd click. User cannot tell the action succeeded, let alone distinguish the two outcomes.",
+        "testID": "N/A (no testID on button)",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {
+        "component": "react-native-web Alert module",
+        "issue": "react-native-web's bundled Alert.alert() is `static alert() {}` — a complete no-op on web. The codebase already has a working fix for this exact problem (src/utils/crossAlert.ts, used in NoteDraftStep.tsx's approve() and ConsentStep.tsx), but new.tsx and ApprovedStep.tsx (the two files touched in this fix round) still import and call plain `Alert.alert` from 'react-native' directly, so their Alert-based user feedback is silently swallowed on web."
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Replace `Alert.alert(...)` with `crossAlert(...)` (from src/utils/crossAlert.ts) in app/notetaker/consultation/new.tsx's save() validation branch, so the 'A few fields are missing' message actually renders on web (as window.alert).",
+    "Replace `Alert.alert(...)` with `crossAlert(...)` in src/notetaker/steps/ApprovedStep.tsx's createTasks() (both the already_created and the tasks_created branches), and in the error catch blocks (doExport's 'Export failed', createTasks' 'Could not create tasks').",
+    "Audit other plain Alert.alert() call sites across the notetaker screens (e.g. new.tsx's 'Missing matter'/'Session expired'/'Could not create consultation', NoteDraftStep.tsx's 'Draft generation failed'/'Could not save'/'Could not approve') for the same web no-op issue — they all have the identical latent bug.",
+    "After switching to crossAlert, retest both scenarios in the web preview: (1) empty-purpose submit now shows a window.alert with the missing-fields message, (2) second 'Create task drafts' tap shows a distinct window.alert for already_created vs the first tap's count message."
+  ],
+  "critical_code_review_comments": [
+    "new.tsx and ApprovedStep.tsx use `import { ... Alert ... } from 'react-native'` instead of the project's own `crossAlert` cross-platform helper that was specifically built to solve this exact silent-Alert-on-web problem (see crossAlert.ts's own doc comment). This is a straightforward oversight, not a new design problem — the fix pattern already exists and is proven elsewhere in the same codebase (NoteDraftStep.tsx, ConsentStep.tsx)."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (52/52, unchanged/no backend files touched this round)",
+    "frontend": "33% (1 of 3 fixes fully working end-to-end on web; the other 2 are correct in business logic/backend but produce zero visible user feedback on web due to the Alert.alert no-op)"
+  },
+  "seed_data_creation": "Created throwaway unverified advocate (email test_unver_n1_1794371761@example.com / TestPass123!, bar_council_number TEST123456) via /api/auth/register + /api/advocate/register for the unverified-gating checks. Under the verified QA account (voicetest2026@example.com), created TEST_N1_Idempotency_UI matter + TEST_N1_Cons consultation (id 3a2e5f4c-4f52-4a26-8fbd-82ffa15e744c) and ran it through consent/manual-notes/AI-generate/approve/create-tasks to reach APPROVED+task-drafts state for the idempotency UI check. No delete endpoint exists for matters/consultations/tasks in the backend, so these TEST_-prefixed records could not be cleaned up via API and remain in the DB.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Fix #3 (wording changes) is solid, verbatim-confirmed, no further testing needed. Fix #1 and Fix #2's validation/idempotency LOGIC is correct and verified via network inspection and direct API calls — only the user-visible feedback is broken, purely because of using plain RN Alert.alert instead of crossAlert on web. Once main agent swaps to crossAlert in the 2 call sites, a quick Playwright re-check (same selectors used here: fill title only -> click 'Create consultation' -> expect window.alert dialog event with message mentioning 'title and a purpose'; and double-click 'Create task drafts from actions' on consultation id 3a2e5f4c-4f52-4a26-8fbd-82ffa15e744c -> expect 2 distinct window.alert dialogs) should confirm the fix. Onboarding flow note: this account always re-prompts the full language->consent (age+2 checkboxes)->login sequence from a cold page load, and a 'Choose your language' modal reappears on first visit to any /notetaker/* route per session — both must be dismissed before interacting with notetaker UI in automated scripts.",
+  "rca_of_issue": "Root cause: react-native-web's packaged Alert module (node_modules/react-native-web/dist/exports/Alert/index.js) ships `class Alert { static alert() {} }` — a literal no-op on the web platform. app/notetaker/consultation/new.tsx and src/notetaker/steps/ApprovedStep.tsx call `Alert.alert(...)` directly (imported from 'react-native'), so on the Expo web preview (and any production web build) these calls execute without throwing but produce zero UI feedback — no dialog, no text, nothing. The app's own src/utils/crossAlert.ts already documents and fixes this exact issue by falling back to window.alert/window.confirm on web, and is already used correctly in NoteDraftStep.tsx (approve confirmation) and ConsentStep.tsx, but was not applied to the 2 files touched in this round's fixes. Reproduction: open the web preview, go through onboarding+login as any advocate, navigate to a New Consultation form, fill Title only (leave Purpose empty), tap 'Create consultation' — no alert/dialog appears and no network POST fires (verified with Playwright dialog-event listener + network request listener, both empty). Mitigation: swap `Alert.alert` for `crossAlert` in both files' call sites listed in action_items."
+}

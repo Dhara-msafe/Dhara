@@ -4,7 +4,7 @@
  * (DRAFT → CONSENT_PENDING → READY → … → NOTE_DRAFT → APPROVED).
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, Pressable, StyleSheet, Alert } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, Pressable, StyleSheet } from 'react-native';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/src/theme';
@@ -96,7 +96,7 @@ export default function ConsultationScreen() {
               await apiPatch(token, `/consultations/${consultation.id}/cancel`);
               await load(true);
             } catch (e: any) {
-              Alert.alert('Could not cancel', e?.message || 'Please try again.');
+              crossAlert('Could not cancel', e?.message || 'Please try again.');
             }
             setCancelling(false);
           },
