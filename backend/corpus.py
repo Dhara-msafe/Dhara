@@ -2091,6 +2091,26 @@ NON_LEGAL_ADVICE_KEYWORDS = [
     "moral advice", "religious advice",
 ]
 
+# N-11 (B-49): c57b48a added a check against the user's RAW message (not
+# just the LLM-normalised retrieval_text) so "should I forgive my husband"
+# couldn't slip past this gate via the query normaliser rephrasing it into
+# neutral legal-sounding prose. The side effect: several of the phrases
+# above are also genuine substrings of ordinary, in-scope LEGAL questions —
+# "should I marry under the Special Marriage Act or the Hindu Marriage
+# Act?", "should I quit without serving my notice period — what are my
+# rights?", "should I divorce my husband under the Hindu Marriage Act, who
+# gets custody?" — and a raw user message is far more likely to embed one of
+# these phrases incidentally inside an otherwise clearly statutory question
+# than a normalised query is. A message that ALSO carries a clear
+# legal/statutory marker is the legal question it reads as, not a request
+# for personal/moral advice, and must not be refused.
+LEGAL_CONTEXT_OVERRIDE_KEYWORDS = [
+    "act", "section", "u/s", "ipc", "bns", "crpc", "bnss", "custody",
+    "alimony", "maintenance", "notice period", "rights", "legal", "law",
+    "court", "petition", "grounds for divorce", "procedure for divorce",
+    "marriage act", "divorce act", "labour commissioner",
+]
+
 
 # Retrieval scoring + the ≥2-word corroboration rule are defined once in
 # retrieval_logic and shared with corpus_db.py — never duplicated here.
@@ -2239,7 +2259,15 @@ def is_non_indian_jurisdiction(question: str) -> bool:
 
 def is_non_legal_advice(question: str) -> bool:
     q = _norm(question)
-    return any(_norm(k) in q for k in NON_LEGAL_ADVICE_KEYWORDS)
+    if not any(_norm(k) in q for k in NON_LEGAL_ADVICE_KEYWORDS):
+        return False
+    # N-11 (B-49): a clear statutory/procedural marker alongside the phrase
+    # means this reads as a legal question that happens to share the
+    # surface wording with the personal-advice phrase list above — not a
+    # request for personal/moral advice. Do not refuse it.
+    if any(_norm(k) in q for k in LEGAL_CONTEXT_OVERRIDE_KEYWORDS):
+        return False
+    return True
 
 
 def public_citation(item: dict) -> dict:
