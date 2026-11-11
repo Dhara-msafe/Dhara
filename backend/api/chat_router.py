@@ -139,16 +139,46 @@ from engine.conversational_intents import (
 # (1) always lead with 112 via a fixed banner, (2) instruct the model to give
 # safety steps first and make no outcome promises, and (3) drop domestic-
 # violence citations unless the user actually described a domestic relation.
+#
+# B-05 DRAFT LANGUAGE EXTENSION (bn/te/gu/kn/pa) — NOT NATIVE-SPEAKER REVIEWED.
+# ─────────────────────────────────────────────────────────────────────────────
+# Added at the user's explicit request, because the status quo was not "no
+# risk" but a hard floor of ZERO danger detection in these 5 languages — any
+# genuine phrase can only improve recall from that floor. But these phrases
+# were authored by Claude, not a native/fluent speaker of Bengali, Telugu,
+# Gujarati, Kannada or Punjabi, and have NOT been validated the way the
+# existing en/hi/mr/ta phrases were (TST-P-W2-04: 20 danger + 20 look-alike
+# phrases per language, D-07 speaker sign-off). Treat this block as a
+# best-effort safety net, not a verified feature:
+#   - Recall is likely incomplete — many real phrasings/dialectal variants
+#     almost certainly are NOT covered yet.
+#   - Precision has not been checked against look-alike legal questions in
+#     these languages (the English/Hindi/Marathi/Tamil look-alike tests in
+#     test_danger_order_and_recognition.py do NOT exercise these 5).
+# MUST be reviewed and extended by a native/fluent speaker of each language
+# before this is relied on as equivalent to the other four. Tracked in the
+# register as B-05 remaining open for that sign-off (D-07) — do not mark
+# the language-coverage gap "closed" on the strength of this commit alone.
 _DANGER_RE = re.compile(
     r"(right now|at this moment|happening now|not safe|unsafe|in danger|"
     r"threaten(ing|s|ed)? (me|to kill)|going to (kill|hurt|attack) me|attacking me|beating me|hitting me|"
     r"kill me|help me now|save me|अभी|इसी समय|खतरे में|सुरक्षित नहीं|मार रहा|मार रही|मार देगा|जान से मार|बचाओ|"
-    r"आता|धोक्यात|सुरक्षित नाही|मारत आहे|वाचवा|இப்போது|ஆபத்தில்|பாதுகாப்பாக இல்லை|காப்பாற்றுங்கள்)",
+    r"आता|धोक्यात|सुरक्षित नाही|मारत आहे|वाचवा|இப்போது|ஆபத்தில்|பாதுகாப்பாக இல்லை|காப்பாற்றுங்கள்|"
+    r"এখনই|এই মুহূর্তে|বিপদে|নিরাপদ না|নিরাপদ নয়|আমাকে বাঁচাও|মেরে ফেলবে|"
+    r"ఇప్పుడే|ప్రమాదంలో|సురక్షితం కాదు|నన్ను రక్షించండి|చంపేస్తాడు|"
+    r"અત્યારે|જોખમમાં|સુરક્ષિત નથી|મને બચાવો|મારી નાખશે|"
+    r"ಈಗಲೇ|ಅಪಾಯದಲ್ಲಿ|ಸುರಕ್ಷಿತವಾಗಿಲ್ಲ|ನನ್ನನ್ನು ಉಳಿಸಿ|ಕೊಲ್ಲುತ್ತಾನೆ|"
+    r"ਹੁਣੇ|ਖ਼ਤਰੇ ਵਿੱਚ|ਸੁਰੱਖਿਅਤ ਨਹੀਂ|ਮੈਨੂੰ ਬਚਾਓ|ਮਾਰ ਦੇਵੇਗਾ)",
     re.I,
 )
 _THREAT_RE = re.compile(
     r"(\bthreat|\battack|\bbeat(ing|s|en)?\b|\bhit(ting|s)?\b|\bhurt|\bkill|\bweapon|\bknife|unsafe|not safe|\bdanger|\babus|\bviolen|\bchasing|following me|"
-    r"धमकी|मार|हमला|खतरा|खतरे|धोका|धोक्यात|அச்சுறுத்த|ஆபத்து|தாக்க)",
+    r"धमकी|मार|हमला|खतरा|खतरे|धोका|धोक्यात|அச்சுறுத்த|ஆபத்து|தாக்க|"
+    r"হুমকি|আক্রমণ|মারছে|অস্ত্র|ছুরি|সহিংসতা|নির্যাতন|"
+    r"బెదిరింపు|దాడి|కొడుతున్నాడు|ఆయుధం|కత్తి|హింస|"
+    r"ધમકી|હુમલો|મારી રહ્યો|હથિયાર|છરી|હિંસા|"
+    r"ಬೆದರಿಕೆ|ದಾಳಿ|ಹೊಡೆಯುತ್ತಿದ್ದಾನೆ|ಆಯುಧ|ಚಾಕು|ಹಿಂಸೆ|"
+    r"ਧਮਕੀ|ਹਮਲਾ|ਕੁੱਟ ਰਿਹਾ|ਹਥਿਆਰ|ਛੁਰੀ|ਹਿੰਸਾ)",
     re.I,
 )
 _DOMESTIC_FACT_RE = re.compile(
@@ -184,7 +214,14 @@ _ACUTE_DANGER_RE = re.compile(
     r"|\bbreaking\s+into\s+my\s+(house|home|room|flat)\s*(right\s+now|now)?\b"
     r"|\bmaar\s*(dega|degi|denge|dalega|dalegi|daalega|daalegi|daalenge)\b|\bjaan\s+se\s+maar"
     r"|\bmujhe\s+bachao\b|मुझे\s*बचाओ|मार\s*डालेगा|मार\s*डालेगी"
-    r"|\bmala\s+vachva\b|मला\s*वाचवा)",
+    r"|\bmala\s+vachva\b|मला\s*वाचवा"
+    # B-05 DRAFT (see the block above _DANGER_RE) — direct "save me" / "will
+    # kill me" in bn/te/gu/kn/pa, not native-speaker reviewed.
+    r"|আমাকে\s*বাঁচাও|আমাকে\s*মেরে\s*ফেলবে"
+    r"|నన్ను\s*రక్షించండి|నన్ను\s*చంపేస్తాడు"
+    r"|મને\s*બચાવો|મને\s*મારી\s*નાખશે"
+    r"|ನನ್ನನ್ನು\s*ಉಳಿಸಿ|ನನ್ನನ್ನು\s*ಕೊಲ್ಲುತ್ತಾನೆ"
+    r"|ਮੈਨੂੰ\s*ਬਚਾਓ|ਮੈਨੂੰ\s*ਮਾਰ\s*ਦੇਵੇਗਾ)",
     re.I,
 )
 
@@ -210,6 +247,13 @@ _EMERGENCY_BANNER = {
     "hi": "🚨 अगर आप अभी खतरे में हैं, तो तुरंत 112 (आपातकालीन) पर कॉल करें। महिला हेल्पलाइन: 181।",
     "mr": "🚨 तुम्ही आत्ता धोक्यात असाल, तर लगेच 112 (आपत्कालीन) वर कॉल करा. महिला हेल्पलाइन: 181.",
     "ta": "🚨 நீங்கள் இப்போது ஆபத்தில் இருந்தால், உடனே 112 (அவசரம்) ஐ அழைக்கவும். பெண்கள் உதவி எண்: 181.",
+    # B-05 DRAFT — NOT native-speaker reviewed (see the block above _DANGER_RE).
+    # Needs sign-off before being treated as equivalent to the four above.
+    "bn": "🚨 আপনি যদি এই মুহূর্তে বিপদে থাকেন, তাহলে অবিলম্বে 112 (জরুরি) নম্বরে কল করুন। নারী হেল্পলাইন: 181।",
+    "te": "🚨 మీరు ఇప్పుడే ప్రమాదంలో ఉంటే, వెంటనే 112 (అత్యవసర) నంబర్‌కు కాల్ చేయండి. మహిళా హెల్ప్‌లైన్: 181.",
+    "gu": "🚨 જો તમે અત્યારે જોખમમાં હોવ, તો તરત જ 112 (ઇમરજન્સી) પર કૉલ કરો. મહિલા હેલ્પલાઇન: 181.",
+    "kn": "🚨 ನೀವು ಈಗಲೇ ಅಪಾಯದಲ್ಲಿದ್ದರೆ, ತಕ್ಷಣ 112 (ತುರ್ತು) ಗೆ ಕರೆ ಮಾಡಿ. ಮಹಿಳಾ ಸಹಾಯವಾಣಿ: 181.",
+    "pa": "🚨 ਜੇ ਤੁਸੀਂ ਹੁਣੇ ਖ਼ਤਰੇ ਵਿੱਚ ਹੋ, ਤਾਂ ਤੁਰੰਤ 112 (ਐਮਰਜੈਂਸੀ) 'ਤੇ ਕਾਲ ਕਰੋ। ਮਹਿਲਾ ਹੈਲਪਲਾਈਨ: 181।",
 }
 
 

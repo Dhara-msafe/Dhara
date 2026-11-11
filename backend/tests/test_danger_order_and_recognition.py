@@ -36,6 +36,23 @@ B05_GAPS = [
     "a man is trying to break in right now",
     "breaking into my house right now please help",
 ]
+# B-05 DRAFT LANGUAGE EXTENSION — bn/te/gu/kn/pa direct "save me" / "will
+# kill me" phrases. NOT native-speaker reviewed (see the block comment in
+# chat_router.py above _DANGER_RE). These confirm the phrases actually fire
+# as intended; they are NOT a substitute for TST-P-W2-04-style look-alike
+# testing in these languages, which has not been done.
+B05_DRAFT_LANGUAGE_GAPS = [
+    "আমাকে বাঁচাও এখনই",       # bn: save me right now
+    "সে আমাকে মেরে ফেলবে",      # bn: he will kill me
+    "నన్ను రక్షించండి ఇప్పుడే",  # te: save me right now
+    "వాడు నన్ను చంపేస్తాడు",    # te: he will kill me
+    "મને બચાવો અત્યારે",        # gu: save me right now
+    "તે મને મારી નાખશે",        # gu: he will kill me
+    "ನನ್ನನ್ನು ಉಳಿಸಿ ಈಗಲೇ",      # kn: save me right now
+    "ಅವನು ನನ್ನನ್ನು ಕೊಲ್ಲುತ್ತಾನೆ",  # kn: he will kill me
+    "ਮੈਨੂੰ ਬਚਾਓ ਹੁਣੇ",           # pa: save me right now
+    "ਉਹ ਮੈਨੂੰ ਮਾਰ ਦੇਵੇਗਾ",       # pa: he will kill me
+]
 NOT_DANGER = [
     "hi", "hello dhara", "thanks", "good morning", "help me file an FIR",
     "help me write a rent agreement", "what is the punishment for carrying a knife",
@@ -54,7 +71,7 @@ NOT_DANGER = [
 ]
 
 
-@pytest.mark.parametrize("msg", ROUND3_GAPS + OTHER_DANGER + B05_GAPS)
+@pytest.mark.parametrize("msg", ROUND3_GAPS + OTHER_DANGER + B05_GAPS + B05_DRAFT_LANGUAGE_GAPS)
 def test_danger_recognised(msg):
     assert _is_immediate_danger(msg), msg
 
@@ -64,31 +81,24 @@ def test_ordinary_messages_not_danger(msg):
     assert not _is_immediate_danger(msg), msg
 
 
-def test_b05_language_coverage_gap_is_real_and_still_open():
-    """GAP PIN (reported, not closed by this round): danger/threat/acute
-    patterns and _EMERGENCY_BANNER exist only for en/hi/mr/ta. The app's own
-    language picker (frontend/app/language.tsx) also offers bn, te, gu, kn,
-    pa — a user writing a danger message in any of those five languages gets
-    ZERO detection, not merely reduced coverage. Closing this responsibly
-    needs native-speaker-authored and reviewed phrases (register B-05: "Who
-    can do it: Owner (phrases); Developer; Claude (harness)", D-07), not
-    machine-translated guesses dropped in by a developer — a wrong phrase
-    here either fails to protect someone in real danger, or false-triggers
-    on an ordinary legal question. This test pins the gap so it isn't lost:
-    it will keep failing (reminding whoever picks this up) until bn/te/gu/kn/pa
-    phrases are added to _DANGER_RE / _THREAT_RE / _ACUTE_DANGER_RE /
-    _EMERGENCY_BANNER with owner sign-off."""
-    missing_languages = {"bn", "te", "gu", "kn", "pa"}
-    covered = set()
-    for lang in missing_languages:
-        if lang in _EMERGENCY_BANNER:
-            covered.add(lang)
-    assert not covered, f"unexpectedly already covered: {covered} — update this test and B-05's status"
-    # Pinned as a known-failing expectation rather than silently skipped, so
-    # it shows up red in CI/local runs rather than vanishing from sight.
-    assert missing_languages == {"bn", "te", "gu", "kn", "pa"}, (
-        "B-05 still open for: bn, te, gu, kn, pa (no danger-detection coverage at all)"
-    )
+def test_b05_draft_languages_have_basic_coverage_but_are_not_yet_signed_off():
+    """STATUS PIN (updated from the earlier gap-pin): at the user's explicit
+    request, draft bn/te/gu/kn/pa phrases + banners were added (see the block
+    comment in chat_router.py above _DANGER_RE) rather than leaving these 5
+    languages at zero detection. This test confirms that basic coverage now
+    exists — NOT that it has been reviewed or is equivalent to en/hi/mr/ta.
+
+    What this does NOT confirm, and what remains genuinely open for B-05:
+      - Recall: only a handful of core phrases were added per language, almost
+        certainly missing real-world phrasings/dialectal variants.
+      - Precision: no look-alike (legal-hypothetical / past-incident) test
+        cases exist yet for these 5 languages, unlike the English ones above.
+      - Native/fluent-speaker review and sign-off (D-07) has NOT happened.
+    Do not treat a green run of this test as "B-05 fully closed" — it isn't,
+    and the tracker should keep it flagged for that review."""
+    draft_languages = {"bn", "te", "gu", "kn", "pa"}
+    covered = {lang for lang in draft_languages if lang in _EMERGENCY_BANNER}
+    assert covered == draft_languages, f"expected all of {draft_languages} to have a banner, got: {covered}"
 
 
 @pytest.mark.parametrize("phrase", _BARE_DISTRESS_PHRASES)
