@@ -227,6 +227,10 @@ class JourneyIn(BaseModel):
     # (pre-existing) automatic missed-checkin behaviour; False lets the owner opt
     # out of automatic escalation for this journey while the deadline is still tracked.
     auto_notify_on_no_response: bool = True
+    # Planned arrival area — stored for the record; not shown on the public page.
+    destination_lat: Optional[float] = Field(default=None, ge=-90, le=90)
+    destination_lng: Optional[float] = Field(default=None, ge=-180, le=180)
+    radius_meters: Optional[int] = Field(default=None, ge=50, le=2000)   # matches safety_router RADIUS_MIN_M/MAX_M
 
 
 class LocationIn(BaseModel):
@@ -279,6 +283,9 @@ async def create_journey(body: JourneyIn, user: dict = Depends(current_user)):
         "remind_before_mins":  body.remind_before_mins,
         "reminder_sent_at":    None,
         "auto_notify_on_no_response": body.auto_notify_on_no_response,
+        "destination_lat":     body.destination_lat,
+        "destination_lng":     body.destination_lng,
+        "radius_meters":       body.radius_meters,
     }
     await db.safety_journeys.insert_one(doc)
     await _notify_linked_recipients(user, doc, "journey_started")

@@ -6,6 +6,7 @@ import * as Linking from 'expo-linking';
 import { API_BASE as API } from './apiBase';
 // B002 fix: keep cover state clean across sign-in / sign-out transitions
 import { deactivateCover } from './women/coverState';
+import { useHeadOutWizard } from './women/headOutWizardStore';
 
 // Required for iOS to properly complete the auth session
 WebBrowser.maybeCompleteAuthSession();
@@ -247,7 +248,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Best-effort: clear the departing user's cover flag (B002 fix)
     try { await deactivateCover(prevScope); } catch { /* non-blocking */ }
     // P0-Fix1e: clear FIR session data on logout
-    await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY, 'fir_draft_state', 'gk_fir_session']);
+    // B-60: Head Out data must not carry over to the next account on this phone.
+    try { useHeadOutWizard.getState().reset(); } catch { /* non-blocking */ }
+    await AsyncStorage.multiRemove([
+      TOKEN_KEY, USER_KEY, 'fir_draft_state', 'gk_fir_session',
+      'ws_head_out_session', 'dhara_head_out_recents_v1', 'dhara_head_out_wizard_draft',
+    ]);
     setToken(null);
     setUser(null);
   };
