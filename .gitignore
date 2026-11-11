@@ -19,6 +19,11 @@ node_modules/
 # Testing
 /coverage
 
+# B-33: Emergent preview-environment test run artifacts (screenshots, pytest
+# junit XML, iteration JSON) — generated during preview QA, never meant to
+# ship as source. Keep producing/reading them locally; just don't commit them.
+/test_reports/
+
 # Next.js
 /.next/
 /out/

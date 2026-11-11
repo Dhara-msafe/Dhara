@@ -1,1 +1,0 @@
-Shared prelude used in iteration_90 browser scripts (login via page.request, inject gk_token/gk_user/gk_lang + ws_trusted_circle_<uid>, stub window.open to record sms: URLs, wrap navigator.geolocation to log calls, dismiss language modal via "Continue in English").
