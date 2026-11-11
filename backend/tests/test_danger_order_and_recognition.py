@@ -7,7 +7,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from api.chat_router import _is_immediate_danger  # noqa: E402
+from api.chat_router import _is_immediate_danger, _EMERGENCY_BANNER  # noqa: E402
 from engine.conversational_intents import (  # noqa: E402
     _BARE_DISTRESS_PHRASES, is_bare_distress, classify_conversational_intent,
     get_conversational_template,
@@ -25,15 +25,36 @@ OTHER_DANGER = [
     "help me he is going to kill me", "someone is following me", "he pulled out a gun",
     "mujhe bachao", "वो मुझे मार डालेगा", "help me i am in danger",
 ]
+# B-05 round: a completed/ongoing physical attack described directly, or a
+# home invasion actually in progress — distinct from merely mentioning a
+# weapon's presence, and previously not recognised at all.
+B05_GAPS = [
+    "please help he stabbed me i am bleeding",
+    "he is stabbing me right now",
+    "my husband cut me with a knife",
+    "someone is breaking in please send help",
+    "a man is trying to break in right now",
+    "breaking into my house right now please help",
+]
 NOT_DANGER = [
     "hi", "hello dhara", "thanks", "good morning", "help me file an FIR",
     "help me write a rent agreement", "what is the punishment for carrying a knife",
     "my RTI application is being followed up", "how do I follow up on my complaint",
     "what does section 498A say", "my husband has a job abroad, can I claim maintenance",
+    # B-05 round: look-alikes for the new acute patterns above — a closed/past
+    # incident discussed as a legal question, or a pure hypothetical, must
+    # stay ordinary (no "right now", no second person "me" as the victim).
+    "what is the punishment for stabbing someone in self defense",
+    "my neighbor broke into my house last month what should i do",
+    "is carrying a knife for self defense legal",
+    "what is an emergency protection order for domestic violence",
+    "can I file for emergency custody if my husband is abusive",
+    "my case about the break-in is being followed up by the police",
+    "what should i do if someone breaks into my shop, legally speaking",
 ]
 
 
-@pytest.mark.parametrize("msg", ROUND3_GAPS + OTHER_DANGER)
+@pytest.mark.parametrize("msg", ROUND3_GAPS + OTHER_DANGER + B05_GAPS)
 def test_danger_recognised(msg):
     assert _is_immediate_danger(msg), msg
 
@@ -41,6 +62,33 @@ def test_danger_recognised(msg):
 @pytest.mark.parametrize("msg", NOT_DANGER)
 def test_ordinary_messages_not_danger(msg):
     assert not _is_immediate_danger(msg), msg
+
+
+def test_b05_language_coverage_gap_is_real_and_still_open():
+    """GAP PIN (reported, not closed by this round): danger/threat/acute
+    patterns and _EMERGENCY_BANNER exist only for en/hi/mr/ta. The app's own
+    language picker (frontend/app/language.tsx) also offers bn, te, gu, kn,
+    pa — a user writing a danger message in any of those five languages gets
+    ZERO detection, not merely reduced coverage. Closing this responsibly
+    needs native-speaker-authored and reviewed phrases (register B-05: "Who
+    can do it: Owner (phrases); Developer; Claude (harness)", D-07), not
+    machine-translated guesses dropped in by a developer — a wrong phrase
+    here either fails to protect someone in real danger, or false-triggers
+    on an ordinary legal question. This test pins the gap so it isn't lost:
+    it will keep failing (reminding whoever picks this up) until bn/te/gu/kn/pa
+    phrases are added to _DANGER_RE / _THREAT_RE / _ACUTE_DANGER_RE /
+    _EMERGENCY_BANNER with owner sign-off."""
+    missing_languages = {"bn", "te", "gu", "kn", "pa"}
+    covered = set()
+    for lang in missing_languages:
+        if lang in _EMERGENCY_BANNER:
+            covered.add(lang)
+    assert not covered, f"unexpectedly already covered: {covered} — update this test and B-05's status"
+    # Pinned as a known-failing expectation rather than silently skipped, so
+    # it shows up red in CI/local runs rather than vanishing from sight.
+    assert missing_languages == {"bn", "te", "gu", "kn", "pa"}, (
+        "B-05 still open for: bn, te, gu, kn, pa (no danger-detection coverage at all)"
+    )
 
 
 @pytest.mark.parametrize("phrase", _BARE_DISTRESS_PHRASES)
