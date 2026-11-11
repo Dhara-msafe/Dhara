@@ -91,6 +91,14 @@ agenthub/agents/youtube/db
 memory/test_credentials.md
 *.jsonl
 
+# N-08 / B-46: Emergent agent-internal scratch files — cron/webhook scripts,
+# testing-run caches, bootstrap markers — and stray editor/dev backup files.
+# Committed again via a merge from another branch; not meant to ship.
+.emergent/
+*.bak
+*.bak_*
+.easignore.bak*
+
 # Mobile development
 android-sdk/
 credentials.json
