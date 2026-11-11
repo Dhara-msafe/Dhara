@@ -97,7 +97,7 @@ export default function SetArrivalRadius() {
           <Text style={styles.disclosureTxt}>
             {GO1C_LIVE_ROUTE_ENABLED
               ? "DHARA will let you know when you enter this area so you can confirm you're safe — it never alerts your trusted circle automatically just for arriving. You stay in control of when to check in or ask for help."
-              : 'This sets your planned arrival area only — DHARA does not automatically detect when you arrive, and no one is alerted automatically. You stay in control of when to check in or ask for help.'}
+              : 'This sets your planned arrival area only — DHARA does not automatically detect when you arrive. Your trusted circle is alerted only if you choose that for a missed check-in in the next step. You stay in control of when to check in or ask for help.'}
           </Text>
         </View>
 
