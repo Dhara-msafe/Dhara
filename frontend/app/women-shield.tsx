@@ -230,7 +230,7 @@ export default function WomenShield() {
           <Text style={styles.h2sub}>{tr('ws.rights.sub', lang)}</Text>
           <View style={styles.grid}>
             {RIGHTS.map(r => (
-              <Pressable key={r.key} style={styles.rightCard} onPress={() => openScenario(r.scenario)} testID={`ws-${r.key}`} accessibilityRole="button" accessibilityLabel={r.label}>
+              <Pressable key={r.key} style={styles.rightCard} onPress={() => openScenario(r.scenario)} testID={`ws-${r.key}`} accessibilityRole="button" accessibilityLabel={tr(r.key, lang)}>
                 <View style={styles.rightIcon}><Ionicons name={r.icon} size={18} color={c.darkGold} /></View>
                 <Text style={styles.rightTxt} numberOfLines={2}>{tr(r.key, lang)}</Text>
               </Pressable>

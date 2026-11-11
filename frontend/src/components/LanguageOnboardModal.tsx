@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontFamily: theme.fonts.heading,
+    fontFamily: theme.fonts.display,
     fontSize: 20,
     color: c.ink,
     marginBottom: 2,
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   continueTxt: {
-    fontFamily: theme.fonts.heading,
+    fontFamily: theme.fonts.display,
     fontSize: 17,
     color: '#fff',
   },

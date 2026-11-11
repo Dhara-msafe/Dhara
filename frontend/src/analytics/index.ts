@@ -215,7 +215,7 @@ export function trackEvent(
   if (_analyticsConsent !== true) return;
   // PostHog
   try {
-    ph()?.capture(eventName, properties);
+    ph()?.capture(eventName, properties as any);
   } catch {}
   // GA4 web
   ga4(eventName, properties);
@@ -236,7 +236,7 @@ export async function identifyUser(
   if (_analyticsConsent !== true) return;
   const hashedId = await hashId(userId);
   try {
-    ph()?.identify(hashedId, traits);
+    ph()?.identify(hashedId, traits as any);
   } catch {}
   // GA4: set hashed user_id
   if (Platform.OS === 'web') {

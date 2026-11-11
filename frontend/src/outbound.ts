@@ -75,7 +75,7 @@ const EMERGENCY_NUMBERS = new Set([
 
 // Verified test contacts for closed-testing SMS (comma-separated E.164 / local).
 const SMS_TEST_CONTACTS = (process.env.EXPO_PUBLIC_SMS_TEST_CONTACTS || '')
-  .split(',').map((s) => s.replace(/[^\d+]/g, '')).filter(Boolean);
+  .split(',').map((s: string) => s.replace(/[^\d+]/g, '')).filter(Boolean);
 
 function normNum(n: string): string {
   return (n || '').replace(/[^\d+]/g, '');

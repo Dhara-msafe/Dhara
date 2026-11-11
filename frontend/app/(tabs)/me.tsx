@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   email: { fontFamily: theme.fonts.body, fontSize: 13, color: c.onNavyMuted, marginTop: 2 },
   proPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.gold, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   proTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.navy },
-  emergencyCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.errorSoft || '#FEE2E2', borderRadius: 16, borderWidth: 1, borderColor: c.error, padding: 14, marginTop: 14 },
+  emergencyCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FEE2E2', borderRadius: 16, borderWidth: 1, borderColor: c.error, padding: 14, marginTop: 14 },
   emergencyCardTap: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   emergencyIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.error, alignItems: 'center', justifyContent: 'center' },
   emergencyTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink },

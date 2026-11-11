@@ -33,7 +33,7 @@ function toHex(bytes: Uint8Array): string { return aesjs.utils.hex.fromBytes(byt
 /** SHA-256 of raw bytes — run on the ciphertext already on disk. The server
  * never needs or sees the plaintext to verify this hash. */
 export async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  const digest = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, bytes);
+  const digest = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, bytes as BufferSource);
   return toHex(new Uint8Array(digest));
 }
 

@@ -312,7 +312,7 @@ export function useUserProfile() {
   const saveInterests = useCallback(async (next: ProfileInterest[]) => {
     const limited = next.slice(0, MAX_INTERESTS);
     setInterests(limited);
-    await storage.setItem(PROFILE_KEY, limited);
+    await storage.setItem(PROFILE_KEY, limited as any);
   }, []);
 
   const primaryInterest = interests.length > 0

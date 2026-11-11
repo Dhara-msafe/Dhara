@@ -57,7 +57,7 @@ export default function AlertDetail() {
     );
   }
 
-  const perms = alert.permissions || {};
+  const perms: Partial<NonNullable<SafetyAlert['permissions']>> = alert.permissions || {};
   const loc = alert.payload?.last_location;
   const revoked = alert.access_revoked;
   const locationShared = !revoked && perms.temp_location && loc && loc.area;
@@ -77,7 +77,7 @@ export default function AlertDetail() {
   async function onAck() {
     if (!token) return;
     setAcking(true);
-    try { await ackAlert(token, id as string); setAlert({ ...alert, state: 'ACKNOWLEDGED', acknowledged_at: new Date().toISOString() }); } finally { setAcking(false); }
+    try { await ackAlert(token, id as string); setAlert(alert && { ...alert, state: 'ACKNOWLEDGED', acknowledged_at: new Date().toISOString() }); } finally { setAcking(false); }
   }
 
   const msgFn = PRIMARY_MSG[alert.type] || PRIMARY_MSG.journey_status;

@@ -523,7 +523,7 @@ export default function Settings() {
         onClose={() => setShowLang(false)}
         items={langs.map(l => ({ id: l.code, label: `${l.native} · ${l.name}`, data: l }))}
         selectedId={language.code}
-        onSelect={(item) => {
+        onSelect={(item: any) => {
           setLanguage(item.data);
           setShowLang(false);
           flashLangConfirm(item.data.native);

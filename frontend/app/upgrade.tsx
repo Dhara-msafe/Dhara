@@ -159,7 +159,7 @@ export default function Upgrade() {
   const langCode = language?.code || 'en';
   const t = T[langCode] || null;
 
-  const params = useLocalSearchParams<{ status?: string; session_id?: string }>();
+  const params = useLocalSearchParams<{ status?: string; session_id?: string; source?: string }>();
   const [pricing, setPricing] = useState<Pricing | null>(null);
   const [loadingStripe, setLoadingStripe] = useState(false);
   const [loadingRazor, setLoadingRazor] = useState(false);
