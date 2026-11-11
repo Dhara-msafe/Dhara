@@ -1,5 +1,21 @@
 # DHARA — Deployment & Engine Notes
 
+## Release preflight (B-02 / D-01)
+
+Before kicking off a closed_testing or production build, run:
+
+```
+node scripts/release_preflight.mjs
+```
+
+It refuses (non-zero exit) to proceed if `EXPO_PUBLIC_OUTBOUND_PROFILE`
+isn't explicitly `closed_testing`/`production`, `EXPO_PUBLIC_OUTBOUND_MODE`
+isn't `live`, the app version still carries a leftover `-qa` suffix, or
+`ADMIN_KEY` is unset/an obvious placeholder. This does not replace QA
+sign-off or on-device testing — it only catches the handful of
+misconfigurations that would otherwise make a real release silently behave
+like a simulated QA build, or ship weak admin auth.
+
 ## Engine Architecture
 
 DHARA's legal-reasoning backend runs a multi-layer pipeline (`backend/engine/`)
