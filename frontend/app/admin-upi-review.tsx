@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { OUTBOUND_PROFILE } from '@/src/outbound';
 
 /**
  * DHARA Pro — UPI submissions review (operator tool, Phase 1).
@@ -22,6 +23,26 @@ import { theme } from '@/src/theme';
  * every other admin endpoint in this backend (dependencies.check_admin_key)
  * — no new auth was introduced for this page. The key is kept only in this
  * page's memory for the current session; it is never persisted.
+ *
+ * V-06 / B-51 — "not linked anywhere inside the app" only ever meant no
+ * in-app button pointed here. The route still shipped, reachable by anyone
+ * who had (or guessed, or found in the bundle) the URL, in every build —
+ * including production and Closed Testing, handed to real external testers
+ * and users. That's real extra surface on the single shared ADMIN_KEY: per
+ * the project context doc, "B-41, B-51 and B-59 all add surface to that
+ * key," and rotating the key itself is explicitly an owner/Emergent item,
+ * not something to fix here.
+ *
+ * What IS a developer-level fix: stop shipping a working copy of this
+ * screen in any build a non-QA person could hold. Below, the route is
+ * gated on the same OUTBOUND_PROFILE build signal the QA-mode banner (B-06)
+ * already uses elsewhere in this app — internal_qa only. Outside that
+ * profile the screen renders a plain "not available" state before the
+ * admin-key input ever mounts and before a single fetch is ever made, so a
+ * leaked/guessed key is useless against a production or Closed Testing
+ * build: there is no form here to type it into. The backend's
+ * check_admin_key mechanism and the legitimate public pay-upi.tsx
+ * submission flow are both untouched.
  */
 
 type Submission = {
@@ -78,6 +99,17 @@ export default function AdminUpiReview() {
       setActingOn(null);
     }
   };
+
+  if (OUTBOUND_PROFILE !== 'internal_qa') {
+    return (
+      <SafeAreaView style={styles.safe} testID="admin-upi-review-unavailable">
+        <View style={styles.centerPad}>
+          <Text style={styles.heading}>Not available</Text>
+          <Text style={styles.sub}>This page isn&apos;t available in this build.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (Platform.OS !== 'web') {
     return (
