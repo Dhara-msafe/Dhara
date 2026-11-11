@@ -258,6 +258,21 @@ export async function whisperTranscribeFile(
           !body.detail.includes('<')
         ) {
           serverMessage = body.detail;
+        } else if (
+          // B-38: our own daily-cap 429 (meter_llm_use) sends `detail` as an
+          // object, not a string — {"limit": true, "message": "...", ...}.
+          // That shape is our own backend's curated, bounded text (never an
+          // upstream provider's raw/HTML rate-limit body), so it's safe to
+          // surface the same way as the string case above, with the same
+          // length/HTML guard.
+          res.status === 429 &&
+          body?.detail?.limit === true &&
+          typeof body?.detail?.message === 'string' &&
+          body.detail.message.length > 0 &&
+          body.detail.message.length < 400 &&
+          !body.detail.message.includes('<')
+        ) {
+          serverMessage = body.detail.message;
         }
       } catch {}
     }
@@ -301,7 +316,14 @@ export function sttErrorToMessage(err: unknown): string {
   // response body (some upstream rate-limit responses are plain HTML, not
   // JSON) — UNLESS it was already vetted as a safe, short, plain-text
   // `detail` string above (4xx only).
-  if (status === 429) return 'Too many requests. Please wait a moment and try again.';
+  // B-38: a 429 from our OWN daily-cap (meter_llm_use) already carries a
+  // vetted serverMessage (see the `detail.limit === true` branch above) —
+  // that's a per-day cap, not a brief rate limit, and it says so plus lists
+  // free helplines, so show it instead of the generic "wait a moment",
+  // which wrongly implies retrying in a few seconds will work. Any other
+  // 429 (e.g. an upstream provider limit with no safe vetted message) still
+  // falls back to the generic text.
+  if (status === 429) return serverMessage || 'Too many requests. Please wait a moment and try again.';
   if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('denied'))
     return 'Microphone permission denied. Please allow microphone access in Settings.';
   if (msg === '__transcribe_failed__') {
