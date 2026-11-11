@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import uuid
 import logging
+import math
 from datetime import datetime, timezone
 from typing import Optional, List
 
@@ -140,7 +141,17 @@ def _is_places_cache_stale(doc: dict) -> bool:
     """True only for Google-sourced coordinates older than the 30-day cap.
     OSM/manual-pin coordinates (or docs with no recorded source — created
     before this field existed) are never subject to this Google-specific
-    retention rule."""
+    retention rule.
+
+    Day-30 itself is still within the allowed cache window ("up to 30
+    consecutive calendar days"); staleness starts only once a full 31st day
+    has elapsed. Comparing raw fractional age_days against the cap is
+    flaky right at that boundary: the handful of milliseconds that always
+    pass between a caller computing "exactly 30 days ago" and this function
+    calling datetime.now() push age_days a hair past 30.0, which an
+    `age_days > 30` check would wrongly flag as stale. Flooring to whole
+    elapsed days before comparing removes that timing sensitivity without
+    changing the policy — day 30 reads as 30, day 31 reads as 31+."""
     if doc.get("coords_source") != "google":
         return False
     cached_at = doc.get("coords_cached_at")
@@ -151,7 +162,7 @@ def _is_places_cache_stale(doc: dict) -> bool:
     except ValueError:
         return False
     age_days = (datetime.now(timezone.utc) - cached).total_seconds() / 86400
-    return age_days > PLACES_CACHE_MAX_DAYS
+    return math.floor(age_days) > PLACES_CACHE_MAX_DAYS
 
 
 def _public(doc: dict) -> dict:
