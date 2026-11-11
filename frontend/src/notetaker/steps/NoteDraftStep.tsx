@@ -2,13 +2,22 @@
  * NoteDraftStep — rendered while a consultation is NOTE_DRAFT. Either
  * offers to generate the first AI draft (Claude Sonnet 5.5), or lets the
  * advocate edit/regenerate/approve an existing draft.
+ *
+ * BATCH N2 (versioning): every "Save edits" / (re)generate appends a new
+ * immutable version instead of mutating in place. Saves/approves send
+ * `expected_version`; a 409 version_conflict (e.g. the same note saved from
+ * two tabs) shows an in-app conflict screen with "Reapply my edits" instead
+ * of silently overwriting. Past versions are browsable with a
+ * restore-as-new-version action. The approve confirmation and the conflict
+ * screen use the new in-app ConfirmModal, never a native alert/confirm.
  */
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { theme } from '@/src/theme';
 import { crossAlert } from '@/src/utils/crossAlert';
-import { apiPatch, apiPost } from '../api';
-import type { Consultation, NoteSections } from '../api';
+import { apiPost, updateNote, approveNoteVersion, NoteVersionConflictError } from '../api';
+import type { Consultation, NoteSections, NoteDraft } from '../api';
+import ConfirmModal from '../ConfirmModal';
 
 const c = theme.colors;
 
@@ -24,6 +33,8 @@ const EMPTY_SECTIONS: NoteSections = {
   facts_stated: [], client_instructions: [], advice_given: [], open_uncertainties: [], proposed_actions: [],
 };
 
+interface Conflict { current_version: number; current_sections: NoteSections }
+
 export default function NoteDraftStep({
   consultation, token, advocateVerified, onChanged,
 }: { consultation: Consultation; token: string; advocateVerified: boolean; onChanged: () => void }) {
@@ -31,14 +42,19 @@ export default function NoteDraftStep({
   const [sections, setSections] = useState<NoteSections>(consultation.note_draft?.sections || EMPTY_SECTIONS);
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [approveModalOpen, setApproveModalOpen] = useState(false);
+  const [conflict, setConflict] = useState<Conflict | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [restoreTarget, setRestoreTarget] = useState<NoteDraft | null>(null);
 
-  // Re-sync the local edit buffer whenever a fresh draft arrives (new generation).
-  // Intentionally keyed only on generated_at — the sections object itself is
-  // replaced wholesale on every (re)generation, so this is the right trigger.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Re-sync the local edit buffer whenever a NEW version arrives — every
+  // save/(re)generate/revise bumps note_draft.version, so that (not
+  // generated_at, which edits intentionally preserve) is the right trigger.
   useEffect(() => {
     setSections(consultation.note_draft?.sections || EMPTY_SECTIONS);
-  }, [consultation.note_draft?.generated_at]);
+    setConflict(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [consultation.note_draft?.version]);
 
   const generate = async () => {
     setGenerating(true);
@@ -63,38 +79,56 @@ export default function NoteDraftStep({
     setSections(prev => ({ ...prev, [key]: prev[key].filter((_, i) => i !== idx) }));
   };
 
-  const saveEdits = async () => {
+  const doSave = async (baseVersion: number) => {
     setSaving(true);
     try {
-      await apiPatch(token, `/consultations/${consultation.id}/note`, { sections });
+      await updateNote(token, consultation.id, sections, baseVersion);
+      setConflict(null);
       onChanged();
     } catch (e: any) {
-      crossAlert('Could not save', e?.message || 'Please try again.');
+      if (e instanceof NoteVersionConflictError) {
+        setConflict({ current_version: e.current_version, current_sections: e.current_sections });
+      } else {
+        crossAlert('Could not save', e?.message || 'Please try again.');
+      }
     }
     setSaving(false);
   };
 
-  const approve = () => {
-    crossAlert(
-      'Approve this note?',
-      'Approving finalises this note as a permanent, auditable record. You can still create task drafts afterwards, but the note text cannot be edited again.',
-      [
-        { text: 'Not yet', style: 'cancel' },
-        {
-          text: 'Approve',
-          onPress: async () => {
-            setApproving(true);
-            try {
-              await apiPost(token, `/consultations/${consultation.id}/note/approve`);
-              onChanged();
-            } catch (e: any) {
-              crossAlert('Could not approve', e?.message || 'Please try again.');
-            }
-            setApproving(false);
-          },
-        },
-      ],
-    );
+  const saveEdits = () => doSave(consultation.note_draft?.version || 1);
+
+  /** Conflict screen action: keep my local edits, retry against the server's current version. */
+  const reapplyMyEdits = () => { if (conflict) doSave(conflict.current_version); };
+
+  /** Conflict screen action: discard my local edits, load the server's current content instead. */
+  const discardAndReload = () => {
+    if (conflict) setSections(conflict.current_sections);
+    setConflict(null);
+    onChanged();
+  };
+
+  const doApprove = async () => {
+    setApproving(true);
+    try {
+      await approveNoteVersion(token, consultation.id, consultation.note_draft?.version || 1);
+      setApproveModalOpen(false);
+      onChanged();
+    } catch (e: any) {
+      if (e instanceof NoteVersionConflictError) {
+        setApproveModalOpen(false);
+        setConflict({ current_version: e.current_version, current_sections: e.current_sections });
+      } else {
+        crossAlert('Could not approve', e?.message || 'Please try again.');
+      }
+    }
+    setApproving(false);
+  };
+
+  const confirmRestore = () => {
+    if (!restoreTarget) return;
+    setSections(restoreTarget.sections);
+    setRestoreTarget(null);
+    setHistoryOpen(false);
   };
 
   if (!consultation.note_draft) {
@@ -125,15 +159,67 @@ export default function NoteDraftStep({
     );
   }
 
+  // Conflict screen takes over the whole step until resolved — never
+  // silently merges or overwrites.
+  if (conflict) {
+    return (
+      <View style={styles.wrap}>
+        <Text style={styles.heading}>This note changed</Text>
+        <Text style={styles.body}>
+          Someone (or something, like a regeneration) saved version {conflict.current_version} of this note
+          before your save went through. Choose how to continue — nothing has been overwritten.
+        </Text>
+        <Pressable style={styles.primaryBtn} onPress={reapplyMyEdits} disabled={saving}>
+          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Reapply my edits</Text>}
+        </Pressable>
+        <Pressable style={styles.secondaryBtn} onPress={discardAndReload} disabled={saving}>
+          <Text style={styles.secondaryBtnText}>Discard my edits and load version {conflict.current_version}</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   const citations = consultation.note_draft.statute_citations || [];
+  const draft = consultation.note_draft;
+  const versions = (consultation.note_versions || []).slice().sort((a, b) => b.version - a.version);
 
   return (
     <View style={styles.wrap}>
       <View style={styles.versionRow}>
         <Text style={styles.heading}>Draft note</Text>
-        <Text style={styles.versionBadge}>v{consultation.note_draft.version}</Text>
+        <Text style={styles.versionBadge}>v{draft.version}</Text>
+        <Text style={styles.notApprovedBadge}>Not approved</Text>
       </View>
+      {!!draft.diff_summary && draft.source === 'revise' && (
+        <Text style={styles.reviseHint}>{draft.diff_summary}</Text>
+      )}
       <Text style={styles.body}>Edit any item, remove anything inaccurate, then approve to finalise.</Text>
+
+      {(consultation.note_versions || []).length > 1 && (
+        <Pressable onPress={() => setHistoryOpen(o => !o)} style={styles.historyToggle}>
+          <Text style={styles.historyToggleText}>{historyOpen ? 'Hide version history' : `View version history (${consultation.note_versions.length})`}</Text>
+        </Pressable>
+      )}
+      {historyOpen && (
+        <View style={styles.historyBox}>
+          {versions.map(v => (
+            <View key={v.version} style={styles.historyRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.historyVersionText}>
+                  v{v.version}{v.approved ? ' · Approved' : ''}{v.version === draft.version ? ' · Current' : ''}
+                </Text>
+                <Text style={styles.historyMetaText}>{v.diff_summary || v.source}</Text>
+                {!!v.author_name && <Text style={styles.historyMetaText}>By {v.author_name}</Text>}
+              </View>
+              {v.version !== draft.version && (
+                <Pressable style={styles.restoreBtn} onPress={() => setRestoreTarget(v)}>
+                  <Text style={styles.restoreBtnText}>Restore as new version</Text>
+                </Pressable>
+              )}
+            </View>
+          ))}
+        </View>
+      )}
 
       {SECTION_META.map(meta => (
         <View key={meta.key} style={styles.section}>
@@ -154,6 +240,7 @@ export default function NoteDraftStep({
                 {meta.key === 'proposed_actions' && !!item.assignee && (
                   <Text style={styles.assignee}>Assignee: {item.assignee}</Text>
                 )}
+                {item.provenance === 'edited' && <Text style={styles.editedTag}>Edited by advocate</Text>}
               </View>
               <Pressable onPress={() => removeItem(meta.key, idx)} style={styles.removeBtn} accessibilityLabel="Remove item">
                 <Text style={styles.removeBtnText}>✕</Text>
@@ -182,7 +269,7 @@ export default function NoteDraftStep({
             {generating ? <ActivityIndicator color={c.navy} size="small" /> : <Text style={styles.regenerateBtnText}>Regenerate from source</Text>}
           </Pressable>
 
-          <Pressable style={[styles.primaryBtn, { marginTop: 16 }]} onPress={approve} disabled={approving}>
+          <Pressable style={[styles.primaryBtn, { marginTop: 16 }]} onPress={() => setApproveModalOpen(true)} disabled={approving}>
             {approving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Approve & finalise note</Text>}
           </Pressable>
         </>
@@ -193,6 +280,25 @@ export default function NoteDraftStep({
           </Text>
         </View>
       )}
+
+      <ConfirmModal
+        visible={approveModalOpen}
+        title={`Approve version ${draft.version}?`}
+        message={`This approves version ${draft.version} as the official record and makes it exportable. If anything needs to change afterwards, you can revise it — that opens a new version for editing while this approved version stays visible and unchanged.`}
+        confirmLabel="Approve"
+        loading={approving}
+        onCancel={() => setApproveModalOpen(false)}
+        onConfirm={doApprove}
+      />
+
+      <ConfirmModal
+        visible={!!restoreTarget}
+        title={`Restore version ${restoreTarget?.version ?? ''} as a new version?`}
+        message="This replaces your current unsaved edits with that version's content. Nothing is saved yet — review it, then tap Save edits to create the new version."
+        confirmLabel="Load into editor"
+        onCancel={() => setRestoreTarget(null)}
+        onConfirm={confirmRestore}
+      />
     </View>
   );
 }
@@ -202,7 +308,17 @@ const styles = StyleSheet.create({
   heading: { fontFamily: theme.fonts.display, fontSize: 20, color: c.navy },
   versionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   versionBadge: { fontFamily: theme.fonts.bodySemiBold, fontSize: 11, color: c.muted, backgroundColor: c.surfaceSecondary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
+  notApprovedBadge: { fontFamily: theme.fonts.bodySemiBold, fontSize: 11, color: '#92400E', backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
+  reviseHint: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, fontStyle: 'italic', marginBottom: 6 },
   body: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, lineHeight: 20, marginBottom: 16 },
+  historyToggle: { marginBottom: 14 },
+  historyToggleText: { fontFamily: theme.fonts.bodyMedium, fontSize: 13, color: c.navy, textDecorationLine: 'underline' },
+  historyBox: { gap: 8, marginBottom: 16, backgroundColor: c.surfaceSecondary, borderRadius: 10, padding: 10 },
+  historyRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 8, padding: 10, gap: 8 },
+  historyVersionText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.ink },
+  historyMetaText: { fontFamily: theme.fonts.body, fontSize: 11, color: c.muted, marginTop: 2 },
+  restoreBtn: { paddingHorizontal: 8, paddingVertical: 6 },
+  restoreBtnText: { fontFamily: theme.fonts.bodyMedium, fontSize: 11, color: c.navy, textDecorationLine: 'underline' },
   primaryBtn: { backgroundColor: c.navy, borderRadius: 12, paddingVertical: 16, alignItems: 'center' },
   primaryBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 16, color: '#fff' },
   generatingHint: { textAlign: 'center', marginTop: 10, color: c.muted, fontFamily: theme.fonts.body, fontSize: 12 },
@@ -219,6 +335,7 @@ const styles = StyleSheet.create({
   itemInput: { fontFamily: theme.fonts.body, fontSize: 14, color: c.ink, minHeight: 20, padding: 0 },
   sourceRef: { fontFamily: theme.fonts.body, fontSize: 11, color: c.muted, fontStyle: 'italic', marginTop: 4 },
   assignee: { fontFamily: theme.fonts.bodyMedium, fontSize: 11, color: c.navy, marginTop: 2 },
+  editedTag: { fontFamily: theme.fonts.bodyMedium, fontSize: 10, color: '#92400E', marginTop: 4 },
   removeBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   removeBtnText: { color: c.error, fontSize: 15 },
   citationText: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, marginBottom: 4 },

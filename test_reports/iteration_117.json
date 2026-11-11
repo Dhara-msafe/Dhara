@@ -1,0 +1,50 @@
+{
+  "summary": "Pre-commit QA pass for BATCH N1-B2 (consent gaps) + BATCH N2 (versioning). All 73 backend pytest tests pass (test_notetaker_phase1.py + test_notetaker_tasks.py). Verified every specific acceptance item from the founder spec via live browser testing on voicetest2026@example.com and direct backend API calls with a fresh throwaway unverified advocate. No bugs found; all checked items PASS.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "spec_item_results": {
+    "N1B2_backend_pytest": "PASS - `python3 -m pytest tests/test_notetaker_phase1.py tests/test_notetaker_tasks.py -q` -> 73 passed in 19.1s (no skips, no failures).",
+    "N1B2_three_decision_buttons": "PASS - Declined / Unknown / Given all present and functional on ConsentStep.",
+    "N1B2_unknown_blocks": "PASS - Recording 'Unknown' for TEST_Participant_Unknown moved consultation to CONSENT_PENDING ('Awaiting consent' status pill) and showed red/pink blocked box with reason 'TEST_Participant_Unknown must grant consent (currently declined or unknown) before recording, audio upload or AI drafting can proceed.'",
+    "N1B2_consent_form_fields": "PASS - Scope chips (Notes/Audio/Transcription/Storage), 'Consent notice version: v1' hint text, and optional 'Evidence reference' text field all present and functional; recorded consent card shows 'Scope: Notes, Storage · Notice v1' and 'Evidence: TEST Exhibit QA-1' when filled.",
+    "N1B2_withdraw_consent_modal": "PASS - Tapping 'Withdraw consent' opened an in-app React Native <Modal> (ConfirmModal.tsx) -- confirmed zero native page.on('dialog') events fired. Wording verbatim: 'This withdraws consent for TEST_Participant_Unknown. It halts further recording, upload and AI drafting for this consultation. Retention policy is not configured — any material already captured is left as is and is not deleted or modified.' Confirming moved the consultation to a proper 'Consent withdrawn' terminal screen (not blank) with octagon icon and explanatory text; state badge showed 'Consent withdrawn'.",
+    "N1B2_manage_consent_header_button": "PASS - Advancing a consultation to NOTE_DRAFT showed a 'Consent' pill button in the header (testID/accessibilityLabel='Manage consent').",
+    "N1B2_manage_consent_modal_late_participant": "PASS - Tapping it opened a full-screen 'Manage consent' modal with the same ConsentStep form/list. Adding a late participant (TEST_Participant_Late) with 'Declined' correctly demoted the main consultation: after tapping 'Done' to close the modal, the screen reflected CONSENT_PENDING ('Awaiting consent' pill, stage reset to step 1/Consent, ConsentStep body shown instead of NoteDraftStep).",
+    "N1B2_wording_unverified_1": "PASS (verified by direct source read + backend 403 cross-check) - NoteDraftStep.tsx (no draft yet) literal text: 'AI drafting is not available for this account yet. Your manual notes are saved and will be ready to draft as soon as this account can use it.'",
+    "N1B2_wording_unverified_2": "PASS - NoteDraftStep.tsx (has draft) literal text: 'Approval and regeneration are not available for this account yet.'",
+    "N1B2_wording_unverified_3": "PASS - ApprovedStep.tsx literal text: 'Export is not available for this account yet.'",
+    "N1B2_wording_forbidden_words": "PASS - none of the three strings contain 'verified', 'approved' (note: 'Approval' is a distinct word from 'approved' and was not flagged), 'certified', 'qualified', 'licensed', or 'authorized'.",
+    "N2_backend_pytest": "PASS - covered by the same 73-test run above (TestVersioningBatchN2, TestLegacyNoteShim, TestVersioningUnverifiedAdvocate all green).",
+    "N2_edit_save_v1_to_v2": "PASS - generated v1 AI draft, edited one item's text, tapped 'Save edits' -> version badge updated to v2, edited item showed small 'Edited by advocate' tag below the item (not inline in sentence text).",
+    "N2_version_history": "PASS - 'View version history' listed v2 (Current, diff_summary 'facts_stated: 1 edited', 'By QA Tester') and v1 (Initial AI draft, 'By QA Tester') with a 'Restore as new version' action on v1.",
+    "N2_restore_as_new_version": "PASS - tapping 'Restore as new version' opened an in-app ConfirmModal ('Restore version 1 as a new version?' / 'Load into editor') -- confirmed it only loads into the editor and does NOT auto-save (no network call fired on confirm; still required a manual 'Save edits' tap afterwards).",
+    "N2_approve_modal": "PASS - 'Approve & finalise note' opened an in-app Modal (title 'Approve version 2?'), confirmed zero native dialogs fired, and the message text does NOT contain the phrase 'cannot be edited again'. Confirming moved the consultation to APPROVED with the 'Approved' banner.",
+    "N2_revise_modal": "PASS - on ApprovedStep, 'Revise this note' opened an in-app Modal ('Revise this note?' with correct v2->v3 wording), confirmed zero native dialogs, confirming created v3 (unapproved, NOTE_DRAFT) while the backend-tracked approved_version (v2) was left untouched per code review and prior pytest coverage.",
+    "N2_version_conflict_409": "PASS via backend only (as explicitly permitted by the spec) - TestVersioningBatchN2::test_two_tabs_same_base_version_second_gets_409 passed in the 73-test run; the PATCH /note 409 body was separately verified by code review to include current_version + current_sections. Two real browser tabs were not simulated in this pass.",
+    "N1_happy_path_regression": "PASS - full matter -> consultation -> consent(given) -> manual notes -> generate -> approve -> export(200, text body returned) -> create task drafts(201, 1 task created from the single proposed_action) verified via direct backend API calls against the live preview using the verified QA account.",
+    "N3_N8_scope": "Not touched; no files outside the N1-B2/N2 scope were reviewed or modified."
+  },
+  "test_report_links": ["N/A - testing performed via live backend pytest run + browser automation against the running preview; no new persistent test files were created this pass"],
+  "action_items": [
+    "No blocking issues found. Ready for founder review/commit as far as this QA pass's checked items go.",
+    "Minor non-blocking observation: the 'Continue with manual notes only' confirmation (pre-existing N1 feature, not in this batch's scope) and the consultation 'Cancel' confirmation on [id].tsx still use crossAlert (likely window.confirm on web) rather than the new ConfirmModal -- flagging only for awareness since the founder's instruction was about NEW dialogs; these are pre-existing and were explicitly out of scope for this pass."
+  ],
+  "critical_code_review_comments": [
+    "advocate_notetaker_router.py is 1637 lines - exceeds the 700-line guideline; consider splitting into matters/consent/notes/export/tasks sub-routers in a future refactor (not blocking).",
+    "Backend _require_verified_advocate's HTTPException detail string contains the word 'verified' (\"This action requires a verified advocate profile...\") -- this is fine because the frontend never renders this raw backend message for the three gated UI states (it uses its own hardcoded strings), but if any other call site ever surfaces e.detail directly to a user, it would violate the founder's wording ban. Worth a grep sweep as a follow-up, not urgent."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (73/73 pytest + 6/6 manual regression API checks)", "frontend": "100% (all manually tested N1-B2 and N2 UI flows passed)"},
+  "seed_data_creation": "Created throwaway TEST_-prefixed data for this pass: TEST_QA_ConsentUnknown, TEST_QA_LateConsent, TEST_QA_N2Versioning, TEST_QA_Regression_HappyPath consultations/matters + their TEST_Participant_* consent records, under the existing voicetest2026@example.com account; also one fresh throwaway unverified advocate user (test_unverified_*@example.com, not persisted/recorded) for the 403-gating API cross-check. None of this touches or mutates any pre-existing data from prior QA sessions (e.g. TEST_Matter_ConsentN1B2's existing 6 consultations were only read, never modified).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Both BATCH N1-B2 and BATCH N2 are fully verified against the founder's detailed acceptance spec: all backend pytest (73/73) and all frontend UI checks listed above passed with exact wording matches quoted in spec_item_results. The only item not independently re-verified via two real browser tabs was the live version-conflict UI (N2 item), per the spec's own explicit fallback -- backend test_two_tabs_same_base_version_second_gets_409 passing was used as the accepted evidence. Everything is ready for the founder's final go-ahead; no code changes were made during this QA pass."
+}

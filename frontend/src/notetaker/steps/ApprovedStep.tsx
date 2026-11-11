@@ -8,8 +8,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { theme } from '@/src/theme';
 import { crossAlert } from '@/src/utils/crossAlert';
-import { apiPost, fetchExportText, newIdempotencyKey } from '../api';
+import { apiPost, fetchExportText, newIdempotencyKey, reviseNote } from '../api';
 import type { Consultation, NoteSections } from '../api';
+import ConfirmModal from '../ConfirmModal';
 
 const c = theme.colors;
 
@@ -22,11 +23,13 @@ const SECTION_META: { key: keyof NoteSections; label: string }[] = [
 ];
 
 export default function ApprovedStep({
-  consultation, token, advocateVerified,
+  consultation, token, advocateVerified, onChanged,
 }: { consultation: Consultation; token: string; advocateVerified: boolean; onChanged: () => void }) {
   const [exporting, setExporting] = useState(false);
   const [copying, setCopying] = useState(false);
   const [creatingTasks, setCreatingTasks] = useState(false);
+  const [revising, setRevising] = useState(false);
+  const [reviseModalOpen, setReviseModalOpen] = useState(false);
   const approved = consultation.approved_version;
   if (!approved) return null;
 
@@ -74,10 +77,25 @@ export default function ApprovedStep({
     setCreatingTasks(false);
   };
 
+  const doRevise = async () => {
+    setRevising(true);
+    try {
+      await reviseNote(token, consultation.id);
+      setReviseModalOpen(false);
+      onChanged();
+    } catch (e: any) {
+      crossAlert('Could not revise', e?.message || 'Please try again.');
+    }
+    setRevising(false);
+  };
+
   return (
     <View style={styles.wrap}>
       <View style={styles.approvedBanner}>
-        <Text style={styles.approvedBannerText}>✓ Approved {approved.approved_at ? new Date(approved.approved_at).toLocaleString() : ''}</Text>
+        <Text style={styles.approvedBannerText}>
+          ✓ Approved v{approved.version}{approved.approved_at ? ` · ${new Date(approved.approved_at).toLocaleString()}` : ''}
+        </Text>
+        {!!approved.approved_by_name && <Text style={styles.hashText}>Approved by {approved.approved_by_name}</Text>}
         {!!approved.content_hash && <Text style={styles.hashText}>Audit hash: {approved.content_hash}</Text>}
       </View>
 
@@ -94,6 +112,7 @@ export default function ApprovedStep({
                 {meta.key === 'proposed_actions' && !!item.assignee && (
                   <Text style={styles.assignee}>Assignee: {item.assignee}</Text>
                 )}
+                {item.provenance === 'edited' && <Text style={styles.editedTag}>Edited by advocate</Text>}
               </View>
             ))}
           </View>
@@ -128,6 +147,20 @@ export default function ApprovedStep({
       <Pressable style={styles.primaryBtn} onPress={createTasks} disabled={creatingTasks}>
         {creatingTasks ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Create task drafts from actions</Text>}
       </Pressable>
+
+      <Pressable style={styles.reviseBtn} onPress={() => setReviseModalOpen(true)} disabled={revising}>
+        <Text style={styles.reviseBtnText}>Revise this note</Text>
+      </Pressable>
+
+      <ConfirmModal
+        visible={reviseModalOpen}
+        title="Revise this note?"
+        message={`This opens a new, unapproved version (v${approved.version + 1}) for editing. This approved version (v${approved.version}) stays visible and exportable exactly as it is until the new version is approved in its place.`}
+        confirmLabel="Revise"
+        loading={revising}
+        onCancel={() => setReviseModalOpen(false)}
+        onConfirm={doRevise}
+      />
     </View>
   );
 }
@@ -143,6 +176,7 @@ const styles = StyleSheet.create({
   itemText: { fontFamily: theme.fonts.body, fontSize: 14, color: c.ink, lineHeight: 20 },
   sourceRef: { fontFamily: theme.fonts.body, fontSize: 11, color: c.muted, fontStyle: 'italic', marginTop: 4 },
   assignee: { fontFamily: theme.fonts.bodyMedium, fontSize: 11, color: c.navy, marginTop: 2 },
+  editedTag: { fontFamily: theme.fonts.bodyMedium, fontSize: 10, color: '#92400E', marginTop: 4 },
   citationText: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, marginBottom: 4 },
   actionsRow: { flexDirection: 'row', gap: 10, marginTop: 20 },
   actionBtn: { flex: 1, borderWidth: 1.5, borderColor: c.navy, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
@@ -150,6 +184,8 @@ const styles = StyleSheet.create({
   actionBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.navy },
   primaryBtn: { backgroundColor: c.navy, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 14 },
   primaryBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 16, color: '#fff' },
+  reviseBtn: { marginTop: 14, paddingVertical: 10, alignItems: 'center' },
+  reviseBtnText: { fontFamily: theme.fonts.bodyMedium, fontSize: 13, color: c.muted, textDecorationLine: 'underline' },
   verificationNotice: { backgroundColor: '#FEF3C7', borderRadius: 10, padding: 14, marginTop: 10 },
   verificationNoticeText: { fontFamily: theme.fonts.body, fontSize: 13, color: '#92400E', lineHeight: 19 },
 });

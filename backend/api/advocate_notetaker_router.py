@@ -94,30 +94,140 @@ async def _get_matter(matter_id: str, user: dict) -> dict:
     return doc
 
 
+_SECTION_KEYS = ["facts_stated", "client_instructions", "advice_given", "open_uncertainties", "proposed_actions"]
+
+
 def _normalize_sections(note: Optional[dict]) -> Optional[dict]:
     """
-    Back-compat shim (2026-11 QA batch N1-C): historical documents created
-    before the "verified_facts" → "facts_stated" rename still have the old
-    key stored. This renames it at READ time only, on a shallow copy — it
-    never mutates/rewrites the document in Mongo and never touches
-    content_hash, so a previously-approved note's stored hash is byte-for-
-    byte unchanged by this shim.
+    Back-compat shim applied at READ time only — never mutates/rewrites
+    Mongo, never touches a stored content_hash:
+      (N1-C) "verified_facts" -> "facts_stated" key rename.
+      (N2)   every item gets a "provenance" ("generated"|"edited") and a
+             "generated_text" field; notes created before per-item
+             provenance existed default every item to "generated"/None.
     """
     if not note or not isinstance(note, dict):
         return note
     sections = note.get("sections")
-    if isinstance(sections, dict) and "verified_facts" in sections and "facts_stated" not in sections:
-        sections = dict(sections)
-        sections["facts_stated"] = sections.pop("verified_facts")
+    changed = False
+    if isinstance(sections, dict):
+        if "verified_facts" in sections and "facts_stated" not in sections:
+            sections = dict(sections)
+            sections["facts_stated"] = sections.pop("verified_facts")
+            changed = True
+        new_sections = {}
+        for key in _SECTION_KEYS:
+            items = sections.get(key) or []
+            new_items = []
+            for item in items:
+                if "provenance" not in item:
+                    item = {**item, "provenance": "generated", "generated_text": item.get("generated_text")}
+                    changed = True
+                new_items.append(item)
+            new_sections[key] = new_items
+        for key, items in sections.items():
+            if key not in _SECTION_KEYS:
+                new_sections[key] = items
+        if changed:
+            sections = new_sections
+    if changed:
         note = {**note, "sections": sections}
     return note
 
 
+def _normalize_version_entry(v: Optional[dict]) -> Optional[dict]:
+    """
+    Back-compat shim for note_versions/approved_version entries created
+    before N2's versioning metadata (parent_version/author/diff_summary/
+    source/approved) existed. Read-time only — see _normalize_sections.
+    """
+    if not v or not isinstance(v, dict):
+        return v
+    v = _normalize_sections(v) or v
+    defaults = {
+        "parent_version": None, "author_id": None, "author_name": None,
+        "diff_summary": None, "source": "legacy",
+        # Pre-N2, note_versions only ever held approved snapshots, so a
+        # legacy entry with a content_hash was necessarily approved.
+        "approved": bool(v.get("content_hash")), "approved_by_name": None,
+    }
+    missing = {k: val for k, val in defaults.items() if k not in v}
+    return {**v, **missing} if missing else v
+
+
+def _stamp_generated(sections: dict) -> dict:
+    """Mark every item in a freshly AI-generated section set as provenance=generated."""
+    out = {}
+    for key in _SECTION_KEYS:
+        items = sections.get(key) or []
+        out[key] = [{**item, "provenance": "generated", "generated_text": None} for item in items]
+    for key, items in sections.items():
+        if key not in _SECTION_KEYS:
+            out[key] = items
+    return out
+
+
+def _apply_provenance(old_sections: dict, new_sections: dict) -> dict:
+    """
+    Stamp each incoming item's provenance server-side (never trust the
+    client for this) by comparing against the previous version's item at
+    the same section+index:
+      - unchanged text            -> carries the old provenance/generated_text forward
+      - changed text, had an old item -> "edited"; generated_text keeps the
+        FIRST original AI text (never overwritten by a second edit)
+      - brand-new item (advocate-authored, no old counterpart) -> "edited",
+        generated_text=None (there was never AI text for it)
+    """
+    out = {}
+    for key in _SECTION_KEYS:
+        old_items = old_sections.get(key) or []
+        new_items = new_sections.get(key) or []
+        stamped = []
+        for idx, item in enumerate(new_items):
+            item = dict(item)
+            old_item = old_items[idx] if idx < len(old_items) else None
+            if old_item is None:
+                item["provenance"] = "edited"
+                item["generated_text"] = None
+            elif item.get("text") == old_item.get("text"):
+                item["provenance"] = old_item.get("provenance", "generated")
+                item["generated_text"] = old_item.get("generated_text")
+            else:
+                item["provenance"] = "edited"
+                item["generated_text"] = (
+                    old_item.get("generated_text") if old_item.get("provenance") == "edited" else old_item.get("text")
+                )
+            stamped.append(item)
+        out[key] = stamped
+    for key, items in new_sections.items():
+        if key not in _SECTION_KEYS:
+            out[key] = items
+    return out
+
+
+def _summarize_sections_diff(old_sections: dict, new_sections: dict) -> str:
+    """Short human-readable diff_summary for a note_versions entry."""
+    parts = []
+    for key in _SECTION_KEYS:
+        old_texts = [i.get("text", "") for i in (old_sections.get(key) or [])]
+        new_texts = [i.get("text", "") for i in (new_sections.get(key) or [])]
+        added = max(0, len(new_texts) - len(old_texts))
+        removed = max(0, len(old_texts) - len(new_texts))
+        changed = sum(1 for i in range(min(len(old_texts), len(new_texts))) if old_texts[i] != new_texts[i])
+        bits = []
+        if changed: bits.append(f"{changed} edited")
+        if added: bits.append(f"{added} added")
+        if removed: bits.append(f"{removed} removed")
+        if bits:
+            parts.append(f"{key}: {', '.join(bits)}")
+    return "; ".join(parts) if parts else "No content changes"
+
+
 def _normalize_consultation_doc(doc: dict) -> dict:
-    """Apply the facts_stated back-compat shim to every note-shaped field."""
+    """Apply read-time back-compat shims to every note-shaped field."""
     doc["note_draft"] = _normalize_sections(doc.get("note_draft"))
-    doc["approved_version"] = _normalize_sections(doc.get("approved_version"))
-    doc["note_versions"] = [_normalize_sections(v) for v in doc.get("note_versions", [])]
+    doc["approved_version"] = _normalize_version_entry(doc.get("approved_version"))
+    doc["note_versions"] = [_normalize_version_entry(v) for v in doc.get("note_versions", [])]
     return doc
 
 
@@ -288,6 +398,14 @@ class TranscriptUpdateIn(BaseModel):
 class NoteUpdateIn(BaseModel):
     sections: Optional[dict] = None
     statute_citations: Optional[List[dict]] = None
+    expected_version: int = Field(
+        ..., ge=1,
+        description="The note_draft.version this edit was based on. A mismatch means someone/something else changed the note first — returns 409 instead of silently overwriting.",
+    )
+
+
+class ApproveNoteIn(BaseModel):
+    expected_version: int = Field(..., ge=1, description="The note_draft.version being approved.")
 
 
 class TaskDraftIn(BaseModel):
@@ -1049,19 +1167,31 @@ async def generate_note(
         logger.error("[notetaker] note generation error for %s: %s", consultation_id, e)
         raise HTTPException(502, "Note generation failed.")
 
-    # Build the versioned draft
-    version = len(doc.get("note_versions", [])) + 1
+    # Build the versioned draft. Every (re)generation is its own immutable
+    # version in note_versions — N2 versioning applies to AI generation too,
+    # not just manual edits.
+    prev_draft = doc.get("note_draft")
+    prev_version = prev_draft.get("version") if prev_draft else 0
+    version = prev_version + 1
     draft_doc = {
         "version": version,
+        "parent_version": prev_version or None,
         "generated_at": _now(),
-        **draft,
+        "created_at": _now(),
+        "sections": _stamp_generated(draft.get("sections", {})),
+        "statute_citations": draft.get("statute_citations", []),
+        "author_id": user["id"],
+        "author_name": user.get("name") or user.get("email") or "Advocate",
+        "diff_summary": "Initial AI draft" if version == 1 else f"Regenerated from source (replaces v{prev_version})",
+        "source": "generated",
+        "approved": False, "approved_at": None, "approved_by": None, "approved_by_name": None, "content_hash": None,
     }
     await db.nt_consultations.update_one(
         {"id": consultation_id},
         {"$set": {
             "note_draft": draft_doc,
             "updated_at": _now(),
-        }},
+        }, "$push": {"note_versions": draft_doc}},
     )
     return draft_doc
 
@@ -1087,81 +1217,208 @@ async def update_note(
     user: dict = Depends(_require_advocate),
 ):
     """
-    Advocate edits the note draft in-place.
-    Allowed in state: NOTE_DRAFT.
+    Advocate edits the note draft. Allowed in state: NOTE_DRAFT. Does NOT
+    require a verified advocate — manual editing stays available regardless
+    of verification status.
+
+    N2 versioning: every save appends a NEW immutable entry to
+    note_versions (parent_version/author/timestamp/diff_summary) instead of
+    mutating the current draft in place. `expected_version` must match the
+    server's current note_draft.version — a mismatch (someone/something
+    else saved first) returns 409 with the server's current version and
+    content instead of silently overwriting it.
     """
     doc = await _get_consultation(consultation_id, user)
     if doc["state"] != ConsultationState.NOTE_DRAFT.value:
         raise HTTPException(409, f"Note editing is only allowed in NOTE_DRAFT state (current: {doc['state']}).")
-    if not doc.get("note_draft"):
+    current_draft = doc.get("note_draft")
+    if not current_draft:
         raise HTTPException(400, "No draft exists yet. Generate one first.")
 
-    updates: dict = {"updated_at": _now()}
-    draft = dict(doc["note_draft"])
+    current_version = current_draft.get("version", 1)
+    if body.expected_version != current_version:
+        raise HTTPException(409, {
+            "error": "version_conflict",
+            "message": "This note was changed since you last loaded it. Review the latest version before saving.",
+            "current_version": current_version,
+            "current_sections": current_draft.get("sections", {}),
+            "current_statute_citations": current_draft.get("statute_citations", []),
+        })
+
     if body.sections is not None:
-        draft["sections"] = body.sections
-    if body.statute_citations is not None:
-        draft["statute_citations"] = body.statute_citations
-    updates["note_draft"] = draft
-    await db.nt_consultations.update_one({"id": consultation_id}, {"$set": updates})
-    return {"ok": True, "note_draft": draft}
+        new_sections = _apply_provenance(current_draft.get("sections", {}), body.sections)
+        diff_summary = _summarize_sections_diff(current_draft.get("sections", {}), new_sections)
+    else:
+        new_sections = current_draft.get("sections", {})
+        diff_summary = "Updated statute citations"
+    new_statute_citations = body.statute_citations if body.statute_citations is not None else current_draft.get("statute_citations", [])
+
+    new_entry = {
+        "version": current_version + 1,
+        "parent_version": current_version,
+        "sections": new_sections,
+        "statute_citations": new_statute_citations,
+        "author_id": user["id"],
+        "author_name": user.get("name") or user.get("email") or "Advocate",
+        "created_at": _now(),
+        "generated_at": current_draft.get("generated_at"),  # preserve original generation timestamp for display
+        "diff_summary": diff_summary,
+        "source": "edit",
+        "approved": False, "approved_at": None, "approved_by": None, "approved_by_name": None, "content_hash": None,
+    }
+    await db.nt_consultations.update_one(
+        {"id": consultation_id},
+        {"$set": {"note_draft": new_entry, "updated_at": _now()}, "$push": {"note_versions": new_entry}},
+    )
+    return {"ok": True, "note_draft": new_entry}
+
+
+@router.post("/consultations/{consultation_id}/note/revise")
+async def revise_note(
+    consultation_id: str,
+    user: dict = Depends(_require_advocate),
+):
+    """
+    Reopen an APPROVED note for further editing. Creates a new, unapproved
+    version (approved_version.version + 1) copied from the approved
+    content, and moves the consultation back to NOTE_DRAFT. The existing
+    approved_version is left completely untouched — it stays visible,
+    exportable, and labelled with its own version number and approval
+    metadata (approved_by_name/approved_at) for the audit trail; only the
+    NEW draft shows "Not approved". Does NOT require a verified advocate:
+    revising reopens existing content for manual editing — it does not
+    call the AI, approve, or export anything.
+    """
+    doc = await _get_consultation(consultation_id, user)
+    if doc["state"] != ConsultationState.APPROVED.value:
+        raise HTTPException(409, f"Revision is only allowed on an APPROVED note (current: {doc['state']}).")
+    approved = doc.get("approved_version")
+    if not approved:
+        raise HTTPException(400, "No approved version exists to revise.")
+
+    new_entry = {
+        "version": approved.get("version", 1) + 1,
+        "parent_version": approved.get("version"),
+        "sections": approved.get("sections", {}),
+        "statute_citations": approved.get("statute_citations", []),
+        "author_id": user["id"],
+        "author_name": user.get("name") or user.get("email") or "Advocate",
+        "created_at": _now(),
+        "generated_at": approved.get("generated_at"),
+        "diff_summary": f"Revision opened from approved v{approved.get('version')}",
+        "source": "revise",
+        "approved": False, "approved_at": None, "approved_by": None, "approved_by_name": None, "content_hash": None,
+    }
+    await db.nt_consultations.update_one(
+        {"id": consultation_id},
+        {"$set": {
+            "note_draft": new_entry,
+            "state": ConsultationState.NOTE_DRAFT.value,
+            "updated_at": _now(),
+        }, "$push": {"note_versions": new_entry}},
+        # approved_version is intentionally left untouched.
+    )
+    return {
+        "ok": True,
+        "state": ConsultationState.NOTE_DRAFT.value,
+        "note_draft": new_entry,
+        "approved_version": approved,
+    }
 
 
 @router.post("/consultations/{consultation_id}/note/approve")
 async def approve_note(
     consultation_id: str,
+    body: ApproveNoteIn,
     user: dict = Depends(_require_verified_advocate),
 ):
     """
-    Approve the current draft note. Creates an immutable approved_version.
-    Transitions state to APPROVED. Requires a verified advocate profile.
-    Idempotent: if this consultation is already APPROVED, returns the
-    existing approved version instead of erroring or recomputing anything
-    — the stored content_hash is never recomputed on a repeat call.
+    Approve a specific version of the draft note (expected_version) and
+    snapshot exactly that version as approved_version. Transitions state to
+    APPROVED. Requires a verified advocate profile.
+    Idempotent: a repeat call with the version that is already approved
+    returns the existing approved version instead of erroring or
+    recomputing anything — the stored content_hash is never recomputed.
     """
     doc = await _get_consultation(consultation_id, user)
 
     if doc["state"] == ConsultationState.APPROVED.value and doc.get("approved_version"):
         existing = doc["approved_version"]
-        return {
-            "ok": True,
-            "state": ConsultationState.APPROVED.value,
-            "content_hash": existing.get("content_hash"),
-            "version": existing.get("version"),
-            "already_approved": True,
-        }
+        if existing.get("version") == body.expected_version:
+            return {
+                "ok": True,
+                "state": ConsultationState.APPROVED.value,
+                "content_hash": existing.get("content_hash"),
+                "version": existing.get("version"),
+                "already_approved": True,
+            }
+        raise HTTPException(409, {
+            "error": "already_approved_different_version",
+            "message": f"This consultation is already approved as version {existing.get('version')}.",
+            "current_version": existing.get("version"),
+        })
 
     if doc["state"] != ConsultationState.NOTE_DRAFT.value:
         raise HTTPException(409, f"Note approval is only allowed in NOTE_DRAFT state (current: {doc['state']}).")
-    if not doc.get("note_draft"):
+    draft = doc.get("note_draft")
+    if not draft:
         raise HTTPException(400, "No draft exists. Generate one before approving.")
 
-    draft = doc["note_draft"]
-    # Content hash of the approved version for audit trail
+    current_version = draft.get("version", 1)
+    if body.expected_version != current_version:
+        raise HTTPException(409, {
+            "error": "version_conflict",
+            "message": "This note was changed since you last loaded it. Review the latest version before approving.",
+            "current_version": current_version,
+            "current_sections": draft.get("sections", {}),
+            "current_statute_citations": draft.get("statute_citations", []),
+        })
+
+    # Content hash of the approved draft for the audit trail — hashed the
+    # same way as before N2 (whole draft dict, sort_keys) so existing
+    # stored hashes and this formula stay consistent.
     import json as _json
     content_hash = hashlib.sha256(
         _json.dumps(draft, sort_keys=True).encode()
     ).hexdigest()[:16]
 
-    approved = {
+    approved_entry = {
         **draft,
+        "approved": True,
         "approved_at": _now(),
         "approved_by": user["id"],
+        "approved_by_name": user.get("name") or user.get("email") or "Advocate",
         "content_hash": content_hash,
     }
+
+    # The draft being approved was already appended to note_versions when
+    # it was generated/edited — mark that SAME entry approved in place
+    # instead of pushing a duplicate.
+    versions = doc.get("note_versions", [])
+    replaced = False
+    for i, v in enumerate(versions):
+        if v.get("version") == current_version:
+            versions[i] = approved_entry
+            replaced = True
+            break
+    if not replaced:
+        versions.append(approved_entry)
+
     await db.nt_consultations.update_one(
         {"id": consultation_id},
         {"$set": {
-            "approved_version": approved,
+            "approved_version": approved_entry,
+            "note_draft": approved_entry,
+            "note_versions": versions,
             "state": ConsultationState.APPROVED.value,
             "updated_at": _now(),
-        }, "$push": {"note_versions": approved}},
+        }},
     )
     return {
         "ok": True,
         "state": ConsultationState.APPROVED.value,
         "content_hash": content_hash,
-        "version": approved.get("version"),
+        "version": current_version,
         "already_approved": False,
     }
 

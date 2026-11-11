@@ -95,7 +95,7 @@ class TestTaskEndpoints:
 
         r6 = api.post(
             f"{BASE_URL}/api/notetaker/consultations/{TestTaskEndpoints.consultation_id}/note/approve",
-            headers=auth_headers,
+            headers=auth_headers, json={"expected_version": r5.json()["version"]},
         )
         assert r6.status_code == 200
         assert r6.json()["state"] == "APPROVED"

@@ -1,27 +1,52 @@
 /**
- * ConsentStep — rendered while a consultation is in DRAFT or CONSENT_PENDING.
- * Records per-participant consent. The backend only transitions to READY
- * once every *required* participant's latest decision is 'given'; a
- * decline/unknown on any required participant blocks (or demotes back to)
- * CONSENT_PENDING, and offers "continue with manual notes only" as the
- * documented way to proceed without recording or AI drafting.
+ * ConsentStep — rendered while a consultation is in DRAFT or CONSENT_PENDING,
+ * and reachable at any later active stage via the "Manage consent" entry
+ * point in the consultation header (a late-added participant must force a
+ * fresh readiness check, which this enables).
+ *
+ * The backend only transitions to READY once every *required* participant's
+ * latest decision is 'given'; a decline/unknown on any required participant
+ * blocks (or demotes back to) CONSENT_PENDING, and offers "continue with
+ * manual notes only" as the documented way to proceed without recording or
+ * AI drafting. A participant can also withdraw consent at any point, which
+ * halts further capture/upload/AI work for the whole consultation.
+ *
+ * BATCH N1-B2: adds the "unknown" outcome, per-consent scope/notice-version/
+ * evidence-reference capture, and per-participant withdrawal. The withdraw
+ * confirmation uses the new in-app ConfirmModal, not a native alert/confirm.
  */
 import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { theme } from '@/src/theme';
 import { crossAlert } from '@/src/utils/crossAlert';
-import { apiPost, newIdempotencyKey } from '../api';
-import type { Consultation, Consent } from '../api';
+import { apiPost, newIdempotencyKey, withdrawConsent, CONSENT_SCOPE_OPTIONS, CURRENT_CONSENT_NOTICE_VERSION } from '../api';
+import type { Consultation, Consent, ConsentScope } from '../api';
+import ConfirmModal from '../ConfirmModal';
 
 const c = theme.colors;
+
+const SCOPE_LABELS: Record<ConsentScope, string> = {
+  notes: 'Notes', audio: 'Audio', transcription: 'Transcription', storage: 'Storage',
+};
+
+function defaultScope(inputMethod: Consultation['input_method']): ConsentScope[] {
+  const scope: ConsentScope[] = ['notes', 'storage'];
+  if (inputMethod === 'audio_import') scope.push('audio', 'transcription');
+  if (inputMethod === 'transcript_import') scope.push('transcription');
+  return scope;
+}
 
 export default function ConsentStep({
   consultation, consents, token, onChanged,
 }: { consultation: Consultation; consents: Consent[]; token: string; onChanged: () => void }) {
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
-  const [saving, setSaving] = useState<'given' | 'declined' | null>(null);
+  const [scope, setScope] = useState<ConsentScope[]>(defaultScope(consultation.input_method));
+  const [evidenceRef, setEvidenceRef] = useState('');
+  const [saving, setSaving] = useState<'given' | 'declined' | 'unknown' | null>(null);
   const [continuing, setContinuing] = useState(false);
+  const [withdrawTarget, setWithdrawTarget] = useState<Consent | null>(null);
+  const [withdrawing, setWithdrawing] = useState(false);
 
   // Drive messaging from the backend's own readiness computation (every
   // required participant's LATEST decision), not a local "any given?"
@@ -30,7 +55,11 @@ export default function ConsentStep({
   const summary = consultation.consent_summary;
   const status = summary?.status ?? (consents.length === 0 ? 'not_started' : 'pending');
 
-  const submit = async (decision: 'given' | 'declined') => {
+  const toggleScope = (s: ConsentScope) => {
+    setScope(prev => (prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]));
+  };
+
+  const submit = async (decision: 'given' | 'declined' | 'unknown') => {
     if (!name.trim()) { crossAlert('Name required', "Enter the participant's name."); return; }
     setSaving(decision);
     try {
@@ -38,8 +67,12 @@ export default function ConsentStep({
         participant_name: name.trim(),
         participant_role: role.trim() || null,
         decision,
+        scope,
+        consent_notice_version: CURRENT_CONSENT_NOTICE_VERSION,
+        evidence_ref: evidenceRef.trim() || null,
       }, newIdempotencyKey());
-      setName(''); setRole('');
+      setName(''); setRole(''); setEvidenceRef('');
+      setScope(defaultScope(consultation.input_method));
       onChanged();
     } catch (e: any) {
       crossAlert('Could not record consent', e?.message || 'Please try again.');
@@ -70,38 +103,78 @@ export default function ConsentStep({
     );
   };
 
+  const confirmWithdraw = async () => {
+    if (!withdrawTarget) return;
+    setWithdrawing(true);
+    try {
+      await withdrawConsent(token, consultation.id, withdrawTarget.participant_name, newIdempotencyKey());
+      setWithdrawTarget(null);
+      onChanged();
+    } catch (e: any) {
+      crossAlert('Could not withdraw consent', e?.message || 'Please try again.');
+    }
+    setWithdrawing(false);
+  };
+
   return (
     <View style={styles.wrap}>
       <Text style={styles.heading}>Participant consent</Text>
       <Text style={styles.body}>
         Record whether each participant consents to this consultation being noted.
         Every required participant must grant consent before you can continue — a
-        decline or no-response from any one of them blocks the consultation.
+        decline, an unknown/no-response, or a withdrawal from any one of them blocks
+        the consultation.
       </Text>
 
       {consents.length > 0 && (
         <View style={styles.list}>
-          {consents.map(item => (
-            <View key={item.id} style={styles.consentRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.consentName}>{item.participant_name}</Text>
-                {!!item.participant_role && <Text style={styles.consentRole}>{item.participant_role}</Text>}
+          {consents.map(item => {
+            const isWithdrawn = item.decision === 'withdrawn';
+            return (
+              <View key={item.id} style={styles.consentRow}>
+                <View style={styles.consentRowTop}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.consentName}>{item.participant_name}</Text>
+                    {!!item.participant_role && <Text style={styles.consentRole}>{item.participant_role}</Text>}
+                  </View>
+                  <View style={[
+                    styles.decisionBadge,
+                    item.decision === 'given' && styles.decisionGiven,
+                    (item.decision === 'declined' || isWithdrawn) && styles.decisionDeclined,
+                    item.decision === 'unknown' && styles.decisionUnknown,
+                  ]}>
+                    <Text style={[
+                      styles.decisionText,
+                      item.decision === 'given' && styles.decisionTextGiven,
+                      (item.decision === 'declined' || isWithdrawn) && styles.decisionTextDeclined,
+                      item.decision === 'unknown' && styles.decisionTextUnknown,
+                    ]}>
+                      {item.decision === 'given' ? 'Consent given'
+                        : item.decision === 'declined' ? 'Declined'
+                        : item.decision === 'unknown' ? 'Unknown'
+                        : 'Withdrawn'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.consentMetaRow}>
+                  {!!item.scope?.length && (
+                    <Text style={styles.consentMetaText}>Scope: {item.scope.map(s => SCOPE_LABELS[s] || s).join(', ')}</Text>
+                  )}
+                  {!!item.consent_notice_version && (
+                    <Text style={styles.consentMetaText}>Notice {item.consent_notice_version}</Text>
+                  )}
+                </View>
+                {!!item.evidence_ref && <Text style={styles.consentMetaText}>Evidence: {item.evidence_ref}</Text>}
+
+                {!isWithdrawn && (
+                  <Pressable style={styles.withdrawBtn} onPress={() => setWithdrawTarget(item)}>
+                    <Text style={styles.withdrawBtnText}>Withdraw consent</Text>
+                  </Pressable>
+                )}
               </View>
-              <View style={[
-                styles.decisionBadge,
-                item.decision === 'given' && styles.decisionGiven,
-                (item.decision === 'declined' || item.decision === 'withdrawn') && styles.decisionDeclined,
-              ]}>
-                <Text style={[
-                  styles.decisionText,
-                  item.decision === 'given' && styles.decisionTextGiven,
-                  (item.decision === 'declined' || item.decision === 'withdrawn') && styles.decisionTextDeclined,
-                ]}>
-                  {item.decision === 'given' ? 'Consent given' : item.decision === 'declined' ? 'Declined' : 'Withdrawn'}
-                </Text>
-              </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
       )}
 
@@ -116,12 +189,32 @@ export default function ConsentStep({
           style={styles.input} value={role} onChangeText={setRole}
           placeholder="e.g. Client, Witness" placeholderTextColor={c.muted}
         />
+
+        <Text style={styles.fieldLabel}>What are they consenting to?</Text>
+        <View style={styles.scopeRow}>
+          {CONSENT_SCOPE_OPTIONS.map(s => (
+            <Pressable key={s} style={[styles.scopeChip, scope.includes(s) && styles.scopeChipActive]} onPress={() => toggleScope(s)}>
+              <Text style={[styles.scopeChipText, scope.includes(s) && styles.scopeChipTextActive]}>{SCOPE_LABELS[s]}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <Text style={styles.noticeVersionHint}>Consent notice version: {CURRENT_CONSENT_NOTICE_VERSION}</Text>
+
+        <Text style={styles.fieldLabel}>Evidence reference (optional)</Text>
+        <TextInput
+          style={styles.input} value={evidenceRef} onChangeText={setEvidenceRef}
+          placeholder="e.g. Signed form filed as Exhibit A" placeholderTextColor={c.muted}
+        />
+
         <View style={styles.actionRow}>
           <Pressable style={styles.declineBtn} onPress={() => submit('declined')} disabled={saving !== null}>
-            {saving === 'declined' ? <ActivityIndicator color={c.error} size="small" /> : <Text style={styles.declineBtnText}>Record declined</Text>}
+            {saving === 'declined' ? <ActivityIndicator color={c.error} size="small" /> : <Text style={styles.declineBtnText}>Declined</Text>}
+          </Pressable>
+          <Pressable style={styles.unknownBtn} onPress={() => submit('unknown')} disabled={saving !== null}>
+            {saving === 'unknown' ? <ActivityIndicator color={c.muted} size="small" /> : <Text style={styles.unknownBtnText}>Unknown</Text>}
           </Pressable>
           <Pressable style={styles.giveBtn} onPress={() => submit('given')} disabled={saving !== null}>
-            {saving === 'given' ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.giveBtnText}>Record consent given</Text>}
+            {saving === 'given' ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.giveBtnText}>Given</Text>}
           </Pressable>
         </View>
       </View>
@@ -150,6 +243,21 @@ export default function ConsentStep({
           <Text style={styles.noticeText}>Record at least the first participant&apos;s decision to get started.</Text>
         </View>
       )}
+
+      <ConfirmModal
+        visible={!!withdrawTarget}
+        title="Withdraw consent?"
+        message={
+          withdrawTarget
+            ? `This withdraws consent for ${withdrawTarget.participant_name}. It halts further recording, upload and AI drafting for this consultation. Retention policy is not configured — any material already captured is left as is and is not deleted or modified.`
+            : ''
+        }
+        confirmLabel="Withdraw consent"
+        destructive
+        loading={withdrawing}
+        onCancel={() => setWithdrawTarget(null)}
+        onConfirm={confirmWithdraw}
+      />
     </View>
   );
 }
@@ -160,27 +268,42 @@ const styles = StyleSheet.create({
   body: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, lineHeight: 20, marginBottom: 16 },
   list: { gap: 8, marginBottom: 16 },
   consentRow: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface,
-    borderRadius: 10, borderWidth: 1, borderColor: c.border, padding: 12,
+    backgroundColor: c.surface,
+    borderRadius: 10, borderWidth: 1, borderColor: c.border, padding: 12, gap: 6,
   },
+  consentRowTop: { flexDirection: 'row', alignItems: 'center' },
   consentName: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.ink },
   consentRole: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 2 },
   decisionBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: c.surfaceSecondary },
   decisionGiven: { backgroundColor: '#E7F1EB' },
   decisionDeclined: { backgroundColor: '#FEE4E2' },
+  decisionUnknown: { backgroundColor: '#FEF3C7' },
   decisionText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 11, color: c.muted },
   decisionTextGiven: { color: '#1F6B4A' },
   decisionTextDeclined: { color: c.error },
+  decisionTextUnknown: { color: '#92400E' },
+  consentMetaRow: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
+  consentMetaText: { fontFamily: theme.fonts.body, fontSize: 11, color: c.muted },
+  withdrawBtn: { alignSelf: 'flex-start', marginTop: 2 },
+  withdrawBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.error, textDecorationLine: 'underline' },
   form: { backgroundColor: c.surface, borderRadius: 12, borderWidth: 1, borderColor: c.border, padding: 16 },
   fieldLabel: { fontFamily: theme.fonts.bodyMedium, fontSize: 13, color: c.muted, marginBottom: 6, marginTop: 10 },
   input: {
     borderWidth: 1.5, borderColor: c.border, borderRadius: 10, padding: 12,
     fontFamily: theme.fonts.body, fontSize: 14, color: c.ink,
   },
-  actionRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  scopeRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  scopeChip: { borderWidth: 1.5, borderColor: c.border, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
+  scopeChipActive: { backgroundColor: c.navy, borderColor: c.navy },
+  scopeChipText: { fontFamily: theme.fonts.bodyMedium, fontSize: 12, color: c.muted },
+  scopeChipTextActive: { color: '#fff' },
+  noticeVersionHint: { fontFamily: theme.fonts.body, fontSize: 11, color: c.muted, marginTop: 8 },
+  actionRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
   declineBtn: { flex: 1, borderWidth: 1.5, borderColor: c.error, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
   declineBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.error },
-  giveBtn: { flex: 1.3, backgroundColor: c.navy, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
+  unknownBtn: { flex: 1, borderWidth: 1.5, borderColor: c.border, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
+  unknownBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.muted },
+  giveBtn: { flex: 1, backgroundColor: c.navy, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
   giveBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: '#fff' },
   noticeBox: { backgroundColor: '#FEF3C7', borderRadius: 10, padding: 12, marginTop: 16 },
   noticeText: { fontFamily: theme.fonts.body, fontSize: 12, color: '#92400E', lineHeight: 18 },

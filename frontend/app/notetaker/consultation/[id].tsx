@@ -4,7 +4,7 @@
  * (DRAFT → CONSENT_PENDING → READY → … → NOTE_DRAFT → APPROVED).
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, Pressable, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, Pressable, StyleSheet, Modal } from 'react-native';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/src/theme';
@@ -32,6 +32,7 @@ export default function ConsultationScreen() {
   const [consents, setConsents] = useState<Consent[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [consentModalOpen, setConsentModalOpen] = useState(false);
   // Founder decision (BATCH N1): AI drafting, note approval and export are
   // blocked for advocates whose Bar Council verification is still pending.
   // Defaults to false (most restrictive) until the profile check resolves.
@@ -79,7 +80,15 @@ export default function ConsultationScreen() {
     return () => clearInterval(t);
   }, [consultation?.state, load]);
 
-  const hideActions = !!consultation && ['APPROVED', 'CANCELLED', 'FAILED', 'INTERRUPTED'].includes(consultation.state);
+  const hideActions = !!consultation && ['APPROVED', 'CANCELLED', 'FAILED', 'INTERRUPTED', 'CONSENT_WITHDRAWN'].includes(consultation.state);
+  // A separate "Manage consent" entry point (on top of the main ConsentStep
+  // body shown for DRAFT/CONSENT_PENDING) lets the advocate return to
+  // consent at any later active stage — e.g. to add a late-joining
+  // participant, whose fresh decision the backend re-checks against
+  // readiness automatically. Not shown once APPROVED (consent isn't
+  // re-opened retroactively there) or in a terminal state.
+  const canManageConsent = !!consultation
+    && !['DRAFT', 'CONSENT_PENDING', 'APPROVED', 'CANCELLED', 'FAILED', 'INTERRUPTED', 'CONSENT_WITHDRAWN'].includes(consultation.state);
 
   const confirmCancel = () => {
     if (!consultation || !token) return;
@@ -166,6 +175,19 @@ export default function ConsultationScreen() {
     case 'APPROVED':
       body = <ApprovedStep consultation={consultation} token={token} advocateVerified={advocateVerified} onChanged={() => load(true)} />;
       break;
+    case 'CONSENT_WITHDRAWN':
+      body = (
+        <View style={styles.statusWrap}>
+          <Text style={styles.statusIcon}>🛑</Text>
+          <Text style={styles.statusText}>Consent withdrawn</Text>
+          <Text style={styles.statusSub}>
+            A participant withdrew consent, so this consultation is closed. Recording, upload and AI
+            drafting are switched off. Retention policy is not configured — any material already
+            captured has not been deleted or modified.
+          </Text>
+        </View>
+      );
+      break;
     case 'FAILED':
       body = (
         <View style={styles.statusWrap}>
@@ -204,11 +226,20 @@ export default function ConsultationScreen() {
       <ScreenHeader
         title={consultation.title}
         subtitle={consultation.date}
-        right={!hideActions ? (
-          <Pressable onPress={confirmCancel} style={styles.cancelBtn} disabled={cancelling} accessibilityLabel="Cancel consultation">
-            {cancelling ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.cancelBtnText}>Cancel</Text>}
-          </Pressable>
-        ) : undefined}
+        right={(
+          <View style={styles.headerActions}>
+            {canManageConsent && (
+              <Pressable onPress={() => setConsentModalOpen(true)} style={styles.consentBtn} accessibilityLabel="Manage consent">
+                <Text style={styles.consentBtnText}>Consent</Text>
+              </Pressable>
+            )}
+            {!hideActions && (
+              <Pressable onPress={confirmCancel} style={styles.cancelBtn} disabled={cancelling} accessibilityLabel="Cancel consultation">
+                {cancelling ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.cancelBtnText}>Cancel</Text>}
+              </Pressable>
+            )}
+          </View>
+        )}
       />
       <View style={styles.statusRow}>
         <StatusPill state={consultation.state} />
@@ -217,6 +248,23 @@ export default function ConsultationScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
         {body}
       </ScrollView>
+
+      <Modal visible={consentModalOpen} animationType="slide" onRequestClose={() => setConsentModalOpen(false)}>
+        <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+          <ScreenHeader
+            title="Manage consent"
+            subtitle={consultation.title}
+            right={(
+              <Pressable onPress={() => setConsentModalOpen(false)} style={styles.consentBtn} accessibilityLabel="Done">
+                <Text style={styles.consentBtnText}>Done</Text>
+              </Pressable>
+            )}
+          />
+          <ScrollView contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+            <ConsentStep consultation={consultation} consents={consents} token={token} onChanged={() => load(true)} />
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -232,6 +280,9 @@ const styles = StyleSheet.create({
   statusSub: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, textAlign: 'center', lineHeight: 19 },
   cancelBtn: { backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 },
   cancelBtnText: { color: '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 13 },
+  headerActions: { flexDirection: 'row', gap: 8 },
+  consentBtn: { backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 },
+  consentBtnText: { color: '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 13 },
   cancelInlineBtn: { marginTop: 10, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 10, borderWidth: 1.5, borderColor: c.error },
   cancelInlineBtnText: { color: c.error, fontFamily: theme.fonts.bodySemiBold, fontSize: 14 },
 });

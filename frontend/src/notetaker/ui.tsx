@@ -72,6 +72,7 @@ const STATE_META: Record<ConsultationState, { label: string; tone: keyof typeof 
   TRANSCRIPT_REVIEW:  { label: 'Reviewing transcript', tone: 'info' },
   NOTE_DRAFT:         { label: 'Drafting note', tone: 'info' },
   APPROVED:           { label: 'Approved', tone: 'success' },
+  CONSENT_WITHDRAWN:  { label: 'Consent withdrawn', tone: 'error' },
   FAILED:             { label: 'Failed', tone: 'error' },
   CANCELLED:          { label: 'Cancelled', tone: 'muted' },
   INTERRUPTED:        { label: 'Interrupted', tone: 'error' },
