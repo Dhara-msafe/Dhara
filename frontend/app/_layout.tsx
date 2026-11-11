@@ -15,6 +15,7 @@ import { useIconFonts } from "@/src/hooks/use-icon-fonts";
 import { useAppFonts } from "@/src/hooks/use-app-fonts";
 import { DesktopFrame } from "@/src/components/dhara/DesktopFrame";
 import { GlobalHelpButton } from "@/src/components/dhara/GlobalHelpButton";
+import { QaModeBanner } from "@/src/components/dhara/QaModeBanner";
 import { IssueReporterButton } from "@/src/components/IssueReporterButton";
 import { LanguageOnboardModal } from "@/src/components/LanguageOnboardModal";
 import { AuthProvider, useAuth } from "@/src/auth";
@@ -363,6 +364,7 @@ export default function RootLayout() {
               <ScreenCaptureLock />
               <NotificationTapBridge />
               <LanguageOnboardModal />
+              <QaModeBanner />
               <StatusBar style="dark" />
               {isWideWeb ? (
                 <DesktopFrame>
