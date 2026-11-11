@@ -178,6 +178,50 @@ test('5xx never carries serverMessage through, even if detail is present', async
   }
 });
 
+test('B-38: daily-cap 429 (object detail with limit:true) is carried through as serverMessage', async () => {
+  const originalFetch = globalThis.fetch;
+  const dailyCapMessage = "You've used all 30 free questions for today. Upgrade to Pro for unlimited access, or come back tomorrow.\n\nIn an emergency, free help is available:\n• NALSA Legal Aid: 15100 (free)\n• Consumer Helpline: 1800-11-4000 (toll-free)";
+  (globalThis as any).fetch = async () => ({
+    ok: false,
+    status: 429,
+    json: async () => ({
+      detail: {
+        limit: true, scope: 'user', kind: 'query', used: 30, cap: 30, is_pro: false,
+        message: dailyCapMessage,
+        helplines: [{ name: 'NALSA Legal Aid', number: '15100' }],
+      },
+    }),
+  });
+  try {
+    await assert.rejects(
+      () => whisperTranscribeFile('https://api.example.com', 'tok', 'file://a.m4a', undefined, fakeBlob, 'web'),
+      (e: any) => e.message === '__transcribe_failed__' && e.status === 429 && e.serverMessage === dailyCapMessage,
+    );
+  } finally {
+    (globalThis as any).fetch = originalFetch;
+  }
+});
+
+test('429 with an object detail that is NOT our own daily-cap shape never leaks', async () => {
+  // Guards the limit:true check itself: an upstream provider's own 429 body
+  // could be any arbitrary JSON object. Without the explicit shape check,
+  // such a body would wrongly be trusted as if it were our vetted message.
+  const originalFetch = globalThis.fetch;
+  (globalThis as any).fetch = async () => ({
+    ok: false,
+    status: 429,
+    json: async () => ({ detail: { error: 'rate_limit_exceeded', provider: 'openai', retry_after: 2 } }),
+  });
+  try {
+    await assert.rejects(
+      () => whisperTranscribeFile('https://api.example.com', 'tok', 'file://a.m4a', undefined, fakeBlob, 'web'),
+      (e: any) => e.message === '__transcribe_failed__' && e.status === 429 && e.serverMessage === undefined,
+    );
+  } finally {
+    (globalThis as any).fetch = originalFetch;
+  }
+});
+
 test('HTML (non-JSON) error body never leaks into serverMessage', async () => {
   const originalFetch = globalThis.fetch;
   (globalThis as any).fetch = async () => ({
@@ -211,9 +255,16 @@ test('sttErrorToMessage: __session_expired__ unchanged', () => {
   assert.equal(sttErrorToMessage(new Error('__session_expired__')), 'Session expired — please sign in again.');
 });
 
-test('sttErrorToMessage: 429 unchanged', () => {
+test('sttErrorToMessage: 429 with no vetted serverMessage falls back to the generic text', () => {
   const err: any = new Error('__transcribe_failed__'); err.status = 429;
   assert.equal(sttErrorToMessage(err), 'Too many requests. Please wait a moment and try again.');
+});
+
+test('B-38: sttErrorToMessage: 429 WITH a vetted daily-cap serverMessage shows it, not the generic text', () => {
+  const err: any = new Error('__transcribe_failed__');
+  err.status = 429;
+  err.serverMessage = "You've used all 30 free questions for today. Upgrade to Pro for unlimited access, or come back tomorrow.";
+  assert.equal(sttErrorToMessage(err), err.serverMessage);
 });
 
 test('sttErrorToMessage: safe serverMessage is shown verbatim', () => {
