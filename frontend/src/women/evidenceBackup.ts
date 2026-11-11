@@ -29,10 +29,22 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+/** NF-04: every route behind `${base}` (anchor, upload/init, upload/chunk,
+ * upload/complete) requires current_user server-side (401 "Missing token"
+ * with no Authorization header at all — see dependencies.py's
+ * current_user) — this is real per-user evidence data, not a public
+ * lookup. The caller must pass its auth token; the header is omitted
+ * entirely when token is null/empty, matching the authHeaders() pattern
+ * used elsewhere (src/trustedCircle/api.ts). */
+function authHeader(token: string | null): Record<string, string> {
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export async function anchorItem(
   scope: string,
   item: RecordingItem,
-  gps?: GpsPoint | null,
+  gps: GpsPoint | null | undefined,
+  token: string | null,
 ): Promise<{ entry: ManifestEntry; receipt: AnchorReceipt }> {
   const bytes = await readEncryptedBytes(item);
   const entry = await appendToChain(
@@ -43,7 +55,7 @@ export async function anchorItem(
   );
   const res = await fetch(`${base}/anchor`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeader(token) },
     body: JSON.stringify({
       item_id: item.id, scope, type: item.type,
       manifest_hash: entry.sha256, chain_hash: entry.chainHash, prev_hash: entry.prevHash,
@@ -65,7 +77,8 @@ export async function anchorItem(
 export async function backupItem(
   scope: string,
   item: RecordingItem,
-  onProgress?: (fraction: number) => void,
+  onProgress: ((fraction: number) => void) | undefined,
+  token: string | null,
 ): Promise<ManifestEntry> {
   const manifestEntry = await getManifestEntry(scope, item.id);
   if (!manifestEntry) throw new Error('Anchor this item before backing it up.');
@@ -76,7 +89,7 @@ export async function backupItem(
 
   const initRes = await fetch(`${base}/upload/init`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeader(token) },
     body: JSON.stringify({
       item_id: item.id, scope, total_chunks: totalChunks, ext: item.ext || 'bin',
       iv: item.iv || '', manifest_hash: manifestEntry.sha256,
@@ -104,7 +117,7 @@ export async function backupItem(
       try {
         const chunkRes = await fetch(`${base}/upload/chunk`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeader(token) },
           body: JSON.stringify({ session_id, index: i, data_b64 }),
         });
         if (!chunkRes.ok) throw new Error(`chunk ${i} failed`);
@@ -120,7 +133,7 @@ export async function backupItem(
 
   const completeRes = await fetch(`${base}/upload/complete`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeader(token) },
     body: JSON.stringify({ session_id }),
   });
   if (!completeRes.ok) throw new Error('Could not finish the backup. Please try again.');
