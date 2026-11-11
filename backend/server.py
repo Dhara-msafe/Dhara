@@ -1045,6 +1045,14 @@ async def admin_refusal_stats(
       3. query_too_vague — too few content words to score anything
       4. non_indian_jurisdiction / not_legal_advice_request — out of scope,
          not a corpus gap at all
+      5. output_guard_blocked / llm_self_refusal (B-11) — a real LLM call was
+         made (corpus retrieval found something) but the ANSWER itself was a
+         refusal: either the citation-truth-guard blocked unverified/banned
+         output, or the model's own prose read as a refusal. These fire from
+         inside event_gen(), after the early-refusal gate above already
+         passed, and are logged separately so they aren't mistaken for a
+         corpus-coverage gap — the corpus had something, the answer just
+         wasn't trustworthy enough to show.
     `top_key` counts show WHICH existing entries keep almost-matching (useful
     for keyword tuning) and `category` counts show which real-world topics
     are being asked about, including topics with zero corpus coverage today.

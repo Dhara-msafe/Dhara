@@ -226,6 +226,46 @@ _ACUTE_DANGER_RE = re.compile(
 )
 
 
+async def log_refusal_event(
+    cause_code: str,
+    *,
+    sub_cause: Optional[str] = None,
+    category: Optional[str] = None,
+    language: Optional[str] = None,
+    state: Optional[str] = None,
+    top_score: Optional[int] = None,
+    top_key: Optional[str] = None,
+) -> None:
+    """Single write path for db.refusal_events — privacy-safe (no user_id,
+    no session_id, no raw message/answer text) aggregate-only analytics (A4).
+
+    B-11 fix: this used to be inline, ad-hoc code written only at the EARLY
+    refusal site (before any LLM call). Two more refusal paths exist later in
+    chat_stream's event_gen() — a refusal that only becomes apparent AFTER a
+    real LLM call came back (the output guard blocking unverified/banned
+    content, or the model's own prose reading as a refusal) — and neither of
+    those ever logged anything, so admin_refusal_stats' total_refusals
+    silently undercounted every refusal of that kind. Pulling this into one
+    shared, testable function (instead of copy-pasting the insert_one block a
+    third time) is what let this be exercised directly in a unit test,
+    without needing a live LLM call to reach the late-refusal branches.
+    """
+    try:
+        await db.refusal_events.insert_one({
+            "id": str(uuid.uuid4()),
+            "cause_code": cause_code,
+            "sub_cause": sub_cause,
+            "category": category,
+            "language": language,
+            "state": state,
+            "top_score": top_score,
+            "top_key": top_key,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+    except Exception:
+        logging.getLogger(__name__).warning("refusal_events insert failed", exc_info=True)
+
+
 def _is_immediate_danger(text: str) -> bool:
     t = text or ""
     return bool((_DANGER_RE.search(t) and _THREAT_RE.search(t)) or _ACUTE_DANGER_RE.search(t))
@@ -1327,20 +1367,15 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                 sub_cause = "below_confidence_threshold"  # candidate existed
                 # (dbg["top_key"]) but scored under RETRIEVAL_MIN_SCORE — a
                 # retrieval-tuning question, not necessarily a missing law.
-        try:
-            await db.refusal_events.insert_one({
-                "id": str(uuid.uuid4()),
-                "cause_code": cause_code,
-                "sub_cause": sub_cause,
-                "category": classify_topic(retrieval_text),
-                "language": body.language,
-                "state": user_state or None,
-                "top_score": dbg["top_score"],
-                "top_key": dbg["top_key"],
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            })
-        except Exception:
-            logging.getLogger(__name__).warning("refusal_events insert failed", exc_info=True)
+        await log_refusal_event(
+            cause_code,
+            sub_cause=sub_cause,
+            category=classify_topic(retrieval_text),
+            language=body.language,
+            state=user_state or None,
+            top_score=dbg["top_score"],
+            top_key=dbg["top_key"],
+        )
 
     # Build the verified-source context for the prompt (used ONLY when we have hits)
     corpus_context = ""
@@ -1551,6 +1586,25 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                 {"id": user["id"]},
                 {"$inc": {"pro_samples_used": 1}},
             )
+
+    # -------- B-11: late refusal analytics (output-guard / self-refusal) --------
+    # The early_refusal block above (around line 1301) is the ONLY place that
+    # writes to db.refusal_events — and it only fires BEFORE the LLM is ever
+    # called. Two more refusal paths exist further down, inside event_gen(),
+    # that fire AFTER a real LLM call came back and was found to be a refusal
+    # (the citation-truth-guard's output_blocked case, and looks_like_refusal's
+    # own detection of refusal-flavoured LLM prose) — neither of those was
+    # ever logged, so admin_refusal_stats' total_refusals silently undercounted
+    # every refusal that only became apparent after the model answered. Same
+    # privacy-safe shape as the early-refusal insert (no user_id/session_id/
+    # message text) — just a different cause_code so the two are distinguishable.
+    async def _log_late_refusal(cause_code: str) -> None:
+        await log_refusal_event(
+            cause_code,
+            category=classify_topic(retrieval_text),
+            language=body.language,
+            state=user_state or None,
+        )
 
     async def event_gen() -> AsyncGenerator[bytes, None]:
         yield sse({
@@ -1836,6 +1890,7 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                 logger.warning("citation_guard | output_blocked | reason=unverified_marker_or_banned_word")
                 sanitized = CANNOT_CONFIRM_MESSAGE
                 _suppress_citations = True
+                await _log_late_refusal("output_guard_blocked")
             else:
                 sanitized = _clean
                 if _repeats:
@@ -1859,6 +1914,7 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
                     else:
                         _suppress_citations = True
                         logger.info("citation_guard | suppressed | reason=refusal_text_detected | count=%d", len(_citation_payloads))
+                        await _log_late_refusal("llm_self_refusal")
 
         if _buffering or sanitized != full:
             # Overwrite the accumulated text on the client with the sanitized version.
