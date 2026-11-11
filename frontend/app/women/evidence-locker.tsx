@@ -211,7 +211,7 @@ export default function EvidenceLocker() {
   const router = useRouter();
   const params = useLocalSearchParams<{ record?: string }>();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const scope = user?.id || 'device';
   const [unlocked, setUnlocked] = useState(false);
   // Item G: Get recorder from EvidenceRecorderProvider (survives navigation).
@@ -849,7 +849,7 @@ export default function EvidenceLocker() {
   const doAnchor = useCallback(async (item: RecordingItem, gps: GpsPoint | null) => {
     setAnchoring(item.id);
     try {
-      const { entry } = await anchorItem(scope, item, gps);
+      const { entry } = await anchorItem(scope, item, gps, token);
       setManifestMap(prev => ({ ...prev, [item.id]: entry }));
       setStatus('Evidence anchored — a tamper-evident timestamp was saved.');
     } catch (e: any) {
@@ -857,7 +857,7 @@ export default function EvidenceLocker() {
     } finally {
       setAnchoring(null);
     }
-  }, [scope]);
+  }, [scope, token]);
 
   const requestLocationThenAnchor = useCallback(async (item: RecordingItem) => {
     try {
@@ -900,7 +900,7 @@ export default function EvidenceLocker() {
   const handleBackup = useCallback(async (item: RecordingItem) => {
     setBackingUp(prev => ({ ...prev, [item.id]: 0 }));
     try {
-      const entry = await backupItem(scope, item, fraction => setBackingUp(prev => ({ ...prev, [item.id]: fraction })));
+      const entry = await backupItem(scope, item, fraction => setBackingUp(prev => ({ ...prev, [item.id]: fraction })), token);
       setManifestMap(prev => ({ ...prev, [item.id]: entry }));
       setStatus('Backed up to secure cloud storage.');
     } catch (e: any) {
@@ -908,7 +908,7 @@ export default function EvidenceLocker() {
     } finally {
       setBackingUp(prev => { const next = { ...prev }; delete next[item.id]; return next; });
     }
-  }, [scope]);
+  }, [scope, token]);
 
   const handleCertificate = useCallback(async (item: RecordingItem) => {
     const entry = manifestMap[item.id];
