@@ -200,10 +200,11 @@ export type NearbyPlace = {
 };
 
 export async function fetchNearbyPlaces(
-  category: 'police' | 'hospital', lat: number, lng: number,
+  category: 'police' | 'hospital', lat: number, lng: number, authToken: string,
 ): Promise<NearbyPlace[]> {
   const r = await fetch(
-    `${API_BASE}/api/geo/nearby?category=${category}&lat=${lat}&lng=${lng}`
+    `${API_BASE}/api/geo/nearby?category=${category}&lat=${lat}&lng=${lng}`,
+    { headers: { Authorization: `Bearer ${authToken}` } },
   );
   if (!r.ok) throw new Error(`geo_nearby_${r.status}`);
   const j = await r.json();
@@ -211,10 +212,13 @@ export async function fetchNearbyPlaces(
 }
 
 export async function fetchPlacesTextSearch(
-  query: string, lat?: number, lng?: number,
+  query: string, authToken: string, lat?: number, lng?: number,
 ): Promise<NearbyPlace[]> {
   const loc = (lat != null && lng != null) ? `&lat=${lat}&lng=${lng}` : '';
-  const r = await fetch(`${API_BASE}/api/geo/search-text?query=${encodeURIComponent(query)}${loc}`);
+  const r = await fetch(
+    `${API_BASE}/api/geo/search-text?query=${encodeURIComponent(query)}${loc}`,
+    { headers: { Authorization: `Bearer ${authToken}` } },
+  );
   if (!r.ok) throw new Error(`geo_search_text_${r.status}`);
   const j = await r.json();
   return j.results ?? [];

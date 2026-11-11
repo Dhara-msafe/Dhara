@@ -114,9 +114,10 @@ async function fetchOsmSuggestions(base: string, query: string): Promise<CoordSu
  * non-2xx (including the expected 503 when the pilot flag/key aren't set) or
  * network error, so the caller can fall back to OSM — mirrors
  * DestinationPicker.tsx's own fetchPlacesAutocomplete exactly. */
-async function fetchPlacesAutocomplete(base: string, input: string, sessionToken: string): Promise<PlacesSuggestionRow[]> {
+async function fetchPlacesAutocomplete(base: string, input: string, sessionToken: string, authToken: string): Promise<PlacesSuggestionRow[]> {
   const r = await fetch(
-    `${base}/api/geo/autocomplete?input=${encodeURIComponent(input)}&session_token=${encodeURIComponent(sessionToken)}&limit=5`
+    `${base}/api/geo/autocomplete?input=${encodeURIComponent(input)}&session_token=${encodeURIComponent(sessionToken)}&limit=5`,
+    { headers: { Authorization: `Bearer ${authToken}` } },
   );
   if (!r.ok) throw new Error(`places_autocomplete_${r.status}`);
   const j = await r.json();
@@ -134,11 +135,12 @@ async function fetchPlacesAutocomplete(base: string, input: string, sessionToken
  * for why. Returns null on any failure so the caller can show a plain
  * "couldn't load that address" message instead of silently doing nothing. */
 async function fetchPlaceDetails(
-  base: string, placeId: string, sessionToken: string, provider: string,
+  base: string, placeId: string, sessionToken: string, provider: string, authToken: string,
 ): Promise<{ label: string; latitude: number; longitude: number } | null> {
   try {
     const r = await fetch(
-      `${base}/api/geo/details?place_id=${encodeURIComponent(placeId)}&session_token=${encodeURIComponent(sessionToken)}&provider=${encodeURIComponent(provider)}`
+      `${base}/api/geo/details?place_id=${encodeURIComponent(placeId)}&session_token=${encodeURIComponent(sessionToken)}&provider=${encodeURIComponent(provider)}`,
+      { headers: { Authorization: `Bearer ${authToken}` } },
     );
     if (!r.ok) return null;
     return await r.json();
@@ -160,13 +162,19 @@ async function searchAddressesLayered(
   // React type export that's shifted across versions; all this needs is a
   // mutable .current box, which useRef() always satisfies.
   sessionTokenRef: { current: string | null },
+  authToken: string | null,
 ): Promise<UnifiedSuggestion[]> {
   if (!sessionTokenRef.current) sessionTokenRef.current = Crypto.randomUUID();
-  try {
-    const placesResults = await fetchPlacesAutocomplete(base, query, sessionTokenRef.current);
-    if (placesResults.length > 0) return placesResults;
-  } catch {
-    // Pilot off (503), misconfigured, or Google/network error — fall through to OSM.
+  // N-02: /api/geo/autocomplete now requires an authenticated session. No
+  // token at all (not even a guest one) means skip straight to OSM rather
+  // than sending a bogus "Bearer null" header.
+  if (authToken) {
+    try {
+      const placesResults = await fetchPlacesAutocomplete(base, query, sessionTokenRef.current, authToken);
+      if (placesResults.length > 0) return placesResults;
+    } catch {
+      // Pilot off (503), misconfigured, or Google/network error — fall through to OSM.
+    }
   }
   return fetchOsmSuggestions(base, query);
 }
@@ -271,13 +279,13 @@ export default function ChooseDestination() {
     addressDebounceRef.current = setTimeout(async () => {
       const reqId = ++addressReqRef.current;
       setAddressSearching(true);
-      const results = await searchAddressesLayered(base, trimmed, placesSessionTokenRef);
+      const results = await searchAddressesLayered(base, trimmed, placesSessionTokenRef, authToken);
       if (addressReqRef.current !== reqId) return; // superseded by a newer keystroke
       setAddressSuggestions(results);
       setShowAddressDropdown(results.length > 0);
       setAddressSearching(false);
     }, ADDRESS_SEARCH_DEBOUNCE_MS);
-  }, [base]);
+  }, [base, authToken]);
 
   const selectSavedPlace = useCallback((p: SavedPlace) => {
     coordsFromSelectionRef.current = true;
@@ -306,9 +314,9 @@ export default function ChooseDestination() {
     // allowed to spend the "details" half of the Places session token.
     const token = placesSessionTokenRef.current;
     setShowAddressDropdown(false);
-    if (!token) return;
+    if (!token || !authToken) return;
     setResolvingPlace(true);
-    const details = await fetchPlaceDetails(base, s.place_id, token, s.provider);
+    const details = await fetchPlaceDetails(base, s.place_id, token, s.provider, authToken);
     setResolvingPlace(false);
     placesSessionTokenRef.current = null; // session concluded — fresh token next search
     if (!details) return; // fails closed — typed text stays exactly as the user left it
@@ -316,7 +324,7 @@ export default function ChooseDestination() {
     setValue(v => ({ label: shortAddressLabel(details.label), radiusMeters: v.radiusMeters, savedPlaceId: undefined, latitude: details.latitude, longitude: details.longitude }));
     setAddressSuggestions([]);
     setMapRecenterKey(k => k + 1);
-  }, [base]);
+  }, [base, authToken]);
 
   const movePin = useCallback((lat: number, lng: number) => {
     // A manual pin drop/drag is deliberately NOT a "selection pair" — see

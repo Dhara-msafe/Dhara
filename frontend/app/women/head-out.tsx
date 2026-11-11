@@ -495,9 +495,11 @@ export default function HeadOut() {
     if (!GO1C_LIVE_ROUTE_ENABLED || expired || !hasDestCoord || !isValidCoord(gps.latitude, gps.longitude)) return;
     if (routeInfo && Date.now() - routeInfo.fetchedAt < DIRECTIONS_REFRESH_MS) return;
     let cancelled = false;
+    if (!authToken) return; // N-02: directions now requires an authenticated session
     fetch(
       `${API_BASE}/api/geo/directions?origin_lat=${gps.latitude}&origin_lng=${gps.longitude}` +
       `&dest_lat=${session!.latitude}&dest_lng=${session!.longitude}`,
+      { headers: { Authorization: `Bearer ${authToken}` } },
     )
       .then(r => r.ok ? r.json() : null)
       .then(data => {
@@ -510,7 +512,7 @@ export default function HeadOut() {
       })
       .catch(() => {});   // non-fatal — map/ETA just stays on the previous (or no) route
     return () => { cancelled = true; };
-  }, [gps.latitude, gps.longitude, hasDestCoord, expired, routeInfo, session]);
+  }, [gps.latitude, gps.longitude, hasDestCoord, expired, routeInfo, session, authToken]);
 
   // GO1C: arrival-zone + route-deviation detection — pure client-side math on
   // data already being collected (no extra network calls beyond the

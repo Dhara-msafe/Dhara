@@ -7,6 +7,7 @@ import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { theme } from '@/src/theme';
 import { fetchNearbyPlaces, fetchPlacesTextSearch, type NearbyPlace } from '@/src/women/api';
 import { openPhone } from '@/src/women/helpActions';
+import { useAuth } from '@/src/auth';
 
 import { openExternal } from '@/src/outbound';
 const c = theme.colors;
@@ -29,6 +30,7 @@ export default function NearestHelp() {
   const [results, setResults] = useState<NearbyPlace[] | null>(null);
   const [activePlace, setActivePlace] = useState<{ id: Category; name: string } | null>(null);
   const insets = useSafeAreaInsets();
+  const { token: authToken } = useAuth();
   // One-shot device location, requested lazily on first in-app search and
   // cached for the rest of this screen visit — never read continuously,
   // never used for anything but biasing/ranking these search results.
@@ -66,14 +68,19 @@ export default function NearestHelp() {
     try {
       const loc = await ensureLocation();
       let found: NearbyPlace[] = [];
-      if (place.id === 'osc') {
-        found = await fetchPlacesTextSearch('Sakhi One Stop Centre women', loc?.lat, loc?.lng);
-      } else if (loc) {
-        found = await fetchNearbyPlaces(place.id, loc.lat, loc.lng);
+      // N-02: /api/geo/nearby and /api/geo/search-text now require an
+      // authenticated session — without one, skip straight to the external
+      // Maps fallback below rather than sending a bogus "Bearer null" header.
+      if (authToken) {
+        if (place.id === 'osc') {
+          found = await fetchPlacesTextSearch('Sakhi One Stop Centre women', authToken, loc?.lat, loc?.lng);
+        } else if (loc) {
+          found = await fetchNearbyPlaces(place.id, loc.lat, loc.lng, authToken);
+        }
       }
       // Fail closed to the pre-existing external-Maps action whenever in-app
-      // search isn't usable — no location, feature off server-side (503),
-      // network error, or zero results. Never a dead end.
+      // search isn't usable — no location, no session, feature off
+      // server-side (503), network error, or zero results. Never a dead end.
       if (found.length === 0) {
         await openMap(place.query);
         return;
