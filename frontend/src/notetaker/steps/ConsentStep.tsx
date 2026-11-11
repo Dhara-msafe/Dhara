@@ -1,12 +1,16 @@
 /**
  * ConsentStep — rendered while a consultation is in DRAFT or CONSENT_PENDING.
- * Records per-participant consent. The backend auto-transitions the
- * consultation to READY the moment at least one 'given' consent exists.
+ * Records per-participant consent. The backend only transitions to READY
+ * once every *required* participant's latest decision is 'given'; a
+ * decline/unknown on any required participant blocks (or demotes back to)
+ * CONSENT_PENDING, and offers "continue with manual notes only" as the
+ * documented way to proceed without recording or AI drafting.
  */
 import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { theme } from '@/src/theme';
-import { apiPost } from '../api';
+import { crossAlert } from '@/src/utils/crossAlert';
+import { apiPost, newIdempotencyKey } from '../api';
 import type { Consultation, Consent } from '../api';
 
 const c = theme.colors;
@@ -17,8 +21,14 @@ export default function ConsentStep({
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
   const [saving, setSaving] = useState<'given' | 'declined' | null>(null);
+  const [continuing, setContinuing] = useState(false);
 
-  const hasGiven = consents.some(x => x.decision === 'given');
+  // Drive messaging from the backend's own readiness computation (every
+  // required participant's LATEST decision), not a local "any given?"
+  // shortcut — a required participant's decline/unknown still blocks even
+  // after someone else has already consented.
+  const summary = consultation.consent_summary;
+  const status = summary?.status ?? (consents.length === 0 ? 'not_started' : 'pending');
 
   const submit = async (decision: 'given' | 'declined') => {
     if (!name.trim()) { Alert.alert('Name required', "Enter the participant's name."); return; }
@@ -28,7 +38,7 @@ export default function ConsentStep({
         participant_name: name.trim(),
         participant_role: role.trim() || null,
         decision,
-      });
+      }, newIdempotencyKey());
       setName(''); setRole('');
       onChanged();
     } catch (e: any) {
@@ -37,12 +47,36 @@ export default function ConsentStep({
     setSaving(null);
   };
 
+  const continueManualOnly = () => {
+    crossAlert(
+      'Continue with manual notes only?',
+      'Recording, audio upload and AI drafting stay switched off for this consultation. You can still type notes manually, but this cannot be undone for this consultation.',
+      [
+        { text: 'Not yet', style: 'cancel' },
+        {
+          text: 'Continue manually',
+          onPress: async () => {
+            setContinuing(true);
+            try {
+              await apiPost(token, `/consultations/${consultation.id}/consent/continue-manual-only`, undefined, newIdempotencyKey());
+              onChanged();
+            } catch (e: any) {
+              Alert.alert('Could not continue', e?.message || 'Please try again.');
+            }
+            setContinuing(false);
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <View style={styles.wrap}>
       <Text style={styles.heading}>Participant consent</Text>
       <Text style={styles.body}>
         Record whether each participant consents to this consultation being noted.
-        At least one participant must give consent before you can continue.
+        Every required participant must grant consent before you can continue — a
+        decline or no-response from any one of them blocks the consultation.
       </Text>
 
       {consents.length > 0 && (
@@ -92,9 +126,28 @@ export default function ConsentStep({
         </View>
       </View>
 
-      {!hasGiven && (
+      {status === 'blocked' && (
+        <View style={styles.blockedBox}>
+          <Text style={styles.blockedText}>
+            {summary?.reason || 'A required participant has not consented. Resolve this before continuing.'}
+          </Text>
+          <Pressable style={styles.manualOnlyBtn} onPress={continueManualOnly} disabled={continuing}>
+            {continuing
+              ? <ActivityIndicator color={c.navy} size="small" />
+              : <Text style={styles.manualOnlyBtnText}>Continue with manual notes only (no recording, no AI)</Text>}
+          </Pressable>
+        </View>
+      )}
+
+      {status === 'pending' && (
         <View style={styles.noticeBox}>
-          <Text style={styles.noticeText}>Waiting for at least one participant to give consent before you can continue.</Text>
+          <Text style={styles.noticeText}>{summary?.reason || 'Waiting for every required participant to respond before you can continue.'}</Text>
+        </View>
+      )}
+
+      {status === 'not_started' && (
+        <View style={styles.noticeBox}>
+          <Text style={styles.noticeText}>Record at least the first participant's decision to get started.</Text>
         </View>
       )}
     </View>
@@ -131,4 +184,8 @@ const styles = StyleSheet.create({
   giveBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: '#fff' },
   noticeBox: { backgroundColor: '#FEF3C7', borderRadius: 10, padding: 12, marginTop: 16 },
   noticeText: { fontFamily: theme.fonts.body, fontSize: 12, color: '#92400E', lineHeight: 18 },
+  blockedBox: { backgroundColor: '#FEE4E2', borderRadius: 10, padding: 12, marginTop: 16, gap: 10 },
+  blockedText: { fontFamily: theme.fonts.body, fontSize: 12, color: c.error, lineHeight: 18 },
+  manualOnlyBtn: { borderWidth: 1.5, borderColor: c.navy, borderRadius: 10, paddingVertical: 12, alignItems: 'center', backgroundColor: c.surface },
+  manualOnlyBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.navy, textAlign: 'center' },
 });

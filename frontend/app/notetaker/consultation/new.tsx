@@ -11,7 +11,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
-import { apiPost } from '@/src/notetaker/api';
+import { apiPost, newIdempotencyKey } from '@/src/notetaker/api';
 import { ScreenHeader } from '@/src/notetaker/ui';
 import type { Consultation, InputMethod } from '@/src/notetaker/api';
 
@@ -66,7 +66,7 @@ export default function NewConsultationScreen() {
         purpose: purpose.trim(),
         input_method: inputMethod,
         language: language || null,
-      });
+      }, newIdempotencyKey());
       router.replace(`/notetaker/consultation/${consultation.id}`);
     } catch (e: any) {
       Alert.alert('Could not create consultation', e?.message || 'Please try again.');

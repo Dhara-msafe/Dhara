@@ -39,7 +39,7 @@ these five sections. Never infer or fabricate — include only what participants
 explicitly stated.
 
 Sections:
-1. verified_facts        — Facts stated directly by a participant.
+1. facts_stated         — Facts stated directly by a participant.
 2. client_instructions  — What the client has asked the advocate to do.
 3. advice_given         — Legal advice explicitly given by the advocate.
 4. open_uncertainties   — Things stated as uncertain, unknown, or pending.
@@ -55,7 +55,7 @@ explicitly mentioned by name (e.g. BNS Section 74, IPC 498A, CrPC 161).
 Return ONLY valid JSON — no markdown fences, no commentary outside the JSON:
 {
   "sections": {
-    "verified_facts": [{"text": "...", "source_ref": "..."}],
+    "facts_stated": [{"text": "...", "source_ref": "..."}],
     "client_instructions": [{"text": "...", "source_ref": "..."}],
     "advice_given": [{"text": "...", "source_ref": "..."}],
     "open_uncertainties": [{"text": "...", "source_ref": "..."}],

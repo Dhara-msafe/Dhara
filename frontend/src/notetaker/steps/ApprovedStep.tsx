@@ -7,13 +7,13 @@ import { View, Text, Pressable, StyleSheet, ActivityIndicator, Alert, Platform, 
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { theme } from '@/src/theme';
-import { apiPost, fetchExportText } from '../api';
+import { apiPost, fetchExportText, newIdempotencyKey } from '../api';
 import type { Consultation, NoteSections } from '../api';
 
 const c = theme.colors;
 
 const SECTION_META: { key: keyof NoteSections; label: string }[] = [
-  { key: 'verified_facts', label: 'Verified facts' },
+  { key: 'facts_stated', label: 'Facts stated by participants' },
   { key: 'client_instructions', label: 'Client instructions' },
   { key: 'advice_given', label: 'Advice given' },
   { key: 'open_uncertainties', label: 'Open uncertainties' },
@@ -21,8 +21,8 @@ const SECTION_META: { key: keyof NoteSections; label: string }[] = [
 ];
 
 export default function ApprovedStep({
-  consultation, token,
-}: { consultation: Consultation; token: string; onChanged: () => void }) {
+  consultation, token, advocateVerified,
+}: { consultation: Consultation; token: string; advocateVerified: boolean; onChanged: () => void }) {
   const [exporting, setExporting] = useState(false);
   const [copying, setCopying] = useState(false);
   const [creatingTasks, setCreatingTasks] = useState(false);
@@ -59,7 +59,7 @@ export default function ApprovedStep({
   const createTasks = async () => {
     setCreatingTasks(true);
     try {
-      const r = await apiPost<{ tasks_created: number }>(token, `/consultations/${consultation.id}/tasks`, {});
+      const r = await apiPost<{ tasks_created: number }>(token, `/consultations/${consultation.id}/tasks`, {}, newIdempotencyKey());
       Alert.alert('Task drafts created', `${r.tasks_created} task${r.tasks_created === 1 ? '' : 's'} created from proposed actions.`);
     } catch (e: any) {
       Alert.alert('Could not create tasks', e?.message || 'Please try again.');
@@ -103,13 +103,20 @@ export default function ApprovedStep({
       )}
 
       <View style={styles.actionsRow}>
-        <Pressable style={styles.actionBtn} onPress={() => doExport('copy')} disabled={copying}>
+        <Pressable style={[styles.actionBtn, !advocateVerified && styles.actionBtnDisabled]} onPress={() => doExport('copy')} disabled={copying || !advocateVerified}>
           {copying ? <ActivityIndicator color={c.navy} size="small" /> : <Text style={styles.actionBtnText}>Copy text</Text>}
         </Pressable>
-        <Pressable style={styles.actionBtn} onPress={() => doExport('share')} disabled={exporting}>
+        <Pressable style={[styles.actionBtn, !advocateVerified && styles.actionBtnDisabled]} onPress={() => doExport('share')} disabled={exporting || !advocateVerified}>
           {exporting ? <ActivityIndicator color={c.navy} size="small" /> : <Text style={styles.actionBtnText}>Share / Export</Text>}
         </Pressable>
       </View>
+      {!advocateVerified && (
+        <View style={styles.verificationNotice}>
+          <Text style={styles.verificationNoticeText}>
+            Export is available once your advocate verification is reviewed and approved.
+          </Text>
+        </View>
+      )}
 
       <Pressable style={styles.primaryBtn} onPress={createTasks} disabled={creatingTasks}>
         {creatingTasks ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Create task drafts from actions</Text>}
@@ -132,7 +139,10 @@ const styles = StyleSheet.create({
   citationText: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, marginBottom: 4 },
   actionsRow: { flexDirection: 'row', gap: 10, marginTop: 20 },
   actionBtn: { flex: 1, borderWidth: 1.5, borderColor: c.navy, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  actionBtnDisabled: { opacity: 0.4 },
   actionBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.navy },
   primaryBtn: { backgroundColor: c.navy, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 14 },
   primaryBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 16, color: '#fff' },
+  verificationNotice: { backgroundColor: '#FEF3C7', borderRadius: 10, padding: 14, marginTop: 10 },
+  verificationNoticeText: { fontFamily: theme.fonts.body, fontSize: 13, color: '#92400E', lineHeight: 19 },
 });

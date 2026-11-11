@@ -8,7 +8,7 @@ import { View, Text, ScrollView, ActivityIndicator, Pressable, StyleSheet, Alert
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/src/theme';
-import { useAuth } from '@/src/auth';
+import { useAuth, API_BASE } from '@/src/auth';
 import { crossAlert } from '@/src/utils/crossAlert';
 import { apiGet, apiPatch } from '@/src/notetaker/api';
 import { ScreenHeader, StatusPill, ProgressSteps, getStages, getStageIndex } from '@/src/notetaker/ui';
@@ -26,12 +26,16 @@ const c = theme.colors;
 export default function ConsultationScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const consultationId = String(id);
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const insets = useSafeAreaInsets();
   const [consultation, setConsultation] = useState<Consultation | null>(null);
   const [consents, setConsents] = useState<Consent[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  // Founder decision (BATCH N1): AI drafting, note approval and export are
+  // blocked for advocates whose Bar Council verification is still pending.
+  // Defaults to false (most restrictive) until the profile check resolves.
+  const [advocateVerified, setAdvocateVerified] = useState(false);
 
   const load = useCallback(async (silent = false) => {
     if (!token || !consultationId) return;
@@ -48,6 +52,25 @@ export default function ConsultationScreen() {
   }, [token, consultationId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!user?.id || !token) return;
+      try {
+        const r = await fetch(`${API_BASE}/api/advocate/profile/${user.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!cancelled && r.ok) {
+          const profile = await r.json();
+          setAdvocateVerified(!!profile?.verified);
+        }
+      } catch {
+        // keep the restrictive default on a transient error
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, token]);
 
   // Poll while Whisper transcription runs in the background.
   useEffect(() => {
@@ -138,10 +161,10 @@ export default function ConsultationScreen() {
       body = <TranscriptStep consultation={consultation} token={token} onChanged={() => load(true)} />;
       break;
     case 'NOTE_DRAFT':
-      body = <NoteDraftStep consultation={consultation} token={token} onChanged={() => load(true)} />;
+      body = <NoteDraftStep consultation={consultation} token={token} advocateVerified={advocateVerified} onChanged={() => load(true)} />;
       break;
     case 'APPROVED':
-      body = <ApprovedStep consultation={consultation} token={token} onChanged={() => load(true)} />;
+      body = <ApprovedStep consultation={consultation} token={token} advocateVerified={advocateVerified} onChanged={() => load(true)} />;
       break;
     case 'FAILED':
       body = (

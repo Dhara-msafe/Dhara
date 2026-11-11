@@ -1874,6 +1874,25 @@ async def _startup():
     except Exception as e:
         logger.warning(f"[startup] Google Places pilot status check warning: {e}")
 
+    # Advocate Consultation Notetaker — idempotency + dedup indexes (QA batch N1).
+    # All created with background-safe options; failures are logged, not fatal.
+    try:
+        await db.nt_tasks.create_index(
+            [("consultation_id", 1), ("note_version", 1), ("action_index", 1)],
+            unique=True, name="nt_tasks_dedup",
+            # Partial filter: old (pre-N1) task docs have no note_version/action_index
+            # at all — without this filter a unique index would treat their missing
+            # fields as colliding nulls and fail to build.
+            partialFilterExpression={"note_version": {"$exists": True}, "action_index": {"$exists": True}},
+        )
+        await db.nt_tasks.create_index("idempotency_key", name="nt_tasks_idem", sparse=True)
+        await db.nt_consultations.create_index("idempotency_key", unique=True, name="nt_consultations_idem", sparse=True)
+        await db.nt_consents.create_index("idempotency_key", unique=True, name="nt_consents_idem", sparse=True)
+        await db.nt_consents.create_index([("consultation_id", 1), ("participant_name", 1)], name="nt_consents_lookup")
+        logger.info("[startup] Notetaker idempotency indexes ensured (N1)")
+    except Exception as e:
+        logger.warning(f"[startup] Notetaker index creation warning: {e}")
+
     # Object Storage (profile photos) — best-effort warm-up, never blocks startup
     try:
         from services.object_storage import init_storage as _init_object_storage

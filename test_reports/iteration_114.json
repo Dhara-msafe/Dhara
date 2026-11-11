@@ -1,0 +1,43 @@
+{
+  "summary": "Retested BATCH N1 (Advocate Consultation Notetaker) backend + frontend after fixes from prior session: ran the full backend suite directly (52/52 passing), and manually walked the full frontend flow (login as verified advocate -> create matter -> create consultation -> decline a required participant -> blocked notice + manual-only button -> re-consent given -> READY -> manual notes -> AI draft generation (Claude) -> 'Facts stated by participants' rendered with real content -> edit item -> save -> approve (native confirm dialog) -> ApprovedStep also shows facts -> copy/export -> create task drafts -> tasks.tsx and matters list regression). All flows worked exactly as specified in the review request.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "ConsentStep / NoteDraftStep / ApprovedStep / consultation/new.tsx",
+        "issues": [
+          "No testID attributes on any interactive element in the Notetaker module (buttons, text inputs). Current tests had to rely on placeholder text / get_by_text selectors, which is more brittle than testID. Login screen and other parts of the app DO use data-testid (e.g. login-email-input), so this module is inconsistent with the rest of the codebase's testing conventions. Not a functional bug, but should be added for long-term test stability."
+        ]
+      }
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_notetaker_phase1.py",
+    "/app/backend/tests/test_notetaker_tasks.py",
+    "/app/test_reports/pytest/pytest_notetaker_n1_retest.xml"
+  ],
+  "action_items": [
+    "Optional (non-blocking): add testID props to Notetaker screens/buttons (ConsentStep, NoteDraftStep, ApprovedStep, new.tsx form fields) for more robust automated testing going forward.",
+    "Confirmed working as designed - no action needed: approve/consent-continue-manual-only confirmations use crossAlert which falls back to native window.confirm()/alert() on web; this is expected RN-Web behavior, not a bug."
+  ],
+  "critical_code_review_comments": [
+    "api.ts, ConsentStep.tsx, NoteDraftStep.tsx, ApprovedStep.tsx all consistently use 'facts_stated' (matching backend) - the previously reported rename bug is verified fixed.",
+    "Idempotency-Key header is correctly wired via newIdempotencyKey() on consent submit, continue-manual-only, and task-draft creation calls in ConsentStep.tsx and ApprovedStep.tsx.",
+    "advocateVerified prop correctly gates Generate/Regenerate/Approve buttons in NoteDraftStep and Copy/Export buttons in ApprovedStep with explanatory amber notices; defaults to false (most restrictive) until the profile fetch resolves, which is the safe default.",
+    "[id].tsx confirmed has no case for a CONSULTATION_WITHDRAWN terminal state (renders blank body) - this is the pre-existing, explicitly out-of-scope gap for BATCH N5 per the agent-to-agent context note; not flagged as a new regression.",
+    "Frontend consent UI flow has an inherent ordering constraint worth noting for QA/documentation: once a consultation reaches READY (even with just one participant's consent), the UI switches to InputStep and there is no further UI entry point to add/decline additional participants from that screen (ConsentStep is only rendered for DRAFT/CONSENT_PENDING per the [id].tsx switch-case). To exercise the 'decline on a second required participant demotes back to CONSENT_PENDING' scenario from the UI, the decline must be recorded BEFORE any consent reaches READY (e.g. decline participant B first, then give participant A) - which is what was used successfully in this test run. This is not a bug (the backend itself supports consent recording in any state and demotes correctly - confirmed by backend test), but if the product intends advocates to add a 'declined' participant's consent again after READY from the UI, there is currently no entry point for that from InputStep onward."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (52/52)", "frontend": "100% of tested flows passed"},
+  "seed_data_creation": "Created TEST_QA_N1_Full..Full4 matters + consultations via UI during this test run (and backend test suite creates its own TEST_ prefixed matters/consultations/tasks/users on every run). Left in place per test data rules (no bulk delete available in UI; these are clearly TEST_ prefixed).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "BATCH N1 is fully verified working on both backend (52/52 pytest) and frontend (manual Playwright walkthrough of the complete happy path + the decline/block/recover consent UX + facts_stated rendering + verification gating UI). Do NOT proceed to N2-N8 scope without an explicit 'GO N[x]' from the user, per the strict rule stated in the problem statement. The one real finding from this session is purely cosmetic/testability (missing testID attributes in the Notetaker module) and the UI ordering nuance documented above - neither blocks sign-off on N1.",
+  "rca_of_issue": "No bugs found in this retest round; all previously-reported issues (8 failing tests, facts_stated rename, ConsentStep dead-end) were confirmed fixed by direct reproduction."
+}

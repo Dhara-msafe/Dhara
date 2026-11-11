@@ -13,7 +13,7 @@ import type { Consultation, NoteSections } from '../api';
 const c = theme.colors;
 
 const SECTION_META: { key: keyof NoteSections; label: string; hint: string }[] = [
-  { key: 'verified_facts', label: 'Verified facts', hint: 'Facts stated directly by a participant.' },
+  { key: 'facts_stated', label: 'Facts stated by participants', hint: 'Facts stated directly by a participant.' },
   { key: 'client_instructions', label: 'Client instructions', hint: 'What the client asked the advocate to do.' },
   { key: 'advice_given', label: 'Advice given', hint: 'Legal advice explicitly given.' },
   { key: 'open_uncertainties', label: 'Open uncertainties', hint: 'Things left unclear or pending.' },
@@ -21,12 +21,12 @@ const SECTION_META: { key: keyof NoteSections; label: string; hint: string }[] =
 ];
 
 const EMPTY_SECTIONS: NoteSections = {
-  verified_facts: [], client_instructions: [], advice_given: [], open_uncertainties: [], proposed_actions: [],
+  facts_stated: [], client_instructions: [], advice_given: [], open_uncertainties: [], proposed_actions: [],
 };
 
 export default function NoteDraftStep({
-  consultation, token, onChanged,
-}: { consultation: Consultation; token: string; onChanged: () => void }) {
+  consultation, token, advocateVerified, onChanged,
+}: { consultation: Consultation; token: string; advocateVerified: boolean; onChanged: () => void }) {
   const [generating, setGenerating] = useState(false);
   const [sections, setSections] = useState<NoteSections>(consultation.note_draft?.sections || EMPTY_SECTIONS);
   const [saving, setSaving] = useState(false);
@@ -103,13 +103,24 @@ export default function NoteDraftStep({
         <Text style={styles.heading}>Generate the structured note</Text>
         <Text style={styles.body}>
           DHARA will read the {consultation.input_method === 'manual' ? 'notes' : 'transcript'} and extract
-          verified facts, client instructions, advice given, open uncertainties, and proposed actions — each
+          facts stated by participants, client instructions, advice given, open uncertainties, and proposed actions — each
           with a source reference. Nothing is invented.
         </Text>
-        <Pressable style={styles.primaryBtn} onPress={generate} disabled={generating}>
-          {generating ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Generate AI draft</Text>}
-        </Pressable>
-        {generating && <Text style={styles.generatingHint}>This usually takes 10–20 seconds…</Text>}
+        {advocateVerified ? (
+          <>
+            <Pressable style={styles.primaryBtn} onPress={generate} disabled={generating}>
+              {generating ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Generate AI draft</Text>}
+            </Pressable>
+            {generating && <Text style={styles.generatingHint}>This usually takes 10–20 seconds…</Text>}
+          </>
+        ) : (
+          <View style={styles.verificationNotice}>
+            <Text style={styles.verificationNoticeText}>
+              AI drafting is available once your advocate verification is reviewed and approved. Your
+              manual notes are saved and will be ready to draft the moment you're verified.
+            </Text>
+          </View>
+        )}
       </View>
     );
   }
@@ -165,13 +176,23 @@ export default function NoteDraftStep({
         {saving ? <ActivityIndicator color={c.navy} size="small" /> : <Text style={styles.secondaryBtnText}>Save edits</Text>}
       </Pressable>
 
-      <Pressable style={styles.regenerateBtn} onPress={generate} disabled={generating}>
-        {generating ? <ActivityIndicator color={c.navy} size="small" /> : <Text style={styles.regenerateBtnText}>Regenerate from source</Text>}
-      </Pressable>
+      {advocateVerified ? (
+        <>
+          <Pressable style={styles.regenerateBtn} onPress={generate} disabled={generating}>
+            {generating ? <ActivityIndicator color={c.navy} size="small" /> : <Text style={styles.regenerateBtnText}>Regenerate from source</Text>}
+          </Pressable>
 
-      <Pressable style={[styles.primaryBtn, { marginTop: 16 }]} onPress={approve} disabled={approving}>
-        {approving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Approve & finalise note</Text>}
-      </Pressable>
+          <Pressable style={[styles.primaryBtn, { marginTop: 16 }]} onPress={approve} disabled={approving}>
+            {approving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Approve & finalise note</Text>}
+          </Pressable>
+        </>
+      ) : (
+        <View style={[styles.verificationNotice, { marginTop: 16 }]}>
+          <Text style={styles.verificationNoticeText}>
+            Approval and regeneration are available once your advocate verification is reviewed and approved.
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -185,6 +206,8 @@ const styles = StyleSheet.create({
   primaryBtn: { backgroundColor: c.navy, borderRadius: 12, paddingVertical: 16, alignItems: 'center' },
   primaryBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 16, color: '#fff' },
   generatingHint: { textAlign: 'center', marginTop: 10, color: c.muted, fontFamily: theme.fonts.body, fontSize: 12 },
+  verificationNotice: { backgroundColor: '#FEF3C7', borderRadius: 10, padding: 14 },
+  verificationNoticeText: { fontFamily: theme.fonts.body, fontSize: 13, color: '#92400E', lineHeight: 19 },
   section: { marginTop: 18 },
   sectionTitle: { fontFamily: theme.fonts.bodySemiBold, fontSize: 15, color: c.navy },
   sectionHint: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 2, marginBottom: 10 },

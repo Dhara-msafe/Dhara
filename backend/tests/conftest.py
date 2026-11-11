@@ -50,6 +50,33 @@ for _var in _HOST_VARS:
 
 
 @pytest.fixture(scope="session", autouse=True)
+def _ensure_notetaker_advocate_verified():
+    """Mark the shared QA advocate profile as verified before the suite runs.
+
+    BATCH N1 (2026-11) blocks AI drafting, note approval and export for
+    advocates whose Bar Council profile is not yet verified.
+    voicetest2026@example.com is the shared QA account used across the
+    notetaker test suites (test_notetaker_phase1.py, test_notetaker_tasks.py)
+    to exercise the real happy-path flow, so it must be a *verified*
+    advocate. The unverified-advocate-blocked path has its own dedicated
+    throwaway user in test_notetaker_phase1.py::TestUnverifiedAdvocateGating.
+    """
+    try:
+        client = MongoClient(os.environ["MONGO_URL"], serverSelectionTimeoutMS=3000)
+        db = client[os.environ.get("DB_NAME", "")]
+        user = db.users.find_one({"email": "voicetest2026@example.com"})
+        if user:
+            db.advocate_profiles.update_one(
+                {"user_id": user["id"]},
+                {"$set": {"verified": True}},
+            )
+        client.close()
+    except Exception:
+        pass
+    yield
+
+
+@pytest.fixture(scope="session", autouse=True)
 def _reset_daily_quota_counters():
     """Clear today's usage counters before the suite runs.
 

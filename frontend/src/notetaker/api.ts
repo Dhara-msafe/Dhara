@@ -3,7 +3,13 @@
  * (/api/notetaker/*). Mirrors the Pydantic models in
  * backend/api/advocate_notetaker_router.py exactly.
  */
+import * as Crypto from 'expo-crypto';
 import { API_BASE } from '@/src/auth';
+
+/** Fresh key for one logical write action (consent, consultation create, task drafts). */
+export function newIdempotencyKey(): string {
+  return Crypto.randomUUID();
+}
 
 export type ConsultationState =
   | 'DRAFT' | 'CONSENT_PENDING' | 'READY' | 'IMPORTING' | 'AUDIO_REVIEW'
@@ -19,7 +25,7 @@ export interface NoteItem {
 }
 
 export interface NoteSections {
-  verified_facts: NoteItem[];
+  facts_stated: NoteItem[];
   client_instructions: NoteItem[];
   advice_given: NoteItem[];
   open_uncertainties: NoteItem[];
@@ -42,6 +48,15 @@ export interface NoteDraft {
   content_hash?: string;
 }
 
+export interface ConsentSummary {
+  status: 'not_started' | 'pending' | 'blocked' | 'ready' | 'withdrawn';
+  reason: string | null;
+  granted: number;
+  declined: number;
+  unknown: number;
+  withdrawn: number;
+}
+
 export interface Consultation {
   id: string;
   matter_id: string;
@@ -54,6 +69,7 @@ export interface Consultation {
   state: ConsultationState;
   created_at: string;
   updated_at: string;
+  manual_only_override?: boolean;
   manual_notes: string | null;
   original_transcript: string | null;
   working_transcript: string | null;
@@ -66,6 +82,7 @@ export interface Consultation {
   note_versions: NoteDraft[];
   approved_version: NoteDraft | null;
   processing_error: string | null;
+  consent_summary?: ConsentSummary;
 }
 
 export interface Consent {
@@ -73,7 +90,8 @@ export interface Consent {
   consultation_id: string;
   participant_name: string;
   participant_role: string | null;
-  decision: 'given' | 'declined' | 'withdrawn';
+  decision: 'given' | 'declined' | 'unknown' | 'withdrawn';
+  required?: boolean;
   recorded_at: string;
 }
 
@@ -121,8 +139,16 @@ export async function apiGet<T>(token: string, path: string): Promise<T> {
   return r.json();
 }
 
-export async function apiPost<T>(token: string, path: string, body?: any): Promise<T> {
+/**
+ * `idempotencyKey`, when supplied, is sent as an `Idempotency-Key` header —
+ * the backend uses it to return the already-created/already-recorded
+ * resource instead of making a duplicate on a retried tap or a flaky-network
+ * resend. Callers that generate one should reuse the SAME key across retries
+ * of one logical action and mint a fresh key for each new action.
+ */
+export async function apiPost<T>(token: string, path: string, body?: any, idempotencyKey?: string): Promise<T> {
   const headers: Record<string, string> = authHeaders(token);
+  if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
   const init: RequestInit = { method: 'POST', headers };
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json';
