@@ -9,7 +9,10 @@ two independent dimensions:
 
 Behaviour (approved product decision):
   * progressive delay on every failed attempt (0.5s, 1s, 2s, 4s, capped at 8s)
-  * temporary lock after 5 failures inside a 15-minute window
+  * temporary lock after 5 failures inside a 15-minute window — PER ACCOUNT ONLY.
+    B-16d: the per-IP counter only adds delay (soft throttle). It never locks,
+    because one office / campus / mobile-carrier address is shared by many
+    innocent users.
   * the lock auto-expires after 15 minutes; a TTL index later reaps the record
     (TTL deletion is asynchronous, so `lock_until` is ALWAYS re-checked in the
     request path — never relied upon for correctness)
@@ -91,12 +94,11 @@ def lock_detail(wait_seconds: int) -> dict:
 
 
 async def check_lock(db, email_key: str, ip: Optional[str]) -> int:
-    """Seconds still to wait, or 0. Called BEFORE any password check."""
-    ids = [f"account:{email_key}"]
-    if ip:
-        ids.append(f"ip:{ip}")
-    docs = await db[COLLECTION].find({"_id": {"$in": ids}}).to_list(length=2)
-    return max((_remaining_seconds(d) for d in docs), default=0)
+    """Seconds still to wait, or 0. Called BEFORE any password check.
+    B-16d: only the ACCOUNT lock blocks a login; `ip` is accepted for the
+    unchanged call signature but an IP never locks anyone out."""
+    doc = await db[COLLECTION].find_one({"_id": f"account:{email_key}"})
+    return _remaining_seconds(doc)
 
 
 async def _record_failure(db, kind: str, key: str) -> dict:
@@ -158,7 +160,7 @@ async def _record_failure(db, kind: str, key: str) -> dict:
                 return_document=ReturnDocument.AFTER,
             )
 
-    if int(doc.get("failures", 0)) >= MAX_FAILURES and not doc.get("lock_until"):
+    if kind == "account" and int(doc.get("failures", 0)) >= MAX_FAILURES and not doc.get("lock_until"):
         lock_until = now + timedelta(seconds=WINDOW_SECONDS)
         doc = await db[COLLECTION].find_one_and_update(
             {"_id": record_id},
@@ -180,7 +182,7 @@ async def register_failure(db, email_key: str, ip: Optional[str]) -> int:
     failures = max(int(account.get("failures", 0)),
                    int((ip_doc or {}).get("failures", 0)))
     await asyncio.sleep(_delay_for(failures))
-    return max(_remaining_seconds(account), _remaining_seconds(ip_doc))
+    return _remaining_seconds(account)
 
 
 async def clear_attempts(db, email_key: str, ip: Optional[str]) -> None:

@@ -734,7 +734,7 @@ async def razorpay_webhook(request: Request):
                     "razorpay_payment": payment,
                 })
             await _mark_pro(user["id"], provider="razorpay", payment_ref=pid)
-            logger.info(f"razorpay webhook: marked user {user['email']} pro via {pid}")
+            logger.info(f"razorpay webhook: marked user {user['id']} pro via {pid}")
     return {"ok": True}
 
 

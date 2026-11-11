@@ -130,6 +130,12 @@ async def register(body: RegisterIn):
     })
     return {"token": make_token(uid), "user": public_user(doc)}
 
+INVALID_LOGIN_MSG = (
+    "Email or password is incorrect. If you signed up with Google, "
+    "use \"Continue with Google\" instead."
+)
+
+
 @router.post("/auth/login", response_model=AuthOut)
 async def login(body: LoginIn, request: Request):
     # B-16 — login attempt protection. The lock is checked BEFORE any password
@@ -149,7 +155,7 @@ async def login(body: LoginIn, request: Request):
         wait = await register_failure(db, email_key, ip)
         if wait:
             raise HTTPException(429, lock_detail(wait), headers={"Retry-After": str(max(1, wait))})
-        raise HTTPException(401, "Invalid credentials")
+        raise HTTPException(401, INVALID_LOGIN_MSG)
 
     await clear_attempts(db, email_key, ip)
     return {"token": make_token(user["id"]), "user": public_user(user)}
@@ -170,14 +176,20 @@ GUEST_IP_DAILY_LIMIT = 15
 
 @router.post("/auth/guest", response_model=AuthOut)
 async def start_guest(body: GuestStartIn, request: Request):
-    ip = (request.client.host if request.client else "unknown") or "unknown"
+    # B-32: request.client.host is the SHARED in-cluster ingress address, so the
+    # old counter was one bucket for every user of the app. Use the same real
+    # client address as login protection; if it cannot be established, skip the
+    # per-network throttle rather than lumping everyone together.
+    ip = client_ip(request)
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    throttle = await db.usage_daily.find_one_and_update(
-        {"scope": "guest_ip", "day": day, "ip": ip},
-        {"$inc": {"count": 1}},
-        upsert=True,
-        return_document=True,
-    )
+    throttle = {}
+    if ip:
+        throttle = await db.usage_daily.find_one_and_update(
+            {"scope": "guest_ip", "day": day, "ip": ip},
+            {"$inc": {"count": 1}},
+            upsert=True,
+            return_document=True,
+        )
     if int(throttle.get("count", 0)) > GUEST_IP_DAILY_LIMIT:
         raise HTTPException(
             429,
@@ -352,7 +364,7 @@ async def forgot_password(body: ForgotPasswordIn):
     # Fail closed: if the mail cannot be delivered, the user must not be told to
     # go looking for a code that will never arrive.
     await send_email(to=email, subject=subject, html=html)
-    logger.info(f"password reset code emailed to {email}")
+    logger.info(f"password reset code emailed to user {user['id']}")
     return generic
 
 
@@ -475,7 +487,7 @@ async def request_deletion_otp(body: RequestDeletionOTPIn):
 
     subject, html = account_deletion_otp_email(name=user.get("name") or "", code=code, minutes=OTP_TTL_MINUTES)
     await send_email(to=email, subject=subject, html=html)
-    logger.info(f"account deletion code emailed to {email}")
+    logger.info(f"account deletion code emailed to user {user['id']}")
     return generic
 
 

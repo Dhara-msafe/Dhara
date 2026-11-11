@@ -107,7 +107,7 @@ async def submit_upi_payment(body: UPISubmitIn):
         "reviewed_note": None,
     }
     await db.upi_payment_submissions.insert_one(submission)
-    logger.info(f"[upi_billing] submission received for {email}")
+    logger.info(f"[upi_billing] submission {submission['id']} received")
     return {"ok": True, "submission_id": submission["id"]}
 
 

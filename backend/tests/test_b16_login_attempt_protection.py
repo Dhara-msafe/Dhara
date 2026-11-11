@@ -152,7 +152,10 @@ def test_unknown_email_counted_but_response_identical(account, db):
     r_unknown = _login(unknown, WRONG)
     r_known = _login(email, WRONG)
     assert r_unknown.status_code == r_known.status_code == 401
-    assert r_unknown.json()["detail"] == r_known.json()["detail"] == "Invalid credentials"
+    assert r_unknown.json()["detail"] == r_known.json()["detail"] == (
+        "Email or password is incorrect. If you signed up with Google, "
+        "use \"Continue with Google\" instead."
+    )
     assert db[COLLECTION].count_documents({"_id": f"account:{normalize_email(unknown)}"}) == 1
     db[COLLECTION].delete_many({"_id": f"account:{normalize_email(unknown)}"})
 
@@ -197,9 +200,10 @@ def test_ip_key_is_forwarded_client_not_shared_pod_ip(account, db):
     assert key != "unknown"
 
 
-def test_ip_counter_locks_spray_across_many_accounts(account, db):
-    """Five failures spread over five DIFFERENT unknown emails from one address
-    must trip the per-IP lock — the account counter alone would never fire."""
+def test_ip_spray_is_throttled_but_never_locks_other_accounts(account, db):
+    """B-16d: failures spread over many DIFFERENT emails from one address are
+    slowed down (progressive delay) but must NEVER lock out another account on
+    that address — offices, campuses and carriers share one public IP."""
     email, _ = account
     db[COLLECTION].delete_many({})
     stamp = int(time.time() * 1000)
@@ -210,18 +214,13 @@ def test_ip_counter_locks_spray_across_many_accounts(account, db):
     # address DOES get locked, and that the lock then blocks an untouched
     # account; the exact attempt number is not the guarantee.
     sprayed = []
-    locked_after = None
-    for n in range(MAX_FAILURES * 4):
+    for n in range(MAX_FAILURES + 2):
         e = f"TEST_b16_spray{n}_{stamp}@gandhikar.in"
         sprayed.append(e)
         code = _login(e, WRONG).status_code
-        if code == 429:
-            locked_after = n + 1
-            break
-        assert code == 401, (n, code)
-    assert locked_after is not None, "per-IP spray never tripped the lock"
-    # a sixth, completely untouched account is now blocked from this address
+        assert code == 401, (n, code)   # never 429: the IP is not locked
+    # an untouched account on the same address can still sign in
     r = _login(email, PASSWORD)
-    assert r.status_code == 429, r.text
+    assert r.status_code == 200, r.text
     for e in sprayed:
         db[COLLECTION].delete_many({"_id": f"account:{normalize_email(e)}"})
