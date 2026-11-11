@@ -11,6 +11,14 @@ import type { ConsultationState, InputMethod } from './api';
 
 const c = theme.colors;
 
+/** Human-readable file size — shows KB for anything under 1 MB instead of
+ * always rounding small recordings down to a misleading "0.0 MB". */
+export function formatFileSize(bytes: number): string {
+  if (!bytes || bytes <= 0) return '—';
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export function ScreenHeader({
   title, subtitle, onBack, right,
 }: { title: string; subtitle?: string; onBack?: () => void; right?: React.ReactNode }) {

@@ -77,6 +77,9 @@ export default function MatterListScreen() {
           <Text style={styles.backArrow}>‹</Text>
         </Pressable>
         <Text style={styles.headerTitle}>Consultation Notes</Text>
+        <Pressable style={styles.tasksBtn} onPress={() => router.push('/notetaker/tasks')} accessibilityLabel="View task drafts">
+          <Text style={styles.tasksBtnText}>Tasks</Text>
+        </Pressable>
         <Pressable style={styles.newBtn} onPress={() => setShowCreate(true)} accessibilityLabel="Create new matter">
           <Text style={styles.newBtnText}>+ Matter</Text>
         </Pressable>
@@ -181,6 +184,8 @@ const styles = StyleSheet.create({
   headerTitle: { flex: 1, color: '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 18, marginLeft: 4 },
   newBtn: { backgroundColor: c.gold, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 },
   newBtnText: { color: c.navy, fontFamily: theme.fonts.bodySemiBold, fontSize: 13 },
+  tasksBtn: { paddingHorizontal: 10, paddingVertical: 8, marginRight: 4 },
+  tasksBtnText: { color: '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 13, textDecorationLine: 'underline' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   emptyIcon: { fontSize: 48, marginBottom: 12 },
   emptyTitle: { fontFamily: theme.fonts.bodySemiBold, fontSize: 20, color: c.navy, marginBottom: 8 },

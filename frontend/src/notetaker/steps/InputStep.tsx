@@ -1,15 +1,19 @@
 /**
  * InputStep — rendered while a consultation is READY. Branches by
- * input_method: manual notes, pasted/imported transcript, or audio upload.
+ * input_method: manual notes, pasted/imported transcript, or audio upload
+ * (file picker or live microphone recording — recording is native-only).
  */
-import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Alert, Platform, Linking } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
+import { useAudioRecorder, RecordingPresets, setAudioModeAsync, AudioModule } from 'expo-audio';
 import { theme } from '@/src/theme';
 import { apiPost } from '../api';
+import { formatFileSize } from '../ui';
 import { uploadForm } from '@/src/utils/upload';
 import { API_BASE } from '@/src/auth';
+import { withMicLease, MIC_BUSY_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
 import type { Consultation } from '../api';
 
 const c = theme.colors;
@@ -116,12 +120,23 @@ function TranscriptImport({ consultation, token, onChanged }: { consultation: Co
   );
 }
 
-const ALLOWED_EXT = ['.mp3', '.wav', '.m4a'];
-
 function AudioImport({ consultation, token, onChanged }: { consultation: Consultation; token: string; onChanged: () => void }) {
   const [picked, setPicked] = useState<{ uri: string; name: string; mimeType: string; size: number } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordSeconds, setRecordSeconds] = useState(0);
+  const [permBlocked, setPermBlocked] = useState(false);
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const micLeaseRef = useRef<MicLease | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Best-effort cleanup if the advocate navigates away mid-recording.
+  useEffect(() => () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    micLeaseRef.current?.release();
+    if (Platform.OS !== 'web') { try { recorder.stop(); } catch {} }
+  }, [recorder]);
 
   const pick = async () => {
     setPicking(true);
@@ -150,6 +165,62 @@ function AudioImport({ consultation, token, onChanged }: { consultation: Consult
     setPicking(false);
   };
 
+  // ── Live microphone recording (native only — see InputStep header comment) ──
+  const startRecording = async () => {
+    setPermBlocked(false);
+    try {
+      let permResult = await AudioModule.getRecordingPermissionsAsync();
+      if (!permResult.granted) {
+        permResult = await AudioModule.requestRecordingPermissionsAsync();
+      }
+      if (!permResult.granted) {
+        if (!permResult.canAskAgain) setPermBlocked(true);
+        else Alert.alert('Microphone needed', 'Allow microphone access to record this consultation live.');
+        return;
+      }
+      const claimResult = await withMicLease(
+        'notetaker_mic',
+        () => { try { recorder.stop(); } catch {} stopTimer(); setIsRecording(false); },
+        async () => {
+          await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+          await recorder.prepareToRecordAsync();
+        },
+      );
+      if (!claimResult.ok) { Alert.alert('Microphone busy', MIC_BUSY_MESSAGE); return; }
+      micLeaseRef.current = claimResult.lease;
+      recorder.record();
+      setIsRecording(true);
+      setRecordSeconds(0);
+      timerRef.current = setInterval(() => setRecordSeconds(s => s + 1), 1000);
+    } catch {
+      micLeaseRef.current?.release(); micLeaseRef.current = null;
+      Alert.alert('Could not start recording', 'Check microphone permission and try again.');
+    }
+  };
+
+  const stopTimer = () => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+  };
+
+  const finishRecording = async (discard: boolean) => {
+    stopTimer();
+    setIsRecording(false);
+    try {
+      await recorder.stop();
+      const uri = recorder.uri;
+      micLeaseRef.current?.release(); micLeaseRef.current = null;
+      if (discard || !uri) return;
+      let size = 0;
+      try {
+        const info = await FileSystem.getInfoAsync(uri);
+        size = info.exists ? (info as any).size || 0 : 0;
+      } catch {}
+      setPicked({ uri, name: `consultation-${Date.now()}.m4a`, mimeType: 'audio/m4a', size });
+    } catch {
+      Alert.alert('Recording error', 'Could not finish the recording. Please try again.');
+    }
+  };
+
   const upload = async () => {
     if (!picked) return;
     setUploading(true);
@@ -172,25 +243,65 @@ function AudioImport({ consultation, token, onChanged }: { consultation: Consult
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.heading}>Upload audio recording</Text>
+      <Text style={styles.heading}>Add the audio recording</Text>
       <Text style={styles.body}>MP3, WAV, or M4A — up to 25 MB. DHARA transcribes it automatically after upload.</Text>
 
-      <Pressable style={styles.secondaryBtn} onPress={pick} disabled={picking || uploading}>
-        {picking ? <ActivityIndicator color={c.navy} size="small" /> : <Text style={styles.secondaryBtnText}>{picked ? 'Choose a different file' : 'Choose audio file'}</Text>}
-      </Pressable>
-
-      {picked && (
-        <View style={styles.fileCard}>
-          <Text style={styles.fileName} numberOfLines={1}>{picked.name}</Text>
-          <Text style={styles.fileMeta}>{(picked.size / (1024 * 1024)).toFixed(1)} MB</Text>
+      {isRecording ? (
+        <View style={styles.recordingCard}>
+          <View style={styles.recordingDotRow}>
+            <View style={styles.recordingDot} />
+            <Text style={styles.recordingTime}>{formatSeconds(recordSeconds)}</Text>
+          </View>
+          <Text style={styles.recordingHint}>Recording the consultation live…</Text>
+          <View style={styles.recordingActions}>
+            <Pressable style={styles.discardBtn} onPress={() => finishRecording(true)}>
+              <Text style={styles.discardBtnText}>Discard</Text>
+            </Pressable>
+            <Pressable style={styles.stopBtn} onPress={() => finishRecording(false)}>
+              <Text style={styles.stopBtnText}>Stop recording</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.choiceRow}>
+          {Platform.OS !== 'web' && (
+            <Pressable style={[styles.secondaryBtn, styles.choiceBtn]} onPress={startRecording} disabled={picking || uploading}>
+              <Text style={styles.secondaryBtnText}>🎙️ Record now</Text>
+            </Pressable>
+          )}
+          <Pressable style={[styles.secondaryBtn, styles.choiceBtn]} onPress={pick} disabled={picking || uploading}>
+            {picking ? <ActivityIndicator color={c.navy} size="small" /> : <Text style={styles.secondaryBtnText}>{picked ? 'Choose different file' : 'Choose audio file'}</Text>}
+          </Pressable>
         </View>
       )}
 
-      <Pressable style={[styles.primaryBtn, !picked && styles.disabledBtn]} onPress={upload} disabled={!picked || uploading}>
+      {permBlocked && (
+        <View style={styles.permBanner}>
+          <Text style={styles.permBannerText}>Microphone access is blocked. Enable it in your device settings to record live.</Text>
+          <Pressable onPress={() => Linking.openSettings()} style={styles.permBannerBtn}>
+            <Text style={styles.permBannerBtnText}>Open Settings</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {picked && !isRecording && (
+        <View style={styles.fileCard}>
+          <Text style={styles.fileName} numberOfLines={1}>{picked.name}</Text>
+          <Text style={styles.fileMeta}>{formatFileSize(picked.size)}</Text>
+        </View>
+      )}
+
+      <Pressable style={[styles.primaryBtn, (!picked || isRecording) && styles.disabledBtn]} onPress={upload} disabled={!picked || isRecording || uploading}>
         {uploading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Upload audio</Text>}
       </Pressable>
     </View>
   );
+}
+
+function formatSeconds(total: number): string {
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
 }
 
 const styles = StyleSheet.create({
@@ -205,9 +316,28 @@ const styles = StyleSheet.create({
   primaryBtn: { backgroundColor: c.navy, borderRadius: 12, paddingVertical: 16, alignItems: 'center' },
   disabledBtn: { opacity: 0.4 },
   primaryBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 16, color: '#fff' },
-  secondaryBtn: { borderWidth: 1.5, borderColor: c.navy, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: 16 },
+  secondaryBtn: { borderWidth: 1.5, borderColor: c.navy, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   secondaryBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 15, color: c.navy },
+  choiceRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  choiceBtn: { flex: 1 },
   fileCard: { backgroundColor: c.surface, borderRadius: 12, borderWidth: 1, borderColor: c.border, padding: 14, marginBottom: 16 },
   fileName: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.ink },
   fileMeta: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 2 },
+  recordingCard: {
+    backgroundColor: c.surface, borderRadius: 14, borderWidth: 1.5, borderColor: c.error,
+    padding: 18, alignItems: 'center', marginBottom: 16,
+  },
+  recordingDotRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  recordingDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: c.error },
+  recordingTime: { fontFamily: theme.fonts.bodySemiBold, fontSize: 22, color: c.ink, fontVariant: ['tabular-nums'] },
+  recordingHint: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, marginTop: 6, marginBottom: 14 },
+  recordingActions: { flexDirection: 'row', gap: 10, width: '100%' },
+  discardBtn: { flex: 1, borderWidth: 1.5, borderColor: c.border, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  discardBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.muted },
+  stopBtn: { flex: 1.4, backgroundColor: c.error, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  stopBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: '#fff' },
+  permBanner: { backgroundColor: '#FEF3C7', borderRadius: 10, padding: 12, marginBottom: 16 },
+  permBannerText: { fontFamily: theme.fonts.body, fontSize: 12, color: '#92400E', lineHeight: 18, marginBottom: 8 },
+  permBannerBtn: { alignSelf: 'flex-start', backgroundColor: '#92400E', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  permBannerBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: '#fff' },
 });

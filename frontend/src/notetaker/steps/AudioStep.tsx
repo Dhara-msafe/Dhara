@@ -6,6 +6,7 @@ import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { theme } from '@/src/theme';
 import { apiPost } from '../api';
+import { formatFileSize } from '../ui';
 import type { Consultation } from '../api';
 
 const c = theme.colors;
@@ -26,7 +27,7 @@ export default function AudioStep({
     setStarting(false);
   };
 
-  const sizeMb = consultation.audio_size_bytes ? (consultation.audio_size_bytes / (1024 * 1024)).toFixed(1) : '—';
+  const sizeLabel = formatFileSize(consultation.audio_size_bytes || 0);
 
   return (
     <View style={styles.wrap}>
@@ -34,7 +35,7 @@ export default function AudioStep({
       <Text style={styles.body}>Review the file below, then start transcription. This uses Whisper and may take a minute.</Text>
       <View style={styles.fileCard}>
         <Text style={styles.fileName} numberOfLines={1}>{consultation.audio_original_name || 'Audio file'}</Text>
-        <Text style={styles.fileMeta}>{sizeMb} MB</Text>
+        <Text style={styles.fileMeta}>{sizeLabel}</Text>
       </View>
       <Pressable style={styles.primaryBtn} onPress={start} disabled={starting}>
         {starting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Start transcription</Text>}

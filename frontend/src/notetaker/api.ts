@@ -77,6 +77,23 @@ export interface Consent {
   recorded_at: string;
 }
 
+export type TaskStatus = 'pending' | 'done';
+
+export interface NtTask {
+  id: string;
+  consultation_id: string;
+  matter_id: string;
+  owner_id: string;
+  text: string;
+  assignee: string;
+  source_ref: string;
+  status: TaskStatus;
+  created_at: string;
+  completed_at?: string | null;
+  matter_title?: string | null;
+  consultation_title?: string | null;
+}
+
 async function extractError(r: Response, fallback: string): Promise<string> {
   try {
     const ct = r.headers.get('content-type') || '';
@@ -141,4 +158,12 @@ export async function fetchExportText(token: string, consultationId: string): Pr
   });
   if (!r.ok) throw new Error(await extractError(r, 'Export failed'));
   return r.text();
+}
+
+export async function listTasks(token: string, status: 'pending' | 'done' | 'all' = 'pending'): Promise<NtTask[]> {
+  return apiGet<NtTask[]>(token, `/tasks?status=${status}`);
+}
+
+export async function updateTaskStatus(token: string, taskId: string, status: TaskStatus): Promise<{ ok: boolean; status: TaskStatus }> {
+  return apiPatch(token, `/tasks/${taskId}/status`, { status });
 }

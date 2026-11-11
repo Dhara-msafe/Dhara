@@ -940,8 +940,51 @@ async def create_task_drafts(
     return {"tasks_created": len(tasks_created), "tasks": tasks_created}
 
 
+class TaskStatusIn(BaseModel):
+    status: str = Field(..., pattern="^(done|pending)$")
+
+
 @router.get("/tasks")
-async def list_tasks(user: dict = Depends(_require_advocate)):
-    """List all task drafts for the authenticated advocate."""
-    cursor = db.nt_tasks.find({"owner_id": user["id"], "status": "pending"}, sort=[("created_at", -1)])
-    return [_strip_id(t) async for t in cursor]
+async def list_tasks(status: str = "pending", user: dict = Depends(_require_advocate)):
+    """
+    List task drafts for the authenticated advocate.
+    status=pending (default) | done | all.
+    Each task is annotated with its matter/consultation title for display,
+    so the task list screen never has to make per-task follow-up calls.
+    """
+    query: dict = {"owner_id": user["id"]}
+    if status != "all":
+        query["status"] = status
+    cursor = db.nt_tasks.find(query, sort=[("created_at", -1)])
+    tasks = [_strip_id(t) async for t in cursor]
+
+    matter_ids = {t["matter_id"] for t in tasks}
+    consultation_ids = {t["consultation_id"] for t in tasks}
+    matters = {
+        m["id"]: m["title"]
+        async for m in db.nt_matters.find({"id": {"$in": list(matter_ids)}})
+    } if matter_ids else {}
+    consultations = {
+        c["id"]: c["title"]
+        async for c in db.nt_consultations.find({"id": {"$in": list(consultation_ids)}})
+    } if consultation_ids else {}
+    for t in tasks:
+        t["matter_title"] = matters.get(t["matter_id"])
+        t["consultation_title"] = consultations.get(t["consultation_id"])
+    return tasks
+
+
+@router.patch("/tasks/{task_id}/status")
+async def update_task_status(
+    task_id: str,
+    body: TaskStatusIn,
+    user: dict = Depends(_require_advocate),
+):
+    """Mark a task draft done, or undo that back to pending."""
+    doc = await db.nt_tasks.find_one({"id": task_id, "owner_id": user["id"]})
+    if not doc:
+        raise HTTPException(404, "Task not found.")
+    updates: dict = {"status": body.status}
+    updates["completed_at"] = _now() if body.status == "done" else None
+    await db.nt_tasks.update_one({"id": task_id}, {"$set": updates})
+    return {"ok": True, "status": body.status}

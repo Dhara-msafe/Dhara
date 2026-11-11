@@ -29,7 +29,8 @@ export type MicOwner =
   | 'lookup_mic'
   | 'fir_draft_mic'
   | 'intake_mic'
-  | 'interpreter_mic';
+  | 'interpreter_mic'
+  | 'notetaker_mic';
 
 export type MicClaim = {
   readonly id: number;
