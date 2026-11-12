@@ -15,7 +15,7 @@ import { t } from '@/src/i18n';
 const PRO_UPGRADE_ENABLED = process.env.EXPO_PUBLIC_PRO_UPGRADE_ENABLED === 'true';
 
 export default function Settings() {
-  const { user, token, logout, language, setLanguage, autoSpeak, setAutoSpeak, ttsVolume, setTtsVolume, ttsVoiceMode, setTtsVoiceMode, refreshUser } = useAuth();
+  const { user, token, logout, language, setLanguage, autoSpeak, setAutoSpeak, ttsVolume, setTtsVolume, ttsVoiceMode, setTtsVoiceMode, refreshUser, forceLogout } = useAuth();
   const router = useRouter();
   const [langs, setLangs] = useState<Language[]>([]);
   const [showLang, setShowLang] = useState(false);
@@ -146,15 +146,36 @@ export default function Settings() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setDeleteError(data?.detail || 'Could not delete your account. Please try again.');
+        // W1-J10 (12 Nov 2026): the server can answer with an object, e.g.
+        // { code: 'use_email_code', message } for a Google-only account, which
+        // used to be passed straight to <Text> and crash the screen.
+        const detail = data?.detail;
+        if (detail?.code === 'use_email_code') {
+          setShowDeleteModal(false);
+          setDeleteLoading(false);
+          router.push({ pathname: '/delete-account', params: { email: user?.email ?? '' } } as any);
+          return;
+        }
+        if (res.status === 401 && detail !== 'Incorrect password.') {
+          setDeleteLoading(false);
+          setShowDeleteModal(false);
+          await forceLogout();
+          return;
+        }
+        setDeleteError(
+          typeof detail === 'string' && detail ? detail
+          : typeof detail?.message === 'string' ? detail.message
+          : res.status >= 500 ? `DHARA's server had a problem (error ${res.status}). Please try again in a moment.`
+          : 'Could not delete your account. Please try again.'
+        );
         setDeleteLoading(false);
         return;
       }
       setShowDeleteModal(false);
       await logout();
       router.replace('/login');
-    } catch (e: any) {
-      setDeleteError(e?.message || 'Network error. Please try again.');
+    } catch {
+      setDeleteError('Could not reach DHARA. Check your internet connection and try again.');
       setDeleteLoading(false);
     }
   };

@@ -24,6 +24,40 @@ import { theme } from '@/src/theme';
  *   2. Enter the code + confirm → backend verifies and permanently deletes
  *      the account and every row linked to it. No recovery window.
  */
+// B-30 / W1-J11 (12 Nov 2026): every call on this public page goes through
+// postJson so a slow network times out (20 s) with a clear message, and an
+// error page that is not JSON (e.g. a 502/503 gateway page) no longer shows a
+// raw parse error.
+const NETWORK_MSG = 'Could not reach DHARA. Check your internet connection and try again.';
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+async function postJson(path: string, body: unknown): Promise<{ res: Response; data: any }> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 20000);
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+  } catch {
+    throw new Error(NETWORK_MSG);
+  } finally {
+    clearTimeout(timer);
+  }
+  const data = await res.json().catch(() => null);
+  return { res, data };
+}
+
+function errorText(res: Response, data: any, fallback: string): string {
+  if (typeof data?.detail === 'string' && data.detail) return data.detail;
+  if (typeof data?.detail?.message === 'string' && data.detail.message) return data.detail.message;
+  if (res.status >= 500) return `DHARA's server had a problem (error ${res.status}). Please try again in a moment.`;
+  return fallback;
+}
+
 export default function DeleteAccount() {
   const [step, setStep] = useState<'request' | 'verify' | 'done'>('request');
   const params = useLocalSearchParams<{ email?: string }>();
@@ -37,20 +71,15 @@ export default function DeleteAccount() {
 
   const requestCode = async () => {
     setError(null);
-    if (!email.trim()) {
-      setError('Please enter your account email address.');
+    if (!EMAIL_RE.test(email.trim())) {
+      setError('Please enter a valid email address.');
       return;
     }
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/account-deletion/request-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase() }),
-      });
-      const data = await res.json();
+      const { res, data } = await postJson('/api/account-deletion/request-otp', { email: email.trim().toLowerCase() });
       if (!res.ok) {
-        setError(data?.detail || 'Could not send the code. Please try again.');
+        setError(errorText(res, data, 'Could not send the code. Please try again.'));
         return;
       }
       setNotice(data?.message || 'Check your email for a 6-digit code.');
@@ -74,14 +103,9 @@ export default function DeleteAccount() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/account-deletion/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), code: code.trim() }),
-      });
-      const data = await res.json();
+      const { res, data } = await postJson('/api/account-deletion/verify', { email: email.trim().toLowerCase(), code: code.trim() });
       if (!res.ok) {
-        setError(data?.detail || 'Deletion failed. Please try again.');
+        setError(errorText(res, data, 'Deletion failed. Please try again.'));
         return;
       }
       setStep('done');
