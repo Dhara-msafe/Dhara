@@ -87,7 +87,6 @@ export default function Signup() {
                 style={styles.pwInput}
                 value={password}
                 onChangeText={setPassword}
-                placeholder="8+ characters, A-Z, 0-9 and a symbol"
                 placeholderTextColor={theme.colors.onSurfaceTertiary}
                 secureTextEntry={!showPassword}
               />
