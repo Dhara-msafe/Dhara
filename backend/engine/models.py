@@ -4,6 +4,8 @@ import os
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
+from states import normalize_state_value
+
 
 class Jurisdiction(BaseModel):
     country: str = "India"
@@ -258,14 +260,35 @@ def resolve_jurisdiction_state(
       2. Otherwise fall back to user_profile_state.
       3. Otherwise None.
 
+    B-78: jurisdiction_state comes from the LLM query parser's free-text
+    reading of the user's own wording (see query_parser.py) and is never
+    constrained to a real state/UT code -- it can hold a city name
+    ("Bengaluru") or a full state name ("Karnataka") instead of "KA". Fed
+    straight to states.state_name(), any of those silently resolve to ""
+    (no exception, no log), producing a notice like "No confirmed rent and
+    tenancy rule for  is in Dhara yet" with the state name blank, even
+    though the question did name a real place. Normalizing here means every
+    caller of this function gets a real code or a clean None, never a
+    string that merely looks like one.
+
     Returns a dict so callers get the resolved value AND whether the two
     sources disagreed, without this function silently hiding that.
     """
-    resolved = jurisdiction_state or user_profile_state or None
+    normalized_jurisdiction_state = normalize_state_value(jurisdiction_state)
+    # user_profile_state is already a validated code by the time it reaches
+    # here (see api/auth_router.py's PATCH /auth/state, which rejects
+    # anything is_valid_state() doesn't recognize) -- normalizing it too is
+    # a no-op for a valid code, and a safety net rather than new behavior
+    # if that ever stops being true.
+    normalized_profile_state = normalize_state_value(user_profile_state)
+    resolved = normalized_jurisdiction_state or normalized_profile_state or None
     conflict = bool(
-        jurisdiction_state
-        and user_profile_state
-        and jurisdiction_state != user_profile_state
+        normalized_jurisdiction_state
+        and normalized_profile_state
+        and normalized_jurisdiction_state != normalized_profile_state
     )
-    source = "jurisdiction" if jurisdiction_state else ("user_profile" if user_profile_state else "none")
+    source = (
+        "jurisdiction" if normalized_jurisdiction_state
+        else ("user_profile" if normalized_profile_state else "none")
+    )
     return {"state": resolved, "source": source, "conflict": conflict}
