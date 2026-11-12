@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { openExternal, composeSms, SIMULATED_TEXT } from '@/src/outbound';
+import { openExternal, composeSms, OUTBOUND_LIVE, SIMULATED_TEXT } from '@/src/outbound';
 
 /** Opening a dialler/composer is not confirmation of a call or delivery.
  *
