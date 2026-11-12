@@ -26,6 +26,11 @@ export default function Login() {
 
   const onSubmit = async () => {
     setError(null);
+    // W1-J03: check the form first. An empty or malformed entry used to reach
+    // the server, show a technical validation message, and (empty password)
+    // count as a failed attempt towards the 5-try lock.
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError('Please enter a valid email address.'); return; }
+    if (!password) { setError('Please enter your password.'); return; }
     clearSessionExpired();
     setLoading(true);
     try {
