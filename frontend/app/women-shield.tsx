@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Switch, Platform } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, Switch } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -144,17 +144,12 @@ export default function WomenShield() {
     await activateCover(scope);
   }, [user?.id]);
 
-  // DHARA-P0-3 (B025): leave this screen instantly for a neutral page.
-  const NEUTRAL_URL = 'https://www.google.com/search?q=weather';
+  // DHARA-P0-3 (B025): leave this screen instantly for the neutral Home tab.
+  // 12 Nov 2026: Home only, same as the Emergency screen's Quick exit. The old
+  // jump to google.com showed a blank "refused to connect" page whenever the
+  // app runs inside a frame (Emergent preview, embeds).
   const quickExit = () => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      window.location.replace(NEUTRAL_URL);
-      return;
-    }
-    // Leave this screen first so reopening the app never lands back here,
-    // then open the neutral page once the navigation has committed.
     router.replace('/(tabs)/home');
-    setTimeout(() => { openExternal(NEUTRAL_URL).catch(() => {}); }, 300);
   };
 
   return (
