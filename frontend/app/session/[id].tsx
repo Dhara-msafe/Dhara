@@ -121,7 +121,17 @@ export default function SessionView() {
                   {m.role === 'user' ? 'You' : 'Dhara'}
                 </Text>
                 {m.role === 'assistant' && (
-                  <Pressable onPress={() => speak(m.id, m.content)} hitSlop={10} testID={`speak-${m.id}`}>
+                  // B-95: speaker/listen icon had no accessible label -- a
+                  // screen-reader user heard nothing identifying this
+                  // control at all. Label reflects state so it also
+                  // announces what tapping it will do next.
+                  <Pressable
+                    onPress={() => speak(m.id, m.content)}
+                    hitSlop={10}
+                    testID={`speak-${m.id}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={speakingId === m.id ? 'Stop reading answer aloud' : 'Listen to this answer'}
+                  >
                     <Ionicons name={speakingId === m.id ? 'stop-circle' : 'volume-high-outline'} size={22} color={theme.colors.brand} />
                   </Pressable>
                 )}

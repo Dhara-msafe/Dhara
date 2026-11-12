@@ -2084,7 +2084,17 @@ export default function ChatScreen() {
                           {speechRate === 1.0 ? '1x' : speechRate === 1.5 ? '1.5x' : '2x'}
                         </Text>
                       </Pressable>
-                      <Pressable testID={`speak-${m.id}`} onPress={() => speak(m.id, m.content)} hitSlop={10}>
+                      {/* B-95: speaker/listen icon had no accessible label -- a
+                          screen-reader user heard nothing identifying this
+                          control at all. Label reflects state so it also
+                          announces what tapping it will do next. */}
+                      <Pressable
+                        testID={`speak-${m.id}`}
+                        onPress={() => speak(m.id, m.content)}
+                        hitSlop={10}
+                        accessibilityRole="button"
+                        accessibilityLabel={speakingId === m.id ? 'Stop reading answer aloud' : 'Listen to this answer'}
+                      >
                         {ttsLoadingId === m.id ? (
                           <ActivityIndicator size="small" color={theme.colors.brand} />
                         ) : (
