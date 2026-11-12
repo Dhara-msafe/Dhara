@@ -429,9 +429,6 @@ export default function ChatScreen() {
       // consumes no quota). Ordinary messages at the limit stay blocked.
       if (user?.is_guest && guestQuota.limitReached && !looksLikeDanger(q)) { setInput(''); return; }
 
-      // D1-V: Foreground voice-phrase => screen-privacy activation.
-      // Reads the hide phrase from codePhraseStore (SecureStore for auth users,
-      // in-memory for guests). Uses the same normalizePhrase() as the config
       // ── Phase 1: Code-phrase safety intercept ────────────────────────────
       // SOS phrase is evaluated FIRST (amendment 1) so an SOS phrase cannot be
       // accidentally consumed by the D1-V hide-phrase check.
@@ -457,6 +454,9 @@ export default function ChatScreen() {
       }
 
       // ── D1-V: Discreet-screen phrase check (runs after SOS — amendment 1) ──
+      // Foreground voice-phrase => screen-privacy activation. Reads the hide
+      // phrase from codePhraseStore (SecureStore for auth users, in-memory
+      // for guests). Uses the same normalizePhrase() as the Safety phrases
       // screen's conflict gate so matching is always consistent.
       if (process.env.EXPO_PUBLIC_SAFE_WORD_V1 !== 'false') {
         try {

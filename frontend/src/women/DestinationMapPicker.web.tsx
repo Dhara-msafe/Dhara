@@ -26,7 +26,7 @@
  * session regardless of how many instances render.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, Suspense, lazy } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import {
   GoogleMap,
@@ -36,6 +36,11 @@ import {
 } from '@react-google-maps/api';
 import { theme } from '@/src/theme';
 import { isValidCoord, isValidRadius } from '@/src/utils/mapValidation';
+
+// Lazy + Suspense, NOT a static import — see LeafletActiveJourneyMap.web.tsx's
+// file header for why (leaflet/react-leaflet crash Expo's web SSR pass if
+// required eagerly).
+const LeafletDestinationMapPicker = lazy(() => import('./LeafletDestinationMapPicker.web'));
 
 const c = theme.colors;
 

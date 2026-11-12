@@ -327,7 +327,7 @@ async def geo_autocomplete(
 async def geo_details(
     place_id: str = Query(..., min_length=1, max_length=512),
     session_token: str = Query(..., min_length=8, max_length=64),
-    provider: str = Query("google", pattern="^(google|osm)$"),
+    provider: str = Query("google", pattern="^google$"),
 ):
     if not _SESSION_TOKEN_RE.match(session_token):
         raise HTTPException(400, "Invalid session token")

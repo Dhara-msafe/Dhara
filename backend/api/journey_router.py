@@ -397,8 +397,14 @@ async def revoke_sharing(token: str, user: dict = Depends(current_user)):
 @router.post("/journey/status/{token}/missed-checkin", status_code=200)
 async def report_missed_checkin(token: str, user: dict = Depends(current_user)):
     """Client calls this when its own local check-in timer expires with no
-    response. Nothing server-side watches a clock for this — it stays
-    exactly as client-driven / foreground-only as the rest of Head Out.
+    response, for the case where the app is in the foreground to notice.
+    deadline_worker.py independently watches expected_checkin_at server-side
+    (5-min grace) so the same escalation still fires even if the app was
+    closed or backgrounded past the deadline. The two paths can race (this
+    endpoint doesn't set missed_checkin_notified_at), but create_alert_and_notify
+    dedupes on idempotency_key (f"{token}:missed_checkin:{link_id}"), which is
+    identical regardless of which path triggered it — so a recipient still
+    only ever gets one missed-checkin alert per journey.
 
     INTENTIONAL CONSEQENCE OF REVOKING SHARING: once `sharing_revoked_at`
     is set, this call becomes a no-op — a missed check-in after the
