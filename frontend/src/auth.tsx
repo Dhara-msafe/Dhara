@@ -8,6 +8,7 @@ import { API_BASE as API } from './apiBase';
 import { deactivateCover } from './women/coverState';
 import { useHeadOutWizard } from './women/headOutWizardStore';
 import { CONSENT_ANON_KEY } from './consentStorage';
+import { useLocationUploadQueue } from './safety/locationUploadQueue';
 
 // Required for iOS to properly complete the auth session
 WebBrowser.maybeCompleteAuthSession();
@@ -329,9 +330,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // P0-Fix1e: clear FIR session data on logout
     // B-60: Head Out data must not carry over to the next account on this phone.
     try { useHeadOutWizard.getState().reset(); } catch { /* non-blocking */ }
+    // W1-J08 (12 Nov 2026): data that belongs to the departing account and
+    // would otherwise reach the next account on this phone:
+    //  - unsent Head Out location points (they hold this person's positions and
+    //    retry forever with the next account's sign-in, getting 403);
+    //  - unsent issue reports (they would be filed under the next account);
+    //  - the pointer to an in-progress FIR draft and its module/language.
+    try { useLocationUploadQueue.getState().clearAll(); } catch { /* non-blocking */ }
     await AsyncStorage.multiRemove([
       TOKEN_KEY, USER_KEY, 'fir_draft_state', 'gk_fir_session',
       'ws_head_out_session', 'dhara_head_out_recents_v1', 'dhara_head_out_wizard_draft',
+      'dhara_loc_queue', 'issue_reports_pending_v1',
+      'fir_active_session_v3', 'fir_selected_module_v1', 'fir_draft_lang_v3',
     ]);
     setToken(null);
     setUser(null);
