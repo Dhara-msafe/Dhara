@@ -67,10 +67,28 @@ export type ChunkedSpeakerOptions = {
    * Stable id for the answer being spoken (the assistant message id). Every chunk
    * carries it so the backend meters the whole answer as ONE question instead of
    * one per chunk — without this, chunking multiplies what a free user is charged.
+   *
+   * B-94/B-79: this alone isn't enough. Up to MAX_IN_FLIGHT (2) chunks are
+   * sent concurrently, and the backend used to decide "is this the first
+   * chunk of this group?" via a racy upsert with no unique index backing
+   * it — two concurrent first requests could both win that race and both
+   * get charged, which is exactly why a single officer-card "listen" (or
+   * any answer with ≥2 chunks) could cost 2 instead of 1. Each request now
+   * also carries its own chunk_index (below), so the backend can decide
+   * "charge only chunk 0" from data the client already knows for certain,
+   * with no server-side race at all.
    */
   group?: string;
   /** Playback rate; the UI exposes 1x / 1.5x / 2x. */
   rate?: number;
+  /**
+   * B-94/B-79: marks this entire utterance as free — fixed, canned,
+   * non-LLM safety content (officer card, panic lesson, action plan) or a
+   * replay of an answer that was already paid for once. The backend only
+   * honours a small explicit allow-list of values; anything else is
+   * ignored and the call is metered as normal.
+   */
+  freeReason?: 'fixed_screen' | 'replay';
   /**
    * Persist one synthesised clip and hand back a URI the player can open, plus a
    * cleanup callback. Injected rather than imported so this module stays independent
@@ -287,7 +305,7 @@ export class ChunkedSpeaker {
 
   private async synthesiseInto(text: string, index: number) {
     try {
-      const bytes = await this.synthesise(text);
+      const bytes = await this.synthesise(text, index);
       if (this.stopped) return;
       const audio = await this.opts.writeAudio(bytes, index);
       if (this.stopped) {
@@ -308,7 +326,7 @@ export class ChunkedSpeaker {
     }
   }
 
-  private async synthesise(text: string): Promise<ArrayBuffer> {
+  private async synthesise(text: string, index: number): Promise<ArrayBuffer> {
     const res = await fetch(`${this.opts.apiBase}/api/voice/tts`, {
       method: 'POST',
       headers: {
@@ -318,7 +336,8 @@ export class ChunkedSpeaker {
       body: JSON.stringify({
         text,
         language: this.opts.language,
-        ...(this.opts.group ? { group: this.opts.group } : {}),
+        ...(this.opts.group ? { group: this.opts.group, chunk_index: index } : {}),
+        ...(this.opts.freeReason ? { free_reason: this.opts.freeReason } : {}),
       }),
     });
     if (!res.ok) throw new Error(`TTS failed (${res.status})`);
