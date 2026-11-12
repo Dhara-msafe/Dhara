@@ -53,12 +53,30 @@ def test_route_checks_rate_limit(fn_name, kind):
 
 
 def test_no_dangling_nominatim_fallback_reference():
-    """Regression guard: the undefined NominatimFallbackProvider() call must
-    not come back. A real NameError here would be masked by `except
-    Exception`, so this has to be caught by a static check, not by a runtime
-    test."""
-    live_lines = [ln for ln in SRC.splitlines() if not ln.strip().startswith("#")]
+    """Regression guard, narrowed after the emergent-workspace-9/11 merge:
+    geo_autocomplete's "no provider configured" branch must fail closed
+    (503) and must NOT call NominatimFallbackProvider() — that was the
+    original dead/undefined-class NameError this fix caught, silently
+    masked by a broad `except Exception`.
+
+    NominatimFallbackProvider is no longer dead code workspace-wide: the
+    merged geo_router.py defines the class for real and geo_details()
+    legitimately calls it for an explicit provider="osm" place_id lookup
+    (a self-describing token, no network call). That is a different,
+    intentional code path, so this guard only checks geo_autocomplete's
+    own provider-unconfigured branch, not the whole file.
+    """
+    body = _function_slice("geo_autocomplete", size=2000)
+    # Isolate just the "provider is None" branch (up to the next top-level
+    # `try:` that starts the real-provider call), so a legitimate reference
+    # elsewhere in the file (or later in this same function) can't hide a
+    # regression of the original bug.
+    branch_start = body.index("if provider is None:")
+    branch_end = body.index("try:", branch_start)
+    branch = body[branch_start:branch_end]
+    live_lines = [ln for ln in branch.splitlines() if not ln.strip().startswith("#")]
     assert "NominatimFallbackProvider(" not in "\n".join(live_lines)
+    assert "raise HTTPException(503" in branch
 
 
 # ── Fake Mongo-like collection standing in for dependencies.db.usage_daily ──
