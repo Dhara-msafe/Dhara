@@ -1472,28 +1472,35 @@ async def intake_create(request: Request, body: IntakeCreateIn, user: dict = Dep
 
 
 @api.get("/advocate/intake/{token}")
-async def intake_get(token: str):
+async def intake_get(token: str, user: Optional[dict] = Depends(current_user_optional)):
     """Public endpoint — fetch intake form metadata for a given token.
-    Used both by the client-facing form and the advocate's intake-view screen."""
+    Used both by the client-facing form and the advocate's intake-view screen.
+    NF-08 (12 Nov 2026): the client's answers, transcript, summary and DHARA
+    analysis are returned only to the advocate who created the intake. Anyone
+    else holding the link (the client, or whoever it was forwarded to) gets
+    only what the form needs."""
     intake = await db.client_intakes.find_one({"intake_token": token}, {"_id": 0})
     if not intake:
         raise HTTPException(404, "Intake not found")
-    # For the public client form: only expose status + expiry info (no PII)
-    return {
+    out = {
         "id": intake.get("id", ""),
         "intake_token": intake.get("intake_token", ""),
         "template_id": intake.get("template_id", "general"),
         "template_title": intake.get("template_title", "General Intake"),
         "status": intake.get("status", "pending"),
-        "client_name": intake.get("client_name", ""),
-        "summary": intake.get("summary", ""),
-        "dhara_analysis": intake.get("dhara_analysis", ""),
-        "transcript": intake.get("transcript", []),
-        "answers": intake.get("answers", {}),
         "created_at": intake.get("created_at", ""),
-        "completed_at": intake.get("completed_at"),
         "expired": intake.get("status") == "expired",
     }
+    if user and user.get("id") == intake.get("advocate_id"):
+        out.update({
+            "client_name": intake.get("client_name", ""),
+            "summary": intake.get("summary", ""),
+            "dhara_analysis": intake.get("dhara_analysis", ""),
+            "transcript": intake.get("transcript", []),
+            "answers": intake.get("answers", {}),
+            "completed_at": intake.get("completed_at"),
+        })
+    return out
 
 
 @api.post("/advocate/intake/{token}/submit")

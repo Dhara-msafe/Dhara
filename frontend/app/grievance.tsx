@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { goBackOr } from '@/src/goBackOr';
 
 const CATEGORIES = [
   { key: 'data_access',     label: 'Access my data',       icon: 'eye-outline',           desc: 'Request a copy of all data held about you' },
@@ -108,7 +109,7 @@ export default function GrievanceScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Pressable
-          onPress={() => (step === 'form' ? setStep('list') : router.back())}
+          onPress={() => (step === 'form' ? setStep('list') : goBackOr(router, '/settings/data-privacy'))}
           hitSlop={8}
           style={styles.backBtn}
         >

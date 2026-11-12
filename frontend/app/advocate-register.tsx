@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { goBackOr } from '@/src/goBackOr';
 import { STATE_BAR_COUNCILS } from '@/src/courtData';
 
 const SPECIALIZATIONS = [
@@ -55,7 +56,7 @@ export default function AdvocateRegister() {
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
-        <Pressable onPress={() => router.back()} style={{ marginRight: 12 }}>
+        <Pressable onPress={() => goBackOr(router, '/(tabs)/advocate')} style={{ marginRight: 12 }}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </Pressable>
         <Text style={s.headerTitle}>Register as Advocate</Text>

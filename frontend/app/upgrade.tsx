@@ -24,6 +24,7 @@ import * as Linking from 'expo-linking';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { goBackOr } from '@/src/goBackOr';
 import { trackEvent } from '@/src/analytics';
 
 // Batch FREE-V1-001: Pro upgrade / Stripe / Razorpay payment UI gated off for v1
@@ -301,13 +302,13 @@ export default function Upgrade() {
     return (
       <SafeAreaView style={styles.safe} edges={['top']} testID="upgrade-screen-disabled">
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} testID="upgrade-back" hitSlop={10}>
+          <Pressable onPress={() => goBackOr(router, '/(tabs)/home')} testID="upgrade-back" hitSlop={10}>
             <Ionicons name="arrow-back" size={26} color={theme.colors.onBrandPrimary} />
           </Pressable>
           <Text style={styles.headerTitle}>Dhara Pro</Text>
           <View style={{ width: 26 }} />
         </View>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12, backgroundColor: theme.colors.background }}>
           <Ionicons name="time-outline" size={40} color={theme.colors.brand} />
           <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.onSurface, textAlign: 'center' }}>
             Pro isn&apos;t available in this version yet
@@ -323,7 +324,7 @@ export default function Upgrade() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']} testID="upgrade-screen">
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} testID="upgrade-back" hitSlop={10}>
+        <Pressable onPress={() => goBackOr(router, '/(tabs)/home')} testID="upgrade-back" hitSlop={10}>
           <Ionicons name="arrow-back" size={26} color={theme.colors.onBrandPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>{t?.headerTitle || 'Dhara Pro'}</Text>

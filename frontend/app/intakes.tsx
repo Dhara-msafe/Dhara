@@ -6,6 +6,7 @@ import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { goBackOr } from '@/src/goBackOr';
 import { INTAKE_TEMPLATES, IntakeTemplate } from '@/src/intakeTemplates';
 
 import { shareExternal } from '@/src/outbound';
@@ -75,14 +76,28 @@ export default function Intakes() {
         await Clipboard.setStringAsync(intake_url);
         alert(`Link copied!\n${intake_url}`);
       }
-    } catch { /* silently handled */ }
+    } catch {
+      // NF-08: this used to fail silently (the + button looked dead).
+      alert('Could not create the intake link. Please check your connection and try again.');
+    }
     setCreating(false);
+  };
+
+  // NF-08: a pending intake had no way to get its link again.
+  const resendLink = async (intake_url: string) => {
+    if (!intake_url) return;
+    if (Platform.OS !== 'web') {
+      await shareExternal({ message: `Please fill in your case details using this secure link:\n${intake_url}`, url: intake_url });
+    } else {
+      await Clipboard.setStringAsync(intake_url);
+      alert(`Link copied!\n${intake_url}`);
+    }
   };
 
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
-        <Pressable onPress={() => router.back()} style={{ marginRight: 12 }}>
+        <Pressable onPress={() => goBackOr(router, '/(tabs)/advocate')} style={{ marginRight: 12 }}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </Pressable>
         <Text style={s.headerTitle}>Client Intakes</Text>
@@ -107,7 +122,9 @@ export default function Intakes() {
           renderItem={({ item }) => (
             <Pressable
               style={s.row}
-              onPress={() => item.status === 'complete' ? router.push(`/intake-view/${item.intake_token}` as any) : null}
+              onPress={() => item.status === 'complete'
+                ? router.push(`/intake-view/${item.intake_token}` as any)
+                : resendLink(item.intake_url)}
             >
               <View style={{ flex: 1 }}>
                 <Text style={s.rowName}>{item.client_name || 'Awaiting client'}</Text>

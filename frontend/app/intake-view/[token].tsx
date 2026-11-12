@@ -7,6 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { goBackOr } from '@/src/goBackOr';
 
 const NAVY = theme.colors.primary;
 const GOLD = theme.colors.gold;
@@ -41,7 +42,7 @@ export default function IntakeView() {
   if (!intake) return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
-        <Pressable onPress={() => router.back()}><Ionicons name="arrow-back" size={22} color="#fff" /></Pressable>
+        <Pressable onPress={() => goBackOr(router, '/intakes')}><Ionicons name="arrow-back" size={22} color="#fff" /></Pressable>
         <Text style={s.headerTitle}>Intake</Text>
       </View>
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
@@ -54,7 +55,7 @@ export default function IntakeView() {
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
-        <Pressable onPress={() => router.back()} style={{ marginRight: 12 }}>
+        <Pressable onPress={() => goBackOr(router, '/intakes')} style={{ marginRight: 12 }}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </Pressable>
         <View style={{ flex: 1 }}>

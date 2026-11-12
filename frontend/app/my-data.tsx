@@ -22,6 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { goBackOr } from '@/src/goBackOr';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 
@@ -160,7 +161,7 @@ export default function MyDataScreen() {
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       {/* ── Header ── */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backBtn}>
+        <Pressable onPress={() => goBackOr(router, '/(tabs)/settings')} hitSlop={8} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color={theme.colors.brand} />
         </Pressable>
         <Text style={styles.headerTitle}>My Data</Text>
