@@ -28,7 +28,7 @@ from services.login_guard import (  # noqa: E402
 BASE_URL = (os.environ.get("EXPO_PUBLIC_BACKEND_URL") or os.environ.get("EXPO_BACKEND_URL")).rstrip("/")
 API = f"{BASE_URL}/api"
 
-PASSWORD = "test1234"
+PASSWORD = "Test1234!"
 WRONG = "definitely-wrong-password"
 
 USER_LINKED_COLLECTIONS = [

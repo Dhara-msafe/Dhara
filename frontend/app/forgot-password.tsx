@@ -14,6 +14,8 @@ import { useRouter, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { API_BASE, useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { passwordMeetsRule, PASSWORD_RULE_MSG } from '@/src/passwordRule';
+import { PasswordLabelWithRules } from '@/src/components/PasswordLabelWithRules';
 
 /**
  * Password reset in two steps:
@@ -68,8 +70,8 @@ export default function ForgotPassword() {
       setError('Enter the 6-digit code from your email.');
       return;
     }
-    if (newPassword.length < 6) {
-      setError('New password must be at least 6 characters.');
+    if (!passwordMeetsRule(newPassword)) {
+      setError(PASSWORD_RULE_MSG);
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -185,7 +187,7 @@ export default function ForgotPassword() {
                 maxLength={6}
               />
 
-              <Text style={styles.label}>New password (min 6 chars)</Text>
+              <PasswordLabelWithRules label="New password" password={newPassword} labelStyle={styles.label} />
               <TextInput
                 testID="fp-new-password-input"
                 style={styles.input}

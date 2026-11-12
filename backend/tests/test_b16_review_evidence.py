@@ -31,7 +31,7 @@ from services.login_guard import COLLECTION, MAX_FAILURES, normalize_email  # no
 
 BASE_URL = os.environ["EXPO_PUBLIC_BACKEND_URL"].rstrip("/")
 API = f"{BASE_URL}/api"
-PASSWORD = "test1234"
+PASSWORD = "Test1234!"
 WRONG = "definitely-wrong-password"
 WORKER_PORT = 8099
 

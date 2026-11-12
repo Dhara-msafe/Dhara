@@ -114,7 +114,7 @@ def exhausted_pro(db):
         f"{API}/auth/register",
         json={
             "email": email,
-            "password": "test1234",
+            "password": "Test1234!",
             "name": "B04c Tester",
             "phone": f"+9198771{uniq % 100000:05d}",
             "terms_accepted": True,

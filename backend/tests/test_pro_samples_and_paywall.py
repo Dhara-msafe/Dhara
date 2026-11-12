@@ -15,7 +15,7 @@ API = f"{BASE_URL}/api"
 
 UNIQ = int(time.time() * 1000)
 FRESH_EMAIL = f"TEST_pro_iter5_{UNIQ}@gandhikar.in"
-FRESH_PW = "test1234"
+FRESH_PW = "Test1234!"
 FRESH_NAME = "Pro Iter5"
 FRESH_PHONE = f"+9198770{UNIQ % 100000:05d}"
 
@@ -208,7 +208,7 @@ def pro_user_headers():
         f"{API}/auth/register",
         json={
             "email": email,
-            "password": "test1234",
+            "password": "Test1234!",
             "name": "Actual Pro",
             "phone": f"+9198761{UNIQ % 100000:05d}",
             "terms_accepted": True,

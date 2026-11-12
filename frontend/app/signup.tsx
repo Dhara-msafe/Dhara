@@ -5,6 +5,8 @@ import { useRouter, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { passwordMeetsRule, PASSWORD_RULE_MSG } from '@/src/passwordRule';
+import { PasswordLabelWithRules } from '@/src/components/PasswordLabelWithRules';
 
 export default function Signup() {
   const { register } = useAuth();
@@ -37,7 +39,7 @@ export default function Signup() {
     if (!name.trim()) { setError('Please enter your name'); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError('Please enter a valid email address'); return; }
     if (!phone.trim() || phone.replace(/\D/g, '').length < 6) { setError('Please enter a valid phone number'); return; }
-    if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
+    if (!passwordMeetsRule(password)) { setError(PASSWORD_RULE_MSG); return; }
     if (!terms) { setError('You must accept the Terms & Conditions to continue'); return; }
     submitting.current = true;
     setLoading(true);
@@ -78,14 +80,14 @@ export default function Signup() {
             <Text style={styles.label}>Phone number</Text>
             <TextInput testID="signup-phone-input" style={styles.input} value={phone} onChangeText={setPhone} placeholder="+91 98xxxxxxxx" placeholderTextColor={theme.colors.onSurfaceTertiary} keyboardType="phone-pad" />
 
-            <Text style={styles.label}>Password</Text>
+            <PasswordLabelWithRules label="Password" password={password} labelStyle={styles.label} />
             <View style={styles.pwWrap}>
               <TextInput
                 testID="signup-password-input"
                 style={styles.pwInput}
                 value={password}
                 onChangeText={setPassword}
-                placeholder="At least 6 characters"
+                placeholder="8+ characters, A-Z, 0-9 and a symbol"
                 placeholderTextColor={theme.colors.onSurfaceTertiary}
                 secureTextEntry={!showPassword}
               />

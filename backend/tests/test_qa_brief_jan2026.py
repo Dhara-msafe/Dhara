@@ -151,17 +151,28 @@ class TestRegistrationConsent:
             f"Backend accepted a 5-character password (expected 422 validation error): {r.status_code} {r.text}"
         )
 
-    def test_password_exactly_six_chars_accepted(self, api_client):
+    def test_password_meeting_rule_accepted(self, api_client):
+        # W1-J02 (12 Nov 2026): 8+ chars with an uppercase letter, a number and a symbol
+        weak = {
+            "email": f"TEST_weakpw_{uuid.uuid4().hex[:8]}@example.com",
+            "password": "abcdefgh",
+            "name": "Test Weakpw",
+            "phone": "9876500012",
+            "terms_accepted": True,
+            "terms_version": "1.0",
+        }
+        rw = api_client.post(f"{BASE_URL}/api/auth/register", json=weak)
+        assert rw.status_code == 422, f"weak password must be rejected: {rw.status_code} {rw.text}"
         payload = {
             "email": f"TEST_sixpw_{uuid.uuid4().hex[:8]}@example.com",
-            "password": "abc123",  # exactly 6 chars
+            "password": "Abcdef1!",  # 8 chars, upper, number, symbol
             "name": "Test Sixpw",
             "phone": "9876500002",
             "terms_accepted": True,
             "terms_version": "1.0",
         }
         r = api_client.post(f"{BASE_URL}/api/auth/register", json=payload)
-        assert r.status_code == 200, f"6-char password should be accepted: {r.text}"
+        assert r.status_code == 200, f"password meeting the rule should be accepted: {r.text}"
 
     def test_registration_without_consent_rejected(self, api_client):
         payload = {
@@ -181,7 +192,7 @@ class TestRegistrationConsent:
     def test_registration_duplicate_email_rejected(self, api_client):
         email = f"TEST_dup_{uuid.uuid4().hex[:8]}@example.com"
         payload = {
-            "email": email, "password": "abc123", "name": "Dup One",
+            "email": email, "password": "Abcdef1!", "name": "Dup One",
             "phone": "9876500004", "terms_accepted": True, "terms_version": "1.0",
         }
         r1 = api_client.post(f"{BASE_URL}/api/auth/register", json=payload)
@@ -193,13 +204,13 @@ class TestRegistrationConsent:
         """Create → login → verify persistence (Create->GET pattern)."""
         email = f"TEST_fictional_{uuid.uuid4().hex[:8]}@example.com"
         payload = {
-            "email": email, "password": "FictionalPass123", "name": "Fictional Tester",
+            "email": email, "password": "FictionalPass123!", "name": "Fictional Tester",
             "phone": "9876500005", "terms_accepted": True, "terms_version": "1.0",
         }
         r = api_client.post(f"{BASE_URL}/api/auth/register", json=payload)
         assert r.status_code == 200
         token = r.json()["token"]
-        login = api_client.post(f"{BASE_URL}/api/auth/login", json={"email": email, "password": "FictionalPass123"})
+        login = api_client.post(f"{BASE_URL}/api/auth/login", json={"email": email, "password": "FictionalPass123!"})
         assert login.status_code == 200
         me = api_client.get(f"{BASE_URL}/api/auth/me", headers={"Authorization": f"Bearer {token}"})
         assert me.status_code == 200
@@ -213,7 +224,7 @@ class TestLegalTruthRegression:
     def _registered_token(self, api_client):
         email = f"TEST_legaltruth_{uuid.uuid4().hex[:8]}@example.com"
         payload = {
-            "email": email, "password": "LegalTruth123", "name": "Legal Truth Tester",
+            "email": email, "password": "LegalTruth123!", "name": "Legal Truth Tester",
             "phone": "9876500006", "terms_accepted": True, "terms_version": "1.0",
         }
         r = api_client.post(f"{BASE_URL}/api/auth/register", json=payload)
@@ -296,7 +307,7 @@ class TestCitationGuardRegression:
     def test_citation_rendering_no_missing_or_duplicate_cards(self, api_client):
         email = f"TEST_citguard_{uuid.uuid4().hex[:8]}@example.com"
         payload = {
-            "email": email, "password": "CitGuard123", "name": "Cit Guard",
+            "email": email, "password": "CitGuard123!", "name": "Cit Guard",
             "phone": "9876500007", "terms_accepted": True, "terms_version": "1.0",
         }
         r = api_client.post(f"{BASE_URL}/api/auth/register", json=payload)
@@ -317,7 +328,7 @@ class TestCitationGuardRegression:
         'Advocate Verified' -> 'Advocate Reviewed' badge)."""
         email = f"TEST_noverified_{uuid.uuid4().hex[:8]}@example.com"
         payload = {
-            "email": email, "password": "NoVerified123", "name": "No Verified",
+            "email": email, "password": "NoVerified123!", "name": "No Verified",
             "phone": "9876500008", "terms_accepted": True, "terms_version": "1.0",
         }
         r = api_client.post(f"{BASE_URL}/api/auth/register", json=payload)

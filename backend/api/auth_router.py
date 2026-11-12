@@ -3,6 +3,7 @@
 Extracted from server.py (Phase 1 Modularization).
 Depends on: dependencies.py, config/settings.py
 """
+import re
 import uuid
 import secrets
 import httpx
@@ -34,7 +35,7 @@ router = APIRouter()
 
 class RegisterIn(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=6)
+    password: str = Field(max_length=128)
     name: str = Field(min_length=1)
     phone: str = Field(min_length=6, max_length=20)
     state: Optional[str] = None
@@ -54,7 +55,19 @@ class ForgotPasswordIn(BaseModel):
 class ResetPasswordIn(BaseModel):
     email: EmailStr
     code: str = Field(min_length=4, max_length=10)
-    new_password: str = Field(min_length=6)
+    new_password: str = Field(max_length=128)
+
+# W1-J02 (12 Nov 2026): rule for every NEW password (sign-up and reset).
+# Existing passwords keep working at login. Must match frontend/src/passwordRule.ts.
+PASSWORD_RULE_MSG = ("Password must be at least 8 characters and include an "
+                     "uppercase letter, a number and a symbol.")
+
+
+def _password_problem(p: str) -> Optional[str]:
+    if (len(p) < 8 or not re.search(r"[A-Z]", p) or not re.search(r"[0-9]", p)
+            or not re.search(r"[^A-Za-z0-9]", p)):
+        return PASSWORD_RULE_MSG
+    return None
 
 class DeleteAccountIn(BaseModel):
     password: str
@@ -91,6 +104,8 @@ _USED_GOOGLE_SESSIONS: set[str] = set()
 async def register(body: RegisterIn):
     if not body.terms_accepted:
         raise HTTPException(400, "You must accept the Terms & Conditions to register")
+    if _password_problem(body.password):
+        raise HTTPException(422, PASSWORD_RULE_MSG)
     existing = await db.users.find_one({"email": body.email.lower()})
     if existing:
         raise HTTPException(400, "Email already registered")
@@ -371,6 +386,8 @@ async def forgot_password(body: ForgotPasswordIn):
 @router.post("/auth/reset-password", response_model=AuthOut)
 async def reset_password(body: ResetPasswordIn):
     """Step 2 — verify the emailed code, set the new password, sign the user in."""
+    if _password_problem(body.new_password):
+        raise HTTPException(422, PASSWORD_RULE_MSG)   # checked first: a weak password never uses up a code attempt
     email = body.email.lower().strip()
     now = datetime.now(timezone.utc)
     rec = await db.password_resets.find_one({"email": email})
