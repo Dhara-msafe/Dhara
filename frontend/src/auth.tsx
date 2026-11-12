@@ -45,7 +45,9 @@ type AuthCtx = {
   register: (email: string, password: string, name: string, phone: string, terms_accepted: boolean, terms_version: string) => Promise<void>;
   /** Anonymous trial — no email/phone/password. Server enforces a 5-question quota + 24h expiry. */
   continueAsGuest: (language?: string) => Promise<void>;
-  loginWithGoogle: () => Promise<void>;
+  loginWithGoogle: () => Promise<boolean>;
+  googleError: { message: string; minor: boolean } | null;
+  clearGoogleError: () => void;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   hydrateSession: (token: string, user: User) => Promise<void>;
@@ -74,6 +76,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ttsVolume, setTtsVolumeState] = useState<number>(1.0);
   const [ttsVoiceMode, setTtsVoiceModeState] = useState<TtsVoiceMode>('cloud');
   const [sessionExpired, setSessionExpired] = useState<boolean>(false);
+  // W1-J04: a failed Google sign-in on the web (the page returns from Google)
+  // used to fail silently; the login screen now shows why.
+  const [googleError, setGoogleError] = useState<{ message: string; minor: boolean } | null>(null);
   // Guard: prevent the same session_id being exchanged twice on Android
   const usedSessionIds = useRef<Set<string>>(new Set());
 
@@ -88,20 +93,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (!usedSessionIds.current.has(sid)) {
             usedSessionIds.current.add(sid);
             try {
-              const r = await fetch(`${API}/api/auth/session`, {
+              const r = await _fetchAuth(`${API}/api/auth/session`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ session_id: sid }),
               });
-              const data = r.ok ? await r.json() : null;
-              if (data && !(await _minorBlockedMessage(data.token))) {
-                await AsyncStorage.setItem(TOKEN_KEY, data.token);
-                await AsyncStorage.setItem(USER_KEY, JSON.stringify(data.user));
-                _setActiveUserIdCache(data.user);
-                setToken(data.token);
-                setUser(data.user);
+              if (!r.ok) {
+                setGoogleError({ message: await _extractError(r, 'Google sign-in failed. Please try again.'), minor: false });
+              } else {
+                const data = await r.json();
+                const minorMsg = await _minorBlockedMessage(data.token);
+                // W1-J04: same sign-in path as the app (persist links the earlier
+                // consent and resets the previous account's cover state).
+                if (minorMsg) setGoogleError({ message: minorMsg, minor: true });
+                else await persist(data.token, data.user);
               }
-            } catch {}
+            } catch (e: any) {
+              setGoogleError({ message: e?.message || 'Google sign-in failed. Please try again.', minor: false });
+            }
             // Clean the URL fragment
             window.history.replaceState(window.history.state, '', window.location.pathname);
           }
@@ -389,7 +398,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (Platform.OS === 'web') {
       if (typeof window !== 'undefined') window.location.href = authUrl;
-      return;
+      return false; // the page leaves for Google; sign-in finishes on return
     }
 
     // Register deep link listener BEFORE opening browser (Android fallback)
@@ -404,14 +413,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const callbackUrl: string | null =
       (result as any).url || deepLinkUrl || await Linking.getInitialURL();
 
-    if (!callbackUrl) return; // all three sources empty = genuine cancel
+    if (!callbackUrl) return false; // all three sources empty = genuine cancel
 
     // Emergent uses hash fragment: msafelegalaid://#session_id=...
     const m = callbackUrl.match(/[?#&]session_id=([^&#]+)/);
-    if (!m) return;
+    if (!m) return false;
 
     const sid = decodeURIComponent(m[1]);
-    if (usedSessionIds.current.has(sid)) return; // dedup
+    if (usedSessionIds.current.has(sid)) return false; // dedup
     usedSessionIds.current.add(sid);
 
     const r = await _fetchAuth(`${API}/api/auth/session`, {
@@ -428,6 +437,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw err;
     }
     await persist(data.token, data.user);
+    return true;
   }, []);
 
   // Jurisdiction — state / UT decides rent, liquor, stamp duty and traffic fine
@@ -453,7 +463,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token, forceLogout]);
 
   return (
-    <Ctx.Provider value={{ token, user, loading, language, setLanguage, autoSpeak, setAutoSpeak, ttsVolume, setTtsVolume, ttsVoiceMode, setTtsVoiceMode, setUserState, login, register, continueAsGuest, loginWithGoogle, logout, refreshUser, hydrateSession: persist, sessionExpired, clearSessionExpired, forceLogout }}>
+    <Ctx.Provider value={{ token, user, loading, language, setLanguage, autoSpeak, setAutoSpeak, ttsVolume, setTtsVolume, ttsVoiceMode, setTtsVoiceMode, setUserState, login, register, continueAsGuest, loginWithGoogle, logout, refreshUser, hydrateSession: persist, sessionExpired, clearSessionExpired, forceLogout, googleError, clearGoogleError: () => setGoogleError(null) }}>
       {children}
     </Ctx.Provider>
   );

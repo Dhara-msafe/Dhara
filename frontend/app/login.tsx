@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, Link } from 'expo-router';
@@ -8,7 +8,7 @@ import { theme } from '@/src/theme';
 import { trackEvent } from '@/src/analytics';
 
 export default function Login() {
-  const { login, loginWithGoogle, continueAsGuest, sessionExpired, clearSessionExpired } = useAuth();
+  const { login, loginWithGoogle, continueAsGuest, sessionExpired, clearSessionExpired, googleError, clearGoogleError } = useAuth();
   const router = useRouter();
   // returnTo: deep-link callers (e.g. GuardianScreen) pass the screen the user
   // should land on after signing in.  router.replace() removes the login screen
@@ -23,6 +23,13 @@ export default function Login() {
   const [guestLoading, setGuestLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [minorBlocked, setMinorBlocked] = useState(false);
+  // W1-J04: show why a Google sign-in on the web did not complete.
+  useEffect(() => {
+    if (!googleError) return;
+    setError(googleError.message);
+    setMinorBlocked(googleError.minor);
+    clearGoogleError();
+  }, [googleError, clearGoogleError]);
 
   const onSubmit = async () => {
     setError(null);
@@ -49,8 +56,9 @@ export default function Login() {
     clearSessionExpired();
     setGoogleLoading(true);
     try {
-      await loginWithGoogle();
-      _postLoginNav();
+      // W1-J04: only move on when sign-in finished; cancelling the Google
+      // chooser now simply stays on this screen.
+      if (await loginWithGoogle()) _postLoginNav();
     } catch (e: any) {
       setMinorBlocked(e?.code === 'minor_blocked');
       setError(e?.message || 'Google sign-in failed');

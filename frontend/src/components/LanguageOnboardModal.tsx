@@ -116,12 +116,17 @@ export function LanguageOnboardModal() {
     checkedForUidRef.current = uid;
 
     const key = STORAGE_KEY(uid as string);
-    AsyncStorage.getItem(key).then(v => {
+    // W1-J04 / B-73 (12 Nov 2026): if a language was already chosen on this
+    // phone (first-launch language screen or Settings), do not ask again after
+    // sign-in; record it as done for this account.
+    Promise.all([AsyncStorage.getItem(key), AsyncStorage.getItem('gk_lang')]).then(([v, deviceLang]) => {
       // Race guard: only honour this async result if, by the time it
       // resolves, we're still on a non-excluded route for this SAME account.
       if (EXCLUDED_PATHS.some(p => pathnameRef.current?.startsWith(p))) return;
       if (checkedForUidRef.current !== uid) return;
-      if (!v) setVisible(true);
+      if (v) return;
+      if (deviceLang) { AsyncStorage.setItem(key, '1').catch(() => {}); return; }
+      setVisible(true);
     }).catch(() => {});
   }, [user, pathname]);
 
