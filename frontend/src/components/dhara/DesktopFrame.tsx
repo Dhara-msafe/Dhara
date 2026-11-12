@@ -6,6 +6,7 @@ import { theme } from '../../theme';
 import { useAuth } from '../../auth';
 import { tr } from '../../ui18n';
 import { useComplaintsPassive, isDraftReady, complaintTitle, complaintProgress } from '../../home/complaints';
+import { ADVOCATE_MODE_ENABLED } from '../../advocateMode/flags';
 
 const c = theme.colors;
 
@@ -87,9 +88,12 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
           />
         </View>
         <View style={styles.topRight}>
-          <Pressable accessibilityRole="button" accessibilityLabel="For advocates" style={styles.topLink} onPress={() => router.push('/(tabs)/advocate')}>
-            <Text style={styles.topLinkTxt}>For advocates</Text>
-          </Pressable>
+          {/* B-97: advocate/lawyer features are hidden for Wave 1 per D-14. */}
+          {ADVOCATE_MODE_ENABLED && (
+            <Pressable accessibilityRole="button" accessibilityLabel="For advocates" style={styles.topLink} onPress={() => router.push('/(tabs)/advocate')}>
+              <Text style={styles.topLinkTxt}>For advocates</Text>
+            </Pressable>
+          )}
           <Pressable accessibilityRole="button" accessibilityLabel={`Change language, currently ${language.native}`} style={styles.langPill} onPress={() => router.push('/language')}>
             <Ionicons name="globe-outline" size={14} color="#fff" />
             <Text style={styles.langTxt}>{language.native}</Text>
