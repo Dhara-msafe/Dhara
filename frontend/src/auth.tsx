@@ -200,6 +200,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // r.json() / r.text() itself threw (body already consumed or malformed)
     }
+    // B-69: a server or gateway error with no readable reason (e.g. an HTML
+    // 502/503 page while the backend restarts) used to show only the bare
+    // fallback ("Registration failed"). Say what happened and what to do.
+    if (r.status >= 500) {
+      return `${fallback}. DHARA's server had a problem (error ${r.status}). Please try again in a moment.`;
+    }
     return fallback;
   };
 

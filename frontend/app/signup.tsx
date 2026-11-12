@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Modal, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Link } from 'expo-router';
@@ -20,6 +20,9 @@ export default function Signup() {
   const [showTerms, setShowTerms] = useState(false);
   const [termsText, setTermsText] = useState('');
   const [termsVersion, setTermsVersion] = useState('1.0');
+  // W1-J02: a second tap before the first request returns must not send a
+  // second registration (state updates are async, so `disabled` is too late).
+  const submitting = useRef(false);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/legal/terms`).then(r => r.json()).then(d => {
@@ -29,11 +32,14 @@ export default function Signup() {
   }, []);
 
   const onSubmit = async () => {
+    if (submitting.current) return;
     setError(null);
     if (!name.trim()) { setError('Please enter your name'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError('Please enter a valid email address'); return; }
     if (!phone.trim() || phone.replace(/\D/g, '').length < 6) { setError('Please enter a valid phone number'); return; }
     if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
     if (!terms) { setError('You must accept the Terms & Conditions to continue'); return; }
+    submitting.current = true;
     setLoading(true);
     try {
       await register(email.trim(), password, name.trim(), phone.trim(), true, termsVersion);
@@ -41,6 +47,7 @@ export default function Signup() {
     } catch (e: any) {
       setError(e?.message || 'Registration failed');
     } finally {
+      submitting.current = false;
       setLoading(false);
     }
   };
