@@ -25,6 +25,39 @@ import { PasswordLabelWithRules } from '@/src/components/PasswordLabelWithRules'
  * The old flow accepted email + registered phone and reset the password on the
  * spot, which meant anyone who knew both could take over the account.
  */
+// W1-J09 (12 Nov 2026): every call on this screen goes through postJson so a
+// slow network times out (20 s) with a clear message, and an error page that is
+// not JSON (e.g. a 502/503 gateway page) no longer shows a raw parse error (B-30).
+const NETWORK_MSG = 'Could not reach DHARA. Check your internet connection and try again.';
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+async function postJson(path: string, body: unknown): Promise<{ res: Response; data: any }> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 20000);
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+  } catch {
+    throw new Error(NETWORK_MSG);
+  } finally {
+    clearTimeout(timer);
+  }
+  const data = await res.json().catch(() => null);
+  return { res, data };
+}
+
+function errorText(res: Response, data: any, fallback: string): string {
+  if (typeof data?.detail === 'string' && data.detail) return data.detail;
+  if (typeof data?.detail?.message === 'string' && data.detail.message) return data.detail.message;
+  if (res.status >= 500) return `DHARA's server had a problem (error ${res.status}). Please try again in a moment.`;
+  return fallback;
+}
+
 export default function ForgotPassword() {
   const router = useRouter();
   const { hydrateSession } = useAuth();
@@ -39,20 +72,15 @@ export default function ForgotPassword() {
 
   const requestCode = async () => {
     setError(null);
-    if (!email.trim()) {
-      setError('Please enter your email address.');
+    if (!EMAIL_RE.test(email.trim())) {
+      setError('Please enter a valid email address.');
       return;
     }
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase() }),
-      });
-      const data = await res.json();
+      const { res, data } = await postJson('/api/auth/forgot-password', { email: email.trim().toLowerCase() });
       if (!res.ok) {
-        setError(data?.detail || 'Could not send the code. Please try again.');
+        setError(errorText(res, data, 'Could not send the code. Please try again.'));
         return;
       }
       setNotice(data?.message || 'Check your email for a 6-digit code.');
@@ -80,18 +108,13 @@ export default function ForgotPassword() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: email.trim().toLowerCase(),
-          code: code.trim(),
-          new_password: newPassword,
-        }),
+      const { res, data } = await postJson('/api/auth/reset-password', {
+        email: email.trim().toLowerCase(),
+        code: code.trim(),
+        new_password: newPassword,
       });
-      const data = await res.json();
       if (!res.ok) {
-        setError(data?.detail || 'Reset failed. Please try again.');
+        setError(errorText(res, data, 'Reset failed. Please try again.'));
         return;
       }
       if (hydrateSession) {
@@ -181,7 +204,7 @@ export default function ForgotPassword() {
                 style={[styles.input, styles.codeInput]}
                 value={code}
                 onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
-                placeholder="123456"
+                placeholder="••••••"
                 placeholderTextColor={theme.colors.onSurfaceTertiary}
                 keyboardType="number-pad"
                 maxLength={6}
