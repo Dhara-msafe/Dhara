@@ -36,22 +36,36 @@ interface MyDataSummary {
 
 export default function MyDataScreen() {
   const router = useRouter();
-  const { token } = useAuth();
+  const { token, loading: authLoading, forceLogout } = useAuth();
   const [summary, setSummary] = useState<MyDataSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  // W1-J07: signed out (or never signed in) -> go to sign-in instead of an
+  // endless "Loading your data summary".
+  useEffect(() => {
+    if (!authLoading && !token) router.replace('/login');
+  }, [authLoading, token, router]);
   const [exporting, setExporting] = useState(false);
 
   const fetchSummary = useCallback(async () => {
     if (!token) return;
     setLoading(true);
+    setLoadFailed(false);
     try {
       const res = await fetch(`${API_BASE}/api/user/my-data`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      // W1-J06: an error reply used to be shown as if it were the user's data
+      // (dashes and default values). 401 -> session expired; other errors ->
+      // say the data could not be loaded.
+      if (res.status === 401) { await forceLogout(); return; }
+      if (!res.ok) { setSummary(null); setLoadFailed(true); return; }
       const data = await res.json();
       setSummary(data);
     } catch {
-      // silently ignore — show skeleton if offline
+      setSummary(null);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -112,6 +126,20 @@ export default function MyDataScreen() {
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="large" color={theme.colors.brand} />
           <Text style={styles.loadingText}>Loading your data summary…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (loadFailed || !summary) {
+    return (
+      <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+        <View style={styles.loadingWrap}>
+          <Ionicons name="cloud-offline-outline" size={36} color={theme.colors.onSurfaceSecondary} />
+          <Text testID="my-data-load-failed" style={styles.loadingText}>We could not load your data right now.</Text>
+          <Pressable testID="my-data-retry" onPress={fetchSummary} hitSlop={8}>
+            <Text style={[styles.loadingText, { color: theme.colors.brand, fontWeight: '700' }]}>Try again</Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     );

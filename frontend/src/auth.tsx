@@ -133,6 +133,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setLoading(false);
       _resolveHydration();
+      // W1-J06 (12 Nov 2026): the saved session was trusted without asking the
+      // server, so an expired or revoked token still showed the signed-in app.
+      // Check it once in the background: 401 -> sign out with "session expired";
+      // OK -> refresh the saved profile; no network -> keep the saved session.
+      if (t) {
+        try {
+          const r = await fetch(`${API}/api/auth/me`, { headers: { Authorization: `Bearer ${t}` } });
+          if (r.status === 401) {
+            setSessionExpired(true);
+            await logout();
+          } else if (r.ok && _activeUserIdCache) {
+            const fresh = await r.json();
+            await AsyncStorage.setItem(USER_KEY, JSON.stringify(fresh));
+            setUser(fresh);
+          }
+        } catch { /* offline: keep the saved session */ }
+      }
     })();
   }, []);
 
@@ -289,6 +306,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       if (r.ok) {
         const u = await r.json();
+        // W1-J07: if the user signed out while this request was in flight, do
+        // not write their profile back onto the device.
+        if (!_activeUserIdCache) return;
         await AsyncStorage.setItem(USER_KEY, JSON.stringify(u));
         setUser(u);
       }
