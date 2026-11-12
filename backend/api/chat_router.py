@@ -350,6 +350,18 @@ class TTSIn(BaseModel):
     language: str = "en"
     voice: str = "alloy"
     group: Optional[str] = None
+    # B-94/B-79: this request's position within `group` (0 = first chunk of
+    # this answer). Lets the server decide "charge only chunk 0"
+    # deterministically from data the client already knows for certain,
+    # instead of a racy "first upsert wins" check with no unique index
+    # behind it -- see the should_meter comment in tts() below for why that
+    # mattered.
+    chunk_index: Optional[int] = None
+    # B-94/B-79: marks this utterance as free -- fixed, canned, non-LLM
+    # safety content, or a replay of an answer already paid for once.
+    # Checked against a small explicit allow-list server-side (see tts()
+    # below); any other value is ignored and the call is metered normally.
+    free_reason: Optional[str] = None
 
 class BookmarkIn(BaseModel):
     client_id: str
@@ -2121,24 +2133,49 @@ async def tts(body: TTSIn, user: dict = Depends(current_user)):
     # single answer, so an answer costs one: only the first chunk of a `group`
     # meters, the rest ride along.
     #
-    # Reuses usage_daily deliberately — it is already partitioned by day like the
-    # counters, so this needs no new collection and no TTL index (there is no
-    # index-creation or startup hook in this service to hang one off).
+    # B-94/B-79: the ORIGINAL version of this decided "first chunk" with a
+    # racy upsert ("Inserted => first chunk => charge. Matched => already
+    # paid.") against usage_daily with no unique index behind it (there is
+    # no index-creation or startup hook in this service to hang one off).
+    # The client sends up to MAX_IN_FLIGHT (2) chunks of the SAME group
+    # concurrently, so two "first" requests could both race past that
+    # check before either's insert was visible to the other and both get
+    # charged -- a single officer-card "listen", or any answer split into
+    # 2+ chunks, could cost 2 instead of 1. The client now tells us each
+    # request's chunk_index directly, which it knows for certain (it
+    # assigns indices itself, see src/voice/tts.ts's pumpSynthesis), so
+    # "is this the first chunk" no longer needs a database race at all:
+    # chunk 0 charges, every other index doesn't, full stop.
     should_meter = True
     if body.group:
+        should_meter = body.chunk_index == 0 if body.chunk_index is not None else True
+        # Still recorded for observability (e.g. spotting abandoned/partial
+        # answers) -- best-effort, not part of the charging decision above.
         _day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        _res = await db.usage_daily.update_one(
-            {
-                "scope": "user",
-                "user_id": user["id"],
-                "day": _day,
-                "kind": f"voice_group:{body.group[:64]}",
-            },
-            {"$setOnInsert": {"count": 1}},
-            upsert=True,
-        )
-        # Inserted => first chunk of this answer => charge. Matched => already paid.
-        should_meter = _res.upserted_id is not None
+        try:
+            await db.usage_daily.update_one(
+                {
+                    "scope": "user",
+                    "user_id": user["id"],
+                    "day": _day,
+                    "kind": f"voice_group:{body.group[:64]}",
+                },
+                {"$inc": {"count": 1}},
+                upsert=True,
+            )
+        except Exception:
+            logger.warning("tts: usage_daily observability write failed", exc_info=True)
+
+    # B-94/B-79: fixed, canned, non-LLM safety content (officer card, panic
+    # lesson, action plan, the language-onboarding voice prompt) and a
+    # replay of an answer already paid for once must never draw from the
+    # free-question quota -- a user with 0 questions left today must still
+    # be able to hear the officer card. Checked against a small explicit
+    # allow-list: an unrecognised value is ignored, not trusted blindly, so
+    # this can't be repurposed to get an actual live legal answer for free.
+    if body.free_reason in ("fixed_screen", "replay"):
+        should_meter = False
+
     if should_meter:
         await meter_llm_use(user, "voice")
     try:

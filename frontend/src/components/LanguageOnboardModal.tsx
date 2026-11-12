@@ -134,7 +134,8 @@ export function LanguageOnboardModal() {
   useEffect(() => {
     if (!visible) return;
     // Small delay so the modal animation finishes before audio starts
-    const t = setTimeout(() => { listen(VOICE_PROMPT); }, 600);
+    // B-94/B-79: fixed, canned onboarding prompt -- never metered.
+    const t = setTimeout(() => { listen(VOICE_PROMPT, 'fixed_screen'); }, 600);
     return () => { clearTimeout(t); stop(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
@@ -142,7 +143,7 @@ export function LanguageOnboardModal() {
   // ── Handlers ─────────────────────────────────────────────────────────────
   const replay = useCallback(() => {
     stop();
-    setTimeout(() => listen(VOICE_PROMPT), 150);
+    setTimeout(() => listen(VOICE_PROMPT, 'fixed_screen'), 150);
   }, [listen, stop]);
 
   const onConfirm = useCallback(async () => {

@@ -53,7 +53,7 @@ export function useScreenSpeech() {
     stopNativeTTS(); setSpeaking(false); setBlocked(false);
   }, []);
   useFocusEffect(useCallback(() => () => stop(), [stop, language.code]));
-  const listen = useCallback(async (text: string) => {
+  const listen = useCallback(async (text: string, freeReason?: 'fixed_screen' | 'replay') => {
     if (speaker.current?.playbackBlocked) { speaker.current.retryPlayback(); return; }
     if (active.current) { stop(); return; }
     stop(); setError('');
@@ -86,7 +86,7 @@ export function useScreenSpeech() {
       if (generation.current !== id) return;
       const group = `screen-${Date.now()}-${id}`;
       const cloud = new ChunkedSpeaker({
-        apiBase: API_BASE, token, language: language.code, group,
+        apiBase: API_BASE, token, language: language.code, group, freeReason,
         writeAudio: async (buffer, index) => {
           if (Platform.OS === 'web') {
             const uri = URL.createObjectURL(new Blob([buffer], { type: 'audio/mpeg' }));
