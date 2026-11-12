@@ -4,11 +4,12 @@ import {
   ActivityIndicator, Modal, FlatList, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { STATE_BAR_COUNCILS } from '@/src/courtData';
+import { ADVOCATE_MODE_ENABLED } from '@/src/advocateMode/flags';
 
 const SPECIALIZATIONS = [
   'Criminal', 'Civil', 'Family', 'Property', 'Consumer',
@@ -19,6 +20,11 @@ const NAVY  = theme.colors.primary;
 const GOLD  = theme.colors.gold;
 
 export default function AdvocateRegister() {
+  // B-97: advocate/lawyer features are hidden for Wave 1 per D-14 -- this
+  // must hold even on a direct URL hit or a refresh, not just when reached
+  // via the (now-hidden) in-app links.
+  if (!ADVOCATE_MODE_ENABLED) return <Redirect href="/(tabs)/home" />;
+
   const { token, user } = useAuth();
   const router = useRouter();
   const [stateBar, setStateBar]       = useState('');
