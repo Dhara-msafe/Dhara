@@ -106,8 +106,20 @@ export default function SafetyPlan() {
       <ScreenHeader title="My safety plan" subtitle="Private · stored only on this phone" />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
 
-        {/* ── F0-B: Plus Code emergency card ── */}
-        {cachedLoc && (
+        {/* ── F0-B: Plus Code emergency card ──
+            B-96: cachedLoc.source === 'demo' means locationCache.ts never
+            had a real GPS/server fix and returned its fallback Chennai
+            fixture -- NOT a usable location. The old "Demo" badge still
+            rendered that fabricated Plus Code as if it were shareable
+            ("Share this code with emergency services"), which is exactly
+            the fix already applied to the emergency-SMS path in
+            app/women/head-out/index.tsx's prepareAlertSMS ("Demo fallback
+            is intentionally omitted — a fabricated coordinate in an
+            emergency SMS could misdirect first responders"). This screen
+            never got the same guard. Now: no code, no copy action, no
+            "share this" text when there is no real fix -- just a plain
+            notice to turn on GPS. */}
+        {cachedLoc && cachedLoc.source !== 'demo' && (
           <Pressable
             style={styles.plusCodeCard}
             onPress={handleCopyPlusCode}
@@ -122,11 +134,6 @@ export default function SafetyPlan() {
               <View style={{ flex: 1 }}>
                 <View style={styles.plusCodeLabelRow}>
                   <Text style={styles.plusCodeLabel}>Emergency Plus Code</Text>
-                  {cachedLoc.source === 'demo' && (
-                    <View style={styles.demoBadge}>
-                      <Text style={styles.demoBadgeTxt}>Demo</Text>
-                    </View>
-                  )}
                   <View style={styles.offlineBadge}>
                     <Ionicons name="cloud-offline-outline" size={10} color="#6b7280" />
                     <Text style={styles.offlineBadgeTxt}>Works offline</Text>
@@ -151,6 +158,21 @@ export default function SafetyPlan() {
                 : 'Share this code with emergency services — works without signal'}
             </Text>
           </Pressable>
+        )}
+        {cachedLoc && cachedLoc.source === 'demo' && (
+          <View
+            style={styles.locationUnavailableCard}
+            accessibilityRole="text"
+            accessibilityLabel="Location not available. Turn on GPS to get your emergency Plus Code."
+          >
+            <View style={styles.plusCodeIconWrap}>
+              <Ionicons name="location-outline" size={18} color={c.muted} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.locationUnavailableTitle}>Location not available</Text>
+              <Text style={styles.locationUnavailableBody}>Turn on GPS to get your emergency Plus Code</Text>
+            </View>
+          </View>
         )}
 
         {/* ── Failsafe setup checklist ── */}
@@ -253,18 +275,29 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
-  demoBadge: {
-    backgroundColor: c.gold + '33',
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+  // B-96: plain notice card shown instead of the Plus Code card when
+  // locationCache.ts has no real GPS/server fix (source === 'demo').
+  locationUnavailableCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: c.surface,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: c.border ?? '#e5e7eb',
+    padding: 16,
+    marginBottom: 12,
+    gap: 12,
   },
-  demoBadgeTxt: {
-    fontFamily: theme.fonts.bodyBold,
-    fontSize: 10,
-    color: c.darkGold ?? c.navy,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
+  locationUnavailableTitle: {
+    fontFamily: theme.fonts.bodySemiBold,
+    fontSize: 14,
+    color: c.navy,
+  },
+  locationUnavailableBody: {
+    fontFamily: theme.fonts.body,
+    fontSize: 12,
+    color: c.muted,
+    marginTop: 2,
   },
   offlineBadge: {
     flexDirection: 'row',
