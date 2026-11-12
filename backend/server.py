@@ -2194,29 +2194,55 @@ if _WEB_DIR.is_dir():
 
 # ── P0-Fix4: Consent Gate endpoints ──────────────────────────────────────────
 
+class ConsentPurposesIn(BaseModel):
+    # B-66 (12 Nov 2026): only the three known purposes, nothing else stored.
+    model_config = {"extra": "forbid"}
+    core: bool = True
+    analytics: bool = False
+    updates: bool = False
+
+
 class ConsentLogIn(BaseModel):
     """Payload written by the consent gate. Works for both anonymous and
-    authenticated callers; caller must supply one of user_id or anon_id."""
-    notice_version: str
-    purposes: dict          # {"core": true, "analytics": bool, "updates": bool}
-    language: str
+    authenticated callers; caller must supply one of user_id or anon_id.
+    B-66: every field is bounded because anonymous callers can write here."""
+    notice_version: str = Field(..., max_length=32)
+    purposes: ConsentPurposesIn
+    language: str = Field(..., max_length=16)
     age_confirmed_18: bool
-    app_version: str = "1.0.0"
-    anon_id: Optional[str] = None   # for pre-login / anonymous users
+    app_version: str = Field("1.0.0", max_length=32)
+    anon_id: Optional[str] = Field(None, max_length=64)   # for pre-login / anonymous users
+
+
+CONSENT_ANON_IP_DAILY_LIMIT = 50   # B-66: anonymous consent rows per network per day
 
 
 @app.post("/api/consent/log")
 async def log_consent(
     body: ConsentLogIn,
+    request: Request,
     user: Optional[dict] = Depends(current_user_optional),
 ):
     """Append-only consent log (DPDP §6, PIPEDA Principle 3).
     Never updates or deletes rows — only inserts."""
+    if not user:
+        # B-66: anonymous writes are throttled per real client address.
+        from services.login_guard import client_ip as _client_ip
+        ip = _client_ip(request)
+        if ip:
+            day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            t = await db.usage_daily.find_one_and_update(
+                {"scope": "consent_ip", "day": day, "ip": ip},
+                {"$inc": {"count": 1}}, upsert=True, return_document=True,
+            )
+            if int((t or {}).get("count", 0)) > CONSENT_ANON_IP_DAILY_LIMIT:
+                raise HTTPException(429, "Too many requests. Please try again later.")
+    purposes = body.purposes.model_dump()
     entry = {
         "user_id":          user["id"] if user else None,
         "anon_id":          body.anon_id if not user else None,
         "notice_version":   body.notice_version,
-        "purposes":         body.purposes,
+        "purposes":         purposes,
         "language":         body.language,
         "age_confirmed_18": body.age_confirmed_18,
         "timestamp":        datetime.now(timezone.utc).isoformat(),
@@ -2232,12 +2258,29 @@ async def log_consent(
                 "terms_version":      body.notice_version,
                 "terms_accepted":     True,
                 "terms_accepted_at":  entry["timestamp"],
-                "consent_purposes":   body.purposes,
+                "consent_purposes":   purposes,
                 "age_confirmed_18":   body.age_confirmed_18,
                 "consent_language":   body.language,
             }},
         )
     return {"ok": True}
+
+
+class ConsentLinkIn(BaseModel):
+    anon_id: str = Field(..., min_length=8, max_length=64)
+
+
+@app.post("/api/consent/link")
+async def link_anonymous_consent(body: ConsentLinkIn, user: dict = Depends(current_user)):
+    """B-67 (12 Nov 2026): attach the consent rows a person gave before signing
+    in (logged under their anonymous id) to their account. Only rows that are
+    still unclaimed are linked; nothing is overwritten or deleted."""
+    r = await db.consent_log.update_many(
+        {"anon_id": body.anon_id, "user_id": None},
+        {"$set": {"user_id": user["id"],
+                  "linked_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"ok": True, "linked": r.modified_count}
 
 
 class PrivacyChoicesIn(BaseModel):

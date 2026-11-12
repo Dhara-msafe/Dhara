@@ -73,7 +73,7 @@ let _webScriptsLoaded = false;
 function _applyConsentSideEffects(consent: boolean): void {
   try {
     if (consent) {
-      ph()?.optIn();
+      _ensureClient()?.optIn();
       loadWebAnalyticsScriptsIfConsented();
     } else {
       // optOut() both stops future capture AND discards the in-memory
@@ -118,6 +118,25 @@ export function setPostHogInstance(instance: PostHogType): void {
 }
 
 function ph(): PostHogType | null {
+  return _posthog;
+}
+
+/**
+ * W1-J01 / B-61 (12 Nov 2026): the PostHog client is created here, lazily,
+ * only once analytics consent is `true`. Constructing it (as PostHogProvider
+ * used to at app start) makes the SDK fetch remote config and feature flags
+ * from PostHog straight away, even with defaultOptIn: false, which sent the
+ * device's address and an anonymous id before any consent existed.
+ */
+function _ensureClient(): PostHogType | null {
+  if (_posthog) return _posthog;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { PostHog } = require('posthog-react-native');
+    _posthog = new PostHog(POSTHOG_API_KEY, POSTHOG_OPTIONS as any) as PostHogType;
+  } catch {
+    _posthog = null;
+  }
   return _posthog;
 }
 

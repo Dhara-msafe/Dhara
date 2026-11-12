@@ -9,7 +9,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { PostHogProvider, usePostHog } from "posthog-react-native";
+
 
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
 import { useAppFonts } from "@/src/hooks/use-app-fonts";
@@ -25,9 +25,7 @@ import { initSpeechGate } from "@/src/voice/speechGate";
 import { usePreventScreenCapture } from "expo-screen-capture";
 import { useShakeDetector } from "@/src/women/shakeActivation";
 import {
-  POSTHOG_API_KEY,
-  POSTHOG_OPTIONS,
-  setPostHogInstance,
+
   identifyUser,
   resetAnalyticsIdentity,
   trackEvent,
@@ -99,22 +97,7 @@ function ConsentGuard() {
   return null;
 }
 
-/**
- * Wires the PostHog client instance (created by PostHogProvider) into our
- * central analytics module so every trackEvent() call everywhere in the app
- * reaches the same initialised client.
- */
-function PostHogBridge() {
-  const posthog = usePostHog();
-  const wiredRef = useRef(false);
-  useEffect(() => {
-    if (posthog && !wiredRef.current) {
-      wiredRef.current = true;
-      setPostHogInstance(posthog as any);
-    }
-  }, [posthog]);
-  return null;
-}
+
 
 /**
  * Fires screen_view to PostHog + GA4 whenever the active route changes.
@@ -349,15 +332,13 @@ export default function RootLayout() {
       <RootErrorBoundary>
         <SafeAreaProvider>
         <KeyboardProvider preserveEdgeToEdge>
-          {/* PostHogProvider must wrap AuthProvider so PostHogBridge can reach
-              the client while AuthProvider still owns the user state. */}
-          <PostHogProvider
-            apiKey={POSTHOG_API_KEY}
-            options={POSTHOG_OPTIONS as any}
-          >
+          {/* W1-J01 / B-61 (12 Nov 2026): no PostHogProvider here. Creating the
+              PostHog client contacts PostHog (remote config + flags) even when
+              opted out, so src/analytics creates it only after analytics consent. */}
+          <View style={{ flex: 1 }}>
             <AuthProvider>
               <EvidenceRecorderProvider>
-              <PostHogBridge />
+
               <AnalyticsIdentitySync />
               <AnalyticsScreenTracker />
               <ConsentGuard />
@@ -382,7 +363,7 @@ export default function RootLayout() {
               {isWideWeb && <IssueReporterButton />}
               </EvidenceRecorderProvider>
             </AuthProvider>
-          </PostHogProvider>
+          </View>
         </KeyboardProvider>
       </SafeAreaProvider>
     </RootErrorBoundary>

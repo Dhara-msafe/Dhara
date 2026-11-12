@@ -7,6 +7,7 @@ import { API_BASE as API } from './apiBase';
 // B002 fix: keep cover state clean across sign-in / sign-out transitions
 import { deactivateCover } from './women/coverState';
 import { useHeadOutWizard } from './women/headOutWizardStore';
+import { CONSENT_ANON_KEY } from './consentStorage';
 
 // Required for iOS to properly complete the auth session
 WebBrowser.maybeCompleteAuthSession();
@@ -153,6 +154,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(u));
     setToken(t);
     setUser(u);
+    // W1-J01 / B-67: the consent given before sign-in was logged under an
+    // anonymous id. Attach it to this account once, then forget the id so a
+    // later account on this phone never claims it. Best-effort, never blocks.
+    void (async () => {
+      try {
+        const anonId = await AsyncStorage.getItem(CONSENT_ANON_KEY);
+        if (!anonId) return;
+        const r = await fetch(`${API}/api/consent/link`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+          body: JSON.stringify({ anon_id: anonId }),
+        });
+        if (r.ok) await AsyncStorage.removeItem(CONSENT_ANON_KEY);
+      } catch { /* best-effort */ }
+    })();
   };
 
   /** Safely extract a human-readable error message from any fetch Response.
