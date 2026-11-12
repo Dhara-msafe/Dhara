@@ -238,17 +238,25 @@ export const CYBER_FRAUD_STEPS: WorkflowStep[] = [
 ];
 
 // ── Embassy contacts keyed by tourist language code ───────────────────────────
-export const EMBASSY_CONTACTS: Record<string, { name: string; phone: string; city: string }> = {
-  en:  { name: 'British High Commission',  phone: '+91-11-24192100', city: 'New Delhi' },
-  fr:  { name: 'French Embassy',            phone: '+91-11-24196100', city: 'New Delhi' },
-  de:  { name: 'German Embassy',            phone: '+91-11-44199199', city: 'New Delhi' },
-  es:  { name: 'Spanish Embassy',           phone: '+91-11-46004071', city: 'New Delhi' },
-  pt:  { name: 'Portuguese Embassy',        phone: '+91-11-26115539', city: 'New Delhi' },
-  it:  { name: 'Italian Embassy',           phone: '+91-11-26114355', city: 'New Delhi' },
-  ja:  { name: 'Embassy of Japan',          phone: '+91-11-26876564', city: 'New Delhi' },
-  ko:  { name: 'Embassy of Korea',          phone: '+91-11-26884793', city: 'New Delhi' },
-  zh:  { name: 'Embassy of China',          phone: '+91-11-26112345', city: 'New Delhi' },
-  ar:  { name: 'Saudi Embassy (regional)',   phone: '+91-11-26112447', city: 'New Delhi' },
-  ru:  { name: 'Embassy of Russia',         phone: '+91-11-26873799', city: 'New Delhi' },
-  hi:  { name: 'India (Domestic)',           phone: '112',            city: 'Any city'  },
+// B-86: `countryAdjective` was added because `name` is an INSTITUTION name
+// ("British High Commission", "Embassy of Japan"), not a nationality -- the
+// "Yes, I'm a citizen of ..." sentence used to regex-strip prefixes/suffixes
+// off `name` to try to recover a nationality, which only works for names
+// that happen to start with "Embassy of"/"Embassy"/"The"/"High Commission".
+// "British High Commission" starts with "British", so nothing was stripped
+// and the sentence read "Yes, I'm a citizen of British High Commission".
+// countryAdjective is the one place that sentence should ever read from.
+export const EMBASSY_CONTACTS: Record<string, { name: string; countryAdjective: string; phone: string; city: string }> = {
+  en:  { name: 'British High Commission',  countryAdjective: 'the United Kingdom', phone: '+91-11-24192100', city: 'New Delhi' },
+  fr:  { name: 'French Embassy',            countryAdjective: 'France',             phone: '+91-11-24196100', city: 'New Delhi' },
+  de:  { name: 'German Embassy',            countryAdjective: 'Germany',            phone: '+91-11-44199199', city: 'New Delhi' },
+  es:  { name: 'Spanish Embassy',           countryAdjective: 'Spain',              phone: '+91-11-46004071', city: 'New Delhi' },
+  pt:  { name: 'Portuguese Embassy',        countryAdjective: 'Portugal',           phone: '+91-11-26115539', city: 'New Delhi' },
+  it:  { name: 'Italian Embassy',           countryAdjective: 'Italy',              phone: '+91-11-26114355', city: 'New Delhi' },
+  ja:  { name: 'Embassy of Japan',          countryAdjective: 'Japan',              phone: '+91-11-26876564', city: 'New Delhi' },
+  ko:  { name: 'Embassy of Korea',          countryAdjective: 'South Korea',        phone: '+91-11-26884793', city: 'New Delhi' },
+  zh:  { name: 'Embassy of China',          countryAdjective: 'China',              phone: '+91-11-26112345', city: 'New Delhi' },
+  ar:  { name: 'Saudi Embassy (regional)',   countryAdjective: 'Saudi Arabia',       phone: '+91-11-26112447', city: 'New Delhi' },
+  ru:  { name: 'Embassy of Russia',         countryAdjective: 'Russia',             phone: '+91-11-26873799', city: 'New Delhi' },
+  hi:  { name: 'India (Domestic)',           countryAdjective: 'India',              phone: '112',            city: 'Any city'  },
 };

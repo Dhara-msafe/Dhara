@@ -2,6 +2,8 @@
  * Visitor Mode — Session & Feature Flags
  * Stored locally; no server account required.
  */
+import { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const KEY = 'dhara_visitor_session';
@@ -71,6 +73,43 @@ export async function loadVisitorSession(): Promise<VisitorSession | null> {
 
 export async function clearVisitorSession(): Promise<void> {
   await AsyncStorage.removeItem(KEY);
+}
+
+// B-86: a direct URL hit or a page refresh on a downstream visitor screen
+// (intent/emergency/lost-passport) that never went through /visitor first
+// has no session ever saved -- loadVisitorSession() resolves to null and
+// stays null forever. Every one of those screens used to gate on
+// `if (!session) return <spinner>`, which can't tell "still loading" apart
+// from "confirmed there's no session" -- so a visitor landing directly on
+// e.g. /visitor/emergency saw a spinner that never went away, with no
+// fallback or redirect back to setup anywhere.
+//
+// This hook tracks the two states separately and redirects to /visitor
+// (where a session gets created) the moment loading resolves to "no
+// session", instead of spinning forever. The caller only ever sees
+// VisitorSession | null -- null covers both "still loading" and
+// "redirecting now", which look identical to the user (a spinner) either
+// way, so screens don't need to change how they render for it.
+export function useVisitorSessionOrRedirect(): VisitorSession | null {
+  const router = useRouter();
+  const [status, setStatus] = useState<
+    { kind: 'loading' } | { kind: 'found'; session: VisitorSession } | { kind: 'missing' }
+  >({ kind: 'loading' });
+
+  useEffect(() => {
+    let cancelled = false;
+    loadVisitorSession().then(s => {
+      if (cancelled) return;
+      setStatus(s ? { kind: 'found', session: s } : { kind: 'missing' });
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (status.kind === 'missing') router.replace('/visitor');
+  }, [status.kind, router]);
+
+  return status.kind === 'found' ? status.session : null;
 }
 
 // ── State → "official's language" for the Two-Way Interpreter ─────────────
