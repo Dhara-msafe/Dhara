@@ -21,10 +21,11 @@ import { theme } from '@/src/theme';
 import { useFamilyJourneyEnabled } from '@/src/familyJourney/store';
 
 import { openExternal } from '@/src/outbound';
+import { grievanceOfficerName } from '@/src/operatorIdentity';
 // ── Contact constants ─────────────────────────────────────────────────────────
 const GRIEVANCE_EMAIL        = 'grievance@calviltech.com';
 const SUPPORT_EMAIL          = 'support@calviltech.com';
-const GRIEVANCE_OFFICER_NAME = 'The Grievance Officer, Calvil Technologies';
+const GRIEVANCE_OFFICER_NAME = grievanceOfficerName; // W6-J01: was a different name from the consent screen
 
 // ── Accent colours (spec) ─────────────────────────────────────────────────────
 const PRIMARY     = theme.colors.primary;
@@ -76,35 +77,22 @@ export default function DataPrivacyScreen() {
   const [exportLoading, setExportLoading]   = useState(false);
   const [exportSuccess, setExportSuccess]   = useState(false);
 
-  const handleDownload = useCallback(async () => {
-    if (!token) return;
-    setExportLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/user/data-export`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Request failed');
-      setExportSuccess(true);
-      // Auto-hide after 4 s
-      setTimeout(() => setExportSuccess(false), 4000);
-    } catch {
-      Alert.alert('Could not submit request', 'Please try again or email ' + SUPPORT_EMAIL);
-    } finally {
-      setExportLoading(false);
-    }
-  }, [token]);
+  // W6-J02 (12 Nov 2026): the old POST /api/user/data-export only saved a
+  // "pending" row and promised an email in 24 hours; nothing ever sent it.
+  // My Data downloads the full copy immediately.
+  const handleDownload = useCallback(() => {
+    router.push('/my-data' as any);
+  }, [router]);
 
   const handleWithdrawConsent = () => {
     // Navigate to the P0 Fix 4 consent-preferences screen
     router.push('/consent?mode=update' as any);
   };
 
+  // W6-J05 (12 Nov 2026): open the in-app grievance screen (raise a ticket,
+  // see past tickets). The old mailto link did nothing on web/preview.
   const handleContact = () => {
-    const url = `mailto:${GRIEVANCE_EMAIL}?subject=DHARA%20Data%20Request`;
-    openExternal(url).catch(() => {
-      Alert.alert('Cannot open email app', `Please email us at ${GRIEVANCE_EMAIL}`);
-    });
+    router.push('/grievance' as any);
   };
 
   const handleDeleteAccount = () => {
@@ -215,7 +203,7 @@ export default function DataPrivacyScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.actionTitle}>Download my data</Text>
-            <Text style={styles.actionSub}>Get a copy of your DHARA data</Text>
+            <Text style={styles.actionSub}>See your data and download a copy now</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={theme.colors.onSurfaceTertiary} />
         </Pressable>
@@ -273,7 +261,7 @@ export default function DataPrivacyScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.actionTitle}>Grievance or data question?</Text>
-            <Text style={styles.actionSub}>Respond within 30 days</Text>
+            <Text style={styles.actionSub}>Acknowledged within 48 hours, resolved within 30 days</Text>
             <Text style={styles.actionFooter}>
               Grievance Officer: {GRIEVANCE_OFFICER_NAME}
             </Text>

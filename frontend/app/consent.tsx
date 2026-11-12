@@ -1,14 +1,14 @@
 /** Explicit age, terms and core-data consent. Optional purposes default to off. */
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, Pressable, Switch, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { consentStrings, CONSENT_NOTICE_VERSION } from '@/src/consentStrings';
 import { consentCopy } from '@/src/consentCopy';
-import { CONSENT_ANON_KEY, saveConsentLocally } from '@/src/consentStorage';
+import { CONSENT_ANON_KEY, CONSENT_PREFS_KEY, saveConsentLocally } from '@/src/consentStorage';
 import { ConsentTermsModal } from '@/src/components/ConsentTermsModal';
 import { ConsentPublicHelp } from '@/src/components/ConsentPublicHelp';
 import { API_BASE, useAuth } from '@/src/auth';
@@ -47,6 +47,29 @@ export default function ConsentScreen() {
   const [showTerms, setShowTerms] = useState(false);
   const [help, setHelp] = useState<'emergency' | 'rights' | null>(null);
   const submitting = useRef(false);
+  // W6-J03 (12 Nov 2026): Data & Privacy -> "Withdraw consent" opens this
+  // screen with mode=update. Start from the person's current choices (they
+  // already confirmed age and Terms) instead of a blank form.
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const isUpdate = mode === 'update' && !!token && !!user;
+  useEffect(() => {
+    if (!isUpdate || !user) return;
+    let alive = true;
+    (async () => {
+      let p: any = null;
+      try {
+        const r = await fetch(`${API_BASE}/api/user/my-data`, { headers: { Authorization: `Bearer ${token}` } });
+        if (r.ok) p = (await r.json())?.consent?.purposes || null;
+      } catch {}
+      if (!p) {
+        try { p = JSON.parse((await AsyncStorage.getItem(`${CONSENT_PREFS_KEY}:${user.id}`)) || 'null'); } catch {}
+      }
+      if (!alive) return;
+      setAge('18+'); setTerms(true); setData(true);
+      setAnalytics(!!p?.analytics); setUpdates(!!p?.updates);
+    })();
+    return () => { alive = false; };
+  }, [isUpdate, user?.id, token]);
   const canContinue = age === '18+' && termsTicked && dataTicked;
   const guidance = age === 'under18' ? copy.under18
     : !age ? copy.ageRequired : !termsTicked ? copy.termsRequired
@@ -70,15 +93,28 @@ export default function ConsentScreen() {
       updateConsentCache(analytics);
       // Preserve the existing offline-first policy: local success unblocks the
       // screen; server logging is best-effort and cannot hang the Continue action.
-      void fetch(`${API_BASE}/api/consent/log`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({
-          notice_version: CONSENT_NOTICE_VERSION, purposes, language: langCode,
-          age_confirmed_18: true, anon_id: user ? null : anonId,
-          app_version: Constants.expoConfig?.version || '1.0.0',
-        }),
-      }).then(response => { if (response.ok && token) void refreshUser(); }).catch(() => {});
+      // W6-J03: a change of choices uses the privacy-choices API (logged as
+      // "privacy_choices_update"); first-time consent keeps using the log.
+      const sync = isUpdate
+        ? fetch(`${API_BASE}/api/user/privacy-choices`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ analytics, updates }),
+        })
+        : fetch(`${API_BASE}/api/consent/log`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({
+            notice_version: CONSENT_NOTICE_VERSION, purposes, language: langCode,
+            age_confirmed_18: true, anon_id: user ? null : anonId,
+            app_version: Constants.expoConfig?.version || '1.0.0',
+          }),
+        });
+      void sync.then(response => { if (response.ok && token) void refreshUser(); }).catch(() => {});
+      if (isUpdate) {
+        if (router.canGoBack()) router.back(); else router.replace('/settings/data-privacy' as any);
+        return;
+      }
       // A known forward destination also works for direct links and updates.
       // Going back could return to another copy of the consent screen.
       router.replace(token ? '/(tabs)/home' : '/login');

@@ -47,6 +47,7 @@ export default function MyDataScreen() {
     if (!authLoading && !token) router.replace('/login');
   }, [authLoading, token, router]);
   const [exporting, setExporting] = useState(false);
+  const [exportFailed, setExportFailed] = useState(false);
 
   const fetchSummary = useCallback(async () => {
     if (!token) return;
@@ -76,10 +77,14 @@ export default function MyDataScreen() {
   const handleExport = async () => {
     if (!token) return;
     setExporting(true);
+    setExportFailed(false);
     try {
       const res = await fetch(`${API_BASE}/api/user/my-data/export`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      // W6-J02: never save an error reply as the user's data file.
+      if (res.status === 401) { await forceLogout(); return; }
+      if (!res.ok) throw new Error(`export ${res.status}`);
       const json = await res.json();
       const jsonStr = JSON.stringify(json, null, 2);
 
@@ -114,6 +119,7 @@ export default function MyDataScreen() {
         }
       }
     } catch (e) {
+      setExportFailed(true);
       Alert.alert('Export failed', 'Could not export data. Please try again.');
     } finally {
       setExporting(false);
@@ -238,6 +244,11 @@ export default function MyDataScreen() {
               {exporting ? 'Preparing export…' : 'Export my data (JSON)'}
             </Text>
           </Pressable>
+          {exportFailed && (
+            <Text testID="my-data-export-failed" style={{ color: '#DC2626', textAlign: 'center', marginTop: 8 }}>
+              Could not export your data. Please try again.
+            </Text>
+          )}
 
           <Pressable
             style={({ pressed }) => [styles.deleteLink, pressed && { opacity: 0.7 }]}
