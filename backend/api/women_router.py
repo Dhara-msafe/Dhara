@@ -399,15 +399,27 @@ class FlagsIn(BaseModel):
 
 
 _PANIC_LESSON_DEFAULT = {
+    # B-71: the press count and "silently" claim below were checked against
+    # Google's own Pixel/stock-Android support docs and Samsung One UI
+    # guidance. They disagree on both counts: Pixel/stock Android needs 5
+    # rapid presses (same as this file's iOS step, which already said 5),
+    # Samsung One UI (the dominant Android brand in India) uses 3-4. Saying
+    # "3 times" as if it applied to "most Android phones" is wrong for the
+    # stock/Pixel case. More importantly, "silently calls 112" overclaims
+    # safety: Android's Emergency SOS sounds a loud countdown alarm by
+    # default on many devices unless the user has turned that off --
+    # telling someone in danger it's silent could put them at more risk if
+    # they rely on that. Hedged both claims instead of asserting one brand's
+    # behavior as universal.
     "android": {
         "intro": "Your phone can call for help on its own — no app needed. Learn it once; it works even with your screen locked.",
         "steps": [
             {"icon": "power-outline", "title": "Find your power button", "body": "It is the button on the side you use to lock the screen."},
-            {"icon": "repeat-outline", "title": "Press it quickly 3 times", "body": "On most Android phones this silently calls 112 and shares your location."},
+            {"icon": "repeat-outline", "title": "Press it quickly 3–5 times", "body": "Samsung phones usually need 3–4 presses; Pixel and most other Android phones need 5. It calls 112 and shares your location — on many phones it also sounds a loud alarm, so don't count on it being silent."},
             {"icon": "call-outline", "title": "112 connects you", "body": "Police, ambulance and women's help — all on one number, 24x7."},
-            {"icon": "settings-outline", "title": "Turn it on once", "body": "Open phone Settings → Safety & emergency → Emergency SOS, and switch it on."},
+            {"icon": "settings-outline", "title": "Turn it on once", "body": "Open phone Settings → Safety & emergency → Emergency SOS, and switch it on. The setting screen shows the exact press count for your phone."},
         ],
-        "note": "Exact steps vary a little by phone brand.",
+        "note": "Exact steps (press count, alarm sound) vary by phone brand — always check your own phone's Emergency SOS settings.",
     },
     "ios": {
         "intro": "Your phone can call for help on its own — no app needed. Learn it once; it works even with your screen locked.",
