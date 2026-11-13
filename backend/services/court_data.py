@@ -126,8 +126,14 @@ async def case_by_cnr(cnr: str) -> CourtDataResult:
     cnr = (cnr or "").strip().upper()
     if not CNR_RE.match(cnr):
         return _bad_input(
+            # B-104: DLHC010001232024 was a real, resolvable CNR (returned a
+            # real petitioner's full name on eCourts) — swapped for a
+            # same-shape, non-resolving example (state code "XX" doesn't
+            # exist; year 2099 can't be a real filed case) so a user who
+            # types this error message's own example back in never hits a
+            # real person's record.
             "CNR must be 4 capital letters followed by 12 digits "
-            "(16 chars, e.g. DLHC010001232024).",
+            "(16 chars, e.g. XXHC000000002099).",
         )
 
     cached = await _cache_get(cnr)
