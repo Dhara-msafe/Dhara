@@ -13,7 +13,14 @@
 
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { isValidCoord, isValidRadius } from '../utils/mapValidation.ts';
+
+// Resolved relative to this file instead of the old hardcoded '/app/frontend'
+// (the Emergent container's fixed checkout path), which crashed with ENOENT
+// in any other checkout location, including this one.
+const FRONTEND_ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 // Simulate what handleMapPress / handleDragEnd do
 function handlePosition(nativeEvent, setCoord, onPositionChange) {
@@ -218,7 +225,7 @@ test('radius change does not affect coordinate (independent state)', () => {
 // ── GPS / location guard ───────────────────────────────────────────────────────
 console.log('\n── GPS / location guard (source-level) ─────────────────────────');
 
-const src = readFileSync('/app/frontend/src/women/DestinationMapPicker.tsx', 'utf8');
+const src = readFileSync(join(FRONTEND_ROOT, 'src/women/DestinationMapPicker.tsx'), 'utf8');
 
 test('showsUserLocation is bound to the parent-supplied position only', () => {
   // Owner-approved change: the live dot may be shown, but only when the parent
@@ -239,7 +246,7 @@ test('PROVIDER_GOOGLE is used on all platforms', () => {
   assert.ok(src.includes('provider={PROVIDER_GOOGLE}'));
 });
 test('app.config.js wires Google Maps keys for both Android and iOS', () => {
-  const cfg = readFileSync('/app/frontend/app.config.js', 'utf8');
+  const cfg = readFileSync(join(FRONTEND_ROOT, 'app.config.js'), 'utf8');
   assert.ok(cfg.includes('googleMaps: { apiKey'), 'android googleMaps.apiKey must be wired');
   assert.ok(cfg.includes('googleMapsApiKey'), 'ios googleMapsApiKey must be wired');
 });
