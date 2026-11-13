@@ -422,6 +422,14 @@ _PROBE_MSG_TRANS: dict[str, dict[str, str]] = {
         "mr": "फोन चोरी झाला का? IMEI नंबर माहीत आहे का? (*#06# डायल करा)",
         "ta": "தொலைபேசி திருடப்பட்டதா? IMEI எண் தெரியுமா? (*#06# அழையுங்கள்)",
     },
+    # B-75: used instead of probe_stolen_phone_imei when the citizen's
+    # theft-items answer already named a phone -- doesn't re-ask "Was a
+    # phone stolen?", just asks for the IMEI directly.
+    "probe_stolen_phone_imei_confirmed": {
+        "hi": "आपने बताया कि फोन चोरी हुआ — IMEI नंबर पता है? (*#06# डायल करें)",
+        "mr": "तुम्ही सांगितले की फोन चोरी झाला — IMEI नंबर माहीत आहे का? (*#06# डायल करा)",
+        "ta": "தொலைபேசி திருடப்பட்டது எனக் குறிப்பிட்டீர்கள் — IMEI எண் தெரியுமா? (*#06# அழையுங்கள்)",
+    },
     "probe_sim_blocked": {
         "hi": "क्या SIM ब्लॉक किया? (Airtel 121 / Jio 198 / BSNL 1500 पर कॉल करें)",
         "mr": "SIM ब्लॉक केले का? (Airtel 121 / Jio 198 / BSNL 1500 वर कॉल करा)",
@@ -1003,6 +1011,34 @@ def _is_negative(text: str) -> bool:
     return bool(tokens) and tokens[0] in _NO_WORDS
 
 
+# B-75: probe_stolen_phone_imei used to unconditionally re-ask "Was a phone
+# stolen?" for every theft case, even though the citizen had just listed the
+# stolen items in probe_theft_items a question earlier — redundant whenever
+# that list didn't mention a phone at all (e.g. "wallet with cash, laptop").
+_PHONE_MENTION_RE = re.compile(r"\b(phone|mobile|iphone|smartphone|handset|cell\s*phone)s?\b", re.IGNORECASE)
+
+
+def _mentions_phone(text: Optional[str]) -> bool:
+    return bool(text) and bool(_PHONE_MENTION_RE.search(text))
+
+
+# B-75: the "Q X/Y" counter's total was recomputed fresh every turn from
+# done_count + current + len(remaining). Several probes get conditionally
+# dropped mid-flow once an earlier answer makes them irrelevant (e.g.
+# probe_assault_mlc dropped after "no injury", or the phone/SIM probes
+# dropped above after a non-phone theft-items answer) -- each drop shrank
+# the live total, so a citizen could see "Q 9/12" then "Q 9/11" a turn
+# later, which reads as the bot losing track rather than narrowing down
+# real follow-ups. Track the highest total ever shown for this session and
+# never report lower than that, so the counter only ever grows or holds.
+async def _progress_total(db, sid: str, prior_max: int, done_count: int, remaining_len: int) -> int:
+    computed = done_count + 1 + remaining_len
+    total = max(computed, prior_max)
+    if total != prior_max:
+        await db.fir_sessions.update_one({"session_id": sid}, {"$set": {"probe_max_total": total}})
+    return total
+
+
 # ─── Probe question definitions ───────────────────────────────────────────────
 PROBE_Q: dict[str, dict] = {
     "probe_date": {
@@ -1091,6 +1127,16 @@ PROBE_Q: dict[str, dict] = {
         "message": "Was a phone stolen? If yes, do you know the IMEI number?\n(Dial *#06# or check Settings → About. Helps police trace and block the device)",
         "slot": "stolen_phone_imei", "input_type": INPUT_TEXT,
         "skip_label": "No phone stolen / Don't know IMEI",
+    },
+    # B-75: shown instead of the above when the theft-items answer already
+    # named a phone -- the citizen already told us a phone was stolen, so
+    # this only asks the one new thing (IMEI) instead of re-asking "was a
+    # phone stolen?" with a skip label that would otherwise contradict what
+    # they just said.
+    "probe_stolen_phone_imei_confirmed": {
+        "message": "You mentioned a phone was stolen — do you know its IMEI number?\n(Dial *#06# or check Settings → About. Helps police trace and block the device)",
+        "slot": "stolen_phone_imei", "input_type": INPUT_TEXT,
+        "skip_label": "Don't know IMEI",
     },
     "probe_sim_blocked": {
         "message": "If a SIM card was stolen with the phone, have you blocked it yet?\n(Call your telecom operator's helpline to block: Airtel 121 / Jio 198 / BSNL 1500)",
@@ -1525,7 +1571,7 @@ End the letter (after both languages if bilingual) with EXACTLY this disclaimer 
 \u26a0\ufe0f CITIZEN DRAFT \u2014 NOT A REGISTERED FIR
 Present this document at the nearest police station for official registration under Section 173(1) BNSS.
 Suggested BNS sections are indicative only \u2014 the investigating officer determines final sections.
-FREE LEGAL AID: NALSA 15100 | Women Helpline 181 | Cybercrime 1930 | Police 100"""
+FREE LEGAL AID: NALSA 15100 | Women Helpline 181 | Cybercrime 1930 | Police 112"""
 
     try:
         chat = (
@@ -1590,7 +1636,7 @@ Date: {date_str}
 ---
 \u26a0\ufe0f CITIZEN DRAFT \u2014 NOT A REGISTERED FIR
 Present at the police station for registration under Section 173(1) BNSS.
-FREE LEGAL AID: NALSA 15100 | Women Helpline 181 | Cybercrime 1930 | Police 100"""
+FREE LEGAL AID: NALSA 15100 | Women Helpline 181 | Cybercrime 1930 | Police 112"""
 
 
 # ─── Summary builder ──────────────────────────────────────────────────────────
@@ -1617,6 +1663,13 @@ def _build_summary(slots: dict, sections: list[dict], incident_types: list[str])
         lines.append(f"\u2696\ufe0f Type: {', '.join(t.replace('_', ' ').title() for t in shown_types)}")
     if slots.get("accused"):
         lines.append(f"\U0001f464 Accused: {str(slots.get('accused', ''))[:100]}")
+    # B-75: the summary used to omit what was actually stolen entirely — it
+    # showed Injury/Accused but never theft_items, so a citizen scanning the
+    # summary before the draft had no way to check the stolen-items list
+    # the bot had recorded.
+    theft_items = slots.get("theft_items")
+    if theft_items and not str(theft_items).upper().startswith("N/A"):
+        lines.append(f"\U0001f9f3 Stolen items: {str(theft_items)[:150]}")
     if slots.get("injury"):
         lines.append(f"\U0001f3e5 Injury: {slots.get('injury')}")
     if slots.get("informant_name"):
@@ -1676,6 +1729,7 @@ async def create_session(
         "stage": STAGE_SAFETY_GATE,
         "pending_probes": [],
         "current_probe": None,
+        "probe_max_total": 0,  # B-75: highest "Q X/Y" total ever shown this session
         "session_location_start": session_location_start,
         "session_location_end": None,
         "incident_types": pre_seeded_types,
@@ -1993,7 +2047,9 @@ async def _dispatch(
                 bot_msg = _tm("welcome_back", language, suffix=_tp(cp, language))
             # v3.4: Probe progress for "Q X/Y" UI counter
             done_count = len(session.get("probe_history", []))
-            total_probes = done_count + 1 + len(pending_probes)
+            total_probes = await _progress_total(
+                db, sid, session.get("probe_max_total", 0), done_count, len(pending_probes)
+            )
             return {
                 "session_id": sid, "stage": STAGE_PROBE, "probe_key": cp,
                 "bot_message": bot_msg,
@@ -2245,7 +2301,7 @@ async def _dispatch(
                         pending_probes = new_pending
                         incident_types = new_types
 
-                elif cp == "probe_stolen_phone_imei":
+                elif cp in ("probe_stolen_phone_imei", "probe_stolen_phone_imei_confirmed"):
                     slots["stolen_phone_imei"] = user_message
                     await db.fir_sessions.update_one(
                         {"session_id": sid}, {"$set": {"slots": slots, "updated_at": now}}
@@ -2259,6 +2315,34 @@ async def _dispatch(
                     slots["incident_place_detail"] = user_message
                     await db.fir_sessions.update_one(
                         {"session_id": sid}, {"$set": {"slots": slots, "updated_at": now}}
+                    )
+                # ── B-75: theft-items answer decides whether the phone/SIM
+                # probes are still relevant, instead of always asking them ──
+                elif cp == "probe_theft_items":
+                    slots["theft_items"] = user_message
+                    if _mentions_phone(user_message):
+                        # Already know a phone was stolen -- swap in the
+                        # variant that skips straight to asking for the
+                        # IMEI instead of re-asking "was a phone stolen?".
+                        pending_probes = [
+                            "probe_stolen_phone_imei_confirmed" if p == "probe_stolen_phone_imei" else p
+                            for p in pending_probes
+                        ]
+                    else:
+                        # Nothing stolen sounds like a phone — asking "Was a
+                        # phone stolen?" right after would just repeat a
+                        # question the citizen already answered. Mark both
+                        # phone-specific slots as not applicable and drop
+                        # them from the queue instead of asking them.
+                        slots["stolen_phone_imei"] = "N/A — no phone reported stolen"
+                        slots["sim_blocked"] = "N/A — no phone reported stolen"
+                        pending_probes = [
+                            p for p in pending_probes
+                            if p not in ("probe_stolen_phone_imei", "probe_sim_blocked")
+                        ]
+                    await db.fir_sessions.update_one(
+                        {"session_id": sid},
+                        {"$set": {"slots": slots, "pending_probes": pending_probes, "updated_at": now}}
                     )
                 elif cp == "probe_transaction_ids":
                     slots["transaction_ids"] = user_message
@@ -2471,7 +2555,9 @@ async def _advance_probe(
         )
         pdef = PROBE_Q[next_probe]
         # Dynamic message for probe_date_confirm; also fetch probe_history for progress counter
-        session_fresh = await db.fir_sessions.find_one({"session_id": sid}, {"relative_date_display": 1, "probe_history": 1})
+        session_fresh = await db.fir_sessions.find_one(
+            {"session_id": sid}, {"relative_date_display": 1, "probe_history": 1, "probe_max_total": 1}
+        )
         rdd = session_fresh.get("relative_date_display") if session_fresh else None
         if next_probe == "probe_date_confirm" and rdd:
             bot_msg = f"I calculated the incident happened on **{rdd}**.\nIs that correct?"
@@ -2479,7 +2565,9 @@ async def _advance_probe(
             bot_msg = _tp(next_probe, language)
         # v3.4: Compute probe progress for "Q X/Y" frontend counter
         done_count = len((session_fresh or {}).get("probe_history", []))
-        total_probes = done_count + 1 + len(remaining)
+        total_probes = await _progress_total(
+            db, sid, (session_fresh or {}).get("probe_max_total", 0), done_count, len(remaining)
+        )
         return {
             "session_id": sid, "stage": STAGE_PROBE, "probe_key": next_probe,
             "bot_message": bot_msg,
