@@ -2,9 +2,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = '/app/frontend';
+// Was hardcoded to '/app/frontend' — the original Emergent container's fixed
+// checkout path. That made this test (the one static check that would catch
+// a dialler/SMS/share call bypassing src/outbound.ts anywhere under app/ or
+// src/) silently fail with ENOENT in any other checkout location, including
+// this one. Resolved relative to this file instead, like every other test
+// in this folder already does.
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const GUARD = join(ROOT, 'src/outbound.ts');
 const FORBIDDEN = [/\bLinking\.openURL\s*\(/, /\bsendSMSAsync\s*\(/, /\bShare\.share\s*\(/];
 
