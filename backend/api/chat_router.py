@@ -141,7 +141,16 @@ from engine.conversational_intents import (
 # violence citations unless the user actually described a domestic relation.
 _DANGER_RE = re.compile(
     r"(right now|at this moment|happening now|not safe|unsafe|in danger|"
-    r"threaten(ing|s|ed)? (me|to kill)|going to (kill|hurt|attack) me|attacking me|beating me|hitting me|"
+    # B-05 (round 3): "threaten(ing/s/ed)? (me|to kill)" missed the common DV
+    # phrasing "threatening to hurt/harm/beat/attack/hit/stab me" — only
+    # "threatening me" (direct object) or "threatening to kill" matched, so
+    # "my husband is threatening to hurt me tonight, I am scared" (a real
+    # failing case from the 13 Nov web run) fell through to the ordinary
+    # legal pipeline. Widened to the same violence-verb set used elsewhere in
+    # this file (kill/hurt/harm/beat/attack/hit/stab), still requiring the
+    # literal word "threaten" so this cannot widen into unrelated matches.
+    r"threaten(ing|s|ed)? (me|to (kill|hurt|harm|beat|attack|hit|stab))|"
+    r"going to (kill|hurt|attack|beat|harm) me|attacking me|beating me|hitting me|"
     r"kill me|help me now|save me|अभी|इसी समय|खतरे में|सुरक्षित नहीं|मार रहा|मार रही|मार देगा|जान से मार|बचाओ|"
     r"आता|धोक्यात|सुरक्षित नाही|मारत आहे|वाचवा|இப்போது|ஆபத்தில்|பாதுகாப்பாக இல்லை|காப்பாற்றுங்கள்)",
     re.I,
