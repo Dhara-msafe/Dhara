@@ -418,7 +418,15 @@ export default function LookupScreen() {
                   style={styles.input}
                   value={cnr}
                   onChangeText={handleCNR}
-                  placeholder="CNR — e.g. DLHC010001232024"
+                  // B-104: the previous example, DLHC010001232024, was a
+                  // real, resolvable CNR on eCourts — searching it (even by
+                  // habit, copying the placeholder) returned a real
+                  // petitioner's full name. XXHC000000002099 keeps the exact
+                  // 16-char shape (and still passes CNR_RE's 4-letter +
+                  // 12-digit check) while using a state code ("XX") that
+                  // appears nowhere in CNR_STATE_CODES and a year far in the
+                  // future, so it can never match a real filed case.
+                  placeholder="CNR — e.g. XXHC000000002099"
                   placeholderTextColor={HINT}
                   autoCapitalize="characters"
                   autoCorrect={false}
