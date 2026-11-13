@@ -1,0 +1,670 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "ActionPlan.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "11 Action plan",
+      "w": 390,
+      "x": 1880,
+      "y": 1264
+    },
+    "AdvocateRegister.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "49 Find advocate",
+      "w": 390,
+      "x": 0,
+      "y": 10112
+    },
+    "Alerts.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "43 Alerts",
+      "w": 390,
+      "x": 1880,
+      "y": 7584
+    },
+    "Answer.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "12 Your rights",
+      "w": 390,
+      "x": 2350,
+      "y": 1264
+    },
+    "CheckIn.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "24 Are you OK?",
+      "w": 390,
+      "x": 1880,
+      "y": 3792
+    },
+    "Circle.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "22 Trusted people",
+      "w": 390,
+      "x": 940,
+      "y": 3792
+    },
+    "Consent.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "4 Privacy & consent",
+      "w": 390,
+      "x": 1410,
+      "y": 0
+    },
+    "ConsentMgmt.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "47 Consent settings",
+      "w": 390,
+      "x": 1410,
+      "y": 8848
+    },
+    "DataPrivacy.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "46 Data privacy",
+      "w": 390,
+      "x": 940,
+      "y": 8848
+    },
+    "Draft.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "16 Letter saved",
+      "w": 390,
+      "x": 940,
+      "y": 2528
+    },
+    "EditProfile.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "45 Edit profile",
+      "w": 390,
+      "x": 470,
+      "y": 8848
+    },
+    "Emergency.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "25 Emergency",
+      "w": 390,
+      "x": 2350,
+      "y": 3792
+    },
+    "Engine.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "30 Dhara Engine",
+      "w": 390,
+      "x": 940,
+      "y": 5056
+    },
+    "FamilyContacts.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "40 Family contacts",
+      "w": 390,
+      "x": 470,
+      "y": 7584
+    },
+    "FamilyJourney.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "39 Family journey",
+      "w": 390,
+      "x": 0,
+      "y": 7584
+    },
+    "Files.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "18 My files",
+      "w": 390,
+      "x": 1880,
+      "y": 2528
+    },
+    "FirDraft.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "31 File a complaint",
+      "w": 390,
+      "x": 1410,
+      "y": 5056
+    },
+    "GuardianShare.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "38 Guardian share",
+      "w": 390,
+      "x": 2350,
+      "y": 6320
+    },
+    "HeadOut.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "21 Head out",
+      "w": 390,
+      "x": 470,
+      "y": 3792
+    },
+    "Heard.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "10 DHARA understood",
+      "w": 390,
+      "x": 1410,
+      "y": 1264
+    },
+    "Help.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "20 All help",
+      "w": 390,
+      "x": 0,
+      "y": 3792
+    },
+    "Home.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "6 Home",
+      "w": 390,
+      "x": 2350,
+      "y": 0
+    },
+    "IPCLookup.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "52 IPC lookup",
+      "w": 390,
+      "x": 1410,
+      "y": 10112
+    },
+    "Journey.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "23 On the way",
+      "w": 390,
+      "x": 1410,
+      "y": 3792
+    },
+    "LawyerMode.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "50 Advocate profile",
+      "w": 390,
+      "x": 470,
+      "y": 10112
+    },
+    "Letter.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "17 Your letter",
+      "w": 390,
+      "x": 1410,
+      "y": 2528
+    },
+    "Listening.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "7 Listening",
+      "w": 390,
+      "x": 0,
+      "y": 1264
+    },
+    "Login.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "14 Sign in",
+      "w": 390,
+      "x": 0,
+      "y": 2528
+    },
+    "Main.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "2 Choose language",
+      "w": 390,
+      "x": 470,
+      "y": 0
+    },
+    "Me.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "44 My account",
+      "w": 390,
+      "x": 0,
+      "y": 8848
+    },
+    "Missing.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "41 Missing person",
+      "w": 390,
+      "x": 940,
+      "y": 7584
+    },
+    "MissingInterview.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "42 Person details",
+      "w": 390,
+      "x": 1410,
+      "y": 7584
+    },
+    "Notetaker.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "51 Case notes",
+      "w": 390,
+      "x": 940,
+      "y": 10112
+    },
+    "Notices.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "32 Ready notices",
+      "w": 390,
+      "x": 1880,
+      "y": 5056
+    },
+    "Officer.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "27 Card for officer",
+      "w": 390,
+      "x": 3290,
+      "y": 3792
+    },
+    "PanicLesson.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "36 Panic lesson",
+      "w": 390,
+      "x": 1410,
+      "y": 6320
+    },
+    "Pin.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "15 Set PIN",
+      "w": 390,
+      "x": 470,
+      "y": 2528
+    },
+    "Pro.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "48 DHARA Pro",
+      "w": 390,
+      "x": 1880,
+      "y": 8848
+    },
+    "Record.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "26 Record proof",
+      "w": 390,
+      "x": 2820,
+      "y": 3792
+    },
+    "RightDetail.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "29 One right",
+      "w": 390,
+      "x": 470,
+      "y": 5056
+    },
+    "Rights.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "28 Rights library",
+      "w": 390,
+      "x": 0,
+      "y": 5056
+    },
+    "SafetyPhrases.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "35 Safety phrases",
+      "w": 390,
+      "x": 940,
+      "y": 6320
+    },
+    "SafetyPlan.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "37 Safety plan",
+      "w": 390,
+      "x": 1880,
+      "y": 6320
+    },
+    "Scan.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "9 Scan document",
+      "w": 390,
+      "x": 940,
+      "y": 1264
+    },
+    "Settings.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "19 Me",
+      "w": 390,
+      "x": 2350,
+      "y": 2528
+    },
+    "SilentAlert.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "34 Silent alert",
+      "w": 390,
+      "x": 470,
+      "y": 6320
+    },
+    "Sources.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "13 Sources",
+      "w": 390,
+      "x": 2820,
+      "y": 1264
+    },
+    "Splash.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "1 Splash",
+      "w": 390,
+      "x": 0,
+      "y": 0
+    },
+    "StatePick.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "5 Choose state",
+      "w": 390,
+      "x": 1880,
+      "y": 0
+    },
+    "Type.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "8 Type instead",
+      "w": 390,
+      "x": 470,
+      "y": 1264
+    },
+    "VisitorHelp.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "53 Visitor help",
+      "w": 390,
+      "x": 1880,
+      "y": 10112
+    },
+    "Welcome.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "3 How it helps",
+      "w": 390,
+      "x": 940,
+      "y": 0
+    },
+    "WomenShield.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "33 Women's Shield",
+      "w": 390,
+      "x": 0,
+      "y": 6320
+    },
+    "ConsentReceipt.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "54 Consent record",
+      "w": 390,
+      "x": 2350,
+      "y": 8848
+    },
+    "ConsentHistory.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "55 Consent history",
+      "w": 390,
+      "x": 0,
+      "y": 11376
+    },
+    "WithdrawConfirm.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "56 Withdraw consent",
+      "w": 390,
+      "x": 470,
+      "y": 11376
+    },
+    "ConsentDownload.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "radius": 28,
+      "title": "57 Download consent record",
+      "w": 390,
+      "x": 940,
+      "y": 11376
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-11-11T20:25:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas"
+  },
+  "notes": {
+    "row1": {
+      "kind": "title1",
+      "maxW": 2740,
+      "text": "1 \u00b7 First use & account  \u2014  redesigned",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    },
+    "row2": {
+      "kind": "title1",
+      "maxW": 3210,
+      "text": "2 \u00b7 Ask and get an answer  \u2014  redesigned",
+      "w": 240,
+      "x": 0,
+      "y": 964
+    },
+    "row3": {
+      "kind": "title1",
+      "maxW": 2740,
+      "text": "3 \u00b7 Save, act and manage  \u2014  redesigned",
+      "w": 240,
+      "x": 0,
+      "y": 2228
+    },
+    "row4": {
+      "kind": "title1",
+      "maxW": 3680,
+      "text": "4 \u00b7 Safety  \u2014  redesigned",
+      "w": 240,
+      "x": 0,
+      "y": 3492
+    },
+    "row5": {
+      "kind": "title1",
+      "maxW": 2270,
+      "text": "5 \u00b7 Rights, Engine & drafting  \u2014  redesigned",
+      "w": 240,
+      "x": 0,
+      "y": 4756
+    },
+    "row6": {
+      "kind": "title1",
+      "maxW": 2740,
+      "text": "6 \u00b7 Women's Shield  \u2014  new",
+      "w": 240,
+      "x": 0,
+      "y": 6020
+    },
+    "row7": {
+      "kind": "title1",
+      "maxW": 2270,
+      "text": "7 \u00b7 Family & Missing  \u2014  new",
+      "w": 240,
+      "x": 0,
+      "y": 7284
+    },
+    "row8": {
+      "kind": "title1",
+      "maxW": 2740,
+      "text": "8 \u00b7 Account  \u2014  new",
+      "w": 240,
+      "x": 0,
+      "y": 8548
+    },
+    "row9": {
+      "kind": "title1",
+      "maxW": 2270,
+      "text": "9 \u00b7 Advocate & Lookups  \u2014  new",
+      "w": 240,
+      "x": 0,
+      "y": 9812
+    },
+    "row10": {
+      "kind": "title1",
+      "maxW": 1300,
+      "text": "10 \u00b7 Consent ledger  \u2014  new, backend unverified",
+      "w": 240,
+      "x": 0,
+      "y": 11076
+    }
+  },
+  "order": [
+    "Splash.dc.html",
+    "Main.dc.html",
+    "Welcome.dc.html",
+    "Consent.dc.html",
+    "StatePick.dc.html",
+    "Home.dc.html",
+    "Listening.dc.html",
+    "Type.dc.html",
+    "Scan.dc.html",
+    "Heard.dc.html",
+    "ActionPlan.dc.html",
+    "Answer.dc.html",
+    "Sources.dc.html",
+    "Login.dc.html",
+    "Pin.dc.html",
+    "Draft.dc.html",
+    "Letter.dc.html",
+    "Files.dc.html",
+    "Settings.dc.html",
+    "Help.dc.html",
+    "HeadOut.dc.html",
+    "Circle.dc.html",
+    "Journey.dc.html",
+    "CheckIn.dc.html",
+    "Emergency.dc.html",
+    "Record.dc.html",
+    "Officer.dc.html",
+    "Rights.dc.html",
+    "RightDetail.dc.html",
+    "Engine.dc.html",
+    "FirDraft.dc.html",
+    "Notices.dc.html",
+    "WomenShield.dc.html",
+    "SilentAlert.dc.html",
+    "SafetyPhrases.dc.html",
+    "PanicLesson.dc.html",
+    "SafetyPlan.dc.html",
+    "GuardianShare.dc.html",
+    "FamilyJourney.dc.html",
+    "FamilyContacts.dc.html",
+    "Missing.dc.html",
+    "MissingInterview.dc.html",
+    "Alerts.dc.html",
+    "Me.dc.html",
+    "EditProfile.dc.html",
+    "DataPrivacy.dc.html",
+    "ConsentMgmt.dc.html",
+    "Pro.dc.html",
+    "AdvocateRegister.dc.html",
+    "LawyerMode.dc.html",
+    "Notetaker.dc.html",
+    "IPCLookup.dc.html",
+    "VisitorHelp.dc.html",
+    "ConsentReceipt.dc.html",
+    "ConsentHistory.dc.html",
+    "WithdrawConfirm.dc.html",
+    "ConsentDownload.dc.html"
+  ],
+  "pages": [],
+  "title": "DHARA App Flow"
+}

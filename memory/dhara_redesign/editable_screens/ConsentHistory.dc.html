@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>55 Consent history</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=Hind:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}*{box-sizing:border-box}a{text-decoration:none}button{cursor:pointer;font-family:inherit}
+button:active,a:active{transform:scale(.97)}
+a:focus-visible,button:focus-visible{outline:3px solid #14365A;outline-offset:2px}
+.sc>*{flex-shrink:0}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.rise{animation:rise .3s ease both}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="width:390px;height:844px;background:#FBF7EE;color:#17212B;font-family:'Hind',sans-serif;display:flex;flex-direction:column">
+  <div style="padding:16px 20px 0;display:flex;align-items:center;gap:12px">
+    <a href="ConsentMgmt.dc.html" aria-label="Back" style="width:48px;height:48px;border-radius:24px;background:#fff;border:1.5px solid #E7DFCC;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 5l-7 7 7 7"></path></svg></a>
+    <div style="flex:1;font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:#14365A">Consent history</div>
+    <a href="Home.dc.html" aria-label="Home" style="width:48px;height:48px;border-radius:24px;background:#fff;border:1.5px solid #E7DFCC;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1z"></path></svg></a>
+  </div>
+  <div class="sc" style="flex:1;overflow:auto;padding:14px 20px 24px;display:flex;flex-direction:column;gap:12px">
+    <h1 style="margin:0;font-family:'Fraunces',serif;font-size:24px;font-weight:700;color:#14365A">Consent history</h1>
+    <p style="margin:0;font-size:15px;color:#505B68;line-height:1.45">Every choice you make is added as a new dated entry. Earlier entries are never changed.</p>
+
+    <!-- Account / guest -->
+    <div style="background:#fff;border:1.5px solid #E7DFCC;border-radius:16px;padding:14px 16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div style="font-size:16px;font-weight:600;color:#14365A">Record held for</div>
+        <div role="group" aria-label="Who this record belongs to" style="display:flex;background:#F1ECDD;border-radius:12px;padding:3px">
+          <button aria-pressed="{{isGuest}}" onClick="{{setGuest}}" style="min-height:44px;padding:0 14px;border-radius:10px;border:none;background:{{gBg}};color:{{gFg}};font-size:14px;font-weight:600">Guest</button>
+          <button aria-pressed="{{isAcct}}" onClick="{{setAcct}}" style="min-height:44px;padding:0 14px;border-radius:10px;border:none;background:{{aBg}};color:{{aFg}};font-size:14px;font-weight:600">Account</button>
+        </div>
+      </div>
+      <p style="margin:10px 0 0;font-size:14px;line-height:1.45;color:#17212B">{{holderText}}</p>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px;color:#17212B"><span aria-hidden="true" style="width:10px;height:10px;border-radius:5px;background:#B07A14"></span><span role="status">{{syncText}}</span></div>
+    </div>
+
+    <!-- Version -->
+    <div style="background:#fff;border:1.5px solid #E7DFCC;border-radius:16px;padding:14px 16px">
+      <div style="font-size:12px;font-weight:700;color:#505B68;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">Versions you agreed to</div>
+      <sc-for list="{{versions}}" as="v" hint-placeholder-count="3">
+        <div style="display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid #EFE8D6;font-size:14px"><span style="color:#17212B">{{v.k}}</span><span style="font-weight:600;color:#17212B;text-align:right">{{v.v}}</span></div>
+      </sc-for>
+      <div style="margin-top:8px;font-size:14px;line-height:1.4;color:#7F1D1D;background:#FDF0EE;border-radius:10px;padding:10px 12px">When the Terms or Privacy Policy change, DHARA asks you again. Until you answer, the affected features stay off.</div>
+    </div>
+
+    <div style="font-size:12px;font-weight:700;color:#505B68;letter-spacing:.5px;text-transform:uppercase;margin-top:4px">Entries, newest first</div>
+    <div style="background:#fff;border:1.5px solid #E7DFCC;border-radius:16px;padding:6px 16px">
+      <sc-for list="{{entries}}" as="e" hint-placeholder-count="5">
+        <div style="display:flex;gap:12px;padding:12px 0;border-bottom:1px solid #EFE8D6">
+          <span aria-hidden="true" style="width:12px;height:12px;border-radius:6px;background:{{e.dot}};margin-top:5px;flex-shrink:0"></span>
+          <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:600;color:#14365A">{{e.what}}</div><div style="font-size:14px;color:#505B68;line-height:1.35">{{e.meta}}</div></div>
+          <span style="font-size:12px;font-weight:700;color:{{e.fg}};background:{{e.bg}};border-radius:8px;padding:3px 8px;height:fit-content;white-space:nowrap">{{e.tag}}</span>
+        </div>
+      </sc-for>
+    </div>
+
+    <a href="ConsentDownload.dc.html" style="min-height:56px;border-radius:14px;background:#14365A;color:#fff;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"></path></svg>Download my consent record</a>
+    <a href="ConsentMgmt.dc.html" style="min-height:48px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:#6B4F10;text-decoration:underline">Change a choice</a>
+    <div style="display:flex;gap:10px;background:#F1ECDD;border:1.5px solid #E0D5B8;border-radius:14px;padding:14px 16px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:2px"><path d="M12 3l8 4v5c0 4.5-3.2 7.3-8 9-4.8-1.7-8-4.5-8-9V7z"></path></svg>
+      <div style="font-size:14px;color:#17212B;line-height:1.5"><span style="font-weight:600;color:#14365A">Pending legal and implementation review.</span> This flow is intended to support DPDP Act 2023 and PIPEDA rights. It is not a certification and has not been confirmed as sufficient.</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals(){
+  const s=this.state||{}; const acct=!!s.acct;
+  // Layout sample. Values are written by the application, never typed into the design.
+  const G={bg:'#E3F1E9',fg:'#14522F'}, W={bg:'#ECE7DA',fg:'#3A444F'}, P={bg:'#FBEFD9',fg:'#6B4F10'};
+  return {
+    isGuest:!acct,isAcct:acct,
+    setGuest:()=>this.setState({acct:false}), setAcct:()=>this.setState({acct:true}),
+    gBg:!acct?'#14365A':'transparent', gFg:!acct?'#FFFFFF':'#14365A', aBg:acct?'#14365A':'transparent', aFg:acct?'#FFFFFF':'#14365A',
+    holderText: acct ? 'Your account. The record follows you to a new phone after you sign in.' : 'This install only (guest). If you clear app data or change phone, you can only get this record back if you downloaded it. Sign in to keep it with an account.',
+    syncText: acct ? 'Saved on the server. Last confirmed: time from the server' : 'Waiting for server confirmation. Shown only when the app reports it.',
+    versions:[{k:'Terms of Service',v:'Version number and date'},{k:'Privacy Policy',v:'Version number and date'},{k:'Consent wording',v:'Version number and date'}],
+    entries:[
+      {what:'Voice and recordings withdrawn',meta:'Date, time, terms version',tag:'Withdrawn',bg:W.bg,fg:W.fg,dot:'#505B68'},
+      {what:'Help improve DHARA',meta:'Date, time, terms version',tag:'Not given',bg:W.bg,fg:W.fg,dot:'#505B68'},
+      {what:'Processing my data',meta:'Date, time, terms version',tag:'Agreed',bg:G.bg,fg:G.fg,dot:'#1F6B4A'},
+      {what:'Terms of Service',meta:'Date, time, terms version',tag:'Agreed',bg:G.bg,fg:G.fg,dot:'#1F6B4A'},
+      {what:'I am 18 or older',meta:'Date, time, terms version',tag:'Agreed',bg:G.bg,fg:G.fg,dot:'#1F6B4A'}
+    ]
+  };
+}
+}
+</script>
+</body>
+</html>

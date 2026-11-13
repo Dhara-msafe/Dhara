@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>51 Case notes</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=Hind:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}*{box-sizing:border-box}a{text-decoration:none}button{cursor:pointer;font-family:inherit}
+@keyframes dFadeIn{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes dPulse{0%,100%{opacity:1}50%{opacity:.5}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</helmet>
+<div style="width:390px;height:844px;background:#FBF7EE;color:#17212B;font-family:'Hind',sans-serif;display:flex;flex-direction:column;position:relative">
+
+  <!-- nav -->
+  <div style="padding:16px 20px 0;display:flex;align-items:center;gap:12px">
+    <a href="Home.dc.html" aria-label="Back" style="width:48px;height:48px;border-radius:24px;background:#fff;border:1px solid #ECE4D2;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"></path></svg></a>
+    <div style="flex:1;font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:#14365A">Case notes</div>
+    <a href="Home.dc.html" aria-label="Home" style="width:48px;height:48px;border-radius:24px;background:#fff;border:1px solid #ECE4D2;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1z"></path></svg></a>
+  </div>
+
+  <div style="flex:1;overflow:auto;padding:14px 20px 84px">
+
+    <!-- Recording status -->
+    <div style="display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#14365A,#0E2740);border-radius:18px;padding:16px;margin-bottom:18px;animation:dFadeIn .4s ease-out">
+      <div style="width:44px;height:44px;border-radius:14px;background:rgba(180,35,24,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <div style="width:12px;height:12px;border-radius:6px;background:#B42318;animation:dPulse 1.5s ease-in-out infinite"></div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:600;color:#fff">Recording in progress</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.78)">Note title you choose</div>
+        <div style="font-size:20px;font-weight:700;color:#D3B675;font-family:'Fraunces',serif;margin-top:2px">14:32</div>
+      </div>
+      <button aria-label="Stop recording" style="width:48px;height:48px;border-radius:12px;border:none;background:rgba(180,35,24,.2);display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="#B42318" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg></button>
+    </div>
+
+    <!-- Live transcript -->
+    <div style="font-size:11px;font-weight:700;color:#505B68;text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px;animation:dFadeIn .4s ease-out .05s both">Live transcript</div>
+
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+      <sc-for list="{{transcript}}" as="t" hint-placeholder-count="4">
+        <div style="background:#fff;border:1px solid #ECE4D2;border-radius:14px;padding:12px 14px;animation:dFadeIn .4s ease-out {{t.d}} both">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <div style="width:24px;height:24px;border-radius:8px;background:{{t.bg}};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff">{{t.init}}</div>
+            <span style="font-size:12px;font-weight:600;color:#14365A">{{t.speaker}}</span>
+            <span style="font-size:11px;color:#505B68;margin-left:auto">{{t.time}}</span>
+          </div>
+          <div style="font-size:13px;color:#17212B;line-height:1.5">{{t.text}}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- AI summary -->
+    <div style="background:rgba(90,75,158,.06);border:1px solid rgba(90,75,158,.1);border-radius:16px;padding:16px;margin-bottom:16px;animation:dFadeIn .4s ease-out .35s both">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5A4B9E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"></path><path d="M8 12l3 3 5-5"></path></svg>
+        <div style="font-size:13px;font-weight:600;color:#5A4B9E">Automatic summary</div>
+      </div>
+      <div style="font-size:13px;color:#505B68;line-height:1.5">A summary of your recording appears here. It is generated automatically and can be wrong. Check it against the recording.</div>
+    </div>
+
+    <!-- Actions -->
+    <div style="display:flex;gap:8px;animation:dFadeIn .4s ease-out .4s both">
+      <a href="Files.dc.html" style="flex:1;height:44px;border-radius:12px;border:1px solid #ECE4D2;background:#fff;font-size:13px;font-weight:600;color:#14365A;display:flex;align-items:center;justify-content:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"></path></svg>Save</a>
+      <button style="flex:1;height:44px;border-radius:12px;border:1px solid #ECE4D2;background:#fff;font-size:13px;font-weight:600;color:#14365A;display:flex;align-items:center;justify-content:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"></path></svg>Share</button>
+    </div>
+  </div>
+
+  <a href="Emergency.dc.html" aria-label="SOS" style="position:absolute;right:16px;bottom:28px;height:48px;padding:0 16px;border-radius:24px;background:#B42318;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;box-shadow:0 6px 18px rgba(180,35,24,.35)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a9 9 0 00-9 9c0 5 4 8 9 11 5-3 9-6 9-11a9 9 0 00-9-9z"></path></svg>SOS</a>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals(){
+return {transcript:[
+ {speaker:"Speaker 1",init:"1",bg:"#B07A14",time:"00:08",text:"Your transcript appears here as people speak. This is a sample line.",d:".08s"},
+ {speaker:"Speaker 2",init:"2",bg:"#5A4B9E",time:"00:14",text:"Speaker names are labelled by you after recording. This is a sample line.",d:".14s"},
+ {speaker:"Speaker 1",init:"1",bg:"#B07A14",time:"00:21",text:"Check that you are allowed to record before you start. This is a sample line.",d:".2s"},
+ {speaker:"Speaker 2",init:"2",bg:"#5A4B9E",time:"00:27",text:"Review the transcript yourself. It can contain mistakes. This is a sample line.",d:".26s"}
+]};
+}
+}
+</script>
+</body>
+</html>

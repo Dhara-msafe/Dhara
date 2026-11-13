@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Choose language</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=Hind:wght@300;400;500;600;700&amp;family=Noto+Sans+Devanagari:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}*{box-sizing:border-box}a{text-decoration:none}button{cursor:pointer;font-family:inherit;border:none;background:none}
+button:active,a:active{transform:scale(.97)}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+.lang{width:100%;min-height:60px;border-radius:16px;display:flex;align-items:center;padding:0 18px;gap:14px;border:1.5px solid #ECE4D2;background:#fff;transition:all .15s ease}
+.lang.on{border-color:#D3B675;background:linear-gradient(135deg,#FFFDF5,#FFF8E7);box-shadow:0 4px 20px rgba(211,182,117,.12)}
+.lcheck{width:24px;height:24px;border-radius:12px;border:2px solid #7A7F87;display:flex;align-items:center;justify-content:center}
+.lang.on .lcheck{border-color:#8A6A1E;background:#8A6A1E}.lang.on{border-color:#8A6A1E;border-width:2.5px}
+</style>
+</helmet>
+<div style="width:390px;height:844px;background:#FBF7EE;color:#17212B;font-family:'Hind',sans-serif;display:flex;flex-direction:column">
+
+  <!-- header -->
+  <div style="padding:16px 20px 0;display:flex;align-items:center;gap:12px">
+    <a href="Splash.dc.html" aria-label="Back" style="width:48px;height:48px;border-radius:24px;background:#fff;border:1.5px solid #E7DFCC;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"></path></svg></a>
+    <div style="flex:1"></div>
+    <div style="font-size:13px;color:#505B68;font-weight:500">Step 1 of 4</div>
+  </div>
+
+  <!-- step bar -->
+  <div style="display:flex;gap:4px;padding:12px 20px 0">
+    <div style="flex:1;height:3px;border-radius:2px;background:linear-gradient(90deg,#D3B675,#C4A45A)"></div>
+    <div style="flex:1;height:3px;border-radius:2px;background:#E7DFCC"></div>
+    <div style="flex:1;height:3px;border-radius:2px;background:#E7DFCC"></div>
+    <div style="flex:1;height:3px;border-radius:2px;background:#E7DFCC"></div>
+  </div>
+
+  <div style="padding:24px 20px 0">
+    <div style="font-family:'Fraunces',serif;font-size:28px;font-weight:600;color:#14365A;line-height:1.15">Choose your<br>language</div>
+    <div style="font-size:15px;color:#505B68;margin-top:8px">DHARA speaks in the language you prefer.</div>
+  </div>
+
+  <div style="padding:12px 20px 0"><label style="display:flex;align-items:center;gap:10px;min-height:52px;border-radius:14px;background:#fff;border:1.5px solid #C9BFA6;padding:0 16px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#505B68" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4-4"></path></svg><input aria-label="Search languages" placeholder="Search languages" style="flex:1;border:none;outline:none;background:transparent;font-family:inherit;font-size:16px;color:#17212B"></label></div>
+  <div style="flex:1;overflow:auto;padding:12px 20px 10px;display:flex;flex-direction:column;gap:8px">
+    <button class="lang on"><div style="width:34px;height:34px;border-radius:10px;background:#EAF0F6;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;color:#14365A">A</div><div style="flex:1;text-align:left;font-size:16px;font-weight:600;color:#14365A">English</div><span style="font-size:13px;font-weight:700;color:#6B4F10">Selected</span><div class="lcheck"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"></path></svg></div></button>
+    <button class="lang"><div style="width:34px;height:34px;border-radius:10px;background:#FFF3E0;display:flex;align-items:center;justify-content:center;font-family:'Noto Sans Devanagari',sans-serif;font-size:15px;font-weight:600;color:#B07A14">अ</div><div style="flex:1;text-align:left"><div style="font-size:18px;font-weight:600;color:#14365A">हिन्दी</div><div style="font-size:14px;color:#505B68;margin-top:1px">Hindi</div></div><div class="lcheck"></div></button>
+    <button class="lang"><div style="width:34px;height:34px;border-radius:10px;background:#EDE7F6;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:#5A4B9E">অ</div><div style="flex:1;text-align:left"><div style="font-size:18px;font-weight:600;color:#14365A">বাংলা</div><div style="font-size:14px;color:#505B68;margin-top:1px">Bengali</div></div><div class="lcheck"></div></button>
+    <button class="lang"><div style="width:34px;height:34px;border-radius:10px;background:#E8F5E9;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:#1F6B4A">அ</div><div style="flex:1;text-align:left"><div style="font-size:18px;font-weight:600;color:#14365A">தமிழ்</div><div style="font-size:14px;color:#505B68;margin-top:1px">Tamil</div></div><div class="lcheck"></div></button>
+    <button class="lang"><div style="width:34px;height:34px;border-radius:10px;background:#FFF8E1;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:#7A5B17">అ</div><div style="flex:1;text-align:left"><div style="font-size:18px;font-weight:600;color:#14365A">తెలుగు</div><div style="font-size:14px;color:#505B68;margin-top:1px">Telugu</div></div><div class="lcheck"></div></button>
+    <button class="lang"><div style="width:34px;height:34px;border-radius:10px;background:#FCE4EC;display:flex;align-items:center;justify-content:center;font-family:'Noto Sans Devanagari',sans-serif;font-size:15px;font-weight:600;color:#B42318">म</div><div style="flex:1;text-align:left"><div style="font-size:18px;font-weight:600;color:#14365A">मराठी</div><div style="font-size:14px;color:#505B68;margin-top:1px">Marathi</div></div><div class="lcheck"></div></button>
+    <button class="lang"><div style="width:34px;height:34px;border-radius:10px;background:#E0F2F1;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:#0D7377">ગ</div><div style="flex:1;text-align:left"><div style="font-size:18px;font-weight:600;color:#14365A">ગુજરાતી</div><div style="font-size:14px;color:#505B68;margin-top:1px">Gujarati</div></div><div class="lcheck"></div></button>
+    <button class="lang"><div style="width:34px;height:34px;border-radius:10px;background:#F3E5F5;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:#7B1FA2">ಕ</div><div style="flex:1;text-align:left"><div style="font-size:18px;font-weight:600;color:#14365A">ಕನ್ನಡ</div><div style="font-size:14px;color:#505B68;margin-top:1px">Kannada</div></div><div class="lcheck"></div></button>
+    <button class="lang"><div style="width:34px;height:34px;border-radius:10px;background:#E8EAF6;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:#283593">മ</div><div style="flex:1;text-align:left"><div style="font-size:18px;font-weight:600;color:#14365A">മലയാളം</div><div style="font-size:14px;color:#505B68;margin-top:1px">Malayalam</div></div><div class="lcheck"></div></button>
+    <button class="lang"><div style="width:34px;height:34px;border-radius:10px;background:#FFF3E0;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:#E65100">ਪ</div><div style="flex:1;text-align:left"><div style="font-size:18px;font-weight:600;color:#14365A">ਪੰਜਾਬੀ</div><div style="font-size:14px;color:#505B68;margin-top:1px">Punjabi</div></div><div class="lcheck"></div></button>
+    <div style="height:4px"></div>
+  </div>
+
+  <!-- CTA -->
+  <div style="padding:12px 20px 32px">
+    <a href="Welcome.dc.html" style="height:58px;border-radius:16px;background:linear-gradient(135deg,#D3B675,#C4A45A);color:#0E2740;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 8px 30px rgba(211,182,117,.3)">
+      Continue
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0E2740" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+    </a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+constructor(props){super(props);this.state={};}
+renderVals(){return {};}
+}
+</script>
+</body>
+</html>

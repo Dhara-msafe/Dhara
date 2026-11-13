@@ -1,0 +1,58 @@
+id,screen,design_file,disposition,change_summary,change_class,png,in_53_reference_set
+1,Splash,Splash.dc.html,revised,Copy: removed unsupported claims; contrast on small text,Copy correction + Visual change,screens/png/Splash.png,yes
+2,Choose language,Main.dc.html,revised,"Native names first, English second, selected state with check + label, search field (functional addition), last item clear of sticky button. Live route observed at /language; design said /main",Visual change; search = New functionality requiring approval,screens/png/Main.png,yes
+3,How it helps,Welcome.dc.html,revised,Copy: removed unsupported capability claims,Copy correction,screens/png/Welcome.png,yes
+4,Privacy & consent,Consent.dc.html,revised,"Unchecked by default; separate age, terms, processing, optional; pending-review note; no badges",Visual change; Existing behaviour to preserve (separate controls),screens/png/Consent.png,yes
+5,Choose state,StatePick.dc.html,revised,Placeholder contrast; targets,Visual change,screens/png/StatePick.png,yes
+6,Home,Home.dc.html,revised,Voice-first action kept; typing alternative labelled; copy corrected,Visual change + Copy correction,screens/png/Home.png,yes
+7,Listening,Listening.dc.html,retained,Contrast and target fixes only; microphone-denied state to be designed from app states,Visual change,screens/png/Listening.png,yes
+8,Type instead,Type.dc.html,retained,Contrast and target fixes only,Visual change,screens/png/Type.png,yes
+9,Scan document,Scan.dc.html,retained,Do NOT redirect scan completion to /heard without confirming the OCR workflow,Visual change; Unverified implementation detail,screens/png/Scan.png,yes
+10,DHARA understood,Heard.dc.html,retained,Sample content is placeholder; answers come from the existing legal engine,Unverified implementation detail,screens/png/Heard.png,yes
+11,Action plan,ActionPlan.dc.html,retained,Sample content is placeholder,Unverified implementation detail,screens/png/ActionPlan.png,yes
+12,Your rights,Answer.dc.html,retained,"Sample answers, citations and verified badges are placeholders; keep conditional/unverified/escalation states",Unverified implementation detail,screens/png/Answer.png,yes
+13,Sources,Sources.dc.html,retained,Sources shown only as supplied by the legal engine,Unverified implementation detail,screens/png/Sources.png,yes
+14,Sign in,Login.dc.html,retained,No phone/OTP introduced; existing sign-in methods and guest access preserved,Existing behaviour to preserve,screens/png/Login.png,yes
+15,Set PIN,Pin.dc.html,deferred,Shown only if a PIN feature already exists. No new PIN system is proposed,New functionality requiring approval / Unverified,screens/png/Pin.png,yes
+16,Letter saved,Draft.dc.html,retained,Draft restoration to be preserved,Existing behaviour to preserve,screens/png/Draft.png,yes
+17,Your letter,Letter.dc.html,retained,Visual only,Visual change,screens/png/Letter.png,yes
+18,My files,Files.dc.html,retained,Visual only,Visual change,screens/png/Files.png,yes
+19,Me,Settings.dc.html,merged,Merged with 44 into one Me hub in the design (proposed; navigation mapping unverified),Visual change; Unverified implementation detail,screens/png/Settings.png,yes
+20,All help,Help.dc.html,retained,Text clipping check at 1.5x flagged one item (see A11Y report),Visual change,screens/png/Help.png,yes
+21,Head out,HeadOut.dc.html,revised,Copy corrected; permission handling preserved,Copy correction,screens/png/HeadOut.png,yes
+22,Trusted people,Circle.dc.html,revised,Copy corrected; 48px targets,Copy correction + Visual change,screens/png/Circle.png,yes
+23,On the way,Journey.dc.html,revised,Idle/active states only from app state; sharing expiry and revocation preserved,Copy correction,screens/png/Journey.png,yes
+24,Are you OK?,CheckIn.dc.html,revised,Escalation timers untouched,Copy correction,screens/png/CheckIn.png,yes
+25,Emergency,Emergency.dc.html,revised,"No ""Police notified""; dialler, SMS draft, send and confirmed delivery separate; preview shows ""Calling not yet active""",Copy correction + Visual change,screens/png/Emergency.png,yes
+26,Record proof,Record.dc.html,revised,"No guaranteed background recording claim; save-failure state to be designed. Pause button, ""Make the screen dark, keep recording"" and ""Saved to this phone"" text come from the reference design and are UNVERIFIED: confirm each exists before shipping",Copy correction,screens/png/Record.png,yes
+27,Card for officer,Officer.dc.html,retained,Visual only,Visual change,screens/png/Officer.png,yes
+28,Rights library,Rights.dc.html,revised,Icon runtime error fixed in the design file; search labelled,Visual change,screens/png/Rights.png,yes
+29,One right,RightDetail.dc.html,retained,Visual only,Visual change,screens/png/RightDetail.png,yes
+30,Dhara Engine,Engine.dc.html,retained,Sample content is placeholder,Unverified implementation detail,screens/png/Engine.png,yes
+31,File a complaint,FirDraft.dc.html,retained,Fraud-help navigation NOT replaced by Advocate Register,Existing behaviour to preserve,screens/png/FirDraft.png,yes
+32,Ready notices,Notices.dc.html,retained,Contrast flagged (see A11Y report),Visual change,screens/png/Notices.png,yes
+33,Women's Shield,WomenShield.dc.html,revised,Glow effects simplified; text contrast raised,Visual change,screens/png/WomenShield.png,yes
+34,Silent alert,SilentAlert.dc.html,revised,"No ""Police notified"" claim",Copy correction,screens/png/SilentAlert.png,yes
+35,Safety phrases,SafetyPhrases.dc.html,revised,Copy corrected,Copy correction,screens/png/SafetyPhrases.png,yes
+36,Panic lesson,PanicLesson.dc.html,retained,Visual only,Visual change,screens/png/PanicLesson.png,yes
+37,Safety plan,SafetyPlan.dc.html,retained,Visual only,Visual change,screens/png/SafetyPlan.png,yes
+38,Guardian share,GuardianShare.dc.html,revised,"Shows not-sharing/idle unless app reports sharing; ""Invited"" not ""Accepted""",Copy correction,screens/png/GuardianShare.png,yes
+39,Family journey,FamilyJourney.dc.html,revised,"Renamed ""Support a family member""; kept separate from legal-case tracking",Copy correction,screens/png/FamilyJourney.png,yes
+40,Family contacts,FamilyContacts.dc.html,revised,Labelled icon buttons; 48px targets,Visual change,screens/png/FamilyContacts.png,yes
+41,Missing person,Missing.dc.html,retained,Visual only,Visual change,screens/png/Missing.png,yes
+42,Person details,MissingInterview.dc.html,retained,Visual only,Visual change,screens/png/MissingInterview.png,yes
+43,Alerts,Alerts.dc.html,revised,Sample alerts removed,Copy correction,screens/png/Alerts.png,yes
+44,My account,Me.dc.html,merged,See 19,Visual change,screens/png/Me.png,yes
+45,Edit profile,EditProfile.dc.html,revised,Sample personal details removed,Copy correction,screens/png/EditProfile.png,yes
+46,Data privacy,DataPrivacy.dc.html,revised,No blanket on-device or end-to-end claims; reconcile with approved policy (live notice describes cloud storage),Copy correction,screens/png/DataPrivacy.png,yes
+47,Consent settings,ConsentMgmt.dc.html,revised,Five purposes; withdraw opens 56; links to 55,Visual change; Existing behaviour to preserve (withdrawal pathway),screens/png/ConsentMgmt.png,yes
+48,DHARA Pro,Pro.dc.html,deferred,"Shows ""Price to be confirmed"". Any later price must come from approved application configuration. No new tiers or entitlements",Copy correction; New functionality requiring approval,screens/png/Pro.png,yes
+49,Find advocate,AdvocateRegister.dc.html,deferred,Behind existing permission/feature flag; sample ratings and verification removed,Copy correction,screens/png/AdvocateRegister.png,yes
+50,Advocate profile,LawyerMode.dc.html,deferred,Behind existing flag; no Bar Council or cases-won claims,Copy correction,screens/png/LawyerMode.png,yes
+51,Case notes,Notetaker.dc.html,deferred,Behind existing flag; labelled icon button,Copy correction,screens/png/Notetaker.png,yes
+52,IPC lookup,IPCLookup.dc.html,retained,Visual only,Visual change,screens/png/IPCLookup.png,yes
+53,Visitor help,VisitorHelp.dc.html,retained,Visual only,Visual change,screens/png/VisitorHelp.png,yes
+54,Consent record,ConsentReceipt.dc.html,new,Consent record after agreeing. Backend and legal sufficiency UNVERIFIED,New functionality requiring approval; Unverified implementation detail,screens/png/ConsentReceipt.png,no (new)
+55,Consent history,ConsentHistory.dc.html,new,"Guest/account toggle, version history, sync status. UNVERIFIED backend",New functionality requiring approval; Unverified implementation detail,screens/png/ConsentHistory.png,no (new)
+56,Withdraw consent,WithdrawConfirm.dc.html,new,Withdrawal with consequences before confirmation. UNVERIFIED backend,New functionality requiring approval; Unverified implementation detail,screens/png/WithdrawConfirm.png,no (new)
+57,Download consent record,ConsentDownload.dc.html,new,Download record (PDF/JSON) with idle/busy/ready/fail/offline states. UNVERIFIED backend,New functionality requiring approval; Unverified implementation detail,screens/png/ConsentDownload.png,no (new)

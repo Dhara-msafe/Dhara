@@ -1,0 +1,14 @@
+original_claim,corrected_wording,evidence,status,unresolved_dependency
+"Police notified (Emergency, Silent alert)","Remove. Say what the app actually does: opens your phone dialler, or prepares a message to your circle","Preview showed ""Calling not yet active"" and ""Prepare a message to my circle""",Corrected in design,Confirm each capability and environment flag before any wording returns
+send without unlocking,Removed,No evidence,Corrected in design,Capability confirmation
+Guaranteed background recording,Removed; no background-recording guarantee is shown,No evidence,Corrected in design,Platform permission and OS behaviour test
+Sharing active / Viewing / Contact accepted (Guardian share),Not sharing / Invited; active states appear only when the app reports them,Design sample states,Corrected in design,App state source for sharing
+Everything stays on your device / end-to-end encrypted,Removed; wording must match the approved privacy policy,Live notice describes cloud storage,Corrected in design,Per-data-category storage and encryption facts
+DPDP / PIPEDA compliance badges,"Replaced with: ""Pending legal and implementation review. This flow is intended to support rights under India's DPDP Act 2023 and Canada's PIPEDA. It is not a certification and has not been confirmed as sufficient.""",Not a certification,Corrected in design,Legal and implementation review
+199/499 pricing (Pro),Price to be confirmed,No approved pricing available to the design,Corrected in design,Approved application pricing configuration
+"Advocate ratings, cases won, Bar Council verification",Removed,Sample data,Corrected in design,Real verification process and flags
+"Verified answers / citations (Answer, Sources)","Placeholders; production uses the legal engine verification, uncertainty and escalation states",Sample content,Unchanged in design,Legal engine state mapping
+"All languages support voice, transcription and read-aloud",Not claimed,No evidence,Corrected in design,Per-language capability matrix
+Works offline (whole app),Qualify by feature,No evidence,Corrected in design,Per-feature offline matrix
+Court updates in Family journey,Family Journey renamed to Support a family member and kept separate from legal-case tracking; check that no court-update sample remains,Product scope,Corrected in design,Product decision
+Consent record saved with date and time (new),Design only; wording says what is saved,No backend verified,"Designed, UNVERIFIED","Backend ledger, storage, retention"

@@ -1,0 +1,58 @@
+id,design_screen,observed_route,proposed_route,actual_component,parameters,guards,verification_status
+1,Splash,not observed,UNKNOWN (design file Splash.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+2,Choose language,/language,UNKNOWN (design file Main.dc.html; design guide says /main for screen 2),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+3,How it helps,not observed,UNKNOWN (design file Welcome.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+4,Privacy & consent,not observed,UNKNOWN (design file Consent.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+5,Choose state,not observed,UNKNOWN (design file StatePick.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+6,Home,not observed,UNKNOWN (design file Home.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+7,Listening,not observed,UNKNOWN (design file Listening.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+8,Type instead,not observed,UNKNOWN (design file Type.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+9,Scan document,not observed,UNKNOWN (design file Scan.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+10,DHARA understood,not observed,UNKNOWN (design file Heard.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+11,Action plan,not observed,UNKNOWN (design file ActionPlan.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+12,Your rights,not observed,UNKNOWN (design file Answer.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+13,Sources,not observed,UNKNOWN (design file Sources.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+14,Sign in,not observed,UNKNOWN (design file Login.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+15,Set PIN,not observed,UNKNOWN (design file Pin.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+16,Letter saved,not observed,UNKNOWN (design file Draft.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+17,Your letter,not observed,UNKNOWN (design file Letter.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+18,My files,not observed,UNKNOWN (design file Files.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+19,Me,not observed,UNKNOWN (design file Settings.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+20,All help,not observed,UNKNOWN (design file Help.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+21,Head out,not observed,UNKNOWN (design file HeadOut.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+22,Trusted people,not observed,UNKNOWN (design file Circle.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+23,On the way,not observed,UNKNOWN (design file Journey.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+24,Are you OK?,not observed,UNKNOWN (design file CheckIn.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+25,Emergency,not observed,UNKNOWN (design file Emergency.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+26,Record proof,not observed,UNKNOWN (design file Record.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+27,Card for officer,not observed,UNKNOWN (design file Officer.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+28,Rights library,not observed,UNKNOWN (design file Rights.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+29,One right,not observed,UNKNOWN (design file RightDetail.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+30,Dhara Engine,not observed,UNKNOWN (design file Engine.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+31,File a complaint,not observed,UNKNOWN (design file FirDraft.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+32,Ready notices,not observed,UNKNOWN (design file Notices.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+33,Women's Shield,not observed,UNKNOWN (design file WomenShield.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+34,Silent alert,not observed,UNKNOWN (design file SilentAlert.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+35,Safety phrases,not observed,UNKNOWN (design file SafetyPhrases.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+36,Panic lesson,not observed,UNKNOWN (design file PanicLesson.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+37,Safety plan,not observed,UNKNOWN (design file SafetyPlan.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+38,Guardian share,not observed,UNKNOWN (design file GuardianShare.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+39,Family journey,not observed,UNKNOWN (design file FamilyJourney.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+40,Family contacts,not observed,UNKNOWN (design file FamilyContacts.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+41,Missing person,not observed,UNKNOWN (design file Missing.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+42,Person details,not observed,UNKNOWN (design file MissingInterview.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+43,Alerts,not observed,UNKNOWN (design file Alerts.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+44,My account,not observed,UNKNOWN (design file Me.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+45,Edit profile,not observed,UNKNOWN (design file EditProfile.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+46,Data privacy,not observed,UNKNOWN (design file DataPrivacy.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+47,Consent settings,not observed,UNKNOWN (design file ConsentMgmt.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+48,DHARA Pro,not observed,UNKNOWN (design file Pro.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+49,Find advocate,not observed,UNKNOWN (design file AdvocateRegister.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+50,Advocate profile,not observed,UNKNOWN (design file LawyerMode.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+51,Case notes,not observed,UNKNOWN (design file Notetaker.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+52,IPC lookup,not observed,UNKNOWN (design file IPCLookup.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+53,Visitor help,not observed,UNKNOWN (design file VisitorHelp.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+54,Consent record,not observed,UNKNOWN (design file ConsentReceipt.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+55,Consent history,not observed,UNKNOWN (design file ConsentHistory.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+56,Withdraw consent,not observed,UNKNOWN (design file WithdrawConfirm.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code
+57,Download consent record,not observed,UNKNOWN (design file ConsentDownload.dc.html),UNKNOWN,UNKNOWN,"UNKNOWN (auth/guest, feature flags)",UNVERIFIED - no source code

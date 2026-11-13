@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Trusted people</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600&amp;family=Hind:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#14365A}a:hover{color:#0E2740}
+a,button{transition:transform .12s ease,background-color .15s ease;-webkit-tap-highlight-color:transparent;cursor:pointer}
+a:active,button:active{transform:scale(.96)}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid #7A5B17;outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.rise{animation:rise .35s ease both}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #FBF7EE; color: #17212B; font-family: 'Hind', 'Noto Sans', sans-serif; display: flex; flex-direction: column; padding: 16px 20px 20px; gap: 12px">
+  <div style="display: flex; align-items: center; gap: 8px">
+    <a href="HeadOut.dc.html" aria-label="Back" style="width: 48px; height: 48px; border-radius: 24px; border: 1.5px solid #E7DFCC; background: #FFFFFF; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    </a>
+    <a href="Home.dc.html" aria-label="Home" style="width: 48px; height: 48px; border-radius: 24px; border: 1.5px solid #E7DFCC; background: #FFFFFF; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7M6 10v9h12v-9"/></svg>
+    </a>
+    <a href="Emergency.dc.html" style="margin-left: auto; height: 48px; min-width: 56px; justify-content: center; padding: 0 18px; border-radius: 24px; background: #B42318; color: #FFFFFF; font-size: 16px; font-weight: 600; text-decoration: none; display: flex; align-items: center">SOS</a>
+  </div>
+  <div>
+    <h1 style="margin: 0; font-family: 'Fraunces', serif; font-size: 28px; font-weight: 600; line-height: 1.2; color: #14365A">My trusted people</h1>
+    <p style="margin: 2px 0 0; font-size: 16px; line-height: 1.4; color: #505B68">People you choose. Each one must say yes by SMS first.</p>
+  </div>
+  <div style="flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 10px">
+    <sc-for list="{{people}}" as="p" hint-placeholder-count="3">
+      <div class="rise" style="background: #FFFFFF; border: 1.5px solid #E7DFCC; border-radius: 16px; padding: 12px 14px; display: flex; align-items: center; gap: 12px">
+        <span style="width: 52px; height: 52px; border-radius: 26px; background: {{p.dot}}; color: #FFFFFF; font-size: 21px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0">{{p.initial}}</span>
+        <span style="flex: 1; min-width: 0"><span style="display: block; font-size: 18px; font-weight: 600">{{p.name}} · {{p.rel}}</span><span style="display: block; font-size: 14px; font-weight: 600; color: {{p.statusFg}}">{{p.status}}</span></span>
+        <button onClick="{{p.remove}}" aria-label="Remove {{p.name}}" style="height: 44px; padding: 0 14px; border-radius: 22px; border: 1.5px solid #E7DFCC; background: #FBF7EE; font-family: inherit; font-size: 15px; font-weight: 600; color: #B42318">Remove</button>
+      </div>
+    </sc-for>
+    <sc-if value="{{empty}}" hint-placeholder-val="{{false}}">
+      <p style="margin: 8px 0; font-size: 16px; color: #505B68; text-align: center">Nobody here yet. Add one person you trust.</p>
+    </sc-if>
+    <sc-if value="{{adding}}" hint-placeholder-val="{{false}}">
+      <div class="rise" style="background: #FFFFFF; border: 2px solid #14365A; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 14px; font-weight: 600; color: #505B68">Their name
+          <input type="text" value="{{name}}" onChange="{{setName}}" placeholder="Name" style="height: 52px; border-radius: 14px; border: 1.5px solid #505B68; background: #FFFFFF; padding: 0 12px; font-family: inherit; font-size: 18px; color: #17212B; box-sizing: border-box">
+        </label>
+        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 14px; font-weight: 600; color: #505B68">Their mobile number
+          <input type="tel" inputMode="numeric" value="{{num}}" onChange="{{setNum}}" placeholder="10 numbers" style="height: 52px; border-radius: 14px; border: 1.5px solid #505B68; background: #FFFFFF; padding: 0 12px; font-family: inherit; font-size: 18px; color: #17212B; box-sizing: border-box; font-variant-numeric: tabular-nums">
+        </label>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap">
+          <sc-for list="{{rels}}" as="r" hint-placeholder-count="4">
+            <button onClick="{{r.pick}}" aria-pressed="{{r.on}}" style="height: 44px; padding: 0 14px; border-radius: 22px; border: 2px solid {{r.bd}}; background: {{r.bg}}; color: {{r.fg}}; font-family: inherit; font-size: 15px; font-weight: 600">{{r.label}}</button>
+          </sc-for>
+        </div>
+        <div style="display: flex; gap: 10px">
+          <button onClick="{{cancel}}" style="flex: 1; height: 56px; border-radius: 14px; border: 1.5px solid #E7DFCC; background: #FFFFFF; font-family: inherit; font-size: 16px; font-weight: 600; color: #17212B">Cancel</button>
+          <button onClick="{{save}}" style="flex: 2; height: 56px; border-radius: 14px; border: {{saveBd}}; background: {{saveBg}}; color: {{saveFg}}; font-family: inherit; font-size: 16px; font-weight: 600">{{saveLabel}}</button>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+  <sc-if value="{{notAdding}}" hint-placeholder-val="{{true}}">
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <button onClick="{{startAdd}}" style="height: 60px; border-radius: 18px; border: 2px dashed #14365A; background: #FFFFFF; font-family: inherit; font-size: 18px; font-weight: 600; color: #14365A; display: flex; align-items: center; justify-content: center; gap: 10px">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        Add a person
+      </button>
+      <a href="HeadOut.dc.html" style="height: 60px; border-radius: 18px; background: #14365A; color: #FFFFFF; font-size: 18px; font-weight: 600; text-decoration: none; display: flex; align-items: center; justify-content: center">Done</a>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+const s = this.state || {};
+const list = s.list || [
+{ name: 'Contact name', rel: 'Relationship', ok: true },
+{ name: 'Contact name', rel: 'Relationship', ok: true },
+{ name: 'Contact name', rel: 'Relationship', ok: false }
+];
+const adding = !!s.adding;
+const name = s.name || '';
+const num = s.num || '';
+const rel = s.rel || 'Family';
+const valid = name.trim().length > 0 && num.length === 10;
+return {
+people: list.map((p, i) => ({
+name: p.name, rel: p.rel, initial: p.name.charAt(0).toUpperCase(),
+dot: p.ok ? '#1F6B4A' : '#505B68',
+status: p.ok ? 'Reply recorded' : 'Invitation drafted. No reply recorded',
+statusFg: p.ok ? '#1F6B4A' : '#7A5B17',
+remove: () => this.setState({ list: list.filter((x, j) => j !== i) })
+})),
+empty: list.length === 0,
+adding: adding, notAdding: !adding,
+name: name, num: num,
+rels: ['Family', 'Friend', 'Neighbour', 'Teacher'].map((r) => ({
+label: r, on: r === rel,
+bg: r === rel ? '#14365A' : '#FFFFFF', fg: r === rel ? '#FFFFFF' : '#17212B', bd: r === rel ? '#14365A' : '#E7DFCC',
+pick: () => this.setState({ rel: r })
+})),
+saveLabel: valid ? 'Ask them by SMS' : 'Fill name and number',
+saveBg: valid ? '#1F6B4A' : '#FBF7EE',
+saveFg: valid ? '#FFFFFF' : '#505B68',
+saveBd: valid ? '2px solid #1F6B4A' : '2px dashed #505B68',
+setName: (e) => this.setState({ name: e.target.value }),
+setNum: (e) => this.setState({ num: String(e.target.value).replace(/[^0-9]/g, '').slice(0, 10) }),
+startAdd: () => this.setState({ adding: true }),
+cancel: () => this.setState({ adding: false, name: '', num: '' }),
+save: () => { if (valid) this.setState({ list: list.concat([{ name: name.trim(), rel: rel, ok: false }]), adding: false, name: '', num: '' }); }
+};
+}
+}
+</script>
+</body>
+</html>

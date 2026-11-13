@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>56 Withdraw consent</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=Hind:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}*{box-sizing:border-box}a{text-decoration:none}button{cursor:pointer;font-family:inherit}
+button:active,a:active{transform:scale(.97)}
+a:focus-visible,button:focus-visible{outline:3px solid #14365A;outline-offset:2px}
+.sc>*{flex-shrink:0}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.rise{animation:rise .3s ease both}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="width:390px;height:844px;background:#FBF7EE;color:#17212B;font-family:'Hind',sans-serif;display:flex;flex-direction:column">
+  <div style="padding:16px 20px 0;display:flex;align-items:center;gap:12px">
+    <a href="ConsentMgmt.dc.html" aria-label="Back" style="width:48px;height:48px;border-radius:24px;background:#fff;border:1.5px solid #E7DFCC;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 5l-7 7 7 7"></path></svg></a>
+    <div style="flex:1;font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:#14365A">Withdraw consent</div>
+    <a href="Home.dc.html" aria-label="Home" style="width:48px;height:48px;border-radius:24px;background:#fff;border:1.5px solid #E7DFCC;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1z"></path></svg></a>
+  </div>
+  <div class="sc" style="flex:1;overflow:auto;padding:14px 20px 12px;display:flex;flex-direction:column;gap:12px">
+    <sc-if value="{{review}}" hint-placeholder-val="{{true}}">
+    <div class="rise" style="flex-shrink:0;display:flex;flex-direction:column;gap:12px">
+      <h1 style="margin:0;font-family:'Fraunces',serif;font-size:24px;font-weight:700;color:#14365A;line-height:1.2">Withdraw: {{name}}</h1>
+      <p style="margin:0;font-size:15px;color:#505B68;line-height:1.45">Read what changes. Nothing happens until you press the red button.</p>
+
+      <div style="background:#FDF0EE;border:1.5px solid #E8B9B2;border-radius:14px;padding:14px 16px">
+        <div style="font-size:15px;font-weight:700;color:#7F1D1D;margin-bottom:6px">What stops</div>
+        <sc-for list="{{stops}}" as="x" hint-placeholder-count="3"><div style="display:flex;gap:10px;padding:4px 0;font-size:15px;line-height:1.4;color:#17212B"><span aria-hidden="true" style="color:#B42318;font-weight:700">✕</span><span>{{x}}</span></div></sc-for>
+      </div>
+      <div style="background:#F1F8F4;border:1.5px solid #B9D9C6;border-radius:14px;padding:14px 16px">
+        <div style="font-size:15px;font-weight:700;color:#14522F;margin-bottom:6px">What still works</div>
+        <sc-for list="{{stays}}" as="x" hint-placeholder-count="4"><div style="display:flex;gap:10px;padding:4px 0;font-size:15px;line-height:1.4;color:#17212B"><span aria-hidden="true" style="color:#1F6B4A;font-weight:700">✓</span><span>{{x}}</span></div></sc-for>
+      </div>
+
+      <div role="radiogroup" aria-label="What happens to data already saved" style="background:#fff;border:1.5px solid #E7DFCC;border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:15px;font-weight:700;color:#14365A">Data already saved</div>
+        <button role="radio" aria-checked="{{keep}}" onClick="{{pickKeep}}" style="min-height:56px;text-align:left;border-radius:12px;border:2px solid {{keepBd}};background:{{keepBg}};padding:10px 12px;font-size:15px;color:#17212B;line-height:1.35"><b>Keep it.</b> You can still view, export or delete it later.</button>
+        <button role="radio" aria-checked="{{del}}" onClick="{{pickDel}}" style="min-height:56px;text-align:left;border-radius:12px;border:2px solid {{delBd}};background:{{delBg}};padding:10px 12px;font-size:15px;color:#17212B;line-height:1.35"><b>Also delete it.</b> This cannot be undone. The consent record itself is kept as the law requires; the policy says how long.</button>
+      </div>
+      <p style="margin:0;font-size:14px;line-height:1.45;color:#505B68">You can agree again at any time in Consent settings. Exactly when processing stops after you confirm is to be confirmed by engineering.</p>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{done}}" hint-placeholder-val="{{false}}">
+    <div class="rise" role="status" style="flex-shrink:0;display:flex;flex-direction:column;gap:12px;align-items:flex-start">
+      <div style="width:56px;height:56px;border-radius:28px;background:#1F6B4A;display:flex;align-items:center;justify-content:center"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></div>
+      <h1 style="margin:0;font-family:'Fraunces',serif;font-size:24px;font-weight:700;color:#14365A;line-height:1.2">{{name}} withdrawn</h1>
+      <p style="margin:0;font-size:15px;line-height:1.45;color:#17212B">A new entry was added to your consent history with the date, time and terms version. {{doneData}}</p>
+      <div style="background:#fff;border:1.5px solid #E7DFCC;border-radius:14px;padding:6px 14px;width:100%">
+        <div style="display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #EFE8D6;font-size:14px"><span>Entry ID</span><b>Created by the server</b></div>
+        <div style="display:flex;justify-content:space-between;gap:10px;padding:10px 0;font-size:14px"><span>Server confirmation</span><b>Shown only if the app reports it</b></div>
+      </div>
+      <a href="ConsentHistory.dc.html" style="min-height:52px;width:100%;border-radius:14px;border:1.5px solid #14365A;background:#fff;color:#14365A;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center">View consent history</a>
+    </div>
+    </sc-if>
+  </div>
+
+  <sc-if value="{{review}}" hint-placeholder-val="{{true}}">
+  <div style="padding:10px 20px 24px;display:flex;flex-direction:column;gap:8px">
+    <button onClick="{{confirm}}" style="min-height:56px;border-radius:16px;border:none;background:#B42318;color:#fff;font-size:17px;font-weight:700">Withdraw consent</button>
+    <a href="ConsentMgmt.dc.html" style="min-height:52px;border-radius:14px;border:1.5px solid #14365A;background:#fff;color:#14365A;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center">Keep my consent</a>
+  </div>
+  </sc-if>
+  <sc-if value="{{done}}" hint-placeholder-val="{{false}}">
+  <div style="padding:10px 20px 24px"><a href="Home.dc.html" style="min-height:56px;border-radius:16px;background:#14365A;color:#fff;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center">Back to Home</a></div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals(){
+  const s=this.state||{};
+  const P={
+    proc:{name:'Processing my data',stops:['DHARA answering your questions','Drafting letters and complaints','Scanning and saving new files'],stays:['Emergency screen: call dialler, SMS draft, quick exit','Reading the Rights library (no personal data used)','Viewing, exporting or deleting what you saved','Signing in as a guest or with your account'],note:'Required choice. Whether the Rights library can stay open without it is to be confirmed.'},
+    voice:{name:'Voice and recordings',stops:['Using the microphone to hear you','Starting new recordings on this phone'],stays:['Typing instead of speaking','Scanning a paper','Calling emergency services and preparing an SMS','Recordings already saved, until you delete them'],note:''},
+    loc:{name:'Location',stops:['Filling in your place in messages','Sharing your location with your circle'],stays:['Typing your place by hand','Calling emergency services','Everything else in the app'],note:''},
+    circle:{name:'Messages to my circle',stops:['Preparing SMS drafts to your circle','Sharing a journey with your circle'],stays:['Calling emergency services','Your contacts stay saved until you delete them','Everything else in the app'],note:''},
+    usage:{name:'Help improve DHARA',stops:['Sending anonymous usage data'],stays:['Every feature works the same'],note:''}
+  };
+  let key='voice'; try{ const h=(window.location.hash||'').replace('#',''); if(P[h]) key=h; }catch(e){}
+  const p=P[key]; const del=!!s.del; const done=!!s.done;
+  return {
+    review:!done, done:done, name:p.name, stops:p.stops, stays:p.stays,
+    keep:!del, del:del,
+    keepBd:!del?'#14365A':'#C9BFA6', keepBg:!del?'#EAF0F6':'#FFFFFF', delBd:del?'#B42318':'#C9BFA6', delBg:del?'#FDF0EE':'#FFFFFF',
+    pickKeep:()=>this.setState({del:false}), pickDel:()=>this.setState({del:true}),
+    confirm:()=>this.setState({done:true}),
+    doneData: del ? 'The data saved under this choice is being deleted.' : 'Data already saved was kept.'
+  };
+}
+}
+</script>
+</body>
+</html>

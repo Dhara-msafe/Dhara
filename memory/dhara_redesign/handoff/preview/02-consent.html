@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Privacy and consent · DHARA design reference</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600&family=Hind:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="dhara.css"></head>
+<body class="">
+<a class="skip" href="#main">Skip to main content</a>
+<div class="shell"><div><header class="topbar"><a class="iconbtn" href="01-language.html" aria-label="Back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 5l-7 7 7 7"/></svg></a><div class="title">Privacy and consent</div><a class="iconbtn" href="03-home-ask.html" aria-label="Home"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1z"/></svg></a></header><main id="main"><form class="stack" id="f" novalidate><p class="eyebrow">Step 3 of 4</p><h1>Your privacy</h1><p class="muted">Nothing is ticked for you. Choose what you agree to.</p>
+<fieldset class="stack" style="border:0;padding:0;margin:0"><legend class="eyebrow" style="margin-bottom:.5rem">Required to use DHARA</legend>
+<label class="check"><input type="checkbox" class="req"><span><b>I am 18 years or older</b><span class="muted">DHARA is for adults.</span></span></label>
+<label class="check"><input type="checkbox" class="req"><span><b>I agree to the Terms of Service</b><span class="muted">You can read them before you agree.</span></span></label>
+<label class="check"><input type="checkbox" class="req"><span><b>I consent to DHARA processing my data</b><span class="muted">The Privacy Policy lists what is kept and where.</span></span></label></fieldset>
+<fieldset class="stack" style="border:0;padding:0;margin:0"><legend class="eyebrow" style="margin-bottom:.5rem">Optional. You can say no.</legend>
+<label class="check"><input type="checkbox"><span><b>Help improve DHARA</b><span class="muted">Anonymous usage data. DHARA works the same without it.</span></span></label></fieldset>
+<div class="card"><b>You get a record.</b> DHARA saves the date, time, terms version and each choice. Guests: the record is tied to this install, so download it. Server storage of this record is not yet verified.</div>
+<div class="note"><b>Pending legal and implementation review.</b> This flow is intended to support rights under India's DPDP Act 2023 and Canada's PIPEDA. It is not a certification and has not been confirmed as sufficient.</div>
+<a class="linkrow" href="#">Read the full privacy policy and terms</a>
+<div class="sticky-cta"><a id="go" class="btn primary lg" style="width:100%" aria-disabled="true" href="#" aria-describedby="help">Tick the 3 required boxes</a><p id="help" class="muted" style="text-align:center;margin-top:.5rem">Nothing is saved until you press the button.</p></div></form></main></div></div>
+<script>
+const r=[...document.querySelectorAll('.req')],g=document.getElementById('go');
+function u(){const ok=r.every(x=>x.checked);g.setAttribute('aria-disabled',ok?'false':'true');g.textContent=ok?'Agree and continue':'Tick the 3 required boxes';g.href=ok?'03-home-ask.html':'#'}
+r.forEach(x=>x.addEventListener('change',u));g.addEventListener('click',e=>{if(g.getAttribute('aria-disabled')==='true')e.preventDefault()});</script>
+</body></html>

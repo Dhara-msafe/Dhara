@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>35 Safety phrases</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=Hind:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}*{box-sizing:border-box}a{text-decoration:none}button{cursor:pointer;font-family:inherit}
+@keyframes dFadeIn{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</helmet>
+<div style="width:390px;height:844px;background:linear-gradient(180deg,#2D1B4E 0%,#1A0E30 100%);color:#fff;font-family:'Hind',sans-serif;display:flex;flex-direction:column;position:relative">
+
+  <!-- nav -->
+  <div style="padding:16px 20px 0;display:flex;align-items:center;gap:12px">
+    <a href="WomenShield.dc.html" aria-label="Back" style="width:48px;height:48px;border-radius:24px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"></path></svg></a>
+    <div style="flex:1;font-family:'Fraunces',serif;font-size:20px;font-weight:600">Safety phrases</div>
+    <a href="Home.dc.html" aria-label="Home" style="width:48px;height:48px;border-radius:24px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1z"></path></svg></a>
+  </div>
+
+  <div style="flex:1;overflow:auto;padding:14px 20px 84px">
+
+    <h1 style="margin:0 0 6px;font-family:'Fraunces',serif;font-size:24px;font-weight:700;animation:dFadeIn .4s ease-out">Secret code words</h1>
+    <p style="margin:0 0 20px;font-size:14px;color:rgba(255,255,255,.78);line-height:1.5;animation:dFadeIn .4s ease-out .05s both">Share these phrases with your trusted circle. When you say them, your circle knows you need help without the person around you knowing.</p>
+
+    <!-- Info banner -->
+    <div style="display:flex;gap:10px;background:rgba(90,75,158,.15);border:1px solid rgba(90,75,158,.3);border-radius:14px;padding:14px 16px;margin-bottom:20px;animation:dFadeIn .4s ease-out .1s both">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B39DDB" stroke-width="1.8" stroke-linecap="round" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="9"></circle><path d="M12 8h.01M12 11v5"></path></svg>
+      <div style="font-size:13px;color:rgba(255,255,255,.78);line-height:1.5">Only your trusted circle can see these phrases. They are stored on your phone.</div>
+    </div>
+
+    <!-- Phrases -->
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <sc-for list="{{phrases}}" as="p" hint-placeholder-count="3">
+        <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:16px;animation:dFadeIn .4s ease-out {{p.d}} both">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <div style="width:32px;height:32px;border-radius:10px;background:{{p.bg}};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="{{p.ic}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{p.ipath}}"></path></svg>
+            </div>
+            <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.78);text-transform:uppercase;letter-spacing:.5px">{{p.level}}</div>
+          </div>
+          <div style="font-size:18px;font-weight:600;color:#fff;margin-bottom:6px;font-style:italic">"{{p.phrase}}"</div>
+          <div style="font-size:13px;color:rgba(255,255,255,.78);line-height:1.4">{{p.meaning}}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- Add custom -->
+    <button style="margin-top:14px;width:100%;height:52px;border-radius:16px;border:1px dashed rgba(255,255,255,.2);background:transparent;color:rgba(255,255,255,.78);font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;animation:dFadeIn .4s ease-out .35s both">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
+      Add your own phrase
+    </button>
+
+    <!-- Share with circle -->
+    <a href="Circle.dc.html" style="margin-top:14px;height:56px;border-radius:16px;background:linear-gradient(135deg,#E91E63,#AD1457);color:#fff;display:flex;align-items:center;justify-content:center;gap:10px;font-size:16px;font-weight:600;box-shadow:0 8px 24px rgba(233,30,99,.3);animation:dFadeIn .4s ease-out .4s both">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"></path></svg>
+      Share with your circle
+    </a>
+  </div>
+
+  <a href="Emergency.dc.html" aria-label="SOS" style="position:absolute;right:16px;bottom:28px;height:48px;padding:0 16px;border-radius:24px;background:#B42318;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;box-shadow:0 6px 18px rgba(180,35,24,.35)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a9 9 0 00-9 9c0 5 4 8 9 11 5-3 9-6 9-11a9 9 0 00-9-9z"></path></svg>SOS</a>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals(){
+return {phrases:[
+ {level:"Feeling uneasy",phrase:"The red flowers are blooming",meaning:"I feel unsafe but I'm not in immediate danger. Check on me.",ipath:"M12 2a10 10 0 100 20 10 10 0 000-20zM12 8v4M12 16h.01",bg:"rgba(176,122,20,.15)",ic:"#D3B675",d:".15s"},
+ {level:"Need help now",phrase:"Did you feed the cat?",meaning:"I need someone to come get me. Track my location now.",ipath:"M12 9v2M12 15h.01M4.93 4.93l14.14 14.14",bg:"rgba(233,30,99,.15)",ic:"#E91E63",d:".2s"},
+ {level:"Emergency",phrase:"Remember to buy milk",meaning:"Call the police immediately. I am in danger.",ipath:"M12 3l8 4v5c0 4.5-3.2 7.3-8 9-4.8-1.7-8-4.5-8-9V7z",bg:"rgba(180,35,24,.15)",ic:"#EF5350",d:".25s"}
+]};
+}
+}
+</script>
+</body>
+</html>

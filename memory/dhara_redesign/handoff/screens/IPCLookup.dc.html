@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>52 IPC lookup</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=Hind:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}*{box-sizing:border-box}a{text-decoration:none}button{cursor:pointer;font-family:inherit}
+@keyframes dFadeIn{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</helmet>
+<div style="width:390px;height:844px;background:#FBF7EE;color:#17212B;font-family:'Hind',sans-serif;display:flex;flex-direction:column;position:relative">
+
+  <!-- nav -->
+  <div style="padding:16px 20px 0;display:flex;align-items:center;gap:12px">
+    <a href="Home.dc.html" aria-label="Back" style="width:48px;height:48px;border-radius:24px;background:#fff;border:1px solid #ECE4D2;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"></path></svg></a>
+    <div style="flex:1;font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:#14365A">Legal sections</div>
+    <a href="Home.dc.html" aria-label="Home" style="width:48px;height:48px;border-radius:24px;background:#fff;border:1px solid #ECE4D2;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1z"></path></svg></a>
+  </div>
+
+  <div style="flex:1;overflow:auto;padding:14px 20px 84px">
+
+    <!-- Search -->
+    <div style="height:48px;border-radius:14px;border:1px solid #ECE4D2;background:#fff;padding:0 16px;display:flex;align-items:center;gap:10px;margin-bottom:16px;animation:dFadeIn .4s ease-out">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#505B68" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg>
+      <span style="font-size:14px;color:#14365A;font-weight:500">Section 498A</span>
+    </div>
+
+    <!-- Result card -->
+    <div style="background:#fff;border:1px solid #ECE4D2;border-radius:18px;overflow:hidden;margin-bottom:14px;animation:dFadeIn .4s ease-out .08s both">
+      <div style="background:linear-gradient(135deg,#14365A,#0E2740);padding:16px 18px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <div style="height:24px;padding:0 10px;border-radius:6px;background:rgba(211,182,117,.2);font-size:11px;font-weight:700;color:#D3B675;display:flex;align-items:center">IPC</div>
+          <div style="height:24px;padding:0 10px;border-radius:6px;background:rgba(180,35,24,.2);font-size:11px;font-weight:700;color:rgba(255,255,255,.7);display:flex;align-items:center">Cognizable</div>
+        </div>
+        <div style="font-family:'Fraunces',serif;font-size:20px;font-weight:700;color:#fff">Section 498A</div>
+        <div style="font-size:13px;color:rgba(255,255,255,.78);margin-top:2px">Husband or relative of husband of a woman subjecting her to cruelty</div>
+      </div>
+      <div style="padding:16px 18px">
+        <div style="font-size:14px;color:#17212B;line-height:1.6;margin-bottom:14px">Whoever, being the husband or the relative of the husband of a woman, subjects such woman to cruelty shall be punished with imprisonment for a term which may extend to three years and shall also be liable to fine.</div>
+
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <sc-for list="{{details}}" as="dt" hint-placeholder-count="4">
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              <div style="width:28px;height:28px;border-radius:8px;background:{{dt.bg}};display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="{{dt.ic}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{dt.ipath}}"></path></svg>
+              </div>
+              <div>
+                <div style="font-size:12px;font-weight:600;color:#14365A">{{dt.label}}</div>
+                <div style="font-size:12px;color:#505B68;line-height:1.4">{{dt.val}}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+    <!-- BNS equivalent -->
+    <div style="background:rgba(90,75,158,.06);border:1px solid rgba(90,75,158,.1);border-radius:16px;padding:14px 16px;margin-bottom:14px;animation:dFadeIn .4s ease-out .2s both">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5A4B9E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4M3 11V9a4 4 0 014-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 01-4 4H3"></path></svg>
+        <div style="font-size:13px;font-weight:600;color:#5A4B9E">BNS equivalent</div>
+      </div>
+      <div style="font-size:13px;color:#505B68;line-height:1.5">Section 85, Bharatiya Nyaya Sanhita (BNS) 2023 replaces this section with similar provisions and enhanced penalties.</div>
+    </div>
+
+    <!-- Related -->
+    <div style="font-size:11px;font-weight:700;color:#505B68;text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px;animation:dFadeIn .4s ease-out .25s both">Related sections</div>
+    <div style="display:flex;flex-direction:column;gap:6px;animation:dFadeIn .4s ease-out .3s both">
+      <sc-for list="{{related}}" as="r" hint-placeholder-count="3">
+        <div style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #ECE4D2;border-radius:12px;padding:12px 14px">
+          <div style="height:24px;padding:0 8px;border-radius:6px;background:rgba(20,54,90,.06);font-size:11px;font-weight:700;color:#14365A;display:flex;align-items:center;flex-shrink:0">{{r.sec}}</div>
+          <div style="flex:1;font-size:13px;color:#505B68;min-width:0">{{r.title}}</div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#505B68" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"></path></svg>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <a href="Emergency.dc.html" aria-label="SOS" style="position:absolute;right:16px;bottom:28px;height:48px;padding:0 16px;border-radius:24px;background:#B42318;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;box-shadow:0 6px 18px rgba(180,35,24,.35)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a9 9 0 00-9 9c0 5 4 8 9 11 5-3 9-6 9-11a9 9 0 00-9-9z"></path></svg>SOS</a>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals(){
+return {
+details:[
+ {label:"Punishment",val:"Up to 3 years imprisonment and fine",bg:"rgba(180,35,24,.06)",ic:"#B42318",ipath:"M12 3l8 4v5c0 4.5-3.2 7.3-8 9-4.8-1.7-8-4.5-8-9V7z"},
+ {label:"Nature",val:"Cognizable, non-bailable, non-compoundable",bg:"rgba(176,122,20,.06)",ic:"#B07A14",ipath:"M12 2a10 10 0 100 20 10 10 0 000-20zM12 16v-4M12 8h.01"},
+ {label:"Court",val:"Magistrate of the First Class",bg:"rgba(20,54,90,.06)",ic:"#14365A",ipath:"M3 21h18M5 21V7l7-4 7 4v14"},
+ {label:"Limitation",val:"3 years from the date of offence",bg:"rgba(90,75,158,.06)",ic:"#5A4B9E",ipath:"M12 2a10 10 0 100 20 10 10 0 000-20zM12 6v6l4 2"}
+],
+related:[
+ {sec:"S.304B",title:"Dowry death"},
+ {sec:"S.125 CrPC",title:"Maintenance of wives"},
+ {sec:"DV Act",title:"Protection of Women from DV"}
+]
+};
+}
+}
+</script>
+</body>
+</html>

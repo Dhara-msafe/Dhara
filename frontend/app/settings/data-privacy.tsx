@@ -301,14 +301,11 @@ export default function DataPrivacyScreen() {
             ══════════════════════════════════════════════════════════ */}
         <Text style={[styles.sectionHeader, { marginTop: theme.spacing.xl }]}>Our commitments</Text>
 
-        <View style={styles.badgesRow}>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>🇮🇳 DPDP Act 2023 compliant</Text>
-          </View>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>🇨🇦 PIPEDA compliant</Text>
-          </View>
-        </View>
+        <Text style={styles.reviewNote}>
+          Pending legal and implementation review. This flow is intended to support rights under
+          India&apos;s DPDP Act 2023 and Canada&apos;s PIPEDA. It is not a certification and has
+          not been confirmed as sufficient.
+        </Text>
 
         <Text style={styles.operatorNote}>
           DHARA is operated by MSafe Solutions Inc. (Canada) and Calviltech Digital Solutions Pvt Ltd (India).
@@ -527,5 +524,10 @@ const styles = StyleSheet.create({
     color: theme.colors.onSurfaceTertiary,
     lineHeight: 17,
     marginTop: theme.spacing.md,
+  },
+  reviewNote: {
+    fontSize: 12,
+    color: theme.colors.onSurfaceSecondary,
+    lineHeight: 18,
   },
 });

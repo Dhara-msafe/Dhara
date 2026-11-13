@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Listening</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&amp;family=Hind:wght@400;500;600;700&amp;family=Noto+Sans+Devanagari:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+*{box-sizing:border-box}
+a{text-decoration:none}
+button{cursor:pointer;font-family:inherit}
+button:active,a:active{transform:scale(.98)}
+@keyframes wv{0%,100%{transform:scaleY(.22)}50%{transform:scaleY(1)}}
+@keyframes orbG{0%,100%{box-shadow:0 0 0 0 rgba(211,182,117,.35)}50%{box-shadow:0 0 44px 6px rgba(211,182,117,.45)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</helmet>
+<div style="width:390px;height:844px;box-sizing:border-box;background:radial-gradient(120% 70% at 50% 8%,#17395C,#0E2740 60%,#0A1E33);color:#FBF7EE;font-family:'Hind','Noto Sans',sans-serif;display:flex;flex-direction:column">
+  <div style="display:flex;align-items:center;gap:8px;padding:14px 16px 6px">
+    <a href="Home.dc.html" aria-label="Back" style="width:48px;height:48px;border-radius:24px;border:1.5px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></a>
+    <div style="flex:1;font-size:15px;font-weight:600;color:rgba(255,255,255,.9)">Speaking · Step 1 of 3</div>
+    <a href="Emergency.dc.html" style="height:48px;min-width:56px;justify-content:center;padding:0 15px;border-radius:24px;background:#B42318;color:#fff;font-size:15px;font-weight:700;display:flex;align-items:center">SOS</a>
+  </div>
+  <div aria-hidden="true" style="display:flex;gap:6px;padding:2px 20px 0"><span style="flex:1;height:5px;border-radius:3px;background:#D3B675"></span><span style="flex:1;height:5px;border-radius:3px;background:#2E4A68"></span><span style="flex:1;height:5px;border-radius:3px;background:#2E4A68"></span></div>
+
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:24px 22px 18px">
+    <div style="font-family:'Fraunces',serif;font-size:26px;font-weight:600;color:#fff;font-family:'Noto Sans Devanagari','Fraunces',serif">{{title}}</div>
+    <p style="margin:6px 0 0;font-size:15px;color:rgba(255,255,255,.7)">Speak slowly, in your own words.</p>
+
+    <div style="position:relative;margin:26px 0 4px;width:120px;height:120px;border-radius:60px;background:linear-gradient(155deg,#D3B675,#B8922F);display:flex;align-items:center;justify-content:center;animation:orbG 2.6s ease-in-out infinite">
+      <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#0E2740" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21"></path></svg>
+    </div>
+
+    <div aria-hidden="true" style="height:66px;display:flex;align-items:center;gap:7px;margin-top:14px">
+      <sc-for list="{{bars}}" as="b" hint-placeholder-count="13">
+        <span style="width:7px;height:56px;border-radius:4px;background:#D3B675;transform-origin:center;animation:{{b.a}}"></span>
+      </sc-for>
+    </div>
+    <div style="font-size:18px;font-weight:700;color:#D3B675;font-variant-numeric:tabular-nums;margin-top:8px">{{clock}}</div>
+
+    <div aria-live="polite" style="width:100%;margin-top:16px;min-height:118px;background:rgba(255,255,255,.06);border:1.5px solid rgba(211,182,117,.3);border-radius:18px;padding:16px">
+      <div style="font-size:12px;font-weight:700;letter-spacing:.5px;color:#D3B675;text-transform:uppercase;margin-bottom:8px">DHARA is hearing</div>
+      <div style="font-size:19px;line-height:1.5;color:#fff;font-family:'Noto Sans Devanagari','Hind',sans-serif">{{heard}}</div>
+    </div>
+  </div>
+
+  <div style="padding:6px 20px 22px;display:flex;flex-direction:column;gap:11px">
+    <a href="Heard.dc.html" style="height:64px;border-radius:18px;background:#1F6B4A;color:#fff;display:flex;align-items:center;justify-content:center;gap:11px;font-size:19px;font-weight:600;box-shadow:0 10px 26px rgba(31,107,74,.3)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>I'm done</a>
+    <div style="display:flex;gap:11px">
+      <button onClick="{{togglePause}}" aria-pressed="{{paused}}" style="flex:1;height:54px;border-radius:16px;border:1.5px solid rgba(255,255,255,.35);background:transparent;color:#fff;font-size:16px;font-weight:600">{{pauseLabel}}</button>
+      <button onClick="{{restart}}" style="flex:1;height:54px;border-radius:16px;border:1.5px solid rgba(255,255,255,.35);background:transparent;color:#fff;font-size:16px;font-weight:600">Start again</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+constructor(props){super(props);this.state={n:0,paused:false};}
+componentDidMount(){this.t=setInterval(()=>{if(!this.state.paused)this.setState(s=>({n:s.n+1}));},500);}
+componentWillUnmount(){clearInterval(this.t);}
+renderVals(){
+const s=this.state;
+const words=['मेरे','मकान','मालिक','ने','घर','खाली','करने','के','बाद','मेरा','जमा','पैसा','वापस','नहीं','किया।'];
+const shown=words.slice(0,Math.min(s.n,words.length)).join(' ');
+const secs=Math.floor(s.n/2);
+return {
+title:s.paused?'Paused':'सुन रहा हूँ…',
+heard:shown||'…',
+clock:Math.floor(secs/60)+':'+String(secs%60).padStart(2,'0'),
+paused:s.paused,
+pauseLabel:s.paused?'Resume':'Pause',
+bars:[36,58,80,48,88,64,92,52,84,60,78,44,66].map((h,i)=>({a:s.paused?'none':'wv '+(0.7+(i%4)*0.14)+'s ease-in-out '+(i*0.06)+'s infinite'})),
+togglePause:()=>this.setState({paused:!s.paused}),
+restart:()=>this.setState({n:0,paused:false})
+};
+}
+}
+</script>
+</body>
+</html>
