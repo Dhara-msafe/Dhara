@@ -105,6 +105,43 @@ test('any results at all show the in-app results list', () => {
   assert.deepEqual(decideOutcome(found), { action: 'showResults', results: found });
 });
 
+// ── B-102: location-permission wait must time out, never hang forever ──────
+// Mirrors ensureLocation's withLocationTimeout(): Promise.race against a
+// timer that resolves null, so a permission prompt the user never answers
+// (missed/dismissed on web) still resolves this function instead of leaving
+// loadingId set forever (the reported "spins forever" symptom).
+console.log('\n── location-permission timeout (B-102) ──────────────────────────');
+
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise(resolve => setTimeout(() => resolve(null), ms)),
+  ]);
+}
+
+async function testAsync(label, fn) {
+  try { await fn(); console.log(`  ✅  ${label}`); passed++; }
+  catch (e) { console.log(`  ❌  ${label}\n      ${e.message}`); failed++; }
+}
+
+await testAsync('a never-resolving permission prompt still resolves (to null) once the timeout elapses', async () => {
+  const neverResolves = new Promise(() => {}); // simulates a missed/unanswered browser prompt
+  const result = await withTimeout(neverResolves, 20);
+  assert.equal(result, null);
+});
+await testAsync('a permission prompt answered well within the timeout resolves with the real value', async () => {
+  const answered = new Promise(resolve => setTimeout(() => resolve({ granted: true }), 5));
+  const result = await withTimeout(answered, 2000);
+  assert.deepEqual(result, { granted: true });
+});
+await testAsync('a null location (timed out) feeds the same fail-closed path as "permission denied"', () => {
+  // resolveSearchResults/decideOutcome already treat loc=null as "no Nearby
+  // Search, fall back to Maps" for police/hospital — a timeout must land in
+  // exactly that same branch, not a new/different dead end.
+  const result = resolveSearchResults('police', null, [], [{ name: 'should not appear' }]);
+  assert.deepEqual(decideOutcome(result), { action: 'openMap' });
+});
+
 // ── Source-level guards ──────────────────────────────────────────────────────
 console.log('\n── Source-level guards ──────────────────────────────────────────');
 
@@ -149,6 +186,14 @@ test('nearby/search-text calls send the session auth token', () => {
 });
 test('skips the in-app search (falls to external Maps) when there is no auth token', () => {
   assert.ok(/if \(authToken\) \{/.test(src));
+});
+
+// B-102: the real screen must actually bound the permission/position wait —
+// a passing logic-layer simulation above is not enough on its own.
+test('location-permission and position requests are both wrapped in a timeout', () => {
+  assert.ok(src.includes('LOCATION_TIMEOUT_MS'), 'timeout constant must exist');
+  assert.ok(/withLocationTimeout\(Location\.requestForegroundPermissionsAsync\(\)\)/.test(src));
+  assert.ok(/withLocationTimeout\(Location\.getCurrentPositionAsync/.test(src));
 });
 
 // ── Summary ────────────────────────────────────────────────────────────────────
