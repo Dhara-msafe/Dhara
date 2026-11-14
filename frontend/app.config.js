@@ -56,6 +56,22 @@ module.exports = ({ config, platform }) => {
   const iosKey     = process.env.EXPO_PUBLIC_GOOGLE_MAPS_IOS_API_KEY;
 
   // ── B-02 build check: version name must match the build's outbound profile ─
+  //
+  // NF-DEPLOY-01 (14 Nov 2026): the auto-appended "-qa" suffix below used to
+  // land in `expo.version` itself, which Expo's deploy pipeline validates as
+  // strict MAJOR.MINOR.PATCH semver — "1.0.0-qa" is rejected outright
+  // (V3MobileConfigInvalid), so EVERY deploy while EXPO_PUBLIC_OUTBOUND_PROFILE
+  // resolves to "internal_qa" (the preview default) failed deterministically
+  // at the pull_source step, before any build even started.
+  //
+  // Fix: `expo.version` always stays plain semver now. The QA marker moves to
+  // `extra.qaVersionLabel` (a free-form string Expo does not validate) so it
+  // is still available to code that wants it, without blocking deploys. The
+  // in-app "QA MODE" banner (src/components/dhara/QaModeBanner.tsx) already
+  // marks QA builds just as visibly at runtime, independent of the version
+  // string, and the closed_testing/production refusal below (which protects
+  // against a real release accidentally carrying a hand-set "-qa" version)
+  // is unchanged.
   const profile = resolveOutboundProfile();
   const baseVersion = config.version || "";
   const baseIsQaVersion = /-qa$/i.test(baseVersion.trim());
@@ -65,7 +81,8 @@ module.exports = ({ config, platform }) => {
       `A closed_testing/production build must not look like an internal QA build.`
     );
   }
-  const effectiveVersion =
+  const effectiveVersion = baseVersion;
+  const qaVersionLabel =
     profile === "internal_qa" && !baseIsQaVersion
       ? `${baseVersion}-qa`
       : baseVersion;
@@ -124,6 +141,9 @@ module.exports = ({ config, platform }) => {
       ...config.extra,
       backendUrl: process.env.EXPO_PUBLIC_BACKEND_URL,
       packagerHostname: process.env.EXPO_PACKAGER_HOSTNAME,
+      // NF-DEPLOY-01: QA marker lives here instead of in `expo.version` —
+      // see the comment above `effectiveVersion` for why.
+      qaVersionLabel,
     },
   };
 };

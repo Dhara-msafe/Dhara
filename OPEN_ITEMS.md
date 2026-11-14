@@ -68,3 +68,23 @@ restriction — so their original intent still holds:
 - `backend/tests/test_outbound_guard.py` — `_set(monkeypatch, value)` helper.
 - `backend/tests/test_outbound_policy.py` — `_env(monkeypatch, mode=None, profile=None, email_key=None)` helper.
 
+
+## NF-DEPLOY-01 (14 Nov 2026) — "-qa" version suffix broke every deploy (fixed)
+
+Redeploy failed at `pull_source`: Expo's config validator rejected
+`app.json`'s `expo.version` of `"1.0.0-qa"` (`V3MobileConfigInvalid` — Expo
+requires plain `MAJOR.MINOR.PATCH` semver, no pre-release suffix). This
+suffix was being appended automatically by `frontend/app.config.js` whenever
+`EXPO_PUBLIC_OUTBOUND_PROFILE` resolves to `internal_qa` (the preview
+default) — see the B-02 comment block there — so **every** deploy attempted
+from this preview config would fail identically, deterministically, before
+any build step ran.
+
+**Fix applied:** `expo.version` now always stays plain semver; the QA marker
+moved to `extra.qaVersionLabel` (a free-form field Expo does not validate).
+The in-app "QA MODE" banner (`src/components/dhara/QaModeBanner.tsx`) still
+marks QA builds just as visibly at runtime, independent of the version
+string, and the closed_testing/production refusal (a real release must not
+carry a hand-set `-qa` version) is unchanged — verified all three cases
+(`internal_qa` clean version + `qaVersionLabel` suffixed, `production` clean
+version, `production` with a manually-set `-qa` version still throws).

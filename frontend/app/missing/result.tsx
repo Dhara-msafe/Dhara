@@ -18,6 +18,8 @@ import { theme } from '@/src/theme';
 import { answersKey, clearSupport, loadSupport, mapUrl, MissingPhoto, MissingSupport, photoForPdf, photoRequest } from '@/src/missing/support';
 import rightsData    from '@/src/content/missing_rights.json';
 import { indiaEntity } from '@/src/operatorIdentity';
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 
 import { openExternal } from '@/src/outbound';
 type Lang = 'en' | 'hi' | 'mr';
@@ -127,7 +129,13 @@ function RightsCard({ lang, onShare }: { lang: Lang; onShare: () => void }) {
       {/* Emergency chips */}
       <View style={rc.chips}>
         {card.emergency_numbers.map(en => (
-          <Pressable key={en.number} style={rc.chip} onPress={() => makeCall(en.number)}>
+          <Pressable
+            key={en.number}
+            style={(s) => [rc.chip, focusRingStyle(s)]}
+            onPress={() => makeCall(en.number)}
+            accessibilityRole="button"
+            accessibilityLabel={`Call ${en.number}, ${t(en.label, lang)}`}
+          >
             <Text style={rc.chipNum}>📞 {en.number}</Text>
             <Text style={rc.chipLabel}>{t(en.label, lang)}</Text>
           </Pressable>
@@ -146,7 +154,12 @@ function RightsCard({ lang, onShare }: { lang: Lang; onShare: () => void }) {
       <Text style={rc.footer}>{t(card.footer_note, lang)}</Text>
 
       {/* Share button */}
-      <Pressable style={rc.shareBtn} onPress={onShare}>
+      <Pressable
+        style={(s) => [rc.shareBtn, focusRingStyle(s)]}
+        onPress={onShare}
+        accessibilityRole="button"
+        accessibilityLabel="Share rights card as image"
+      >
         <Text style={rc.shareBtnText}>
           {lang === 'hi' ? '📤 छवि के रूप में शेयर करें' : lang === 'mr' ? '📤 प्रतिमा म्हणून शेअर करा' : '📤 Share as Image'}
         </Text>
@@ -310,7 +323,13 @@ ${card.rights.map(r => `<div class="panel"><div class="phead">${t(r.heading, lan
     <SafeAreaView testID="missing-result-screen" style={s.safe} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={s.scroll}>
         {/* Header */}
-        <Pressable testID="missing-result-back" onPress={() => router.back()} style={s.backBtn}>
+        <Pressable
+          testID="missing-result-back"
+          onPress={() => router.back()}
+          style={(st) => [s.backBtn, focusRingStyle(st)]}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Text style={s.backText}>←</Text>
         </Pressable>
 
@@ -330,12 +349,26 @@ ${card.rights.map(r => `<div class="panel"><div class="phead">${t(r.heading, lan
         <View style={s.attachments}>
           <Text testID="missing-result-attachments" style={s.attachmentText}>{photos.length} photo{photos.length === 1 ? '' : 's'} attached{support?.location ? ' · Last-seen GPS confirmed' : ' · No GPS added'}</Text>
           {support?.location && <Text testID="missing-result-coordinates" style={s.attachmentText}>{support.location.latitude.toFixed(6)}, {support.location.longitude.toFixed(6)}</Text>}
-          <Pressable testID="missing-result-edit-attachments" style={s.attachmentBtn} onPress={() => router.push('/missing/attachments')}><Ionicons name="attach" size={20} color={NAVY} /><Text style={s.attachmentText}>Add / edit photos & location</Text></Pressable>
+          <Pressable
+            testID="missing-result-edit-attachments"
+            style={(st) => [s.attachmentBtn, focusRingStyle(st)]}
+            onPress={() => router.push('/missing/attachments')}
+            accessibilityRole="button"
+            accessibilityLabel="Add or edit photos and location"
+          >
+            <Ionicons name="attach" size={20} color={NAVY} /><Text style={s.attachmentText}>Add / edit photos & location</Text>
+          </Pressable>
         </View>
 
         {/* PDF generation */}
         {!pdfUri && !generating && (
-          <Pressable testID="missing-generate-pdf" style={s.primaryBtn} onPress={generatePdf}>
+          <Pressable
+            testID="missing-generate-pdf"
+            style={(st) => [s.primaryBtn, focusRingStyle(st)]}
+            onPress={generatePdf}
+            accessibilityRole="button"
+            accessibilityLabel="Generate PDF"
+          >
             <Text style={s.primaryBtnText}>
               {lang === 'hi' ? '📄 PDF तैयार करें' : lang === 'mr' ? '📄 PDF तयार करा' : '📄 Generate PDF'}
             </Text>
@@ -358,7 +391,13 @@ ${card.rights.map(r => `<div class="panel"><div class="phead">${t(r.heading, lan
         ) : null}
 
         {pdfUri && (
-          <Pressable testID="missing-share-pdf" style={s.primaryBtn} onPress={sharePdf}>
+          <Pressable
+            testID="missing-share-pdf"
+            style={(st) => [s.primaryBtn, focusRingStyle(st)]}
+            onPress={sharePdf}
+            accessibilityRole="button"
+            accessibilityLabel="Download or share PDF"
+          >
             <Text style={s.primaryBtnText}>
               {lang === 'hi' ? '⬇ PDF डाउनलोड / शेयर करें' : lang === 'mr' ? '⬇ PDF डाउनलोड / शेअर करा' : '⬇ Download / Share PDF'}
             </Text>
@@ -367,7 +406,13 @@ ${card.rights.map(r => `<div class="panel"><div class="phead">${t(r.heading, lan
 
         {/* Print button */}
         {Object.keys(answers).length > 0 && !loading && (
-          <Pressable testID="missing-print" style={[s.primaryBtn, { backgroundColor: '#2D6A4F' }]} onPress={handlePrint}>
+          <Pressable
+            testID="missing-print"
+            style={(st) => [s.primaryBtn, { backgroundColor: '#2D6A4F' }, focusRingStyle(st)]}
+            onPress={handlePrint}
+            accessibilityRole="button"
+            accessibilityLabel="Print complaint"
+          >
             <Text style={s.primaryBtnText}>
               {lang === 'hi' ? '🖨 प्रिंट करें' : lang === 'mr' ? '🖨 प्रिंट करा' : '🖨 Print Complaint'}
             </Text>
@@ -395,7 +440,9 @@ ${card.rights.map(r => `<div class="panel"><div class="phead">${t(r.heading, lan
         {/* Start over */}
         <Pressable
           testID="missing-start-new"
-          style={s.secondaryBtn}
+          style={(st) => [s.secondaryBtn, focusRingStyle(st)]}
+          accessibilityRole="button"
+          accessibilityLabel="Start new complaint"
           onPress={async () => {
             try {
               if (support && token) for (const photo of photos) await photoRequest(support.draftId, token, photo.file_id, { method: 'DELETE' });
@@ -417,11 +464,12 @@ ${card.rights.map(r => `<div class="panel"><div class="phead">${t(r.heading, lan
 const s = StyleSheet.create({
   attachments: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.divider, padding: 14, borderRadius: 12, marginBottom: 20, gap: 8 },
   attachmentText: { fontSize: 14, color: NAVY, lineHeight: 21 },
-  attachmentBtn: { minHeight: 44, flexDirection: 'row', gap: 8, alignItems: 'center' },
+  // NF-UI-REV-02 (Group C): 44px was below the 48px minimum touch target.
+  attachmentBtn: { minHeight: UI_REVISION_V1 ? 48 : 44, flexDirection: 'row', gap: 8, alignItems: 'center' },
   safe:           { flex: 1, backgroundColor: BG },
   scroll:         { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 60 },
   centred:        { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  backBtn:        { marginBottom: 12, minHeight: 44, minWidth: 44, justifyContent: 'center' },
+  backBtn:        { marginBottom: 12, minHeight: UI_REVISION_V1 ? 48 : 44, minWidth: UI_REVISION_V1 ? 48 : 44, justifyContent: 'center' },
   backText:       { color: NAVY, fontSize: 14, fontWeight: '600' },
   banner:         {
     backgroundColor: NAVY, borderRadius: 16, padding: 24, alignItems: 'center', marginBottom: 20,
@@ -434,8 +482,10 @@ const s = StyleSheet.create({
     alignItems: 'center', marginBottom: 12,
   },
   primaryBtnText: { color: '#FFF', fontWeight: '700', fontSize: 16 },
+  // NF-UI-REV-02: paddingVertical 14 (~46px tall) was just under the 48px
+  // minimum touch target.
   secondaryBtn:   {
-    borderWidth: 1.5, borderColor: NAVY, borderRadius: 12, paddingVertical: 14,
+    borderWidth: 1.5, borderColor: NAVY, borderRadius: 12, paddingVertical: UI_REVISION_V1 ? 16 : 14,
     alignItems: 'center', marginTop: 8,
   },
   secondaryBtnText: { color: NAVY, fontWeight: '600', fontSize: 14 },
@@ -464,16 +514,22 @@ const rc = StyleSheet.create({
     alignItems: 'center',
   },
   chipNum:       { fontSize: 20, fontWeight: '800', color: '#FFF' },
-  chipLabel:     { fontSize: 11, color: 'rgba(255,255,255,0.8)', marginTop: 4, textAlign: 'center' },
+  // NF-UI-REV-02: white-80%-over-red measured ~4.6:1, right at the edge —
+  // 88% gives a safer margin above the 4.5:1 minimum.
+  chipLabel:     { fontSize: 11, color: UI_REVISION_V1 ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.8)', marginTop: 4, textAlign: 'center' },
   panel:         {
     backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 14, marginBottom: 10,
   },
   panelHeading:  { fontSize: 13, fontWeight: '700', color: GOLD, marginBottom: 6 },
   panelBody:     { fontSize: 12, color: 'rgba(255,255,255,0.8)', lineHeight: 18 },
-  footer:        { fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 12, lineHeight: 17 },
+  // NF-UI-REV-02: white-50%-over-navy measured ~4.0:1, below the 4.5:1
+  // minimum for this small disclaimer text — 68% clears it with margin.
+  footer:        { fontSize: 11, color: UI_REVISION_V1 ? 'rgba(255,255,255,0.68)' : 'rgba(255,255,255,0.5)', marginTop: 12, lineHeight: 17 },
+  // NF-UI-REV-02: paddingVertical 14 (~46px tall) was just under the 48px
+  // minimum touch target.
   shareBtn:      {
     marginTop: 16, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 12,
-    paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+    paddingVertical: UI_REVISION_V1 ? 16 : 14, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
   },
   shareBtnText:  { color: '#FFF', fontWeight: '600', fontSize: 14 },
 });
