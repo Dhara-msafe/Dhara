@@ -5,10 +5,11 @@
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, Pressable, StyleSheet, Modal } from 'react-native';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, Redirect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/src/theme';
 import { useAuth, API_BASE } from '@/src/auth';
+import { ADVOCATE_MODE_ENABLED } from '@/src/advocateMode/flags';
 import { crossAlert } from '@/src/utils/crossAlert';
 import { apiGet, apiPatch } from '@/src/notetaker/api';
 import { ScreenHeader, StatusPill, ProgressSteps, getStages, getStageIndex } from '@/src/notetaker/ui';
@@ -24,6 +25,10 @@ import ApprovedStep from '@/src/notetaker/steps/ApprovedStep';
 const c = theme.colors;
 
 export default function ConsultationScreen() {
+  // B-87: Advocate Consultation Notetaker is not scoped/hidden for Wave 1 --
+  // same gate as B-97's advocate/lawyer screens.
+  if (!ADVOCATE_MODE_ENABLED) return <Redirect href="/(tabs)/home" />;
+
   const { id } = useLocalSearchParams<{ id: string }>();
   const consultationId = String(id);
   const { token, user } = useAuth();
