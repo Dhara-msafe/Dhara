@@ -507,8 +507,13 @@ export default function FirDraftScreen() {
           setInputType('voice_or_text');
         }
       } else {
-        // Session may already be at section_suggest or later — just restore UI
-        addMessage('bot', 'Welcome back! Your session has been restored.');
+        // Session may already be at section_suggest or later — just restore UI.
+        // B-109: this branch has no fresh turn from the backend (no current
+        // probe to re-ask), so it guesses the input type from the stage
+        // alone. free_narrative is the only stage reachable here that the
+        // backend itself ever answers with input_type 'voice_or_text'
+        // (STAGE_CORRECTION, STAGE_SECTION_SUGGEST, etc. are deliberately
+        // text/quick-reply only) -- keep this guess in sync with that.
         setInputType(sess.stage === 'free_narrative' ? 'voice_or_text' : 'text');
       }
     } catch {
