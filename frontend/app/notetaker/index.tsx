@@ -7,11 +7,12 @@ import {
   View, Text, Pressable, FlatList, ActivityIndicator,
   StyleSheet, TextInput, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { useFocusEffect, router } from 'expo-router';
+import { useFocusEffect, router, Redirect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/src/theme';
 import { crossAlert } from '@/src/utils/crossAlert';
 import { API_BASE, useAuth } from '@/src/auth';
+import { ADVOCATE_MODE_ENABLED } from '@/src/advocateMode/flags';
 
 const c = theme.colors;
 
@@ -24,6 +25,11 @@ interface Matter {
 }
 
 export default function MatterListScreen() {
+  // B-87: Advocate Consultation Notetaker is not scoped/hidden for Wave 1 --
+  // same gate as B-97's advocate/lawyer screens, so a direct URL hit or a
+  // refresh is covered too, not just the (advocate-tab-gated) in-app entry.
+  if (!ADVOCATE_MODE_ENABLED) return <Redirect href="/(tabs)/home" />;
+
   const { token } = useAuth();
   const insets = useSafeAreaInsets();
   const [matters, setMatters] = useState<Matter[]>([]);
