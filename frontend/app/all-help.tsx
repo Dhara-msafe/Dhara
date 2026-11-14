@@ -7,6 +7,8 @@ import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
 import { SosPill } from '@/src/components/dhara/SosPill';
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 
 const c = theme.colors;
 
@@ -77,17 +79,34 @@ export default function AllHelp() {
             style={styles.search}
             returnKeyType="search"
           />
-          <Pressable testID="all-help-mic" style={styles.searchMic} onPress={() => router.push({ pathname: '/(tabs)', params: { autostartMic: Date.now().toString() } })}>
+          <Pressable
+            testID="all-help-mic"
+            style={(s) => [styles.searchMic, focusRingStyle(s)]}
+            onPress={() => router.push({ pathname: '/(tabs)', params: { autostartMic: Date.now().toString() } })}
+            accessibilityRole="button"
+            accessibilityLabel="Search by voice"
+          >
             <Ionicons name="mic" size={18} color={c.navy} />
           </Pressable>
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
-          {[['all', 'all.f.all'], ['safety', 'all.f.safety'], ['police', 'all.f.police'], ['everyday', 'all.f.everyday']].map(([id, key]) => (
-            <Pressable key={id} style={[styles.filterChip, filter === id && styles.filterChipActive]} onPress={() => setFilter(id)}>
-              <Text style={[styles.filterTxt, filter === id && styles.filterTxtActive]}>{tr(key, lang)}</Text>
-            </Pressable>
-          ))}
+          {[['all', 'all.f.all'], ['safety', 'all.f.safety'], ['police', 'all.f.police'], ['everyday', 'all.f.everyday']].map(([id, key]) => {
+            const active = filter === id;
+            return (
+              <Pressable
+                key={id}
+                style={(s) => [styles.filterChip, active && styles.filterChipActive, focusRingStyle(s)]}
+                onPress={() => setFilter(id)}
+                accessibilityRole="button"
+                accessibilityLabel={tr(key, lang)}
+                accessibilityState={{ selected: active }}
+              >
+                {UI_REVISION_V1 && active && <Ionicons name="checkmark" size={14} color="#fff" style={{ marginRight: 4 }} />}
+                <Text style={[styles.filterTxt, active && styles.filterTxtActive]}>{tr(key, lang)}</Text>
+              </Pressable>
+            );
+          })}
         </ScrollView>
 
         {noResults && (
@@ -119,7 +138,7 @@ export default function AllHelp() {
             <Text style={styles.secLabel}>{g.label}</Text>
             <View style={styles.grid}>
               {g.cards.map(card => (
-                <Pressable key={card.title} style={styles.card} onPress={() => router.push(card.route as any)}>
+                <Pressable key={card.title} style={(s) => [styles.card, focusRingStyle(s)]} onPress={() => router.push(card.route as any)} accessibilityRole="button" accessibilityLabel={`${card.title}. ${card.sub}`}>
                   {card.isNew && <View style={styles.newBadge}><Text style={styles.newTxt}>{tr('common.new', lang)}</Text></View>}
                   <Ionicons name={card.icon} size={24} color={c.navy} />
                   <Text style={styles.cardTitle} numberOfLines={2}>{card.title}</Text>
@@ -156,9 +175,12 @@ const styles = StyleSheet.create({
   titleHi: { color: c.darkGold, fontSize: 20 },
   searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 14, paddingHorizontal: 14, height: 52, marginTop: 16 },
   search: { flex: 1, fontFamily: theme.fonts.body, fontSize: 15, color: c.ink },
-  searchMic: { width: 36, height: 36, borderRadius: 10, backgroundColor: c.goldMuted, alignItems: 'center', justifyContent: 'center' },
+  // UI-revision pilot: 36x36 was below the 48px minimum touch target.
+  searchMic: { width: UI_REVISION_V1 ? 48 : 36, height: UI_REVISION_V1 ? 48 : 36, borderRadius: UI_REVISION_V1 ? 14 : 10, backgroundColor: c.goldMuted, alignItems: 'center', justifyContent: 'center' },
   filters: { gap: 10, paddingVertical: 16 },
-  filterChip: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9 },
+  // UI-revision pilot: paddingVertical 9 (~38px) was below 48px; flexDirection/alignItems
+  // added so the active-state checkmark icon sits beside the label, not above it.
+  filterChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 999, paddingHorizontal: 18, paddingVertical: UI_REVISION_V1 ? 14 : 9 },
   filterChipActive: { backgroundColor: c.navy, borderColor: c.navy },
   filterTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.ink },
   filterTxtActive: { color: '#fff' },

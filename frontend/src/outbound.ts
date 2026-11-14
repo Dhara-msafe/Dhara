@@ -17,6 +17,14 @@
  * A static test (src/__tests__/outboundGuard.test.mjs) fails the build if any
  * file other than this one calls Linking.openURL, SMS.sendSMSAsync or
  * Share.share directly.
+ *
+ * NF-SAFETY-01 (14 Nov 2026): unlike the backend (services/outbound_guard.py
+ * validate_outbound_config()), these two EXPO_PUBLIC_* values are baked in at
+ * Expo build time — there is no server process here to refuse to start. A
+ * production/release build MUST set EXPO_PUBLIC_OUTBOUND_MODE and
+ * EXPO_PUBLIC_OUTBOUND_PROFILE deliberately before that build is cut; see
+ * OPEN_ITEMS.md ("Frontend outbound profile has no build-time guard") for
+ * why no automated check exists for this yet and what's proposed.
  */
 import { Alert, Linking, Platform, Share, type ShareContent } from 'react-native';
 import * as SMS from 'expo-sms';

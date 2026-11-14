@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { UI_REVISION_V1 } from '@/src/designRevision';
 
 export default function Index() {
   const { token, loading } = useAuth();
@@ -36,5 +37,12 @@ export default function Index() {
 
 const styles = StyleSheet.create({
   c: { flex: 1, backgroundColor: theme.colors.brand, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 },
-  logo: { width: 260, height: 260, resizeMode: 'contain' },
+  // UI-revision pilot (reversible via UI_REVISION_V1): a fixed 260x260 logo
+  // plus 40px horizontal padding needs 340px of width, which overflows a
+  // 320-360px-wide phone screen. A percentage width with a max-width cap
+  // keeps the same look on wide screens and shrinks correctly on narrow
+  // ones; resizeMode="contain" (unchanged) keeps the aspect ratio.
+  logo: UI_REVISION_V1
+    ? { width: '65%', maxWidth: 260, aspectRatio: 1 }
+    : { width: 260, height: 260, resizeMode: 'contain' },
 });

@@ -25,6 +25,12 @@ Golden rule: the profile can only ever RESTRICT a send, never enable one that
 OUTBOUND_MODE has not already allowed. A channel sends for real only when
 should_send(channel) is True, i.e. OUTBOUND_MODE=="live" AND the active
 profile marks that channel "live".
+
+DEPLOYMENT_ENV  (NEW, 14 Nov 2026 — fail-closed startup guard)
+  Required, no default: "preview" or "production". A "preview" process whose
+  effective OUTBOUND_PROFILE is anything other than "internal_qa" refuses to
+  start — this is what stops a preview ever being left on a live/production
+  outbound configuration again.
 """
 import os
 import uuid
@@ -35,6 +41,7 @@ logger = logging.getLogger("dhara.outbound_guard")
 
 VALID_MODES = ("live", "simulate")
 VALID_PROFILES = ("internal_qa", "closed_testing", "production")
+VALID_DEPLOYMENT_ENVS = ("preview", "production")
 
 # ── Channels ─────────────────────────────────────────────────────────────────
 DIALLER = "dialler"
@@ -138,6 +145,26 @@ def validate_outbound_config() -> str:
             "OUTBOUND_PROFILE, when set, must be one of "
             f"{VALID_PROFILES} (got {prof_raw!r}). Refusing to start."
         )
+
+    # NF-SAFETY-01 (14 Nov 2026): which environment is this process running in?
+    # No default on purpose — a missing value is exactly the kind of mistake
+    # this check exists to catch (a preview accidentally left on a production
+    # outbound profile, as happened before this date).
+    deployment_env = os.environ.get("DEPLOYMENT_ENV")
+    if deployment_env not in VALID_DEPLOYMENT_ENVS:
+        raise RuntimeError(
+            "DEPLOYMENT_ENV must be set explicitly to 'preview' or 'production' "
+            f"(got {deployment_env!r}). Refusing to start."
+        )
+    if deployment_env == "preview" and outbound_profile() != "internal_qa":
+        raise RuntimeError(
+            "DEPLOYMENT_ENV=preview requires an effective OUTBOUND_PROFILE of "
+            f"'internal_qa' (resolved to {outbound_profile()!r} from "
+            f"OUTBOUND_MODE={raw!r} / OUTBOUND_PROFILE={prof_raw!r}). A preview "
+            "environment must never be configured to dispatch real outbound "
+            "messages. Refusing to start."
+        )
+
     # Explicit production requires a coherent, complete configuration.
     if prof_raw == "production":
         if raw != "live":

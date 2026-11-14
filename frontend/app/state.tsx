@@ -5,6 +5,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 
 type StateItem = { code: string; name: string; native: string; type: 'state' | 'ut' };
 
@@ -119,8 +121,11 @@ export default function StateSelect() {
           return (
             <Pressable
               testID={`state-${item.code}`}
-              style={[styles.row, active && styles.rowActive]}
+              style={(s) => [styles.row, active && styles.rowActive, focusRingStyle(s)]}
               onPress={() => setSelected(item.code)}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.name}${item.type === 'ut' ? ', Union Territory' : ''}`}
+              accessibilityState={{ selected: active }}
             >
               <View style={{ flex: 1 }}>
                 <Text style={[styles.name, active && styles.nameActive]}>{item.name}</Text>
@@ -135,9 +140,12 @@ export default function StateSelect() {
       <View style={styles.footer}>
         <Pressable
           testID="state-save"
-          style={[styles.btn, (!selected || saving) && styles.btnDisabled]}
+          style={(s) => [styles.btn, (!selected || saving) && styles.btnDisabled, focusRingStyle(s)]}
           onPress={onSave}
           disabled={!selected || saving}
+          accessibilityRole="button"
+          accessibilityLabel="Save my state"
+          accessibilityState={{ disabled: !selected || saving, busy: saving }}
         >
           {saving ? (
             <ActivityIndicator color={theme.colors.onBrandSecondary} />
@@ -145,7 +153,13 @@ export default function StateSelect() {
             <Text style={styles.btnText}>Save my state</Text>
           )}
         </Pressable>
-        <Pressable testID="state-skip" style={styles.skip} onPress={done}>
+        <Pressable
+          testID="state-skip"
+          style={(s) => [styles.skip, focusRingStyle(s)]}
+          onPress={done}
+          accessibilityRole="button"
+          accessibilityLabel={onboarding ? 'Skip for now' : 'Cancel'}
+        >
           <Text style={styles.skipText}>{onboarding ? 'Skip for now' : 'Cancel'}</Text>
         </Pressable>
       </View>
@@ -178,6 +192,8 @@ const styles = StyleSheet.create({
   btn: { backgroundColor: theme.colors.brandSecondary, padding: theme.spacing.lg, borderRadius: theme.radius.md, alignItems: 'center', minHeight: 52, justifyContent: 'center' },
   btnDisabled: { opacity: 0.5 },
   btnText: { color: theme.colors.onBrandSecondary, fontWeight: '700', fontSize: 16 },
-  skip: { alignItems: 'center', paddingVertical: theme.spacing.md, minHeight: 44, justifyContent: 'center' },
+  // UI-revision pilot (reversible via UI_REVISION_V1): 44px met iOS's own
+  // minimum but not the stricter 48px target used across this batch.
+  skip: { alignItems: 'center', paddingVertical: theme.spacing.md, minHeight: UI_REVISION_V1 ? 48 : 44, justifyContent: 'center' },
   skipText: { color: theme.colors.goldSoft, fontSize: 14, fontWeight: '600' },
 });

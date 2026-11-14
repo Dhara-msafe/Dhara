@@ -4,6 +4,8 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useEffect, useCallback } from 'react';
 import { theme } from '@/src/theme';
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
 import { useComplaints, isDraftReady, complaintTitle, complaintProgress } from '@/src/home/complaints';
@@ -110,14 +112,14 @@ export default function Home() {
             </View>
             <View style={styles.headerActions}>
               {TRUSTED_CIRCLE_RECIPIENT && (
-                <Pressable style={styles.bellBtn} onPress={() => router.push('/alerts' as any)} testID="home-alerts-bell" accessibilityRole="button" accessibilityLabel={alertCount > 0 ? `View alerts, ${alertCount} unread` : 'View alerts'}>
+                <Pressable style={(state) => [styles.bellBtn, focusRingStyle(state)]} onPress={() => router.push('/alerts' as any)} testID="home-alerts-bell" accessibilityRole="button" accessibilityLabel={alertCount > 0 ? `View alerts, ${alertCount} unread` : 'View alerts'}>
                   <Ionicons name="notifications-outline" size={20} color="#fff" />
                   {alertCount > 0 && (
                     <View style={styles.bellBadge}><Text style={styles.bellBadgeTxt}>{alertCount > 9 ? '9+' : alertCount}</Text></View>
                   )}
                 </Pressable>
               )}
-              <Pressable style={styles.langPill} onPress={() => router.push('/language')} accessibilityRole="button" accessibilityLabel={`Change language, currently ${language.native}`}>
+              <Pressable style={(state) => [styles.langPill, focusRingStyle(state)]} onPress={() => router.push('/language')} accessibilityRole="button" accessibilityLabel={`Change language, currently ${language.native}`}>
                 <Ionicons name="globe-outline" size={14} color="#fff" />
                 <Text style={styles.langTxt} numberOfLines={1}>{language.native}</Text>
               </Pressable>
@@ -142,7 +144,7 @@ export default function Home() {
         <View style={styles.askCard}>
           <Text style={styles.askTitle}>{tr('home.askTitle', lang)}</Text>
           <Text style={styles.askSub}>{tr('home.askSub', lang)}</Text>
-          <Pressable style={styles.micBtn} onPress={() => router.push({ pathname: '/(tabs)', params: { autostartMic: Date.now().toString() } })} testID="home-mic" accessibilityRole="button" accessibilityLabel="Ask DHARA a question by voice">
+          <Pressable style={(state) => [styles.micBtn, focusRingStyle(state)]} onPress={() => router.push({ pathname: '/(tabs)', params: { autostartMic: Date.now().toString() } })} testID="home-mic" accessibilityRole="button" accessibilityLabel="Ask DHARA a question by voice">
             <Ionicons name="mic" size={40} color={c.navy} />
           </Pressable>
           <Text style={styles.holdTxt}>{tr('home.holdToSpeak', lang)}</Text>
@@ -163,7 +165,7 @@ export default function Home() {
           ).map((q, idx) => (
             <Pressable
               key={idx}
-              style={styles.tryChip}
+              style={(state) => [styles.tryChip, focusRingStyle(state)]}
               accessibilityRole="button"
               accessibilityLabel={`Ask: ${q.replace(/^"|"$/g, '')}`}
               onPress={() => {
@@ -307,7 +309,7 @@ export default function Home() {
               <Text style={styles.h2}>{tr('home.journeys', lang)}</Text>
               <Text style={styles.h2sub}>{tr('home.journeysSub', lang)}</Text>
             </View>
-            <Pressable onPress={() => router.push('/all-help')} accessibilityRole="button" accessibilityLabel="See all help journeys">
+            <Pressable onPress={() => router.push('/all-help')} accessibilityRole="button" accessibilityLabel="See all help journeys" hitSlop={UI_REVISION_V1 ? { top: 14, bottom: 14, left: 10, right: 10 } : undefined}>
               <Text style={styles.link}>{tr('home.allHelp', lang)}</Text>
             </Pressable>
           </View>
@@ -317,7 +319,7 @@ export default function Home() {
               return (
                 <Pressable
                   key={j.key}
-                  style={[styles.tile, j.navy && styles.tileNavy, isForYou && styles.tileForYou]}
+                  style={(state) => [styles.tile, j.navy && styles.tileNavy, isForYou && styles.tileForYou, focusRingStyle(state)]}
                   onPress={() => router.push(j.route as any)}
                   testID={`journey-${j.key}`}
                   accessibilityRole="button"
@@ -354,7 +356,7 @@ export default function Home() {
         <View style={styles.section}>
           <View style={styles.rowBetween}>
             <Text style={styles.h2}>{tr('home.myFiles', lang)}</Text>
-            <Pressable onPress={() => router.push('/(tabs)/myfiles')} accessibilityRole="button" accessibilityLabel="See all your files"><Text style={styles.link}>{tr('home.seeAll', lang)}</Text></Pressable>
+            <Pressable onPress={() => router.push('/(tabs)/myfiles')} accessibilityRole="button" accessibilityLabel="See all your files" hitSlop={UI_REVISION_V1 ? { top: 14, bottom: 14, left: 10, right: 10 } : undefined}><Text style={styles.link}>{tr('home.seeAll', lang)}</Text></Pressable>
           </View>
           {primaryCase && primaryProgress ? (
             <Pressable style={styles.fileCard} onPress={() => router.push('/(tabs)/myfiles')} testID="home-myfiles-preview" accessibilityRole="button" accessibilityLabel={`Open your file, ${complaintTitle(primaryCase)}`}>
@@ -398,10 +400,13 @@ const styles = StyleSheet.create({
   brand: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 24, letterSpacing: 1 },
   tagline: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 11 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginRight: 72 },
-  bellBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
+  // UI-revision pilot (reversible via UI_REVISION_V1): 40x40 was below the
+  // 48px minimum touch target.
+  bellBtn: { width: UI_REVISION_V1 ? 48 : 40, height: UI_REVISION_V1 ? 48 : 40, borderRadius: UI_REVISION_V1 ? 24 : 20, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
   bellBadge: { position: 'absolute', top: -2, right: -2, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: c.error, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
   bellBadgeTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 9 },
-  langPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 12, height: 40, borderRadius: 999, maxWidth: 92 },
+  // UI-revision pilot: 40px height was below the 48px minimum touch target.
+  langPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 12, height: UI_REVISION_V1 ? 48 : 40, borderRadius: 999, maxWidth: 92 },
   langTxt: { color: '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 13 },
   greeting: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 26, marginTop: 18 },
   metaRow: { flexDirection: 'row', gap: 10, marginTop: 12, flexWrap: 'wrap' },
@@ -417,7 +422,8 @@ const styles = StyleSheet.create({
   askAction: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: c.lines, borderRadius: 14, paddingVertical: 14 },
   askActionTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 15, color: c.navy },
   tryLabel: { alignSelf: 'flex-start', fontFamily: theme.fonts.bodyBold, fontSize: 11, color: c.onSurfaceTertiary, letterSpacing: 1, marginTop: 20, marginBottom: 8 },
-  tryChip: { alignSelf: 'flex-start', backgroundColor: c.surfaceSecondary, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, marginBottom: 8 },
+  // UI-revision pilot: paddingVertical 10 (~40px effective height) was below the 48px minimum.
+  tryChip: { alignSelf: 'flex-start', backgroundColor: c.surfaceSecondary, borderRadius: 999, paddingHorizontal: 16, paddingVertical: UI_REVISION_V1 ? 14 : 10, marginBottom: 8 },
   tryChipTxt: { fontFamily: theme.fonts.body, fontSize: 14, color: c.ink },
 
   section: { paddingHorizontal: 20, marginTop: 24 },
@@ -435,9 +441,10 @@ const styles = StyleSheet.create({
   forYouTagTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 11, color: c.gold, letterSpacing: 1 },
   forYouTitle: { fontFamily: theme.fonts.displayBold, fontSize: 19, color: '#fff' },
   forYouBody: { fontFamily: theme.fonts.body, fontSize: 13, color: c.onNavyMuted, marginTop: 6, marginBottom: 12 },
-  goldBtn: { backgroundColor: c.gold, borderRadius: 12, paddingVertical: 11, alignItems: 'center', alignSelf: 'flex-start', paddingHorizontal: 24 },
+  // UI-revision pilot: paddingVertical 11 (~43px effective height) was below the 48px minimum.
+  goldBtn: { backgroundColor: c.gold, borderRadius: 12, paddingVertical: UI_REVISION_V1 ? 14 : 11, alignItems: 'center', alignSelf: 'flex-start', paddingHorizontal: 24 },
   goldBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.navy },
-  navyBtn: { backgroundColor: c.navy, borderRadius: 12, paddingVertical: 11, alignItems: 'center', alignSelf: 'flex-start', paddingHorizontal: 24 },
+  navyBtn: { backgroundColor: c.navy, borderRadius: 12, paddingVertical: UI_REVISION_V1 ? 14 : 11, alignItems: 'center', alignSelf: 'flex-start', paddingHorizontal: 24 },
   navyBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: '#fff' },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },

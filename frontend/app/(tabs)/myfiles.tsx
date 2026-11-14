@@ -4,6 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
 import {
@@ -57,7 +59,7 @@ export default function MyFiles() {
     const progress = complaintProgress(item);
     const date = dateOf(item);
     return (
-      <Pressable key={item.session_id} style={styles.fileCard} onPress={() => openCase(item)} testID={`myfiles-active-${item.session_id}`}>
+      <Pressable key={item.session_id} style={(s) => [styles.fileCard, focusRingStyle(s)]} onPress={() => openCase(item)} testID={`myfiles-active-${item.session_id}`}>
         <View style={styles.fileHead}>
           <View style={{ flex: 1 }}>
             <Text style={styles.fileTitle} numberOfLines={1}>{complaintTitle(item)}</Text>
@@ -67,7 +69,7 @@ export default function MyFiles() {
         </View>
         <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${(progress.step / progress.total) * 100}%` }]} /></View>
         <View style={styles.nextBtns}>
-          <Pressable style={styles.goldBtn} onPress={() => openCase(item)}><Text style={styles.goldBtnTxt}>Continue</Text></Pressable>
+          <Pressable style={(s) => [styles.goldBtn, focusRingStyle(s)]} onPress={() => openCase(item)} accessibilityRole="button"><Text style={styles.goldBtnTxt}>Continue</Text></Pressable>
         </View>
       </Pressable>
     );
@@ -76,7 +78,7 @@ export default function MyFiles() {
   const renderReadyCase = (item: Complaint) => {
     const date = dateOf(item);
     return (
-      <Pressable key={item.session_id} style={styles.resolvedCard} onPress={() => openCase(item)} testID={`myfiles-doc-${item.session_id}`}>
+      <Pressable key={item.session_id} style={(s) => [styles.resolvedCard, focusRingStyle(s)]} onPress={() => openCase(item)} testID={`myfiles-doc-${item.session_id}`} accessibilityRole="button" accessibilityLabel={`${complaintTitle(item)}, draft ready`}>
         <View style={styles.resolvedIcon}><Ionicons name="document-text-outline" size={20} color={c.navy} /></View>
         <View style={{ flex: 1 }}>
           <Text style={styles.resolvedTitle} numberOfLines={1}>{complaintTitle(item)}</Text>
@@ -88,7 +90,7 @@ export default function MyFiles() {
   };
 
   const renderEvidence = (f: EvidenceFile & { session: Complaint }) => (
-    <Pressable key={f.file_id} style={styles.evidenceRow} onPress={() => openCase(f.session)} testID={`myfiles-evidence-${f.file_id}`}>
+    <Pressable key={f.file_id} style={(s) => [styles.evidenceRow, focusRingStyle(s)]} onPress={() => openCase(f.session)} testID={`myfiles-evidence-${f.file_id}`} accessibilityRole="button" accessibilityLabel={f.caption || f.filename}>
       <View style={styles.attachChip}>
         <Ionicons name={EVIDENCE_ICON[f.file_type || ''] || 'document-attach-outline'} size={16} color={c.navy} />
       </View>
@@ -106,9 +108,11 @@ export default function MyFiles() {
     return (
       <Pressable
         key={item.id}
-        style={styles.resolvedCard}
+        style={(s) => [styles.resolvedCard, focusRingStyle(s)]}
         onPress={() => router.push({ pathname: '/scan/[id]', params: { id: item.id } } as any)}
         testID={`myfiles-scan-${item.id}`}
+        accessibilityRole="button"
+        accessibilityLabel={item.summary || item.extracted_text || 'Scanned document'}
       >
         <View style={styles.resolvedIcon}><Ionicons name="camera-outline" size={20} color={c.navy} /></View>
         <View style={{ flex: 1 }}>
@@ -126,7 +130,7 @@ export default function MyFiles() {
       <Text style={styles.emptyTitle}>{title}</Text>
       <Text style={styles.emptySub}>{sub}</Text>
       {cta && onPress && (
-        <Pressable style={styles.goldBtn} onPress={onPress}><Text style={styles.goldBtnTxt}>{cta}</Text></Pressable>
+        <Pressable style={(s) => [styles.goldBtn, focusRingStyle(s)]} onPress={onPress} accessibilityRole="button"><Text style={styles.goldBtnTxt}>{cta}</Text></Pressable>
       )}
     </View>
   );
@@ -154,7 +158,15 @@ export default function MyFiles() {
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
           {tabs.map(([id, label, n]) => (
-            <Pressable key={id} style={[styles.tab, tab === id && styles.tabActive]} onPress={() => setTab(id)} testID={`myfiles-tab-${id}`}>
+            <Pressable
+              key={id}
+              style={(s) => [styles.tab, tab === id && styles.tabActive, focusRingStyle(s)]}
+              onPress={() => setTab(id)}
+              testID={`myfiles-tab-${id}`}
+              accessibilityRole="button"
+              accessibilityLabel={`${label}, ${n}`}
+              accessibilityState={{ selected: tab === id }}
+            >
               <Text style={[styles.tabTxt, tab === id && styles.tabTxtActive]}>{label} {n}</Text>
             </Pressable>
           ))}
@@ -165,7 +177,7 @@ export default function MyFiles() {
         ) : error ? (
           <View style={styles.empty}>
             <Text style={styles.emptySub}>We couldn’t load your cases. Please check your connection.</Text>
-            <Pressable style={styles.goldBtn} onPress={retry}><Text style={styles.goldBtnTxt}>Try again</Text></Pressable>
+            <Pressable style={(s) => [styles.goldBtn, focusRingStyle(s)]} onPress={retry} accessibilityRole="button"><Text style={styles.goldBtnTxt}>Try again</Text></Pressable>
           </View>
         ) : tab === 'active' ? (
           activeCases.length ? activeCases.map(renderActiveCase) : (
@@ -200,10 +212,15 @@ const styles = StyleSheet.create({
   guestNotice: { flexDirection: 'row', gap: 10, backgroundColor: c.goldMuted, borderRadius: 14, padding: 14, marginTop: 14, alignItems: 'flex-start' },
   guestNoticeTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12.5, color: c.ink, lineHeight: 18 },
   tabs: { gap: 10, paddingVertical: 16 },
-  tab: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9 },
+  // UI-revision pilot: paddingVertical 9 (~38px) was below the 48px minimum touch target.
+  tab: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 999, paddingHorizontal: 18, paddingVertical: UI_REVISION_V1 ? 14 : 9 },
   tabActive: { backgroundColor: c.navy, borderColor: c.navy },
   tabTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.ink },
-  tabTxtActive: { color: '#fff' },
+  // UI-revision pilot: selection was shown by background/text colour alone
+  // (accessibilityState above covers screen readers; this covers sighted
+  // users who can't distinguish by colour) — the active tab's label is now
+  // also bolder, not just white-on-navy.
+  tabTxtActive: UI_REVISION_V1 ? { color: '#fff', fontFamily: theme.fonts.bodyBold } : { color: '#fff' },
   fileCard: { backgroundColor: c.surface, borderRadius: 18, borderWidth: 1, borderColor: c.lines, padding: 18, marginBottom: 14 },
   fileHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   fileTitle: { fontFamily: theme.fonts.displayBold, fontSize: 18, color: c.ink },

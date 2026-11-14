@@ -17,6 +17,11 @@ ALL = og.CHANNELS
 
 
 def _env(monkeypatch, mode=None, profile=None, email_key=None):
+    # NF-SAFETY-01: validate_outbound_config() now also requires DEPLOYMENT_ENV.
+    # This file tests OUTBOUND_MODE/PROFILE behaviour, not the preview guard
+    # (covered separately in test_deployment_env_guard.py), so pin this to
+    # "production" — the one value that never adds its own restriction.
+    monkeypatch.setenv("DEPLOYMENT_ENV", "production")
     for k, v in (("OUTBOUND_MODE", mode), ("OUTBOUND_PROFILE", profile), ("EMERGENT_EMAIL_KEY", email_key)):
         if v is None:
             monkeypatch.delenv(k, raising=False)

@@ -59,6 +59,11 @@ def _set(monkeypatch, value):
     # explicit OUTBOUND_PROFILE from the environment so that contract holds;
     # per-profile behaviour is covered separately in test_outbound_policy.py.
     monkeypatch.delenv("OUTBOUND_PROFILE", raising=False)
+    # NF-SAFETY-01: validate_outbound_config() now also requires DEPLOYMENT_ENV.
+    # These tests are about OUTBOUND_MODE/PROFILE acceptance, not the preview
+    # guard (covered separately in test_deployment_env_guard.py), so pin this
+    # to "production" — the one value that never adds its own restriction.
+    monkeypatch.setenv("DEPLOYMENT_ENV", "production")
     if value is None:
         monkeypatch.delenv("OUTBOUND_MODE", raising=False)
     else:
