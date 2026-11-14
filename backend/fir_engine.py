@@ -201,6 +201,12 @@ _STATIC_TRANS: dict[str, dict[str, str]] = {
         "mr": "नाही, मजकूर वर्णन वापरा",
         "ta": "இல்லை, உரை விவரத்தை பயன்படுத்துக",
     },
+    "gps_text_noted": {
+        "en": "Got it, I've noted that as your location detail: “{text}”",
+        "hi": "ठीक है, मैंने इसे आपकी जगह के विवरण के रूप में नोट कर लिया है: “{text}”",
+        "mr": "ठीक आहे, मी हे तुमचे ठिकाणाचे तपशील म्हणून नोंदवले आहे: “{text}”",
+        "ta": "சரி, இதை உங்கள் இட விவரமாக குறித்துக்கொண்டேன்: “{text}”",
+    },
     "place_off_topic": {
         "en": "I've noted your question and will come back to it.\n\nFor the complaint, I need the **location** of the incident.\n{suffix}",
         "hi": "मैंने आपका सवाल नोट कर लिया है और बाद में उस पर वापस आऊंगा।\n\nशिकायत के लिए, मुझे घटना की **जगह** चाहिए।\n{suffix}",
@@ -2022,14 +2028,36 @@ async def _dispatch(
                     "quick_replies": [_tm("gps_yes", language), _tm("gps_no", language)],
                     "confirmed_address": addr, "completed": False,
                 }
-            else:
+            elif action == "skip" or not (user_message or "").strip():
                 # ── v3.3: GPS declined/skipped — record source ───────────────
                 slots["incident_gps"] = {"source": "skipped"}
                 await db.fir_sessions.update_one(
                     {"session_id": sid},
                     {"$set": {"slots": slots, "updated_at": now}},
                 )
-            return await _advance_probe(db, corpus_db, sid, slots, pending_probes, incident_types, now, completed_probe=cp, language=language)
+                return await _advance_probe(db, corpus_db, sid, slots, pending_probes, incident_types, now, completed_probe=cp, language=language)
+            else:
+                # ── B-113: a free-typed answer here (e.g. the web "GPS
+                # unavailable" fallback box, which shows a plain text input
+                # for this exact probe, or a citizen typing "yes" instead of
+                # tapping the Get GPS Location button) used to fall into the
+                # branch above and be silently treated as an explicit skip
+                # -- no gps payload, no 'skip' action, nothing recorded, no
+                # acknowledgment, flow just jumped to the next question as
+                # if nothing had been typed at all. Store it as a manual
+                # location note and say so, instead of discarding it.
+                text = user_message.strip()
+                slots["incident_gps"] = {"source": "manual_text", "text": text}
+                slots["incident_gps_address"] = text
+                await db.fir_sessions.update_one(
+                    {"session_id": sid},
+                    {"$set": {"slots": slots, "updated_at": now}},
+                )
+                return await _advance_probe(
+                    db, corpus_db, sid, slots, pending_probes, incident_types, now,
+                    completed_probe=cp, language=language,
+                    ack_message=_tm("gps_text_noted", language, text=text),
+                )
 
         elif cp == "probe_evidence":
             if action in ("skip", "upload_done"):
@@ -2450,8 +2478,16 @@ async def _advance_probe(
     pending_probes: list[str], incident_types: list[str], now: str,
     completed_probe: Optional[str] = None,
     language: str = "en",
+    ack_message: Optional[str] = None,
 ) -> dict:
-    """Advance to next probe in queue, or enter section_suggest if none left."""
+    """Advance to next probe in queue, or enter section_suggest if none left.
+
+    B-113: ack_message, when given, is prepended to whatever bot_message
+    this call would otherwise return (the next probe's question, or the
+    section_suggest summary). Used so a probe that accepted an unusual but
+    valid answer (e.g. typed text answering the GPS probe) can say so,
+    instead of silently moving on with no visible acknowledgment at all.
+    """
     # ── v3.3: Track answered probe for back navigation ──────────────────────
     if completed_probe and completed_probe in PROBE_Q:
         pdef_done = PROBE_Q[completed_probe]
@@ -2477,6 +2513,8 @@ async def _advance_probe(
             bot_msg = f"I calculated the incident happened on **{rdd}**.\nIs that correct?"
         else:
             bot_msg = _tp(next_probe, language)
+        if ack_message:
+            bot_msg = f"{ack_message}\n\n{bot_msg}"
         # v3.4: Compute probe progress for "Q X/Y" frontend counter
         done_count = len((session_fresh or {}).get("probe_history", []))
         total_probes = done_count + 1 + len(remaining)
@@ -2489,7 +2527,10 @@ async def _advance_probe(
             "probe_progress_done": done_count,
             "probe_progress_total": total_probes,
         }
-    return await _enter_section_suggest(db, corpus_db, sid, slots, incident_types, now, language)
+    result = await _enter_section_suggest(db, corpus_db, sid, slots, incident_types, now, language)
+    if ack_message:
+        result["bot_message"] = f"{ack_message}\n\n{result.get('bot_message', '')}"
+    return result
 
 
 async def _enter_section_suggest(
