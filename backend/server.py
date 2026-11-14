@@ -2313,11 +2313,38 @@ async def link_anonymous_consent(body: ConsentLinkIn, user: dict = Depends(curre
     """B-67 (12 Nov 2026): attach the consent rows a person gave before signing
     in (logged under their anonymous id) to their account. Only rows that are
     still unclaimed are linked; nothing is overwritten or deleted."""
+    now = datetime.now(timezone.utc).isoformat()
     r = await db.consent_log.update_many(
         {"anon_id": body.anon_id, "user_id": None},
-        {"$set": {"user_id": user["id"],
-                  "linked_at": datetime.now(timezone.utc).isoformat()}},
+        {"$set": {"user_id": user["id"], "linked_at": now}},
     )
+    # B-90: linking only the audit-log rows left the ACCOUNT itself looking
+    # un-consented (terms_version/consent_purposes never set on db.users,
+    # since the original /api/consent/log call was anonymous and only an
+    # authenticated caller gets the user-record update). The very next
+    # ConsentGuard check (frontend/app/_layout.tsx) then saw no current
+    # consent recorded for this user and re-opened /consent -- asking again
+    # for consent already given moments earlier, right after guest-start or
+    # sign-up. Adopt the most recently-linked entry onto the user record,
+    # exactly like an authenticated /api/consent/log call would, but never
+    # downgrade a consent that is already current.
+    if r.modified_count:
+        latest = await db.consent_log.find_one(
+            {"anon_id": body.anon_id, "user_id": user["id"]},
+            sort=[("timestamp", -1)],
+        )
+        if latest and user.get("terms_version") != latest.get("notice_version"):
+            await db.users.update_one(
+                {"id": user["id"]},
+                {"$set": {
+                    "terms_version":      latest.get("notice_version"),
+                    "terms_accepted":     True,
+                    "terms_accepted_at":  latest.get("timestamp", now),
+                    "consent_purposes":   latest.get("purposes"),
+                    "age_confirmed_18":   latest.get("age_confirmed_18", True),
+                    "consent_language":   latest.get("language", "en"),
+                }},
+            )
     return {"ok": True, "linked": r.modified_count}
 
 

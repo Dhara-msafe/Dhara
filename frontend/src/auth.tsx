@@ -7,7 +7,7 @@ import { API_BASE as API } from './apiBase';
 // B002 fix: keep cover state clean across sign-in / sign-out transitions
 import { deactivateCover } from './women/coverState';
 import { useHeadOutWizard } from './women/headOutWizardStore';
-import { CONSENT_ANON_KEY } from './consentStorage';
+import { CONSENT_ANON_KEY, migrateAnonConsentToUser } from './consentStorage';
 import { useLocationUploadQueue } from './safety/locationUploadQueue';
 
 // Required for iOS to properly complete the auth session
@@ -179,6 +179,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     _setActiveUserIdCache(u);
     await AsyncStorage.setItem(TOKEN_KEY, t);
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(u));
+    // B-90: copy the anonymous (pre-login) local consent flag onto this
+    // user's own key BEFORE setUser() below triggers ConsentGuard's
+    // immediate re-check. Pure on-device AsyncStorage, so this is already
+    // done by the time setUser() runs -- it can't lose a race against the
+    // network-bound /api/consent/link call further down, which is what
+    // caused consent to be re-asked right after guest-start/sign-up.
+    if (u.id) await migrateAnonConsentToUser(u.id);
     setToken(t);
     setUser(u);
     // W1-J01 / B-67: the consent given before sign-in was logged under an
