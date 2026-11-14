@@ -166,6 +166,41 @@ export default function Settings() {
     ]);
   };
 
+  // B-20: the server previously had no way to end a session it had already
+  // issued, so a signed-in token kept working on a lost or stolen phone for
+  // the rest of its 30-day life no matter what. This calls the new
+  // /auth/logout-everywhere endpoint, which invalidates every token ever
+  // issued for this account (including this device's own) the moment it
+  // runs -- so the request is followed by the SAME local logout() as the
+  // ordinary sign-out button, never a bare "done" with the old session
+  // left looking active on this phone.
+  const [logoutAllBusy, setLogoutAllBusy] = useState(false);
+  const signOutEverywhere = async () => {
+    setLogoutAllBusy(true);
+    try {
+      await fetch(`${API_BASE}/api/auth/logout-everywhere`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {
+      // Best-effort: even if the request fails to reach the server, still log
+      // this device out locally so the user isn't left believing it worked.
+    } finally {
+      await logout();
+      router.replace('/login');
+    }
+  };
+  const confirmLogoutAll = () => {
+    crossAlert(
+      'Sign out of all devices?',
+      'This ends every signed-in session for your account, including this one. You will need to sign in again everywhere.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign out everywhere', style: 'destructive', onPress: () => signOutEverywhere() },
+      ],
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']} testID="settings-screen">
       <View style={styles.header}>
@@ -510,6 +545,21 @@ export default function Settings() {
           <Ionicons name="log-out-outline" size={20} color={theme.colors.error} />
           <Text style={styles.logoutText}>Sign out</Text>
         </Pressable>
+
+        {!user?.is_guest && (
+          <Pressable
+            testID="logout-everywhere-button"
+            style={styles.logoutBtn}
+            onPress={confirmLogoutAll}
+            disabled={logoutAllBusy}
+            accessibilityLabel="Sign out of all devices"
+          >
+            {logoutAllBusy
+              ? <ActivityIndicator color={theme.colors.error} size={20} />
+              : <Ionicons name="phone-portrait-outline" size={20} color={theme.colors.error} />}
+            <Text style={styles.logoutText}>Sign out of all devices</Text>
+          </Pressable>
+        )}
 
         <Text style={styles.section}>Danger Zone</Text>
         <Pressable testID="delete-account-button" style={styles.deleteBtn} onPress={openDeleteModal}>
