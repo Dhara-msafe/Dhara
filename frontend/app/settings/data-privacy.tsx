@@ -21,10 +21,17 @@ import { theme } from '@/src/theme';
 import { useFamilyJourneyEnabled } from '@/src/familyJourney/store';
 
 import { openExternal } from '@/src/outbound';
+// B-70: GRIEVANCE_EMAIL / GRIEVANCE_OFFICER_NAME used to be their own local
+// constants here -- a FOURTH value, independent of the consent screen
+// (operatorIdentity.ts's Varuna Moses / varuna@calviltech.com), my-data.tsx
+// and /grievance's hardcoded "grievance@calviltech.com". Now reads the same
+// single source of truth as every other screen.
+import { grievanceOfficerName as GRIEVANCE_OFFICER_NAME, grievanceContactEmail as GRIEVANCE_EMAIL, isGrievanceContactPlaceholder } from '@/src/operatorIdentity';
 // ── Contact constants ─────────────────────────────────────────────────────────
-const GRIEVANCE_EMAIL        = 'grievance@calviltech.com';
+// SUPPORT_EMAIL is the separate, general MSafe Solutions support address
+// (matches backend/legal.py's CONTACT section) -- not a grievance-officer
+// value, so it isn't part of the B-70 consolidation above.
 const SUPPORT_EMAIL          = 'support@calviltech.com';
-const GRIEVANCE_OFFICER_NAME = 'The Grievance Officer, Calvil Technologies';
 
 // ── Accent colours (spec) ─────────────────────────────────────────────────────
 const PRIMARY     = theme.colors.primary;
@@ -101,9 +108,12 @@ export default function DataPrivacyScreen() {
   };
 
   const handleContact = () => {
-    const url = `mailto:${GRIEVANCE_EMAIL}?subject=DHARA%20Data%20Request`;
+    // Fail closed: never open a mailto: to an unconfirmed placeholder
+    // address. Fall back to the general support inbox, which is real either way.
+    const to = isGrievanceContactPlaceholder() ? SUPPORT_EMAIL : GRIEVANCE_EMAIL;
+    const url = `mailto:${to}?subject=DHARA%20Data%20Request`;
     openExternal(url).catch(() => {
-      Alert.alert('Cannot open email app', `Please email us at ${GRIEVANCE_EMAIL}`);
+      Alert.alert('Cannot open email app', `Please email us at ${to}`);
     });
   };
 
@@ -274,9 +284,11 @@ export default function DataPrivacyScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.actionTitle}>Grievance or data question?</Text>
             <Text style={styles.actionSub}>Respond within 30 days</Text>
-            <Text style={styles.actionFooter}>
-              Grievance Officer: {GRIEVANCE_OFFICER_NAME}
-            </Text>
+            {!isGrievanceContactPlaceholder() && (
+              <Text style={styles.actionFooter}>
+                Grievance Officer: {GRIEVANCE_OFFICER_NAME}
+              </Text>
+            )}
           </View>
           <Ionicons name="chevron-forward" size={18} color={theme.colors.onSurfaceTertiary} />
         </Pressable>
