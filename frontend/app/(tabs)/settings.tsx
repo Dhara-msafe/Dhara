@@ -10,6 +10,7 @@ import { theme } from '@/src/theme';
 import { SOSButton } from '@/src/components/SOSButton';
 import { getPushPermissionState, enablePushNotifications, PushPermissionState } from '@/src/push';
 import { t } from '@/src/i18n';
+import { formatDateDMY } from '@/src/dateFormat';
 
 // Batch FREE-V1-001: Pro upgrade / Stripe / Razorpay payment UI gated off for v1.
 const PRO_UPGRADE_ENABLED = process.env.EXPO_PUBLIC_PRO_UPGRADE_ENABLED === 'true';
@@ -457,7 +458,7 @@ export default function Settings() {
           <Ionicons name="document-text-outline" size={22} color={theme.colors.brand} />
           <View style={{ flex: 1, marginLeft: theme.spacing.md }}>
             <Text style={styles.rowTitle}>Terms & Conditions</Text>
-            <Text style={styles.rowValue}>Accepted v{user?.terms_version || '1.0'}{user?.terms_accepted_at ? ' · ' + new Date(user.terms_accepted_at).toLocaleDateString() : ''}</Text>
+            <Text style={styles.rowValue}>Accepted v{user?.terms_version || '1.0'}{user?.terms_accepted_at ? ' · ' + formatDateDMY(user.terms_accepted_at) : ''}</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={theme.colors.onSurfaceTertiary} />
         </Pressable>
