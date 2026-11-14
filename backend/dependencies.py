@@ -102,6 +102,13 @@ def public_user(u: dict) -> dict:
         "photo_url": (f"/api/profile/photo/{u['id']}?v={u.get('photo_version')}" if u.get("photo_path") else None),
         "photo_visibility": u.get("photo_visibility", "only_me"),
         "has_password": bool(u.get("password_hash")),
+        # B-81: the privacy-choices screen (consent.tsx?mode=update) needs the
+        # user's CURRENT optional consent purposes to pre-fill its toggles --
+        # without this field the screen always shows everything off/undecided
+        # regardless of what the user actually chose. "core" is always true
+        # (it's required, not optional); analytics/updates default to false
+        # for a user who never explicitly set them (e.g. pre-dates this field).
+        "consent_purposes": u.get("consent_purposes") or {"core": True, "analytics": False, "updates": False},
     }
 
 
