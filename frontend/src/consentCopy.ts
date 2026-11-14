@@ -15,6 +15,12 @@ const en = {
   emergency: 'Emergency help',
   rights: 'Know your rights',
   saveError: 'We could not save your consent. Please try again. Your selections have been kept.',
+  // B-81: privacy-choices update mode (consent.tsx?mode=update)
+  updateHeading: 'Your data preferences',
+  updateIntro: 'These are your current choices. You can change them any time.',
+  updateSaveButton: 'Save preferences',
+  updateSaved: 'Your preferences have been saved.',
+  updateSaveError: 'We could not save your preferences. Please try again.',
 };
 
 const hi: typeof en = {
@@ -26,6 +32,9 @@ const hi: typeof en = {
   ready: 'अब आगे बढ़ सकते हैं। दोनों वैकल्पिक विकल्प बंद रह सकते हैं।',
   under18: 'खाता बनाने के लिए उम्र कम से कम 18 साल होनी चाहिए। आप बिना खाते के आपातकालीन मदद और अपने अधिकारों की जानकारी पा सकते हैं।',
   emergency: 'आपातकालीन मदद', rights: 'अपने अधिकार जानें', saveError: 'आपकी सहमति सहेजी नहीं जा सकी। फिर कोशिश करें। आपके चयन सुरक्षित हैं।',
+  updateHeading: 'आपकी डेटा प्राथमिकताएँ', updateIntro: 'ये आपकी वर्तमान पसंद हैं। आप इन्हें कभी भी बदल सकते हैं।',
+  updateSaveButton: 'प्राथमिकताएँ सहेजें', updateSaved: 'आपकी प्राथमिकताएँ सहेज ली गई हैं।',
+  updateSaveError: 'आपकी प्राथमिकताएँ सहेजी नहीं जा सकीं। फिर कोशिश करें।',
 };
 
 const mr: typeof en = {
@@ -37,6 +46,9 @@ const mr: typeof en = {
   ready: 'आता पुढे जाऊ शकता. दोन्ही ऐच्छिक पर्याय बंद ठेवू शकता.',
   under18: 'खाते तयार करण्यासाठी वय किमान 18 वर्षे असणे आवश्यक आहे. खात्याशिवाय आपत्कालीन मदत आणि तुमच्या हक्कांची माहिती मिळवू शकता.',
   emergency: 'आपत्कालीन मदत', rights: 'तुमचे हक्क जाणा', saveError: 'तुमची संमती जतन झाली नाही. पुन्हा प्रयत्न करा. तुमच्या निवडी कायम आहेत.',
+  updateHeading: 'तुमच्या डेटा प्राधान्ये', updateIntro: 'ही तुमची सध्याची निवड आहे. तुम्ही ती केव्हाही बदलू शकता.',
+  updateSaveButton: 'प्राधान्ये जतन करा', updateSaved: 'तुमची प्राधान्ये जतन झाली आहेत.',
+  updateSaveError: 'तुमची प्राधान्ये जतन होऊ शकली नाहीत. पुन्हा प्रयत्न करा.',
 };
 
 export const consentCopy: Record<string, typeof en> = { en, hi, mr };
