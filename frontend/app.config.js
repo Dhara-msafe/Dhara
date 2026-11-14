@@ -87,6 +87,42 @@ module.exports = ({ config, platform }) => {
       ? `${baseVersion}-qa`
       : baseVersion;
 
+  // ── v2.2.1 Stage 1 item 3: frontend build-time guard, matching the ────────
+  // backend's DEPLOYMENT_ENV fail-closed check (backend/services/
+  // outbound_guard.py validate_outbound_config()).
+  //
+  // Why this can't just re-check `profile` against itself: `profile` above is
+  // DERIVED from EXPO_PUBLIC_OUTBOUND_PROFILE — the very variable that was
+  // set wrong in the incident this exists to prevent (production shipped
+  // with it left at "internal_qa"). A check reading "refuse if this is a
+  // production build and the profile is internal_qa" is circular unless an
+  // INDEPENDENT signal says "this build is destined for production" without
+  // going through that same variable — mirroring backend's DEPLOYMENT_ENV,
+  // which is a separate variable from OUTBOUND_MODE/OUTBOUND_PROFILE there.
+  //
+  // EXPO_PUBLIC_RELEASE_TARGET is that independent signal: it must be set
+  // deliberately (by whoever cuts the build), separately from the outbound
+  // config. Unset/anything else never blocks a build — only an explicit
+  // "production" release target paired with an internal_qa-resolved profile
+  // does. No default on purpose, same reasoning as DEPLOYMENT_ENV.
+  //
+  // NOTE: I could not confirm whether the Emergent deploy pipeline already
+  // sets an equivalent signal (e.g. an EAS build-profile name) automatically
+  // — no eas.json exists in this repo, and I have no visibility into the
+  // pipeline internals from this pod. Until the pipeline is confirmed to set
+  // EXPO_PUBLIC_RELEASE_TARGET, this guard is dormant (never fires) rather
+  // than wrongly blocking normal preview/dev builds.
+  const releaseTarget = process.env.EXPO_PUBLIC_RELEASE_TARGET;
+  if (releaseTarget === "production" && profile === "internal_qa") {
+    throw new Error(
+      '[app.config.js] Refusing build: EXPO_PUBLIC_RELEASE_TARGET=production but the ' +
+      'resolved outbound profile is "internal_qa" (from EXPO_PUBLIC_OUTBOUND_MODE=' +
+      `${JSON.stringify(process.env.EXPO_PUBLIC_OUTBOUND_MODE)} / EXPO_PUBLIC_OUTBOUND_PROFILE=` +
+      `${JSON.stringify(process.env.EXPO_PUBLIC_OUTBOUND_PROFILE)}). A production-targeted build ` +
+      'must not ship with the QA/simulate outbound profile baked in.'
+    );
+  }
+
   // ── Android guard ──────────────────────────────────────────────────────────
   if (isPlaceholder(androidKey)) {
     // eslint-disable-next-line no-console

@@ -148,7 +148,7 @@ export const UI: Record<string, L> = {
   // ── Emergency ────────────────────────────────────────────────────
   'em.danger':       { en: 'YOU MAY BE IN DANGER', hi: 'आप खतरे में हो सकते हैं', mr: 'तुम्ही धोक्यात असू शकता', ta: 'நீங்கள் ஆபத்தில் இருக்கலாம்' },
   'em.quickexit':    { en: 'Quick exit', hi: 'तुरंत बाहर', mr: 'त्वरित बाहेर', ta: 'விரைவு வெளியேறு' },
-  'em.tapcall':      { en: 'Calling not yet active', hi: 'कॉलिंग अभी सक्रिय नहीं है', mr: 'कॉलिंग अद्याप सक्रिय नाही', ta: 'அழைப்பு இன்னும் செயலில் இல்லை' },
+  'em.tapcall':      { en: 'Tap to open dialler', hi: 'डायलर खोलने के लिए टैप करें', mr: 'डायलर उघडण्यासाठी टॅप करा', ta: 'டயலரைத் திறக்க தட்டவும்' },
   'em.oneNumber':    { en: 'Police · ambulance · women\u2019s help — one number', hi: 'पुलिस · एम्बुलेंस · महिला मदद — एक नंबर' },
   'em.silent':       { en: 'Silent alert', hi: 'मौन अलर्ट' },
   'em.silent.sub':   { en: 'Prepare a message to my circle', hi: 'मेरे लोगों के लिए संदेश तैयार करें', mr: 'विश्वासू व्यक्तींना संदेश तयार करा', ta: 'நம்பகமானவர்களுக்கு செய்தி தயாரிக்கவும்' },

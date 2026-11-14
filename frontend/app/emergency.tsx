@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -6,6 +7,8 @@ import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
 import { QuickExit } from '@/src/components/dhara/SosPill';
+import { openPhone } from '@/src/women/helpActions';
+import { focusRingStyle } from '@/src/a11yFocus';
 
 const c = theme.colors;
 
@@ -14,6 +17,7 @@ export default function Emergency() {
   const router = useRouter();
   const { language } = useAuth();
   const lang = language.code;
+  const [callStatus, setCallStatus] = useState<string | null>(null);
 
   const tiles = [
     { id: 'silent-alert', icon: 'people-outline', title: tr('em.silent', lang), sub: tr('em.silent.sub', lang), route: '/women/silent-alert' },
@@ -33,11 +37,45 @@ export default function Emergency() {
           <QuickExit />
         </View>
 
-        <View style={styles.callCircle} testID="call-112" accessibilityLabel="112 — Emergency. Calling not yet active.">
+        {/* v2.2.1 Stage 2 (screen 25): this used to be a plain <View> with no
+            onPress at all — accessibilityLabel literally said "Calling not
+            yet active." Now a real Pressable using the same tested
+            openPhone() helper already used on nearest-help.tsx/officer-
+            card.tsx/trusted-circle.tsx (routes through the Outbound Guard —
+            src/outbound.ts). Already well over the 48px touch target
+            (230x230). Fix is unconditional (not flag-gated): a dead control
+            is a correctness bug, not a stylistic choice to roll back to. */}
+        <Pressable
+          testID="call-112"
+          style={(s) => [styles.callCircle, focusRingStyle(s)]}
+          onPress={async () => setCallStatus(await openPhone('112'))}
+          accessibilityRole="button"
+          accessibilityLabel="Open dialler for 112"
+          accessibilityHint="Opens your phone's dialler with 112 filled in. You still have to press call yourself."
+        >
           <Ionicons name="call-outline" size={34} color={c.emergencyRed} />
-          <Text style={styles.callNum}>112</Text>
+          {/* `selectable`: the fallback the owner asked for — if the dialler
+              can't open (see openPhone's catch branch below), the number is
+              still copyable text, not just a dead label. */}
+          <Text style={styles.callNum} selectable>112</Text>
           <Text style={styles.callTap}>{tr('em.tapcall', lang)}</Text>
-        </View>
+        </Pressable>
+
+        {/* Outbound-policy-aware status line. In this build's current
+            profile (internal_qa) openPhone()/openExternal() already return
+            the "Simulated — nothing sent" message below — nothing here
+            claims a call was placed. */}
+        {!!callStatus && (
+          <Text
+            testID="call-112-status"
+            accessibilityLiveRegion="polite"
+            accessibilityRole="alert"
+            style={styles.callStatus}
+            selectable
+          >
+            {callStatus}
+          </Text>
+        )}
 
         <Text style={styles.oneNumber}>{tr('em.oneNumber', lang)}</Text>
 
@@ -71,6 +109,10 @@ const styles = StyleSheet.create({
   callCircle: { alignSelf: 'center', width: 230, height: 230, borderRadius: 115, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginTop: 28 },
   callNum: { color: c.emergencyRed, fontFamily: theme.fonts.displayBlack, fontSize: 68, lineHeight: 74 },
   callTap: { color: c.emergencyRed, fontFamily: theme.fonts.bodyBold, fontSize: 17 },
+  callStatus: {
+    color: '#fff', fontFamily: theme.fonts.body, fontSize: 14, lineHeight: 20,
+    textAlign: 'center', marginTop: 14, paddingHorizontal: 12,
+  },
   oneNumber: { color: '#fff', fontFamily: theme.fonts.body, fontSize: 17, textAlign: 'center', marginTop: 26 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 14, marginTop: 24 },
   tile: { width: '47%', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 16, padding: 18, minHeight: 120, justifyContent: 'center', gap: 8 },

@@ -27,9 +27,19 @@ const c = theme.colors;
  * real failure (or vice versa). Rendered once at the root, like
  * GlobalHelpButton, so no screen can omit it.
  */
+// v2.2.1 Stage 1 item 2: a second, distinct banner for OUTBOUND_PROFILE
+// "closed_testing" — approved by the owner (2026-11-14) alongside the
+// DEPLOYMENT_ENV=production proposal this depends on (see OPEN_ITEMS.md).
+// Wording deliberately still says "simulated": OUTBOUND_MODE stays
+// "simulate" per standing instruction, so even though closed_testing's
+// policy table marks dialler/SMS/share "live", the master-switch gate in
+// outbound.ts's shouldDispatch() still blocks every real dispatch — the
+// banner must not claim otherwise.
 export function QaModeBanner() {
   const insets = useSafeAreaInsets();
-  if (OUTBOUND_PROFILE !== 'internal_qa') return null;
+  if (OUTBOUND_PROFILE === 'production') return null;
+  const isClosedTest = OUTBOUND_PROFILE === 'closed_testing';
+  if (!isClosedTest && OUTBOUND_PROFILE !== 'internal_qa') return null;
 
   return (
     <View
@@ -47,7 +57,9 @@ export function QaModeBanner() {
       }}
     >
       <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 11, letterSpacing: 0.5 }}>
-        QA MODE — calls, SMS and sharing are simulated
+        {isClosedTest
+          ? 'CLOSED TEST — calls, SMS and sharing are simulated during this test'
+          : 'QA MODE — calls, SMS and sharing are simulated'}
       </Text>
     </View>
   );
