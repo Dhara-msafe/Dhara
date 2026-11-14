@@ -21,6 +21,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
+// B-70: this screen used to hardcode its own "grievance@calviltech.com" with
+// no officer name -- a THIRD value, different from both the consent screen
+// (Varuna Moses, varuna@calviltech.com via operatorIdentity.ts) and
+// my-data.tsx's own hardcoded string. Reading the single source of truth
+// instead of a separately hardcoded string here.
+import { grievanceOfficerName, grievanceContactEmail, isGrievanceContactPlaceholder } from '@/src/operatorIdentity';
 
 const CATEGORIES = [
   { key: 'data_access',     label: 'Access my data',       icon: 'eye-outline',           desc: 'Request a copy of all data held about you' },
@@ -208,7 +214,7 @@ export default function GrievanceScreen() {
           <Text style={styles.legalNote}>
             We will acknowledge your concern within 48 hours and aim to resolve it
             within 30 days as required under the DPDP Act 2023.
-            Grievance Officer: grievance@calviltech.com
+            {!isGrievanceContactPlaceholder() && ` Grievance Officer: ${grievanceOfficerName}, ${grievanceContactEmail}`}
           </Text>
         </ScrollView>
       )}
