@@ -15,7 +15,7 @@ import { t } from '@/src/i18n';
 const PRO_UPGRADE_ENABLED = process.env.EXPO_PUBLIC_PRO_UPGRADE_ENABLED === 'true';
 
 export default function Settings() {
-  const { user, token, logout, language, setLanguage, autoSpeak, setAutoSpeak, ttsVolume, setTtsVolume, ttsVoiceMode, setTtsVoiceMode, refreshUser } = useAuth();
+  const { user, token, logout, language, setLanguage, autoSpeak, setAutoSpeak, ttsVolume, setTtsVolume, ttsVoiceMode, setTtsVoiceMode, refreshUser, clearSessionExpired } = useAuth();
   const router = useRouter();
   const [langs, setLangs] = useState<Language[]>([]);
   const [showLang, setShowLang] = useState(false);
@@ -126,6 +126,12 @@ export default function Settings() {
     setShowDeleteModal(true);
   };
 
+  // B-29: this used to call fetch() directly with no timeout, so a dropped
+  // connection surfaced the raw thrown error (e.g. "Network request failed" /
+  // "TypeError: Failed to fetch") straight to the user instead of a readable
+  // message. Now aborts after 20s and always shows a friendly message, same
+  // pattern as auth.tsx's _fetchAuth / forgot-password.tsx's postJson.
+  const DELETE_NETWORK_MSG = 'Could not reach DHARA. Check your internet connection and try again.';
   const submitDeleteAccount = async () => {
     if (user?.has_password === false && !user?.is_guest) {
       setShowDeleteModal(false);
@@ -138,12 +144,22 @@ export default function Settings() {
     }
     setDeleteError(null);
     setDeleteLoading(true);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000);
     try {
-      const res = await fetch(`${API_BASE}/api/account/delete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ password: deletePassword }),
-      });
+      let res: Response;
+      try {
+        res = await fetch(`${API_BASE}/api/account/delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ password: deletePassword }),
+          signal: ctrl.signal,
+        });
+      } catch {
+        setDeleteError(DELETE_NETWORK_MSG);
+        setDeleteLoading(false);
+        return;
+      }
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setDeleteError(data?.detail || 'Could not delete your account. Please try again.');
@@ -152,10 +168,20 @@ export default function Settings() {
       }
       setShowDeleteModal(false);
       await logout();
-      router.replace('/login');
+      // B-91: deleting the account invalidates this session's token, and any
+      // other screen's in-flight call with that same token can race in with
+      // a 401 right around now and flag sessionExpired — which then shows
+      // "Your session has expired" on the login screen, even though nothing
+      // expired: the user chose to delete their account. That is a different,
+      // expected outcome, not an auth error, so clear the flag and tell the
+      // login screen why we're here via the query param instead.
+      clearSessionExpired();
+      router.replace({ pathname: '/login', params: { accountDeleted: '1' } } as any);
     } catch (e: any) {
-      setDeleteError(e?.message || 'Network error. Please try again.');
+      setDeleteError(e?.message || DELETE_NETWORK_MSG);
       setDeleteLoading(false);
+    } finally {
+      clearTimeout(timer);
     }
   };
 

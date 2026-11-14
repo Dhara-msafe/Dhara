@@ -13,7 +13,7 @@ export default function Login() {
   // returnTo: deep-link callers (e.g. GuardianScreen) pass the screen the user
   // should land on after signing in.  router.replace() removes the login screen
   // from the back-stack so pressing Back doesn't loop through the login screen.
-  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
+  const { returnTo, accountDeleted } = useLocalSearchParams<{ returnTo?: string; accountDeleted?: string }>();
   const _postLoginNav = () => router.replace((returnTo as any) || '/(tabs)/home');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,6 +30,17 @@ export default function Login() {
     setMinorBlocked(googleError.minor);
     clearGoogleError();
   }, [googleError, clearGoogleError]);
+
+  // B-91: arriving here right after deleting the account can race with some
+  // other screen's in-flight request on the now-invalid token, which flags
+  // sessionExpired and would otherwise show "Your session has expired" --
+  // misleading, since the user chose to delete their account. Clear it on
+  // mount as a second guard (settings.tsx already clears it before
+  // navigating here) so the deliberate-deletion notice below is always what
+  // shows, never the session-expired one.
+  useEffect(() => {
+    if (accountDeleted === '1') clearSessionExpired();
+  }, [accountDeleted, clearSessionExpired]);
 
   const onSubmit = async () => {
     setError(null);
@@ -99,7 +110,14 @@ export default function Login() {
             <Text style={styles.heading}>Welcome back</Text>
             <Text style={styles.sub}>Sign in to continue</Text>
 
-            {sessionExpired && (
+            {accountDeleted === '1' ? (
+              <View style={styles.accountDeletedBanner} testID="account-deleted-banner">
+                <Ionicons name="checkmark-circle-outline" size={18} color={theme.colors.brand} />
+                <Text style={styles.accountDeletedText}>
+                  Your account has been deleted.
+                </Text>
+              </View>
+            ) : sessionExpired && (
               <View style={styles.sessionExpiredBanner} testID="session-expired-banner">
                 <Ionicons name="alert-circle-outline" size={18} color={theme.colors.error} />
                 <Text style={styles.sessionExpiredText}>
@@ -280,6 +298,16 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.md,
   },
   sessionExpiredText: { color: theme.colors.error, flex: 1, fontSize: 13, fontWeight: '600' },
+  accountDeletedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: '#F0FDF4',
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.md,
+    marginTop: theme.spacing.md,
+  },
+  accountDeletedText: { color: theme.colors.brand, flex: 1, fontSize: 13, fontWeight: '600' },
   // Footer Sanskrit: gold-on-navy — 6.29:1 ✅
   footer: { textAlign: 'center', color: theme.dhara.gold, marginTop: theme.spacing.xxl, letterSpacing: 2 },
   // Copyright: textOnNavyMuted (gold) on navy — 6.29:1 ✅  — NOT a raw gray (#8A93A6 fails)
