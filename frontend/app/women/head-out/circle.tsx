@@ -26,6 +26,9 @@ import { theme } from '@/src/theme';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { useAuth } from '@/src/auth';
 import { useHeadOutWizard } from '@/src/women/headOutWizardStore';
+// NF-UI-REV-13 (Group G follow-up, DHARA UI Revision v2.2.1): visible
+// keyboard-focus ring only. No circle/wizard logic changes.
+import { focusRingStyle } from '@/src/a11yFocus';
 import {
   listAcceptedRecipients, listInvitations, updateLinkPermissions, getPhotoViewToken,
   type InviteLink, type Permissions,
@@ -229,7 +232,7 @@ export default function TrustedCircleAndRules() {
                 <View key={link.id} style={[styles.personCard, sel && styles.personCardActive]}>
                   <Pressable
                     testID={`headout-circle-${link.id}`}
-                    style={styles.personRow}
+                    style={(s) => [styles.personRow, focusRingStyle(s)]}
                     onPress={() => toggleRecipient(link.id)}
                     disabled={!sel && !canSelectMore}
                     accessibilityRole="checkbox"
@@ -259,7 +262,7 @@ export default function TrustedCircleAndRules() {
                       not a permission gate. */}
                   <Pressable
                     testID={`headout-toggles-expand-${link.id}`}
-                    style={styles.togglesSummaryRow}
+                    style={(s) => [styles.togglesSummaryRow, focusRingStyle(s)]}
                     onPress={() => setExpandedToggles(cur => ({ ...cur, [link.id]: !cur[link.id] }))}
                     accessibilityRole="button"
                     accessibilityLabel={`${expandedToggles[link.id] ? 'Hide' : 'Show'} what ${link.contact_name} receives`}
@@ -327,7 +330,7 @@ export default function TrustedCircleAndRules() {
 
             <Pressable
               testID="headout-manage-circle"
-              style={styles.manageRow}
+              style={(s) => [styles.manageRow, focusRingStyle(s)]}
               onPress={() => router.push('/women/trusted-circle')}
               accessibilityRole="button"
               accessibilityLabel="Add or manage trusted circle members"
@@ -345,7 +348,7 @@ export default function TrustedCircleAndRules() {
             <Pressable
               key={d.mins}
               testID={`headout-circle-dur-${d.mins}`}
-              style={[styles.durChip, durationMins === d.mins && styles.durChipActive]}
+              style={(s) => [styles.durChip, durationMins === d.mins && styles.durChipActive, focusRingStyle(s)]}
               onPress={() => setDurationMins(d.mins)}
               accessibilityRole="radio"
               accessibilityState={{ checked: durationMins === d.mins }}
@@ -357,7 +360,7 @@ export default function TrustedCircleAndRules() {
 
         <Pressable
           testID="headout-circle-remind-picker"
-          style={styles.optionRow}
+          style={(s) => [styles.optionRow, focusRingStyle(s)]}
           onPress={() => setOpenPicker('remind')}
           accessibilityRole="button"
           accessibilityLabel="Remind me before alerting"
@@ -372,7 +375,7 @@ export default function TrustedCircleAndRules() {
         {RECIPIENTS_ENABLED && (
           <Pressable
             testID="headout-circle-response-picker"
-            style={styles.optionRow}
+            style={(s) => [styles.optionRow, focusRingStyle(s)]}
             onPress={() => setOpenPicker('response')}
             accessibilityRole="button"
             accessibilityLabel="If I don't respond"
@@ -409,7 +412,7 @@ export default function TrustedCircleAndRules() {
                 <Pressable
                   key={opt.label}
                   testID={`headout-circle-picker-opt-${opt.label.replace(/\s+/g, '-').toLowerCase()}`}
-                  style={styles.pickerOption}
+                  style={(s) => [styles.pickerOption, focusRingStyle(s)]}
                   onPress={() => {
                     if (openPicker === 'remind') setRemindBeforeMins(opt.mins);
                     else setAutoNotifyOnNoResponse(opt.value);
@@ -430,7 +433,7 @@ export default function TrustedCircleAndRules() {
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
         <Pressable
           testID="headout-start-journey"
-          style={[styles.startBtn, starting && styles.startBtnDisabled]}
+          style={(s) => [styles.startBtn, starting && styles.startBtnDisabled, focusRingStyle(s)]}
           disabled={starting}
           onPress={handleStartJourney}
           accessibilityRole="button"

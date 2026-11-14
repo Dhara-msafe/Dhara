@@ -9,6 +9,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
+// NF-UI-REV-11 (Group I follow-up, DHARA UI Revision v2.2.1): presentation-
+// only rollback flag + visible keyboard-focus ring + missing a11y labels.
+// No section-suggestion/drop logic changes. Shared by fir-draft/index.tsx
+// and fir-draft/result.tsx.
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const DRAWER_WIDTH = Math.min(320, SCREEN_WIDTH * 0.82);
@@ -71,7 +77,7 @@ export default function FirSectionDrawer({
   return (
     <>
       {/* Backdrop */}
-      <Pressable style={styles.backdrop} onPress={onClose} />
+      <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close BNS sections panel" />
 
       {/* Drawer panel */}
       <Animated.View style={[styles.drawer, { transform: [{ translateX: slideAnim }] }]}>
@@ -81,7 +87,7 @@ export default function FirSectionDrawer({
             <Ionicons name="list-outline" size={20} color={NAVY} style={{ marginRight: 8 }} />
             <Text style={styles.drawerTitle}>BNS Sections</Text>
           </View>
-          <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={10}>
+          <Pressable onPress={onClose} style={(s) => [styles.closeBtn, focusRingStyle(s)]} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
             <Ionicons name="close" size={22} color={MUTED} />
           </Pressable>
         </View>
@@ -94,7 +100,7 @@ export default function FirSectionDrawer({
                 <View style={[styles.groupDot, { backgroundColor: GREEN }]} />
                 <Text style={styles.groupLabel}>Suggested ({suggestedSections.length})</Text>
                 {onJump && (
-                  <Pressable style={styles.jumpAllBtn} onPress={() => { onJump(); onClose(); }}>
+                  <Pressable style={(s) => [styles.jumpAllBtn, focusRingStyle(s)]} onPress={() => { onJump(); onClose(); }} hitSlop={8} accessibilityRole="button" accessibilityLabel="Jump to chat">
                     <Ionicons name="arrow-up-circle-outline" size={14} color={GOLD} />
                     <Text style={styles.jumpAllText}>Jump to chat</Text>
                   </Pressable>
@@ -108,9 +114,11 @@ export default function FirSectionDrawer({
                     </View>
                     {onJump && (
                       <Pressable
-                        style={styles.jumpBtn}
+                        style={(st) => [styles.jumpBtn, focusRingStyle(st)]}
                         onPress={() => { onJump(); onClose(); }}
-                        hitSlop={6}
+                        hitSlop={10}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Jump to BNS ${s.section_number} in chat`}
                       >
                         <Ionicons name="arrow-up-outline" size={13} color={GOLD} />
                         <Text style={styles.jumpBtnText}>Jump ↑</Text>

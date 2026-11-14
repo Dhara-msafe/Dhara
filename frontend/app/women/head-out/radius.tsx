@@ -15,6 +15,9 @@ import { theme } from '@/src/theme';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { useHeadOutWizard } from '@/src/women/headOutWizardStore';
 import { RADIUS_PRESETS, isPreset, CustomRadiusModal } from '@/src/women/DestinationPicker';
+// NF-UI-REV-13 (Group G follow-up, DHARA UI Revision v2.2.1): visible
+// keyboard-focus ring only. No radius/wizard logic changes.
+import { focusRingStyle } from '@/src/a11yFocus';
 
 const c = theme.colors;
 
@@ -70,7 +73,7 @@ export default function ArrivalRadius() {
             <Pressable
               key={p.meters}
               testID={`headout-radius-${p.meters}`}
-              style={[styles.chip, radiusMeters === p.meters && styles.chipActive]}
+              style={(s) => [styles.chip, radiusMeters === p.meters && styles.chipActive, focusRingStyle(s)]}
               onPress={() => setRadiusMeters(p.meters)}
               accessibilityRole="radio"
               accessibilityState={{ checked: radiusMeters === p.meters }}
@@ -82,7 +85,7 @@ export default function ArrivalRadius() {
           ))}
           <Pressable
             testID="headout-radius-custom"
-            style={[styles.chip, !isPreset(radiusMeters) && styles.chipActive]}
+            style={(s) => [styles.chip, !isPreset(radiusMeters) && styles.chipActive, focusRingStyle(s)]}
             onPress={() => setCustomVisible(true)}
             accessibilityRole="button"
             accessibilityLabel={isPreset(radiusMeters) ? 'Set custom radius' : `Custom: ${radiusMeters} m`}
@@ -97,7 +100,7 @@ export default function ArrivalRadius() {
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
         <Pressable
           testID="headout-radius-next"
-          style={styles.nextBtn}
+          style={(s) => [styles.nextBtn, focusRingStyle(s)]}
           onPress={handleNext}
           accessibilityRole="button"
           accessibilityLabel="Next — notify your trusted circle"

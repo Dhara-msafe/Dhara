@@ -19,6 +19,10 @@ import { isValidCoord, isValidRadius, haversineMeters, distanceToPolylineMeters 
 import { listAcceptedRecipients, getPhotoViewToken, type InviteLink } from '@/src/trustedCircle/api';
 
 import { openExternal } from '@/src/outbound';
+// NF-UI-REV-13 (Group G follow-up, DHARA UI Revision v2.2.1): visible
+// keyboard-focus ring only — accessibility roles/labels/touch-targets were
+// already compliant on this screen. No journey/GPS/alert logic changes.
+import { focusRingStyle } from '@/src/a11yFocus';
 const c = theme.colors;
 const GUARDIAN_SHARE_ENABLED   = process.env.EXPO_PUBLIC_GUARDIAN_SHARE === 'true';
 // GO1B: Live GPS tracking — default OFF; guardian status page shows last known area
@@ -862,7 +866,7 @@ export default function HeadOut() {
               <Pressable
                 testID="headout-check-in-now"
                 disabled={extending}
-                style={[styles.button, { marginTop: 14 }]}
+                style={(s) => [styles.button, { marginTop: 14 }, focusRingStyle(s)]}
                 onPress={handleCheckInNow}
                 accessibilityRole="button"
                 accessibilityLabel="Check in now"
@@ -873,7 +877,7 @@ export default function HeadOut() {
               {!!extendError && <Text style={styles.inlineError}>{extendError}</Text>}
 
               {TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && journeyToken && selectedRecipients.length > 0 && !alertRaised && graceSecsLeft !== 0 && (
-                <Pressable testID="headout-raise-alert-now" onPress={raiseAlertNow} accessibilityRole="button" accessibilityLabel="Raise alert now">
+                <Pressable testID="headout-raise-alert-now" onPress={raiseAlertNow} style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Raise alert now">
                   <Text style={[styles.linkTxt, styles.linkTxtUnderline]}>Raise alert now</Text>
                 </Pressable>
               )}
@@ -889,7 +893,7 @@ export default function HeadOut() {
               </View>
               <Pressable
                 testID="headout-alert-circle"
-                style={[styles.button, styles.outlineAlertBtn]}
+                style={(s) => [styles.button, styles.outlineAlertBtn, focusRingStyle(s)]}
                 onPress={prepareAlertSMS}
                 accessibilityRole="button"
                 accessibilityLabel="Text my emergency contacts"
@@ -915,7 +919,7 @@ export default function HeadOut() {
               </Text>
               <Pressable
                 testID="headout-i-arrived"
-                style={[styles.button, styles.safeButton]}
+                style={(s) => [styles.button, styles.safeButton, focusRingStyle(s)]}
                 onPress={endSession}
                 accessibilityRole="button"
                 accessibilityLabel="Confirm I arrived"
@@ -923,13 +927,14 @@ export default function HeadOut() {
                 <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
                 <Text style={styles.buttonText}>I arrived</Text>
               </Pressable>
-              <Pressable testID="headout-not-here-yet" onPress={handleDismissArrived} accessibilityRole="button" accessibilityLabel="Not here yet">
+              <Pressable testID="headout-not-here-yet" onPress={handleDismissArrived} style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Not here yet">
                 <Text style={styles.linkTxt}>Not here yet</Text>
               </Pressable>
               <Pressable
                 testID="headout-extend-time"
                 disabled={extending}
                 onPress={() => handleExtendTime(15)}
+                style={(s) => [focusRingStyle(s)]}
                 accessibilityRole="button"
                 accessibilityLabel="Extend check-in time by 15 minutes"
               >
@@ -953,7 +958,7 @@ export default function HeadOut() {
               <Text style={[styles.note, styles.areYouOkayTxt]}>Are you okay?</Text>
               <Pressable
                 testID="headout-im-okay"
-                style={[styles.button, styles.safeButton]}
+                style={(s) => [styles.button, styles.safeButton, focusRingStyle(s)]}
                 onPress={handleOkayDeviated}
                 accessibilityRole="button"
                 accessibilityLabel="I'm okay"
@@ -963,7 +968,7 @@ export default function HeadOut() {
               </Pressable>
               <Pressable
                 testID="headout-change-destination"
-                style={[styles.button, styles.guardianBtn]}
+                style={(s) => [styles.button, styles.guardianBtn, focusRingStyle(s)]}
                 onPress={handleOpenChangeDestination}
                 accessibilityRole="button"
                 accessibilityLabel="Change destination"
@@ -973,7 +978,7 @@ export default function HeadOut() {
               {TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && journeyToken && selectedRecipients.length > 0 && (
                 <Pressable
                   testID="headout-deviated-need-help"
-                  style={[styles.button, styles.alertButton]}
+                  style={(s) => [styles.button, styles.alertButton, focusRingStyle(s)]}
                   onPress={requestHelp}
                   accessibilityRole="button"
                   accessibilityLabel="Request help from your Trusted Circle"
@@ -1030,7 +1035,7 @@ export default function HeadOut() {
               {GUARDIAN_SHARE_ENABLED && (
                 <Pressable
                   testID="headout-notify-guardian"
-                  style={[styles.button, styles.guardianBtn]}
+                  style={(s) => [styles.button, styles.guardianBtn, focusRingStyle(s)]}
                   onPress={() => router.push({
                     pathname: '/women/guardian-share',
                     params: {
@@ -1064,7 +1069,7 @@ export default function HeadOut() {
                         </Text>
                         <Pressable
                           testID="gps-allow-btn"
-                          style={styles.gpsAllowBtn}
+                          style={(s) => [styles.gpsAllowBtn, focusRingStyle(s)]}
                           onPress={() => setLocationConsentGiven(true)}
                           accessibilityRole="button"
                           accessibilityLabel="Allow location sharing for this journey"
@@ -1110,7 +1115,7 @@ export default function HeadOut() {
                         </Text>
                         <Pressable
                           testID="gps-open-settings-btn"
-                          style={styles.gpsSettingsBtn}
+                          style={(s) => [styles.gpsSettingsBtn, focusRingStyle(s)]}
                           onPress={() => Linking.openSettings()}
                           accessibilityRole="button"
                           accessibilityLabel="Open device Settings to allow location access"
@@ -1125,7 +1130,7 @@ export default function HeadOut() {
               {TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && journeyToken && selectedRecipients.length > 0 && (
                 <Pressable
                   testID="headout-need-help"
-                  style={[styles.button, styles.alertButton, { marginTop: 10 }]}
+                  style={(s) => [styles.button, styles.alertButton, { marginTop: 10 }, focusRingStyle(s)]}
                   onPress={requestHelp}
                   accessibilityRole="button"
                   accessibilityLabel="Request help from your Trusted Circle"
@@ -1143,7 +1148,7 @@ export default function HeadOut() {
                   <Pressable
                     testID="headout-stop-sharing"
                     disabled={revokingShare}
-                    style={[styles.button, styles.stopSharingBtn, { marginTop: 10 }]}
+                    style={(s) => [styles.button, styles.stopSharingBtn, { marginTop: 10 }, focusRingStyle(s)]}
                     onPress={stopSharing}
                     accessibilityRole="button"
                     accessibilityLabel="Stop sharing this journey with your trusted circle"
@@ -1158,7 +1163,7 @@ export default function HeadOut() {
 
           <Pressable
             testID="headout-end"
-            style={[styles.button, styles.safeButton]}
+            style={(s) => [styles.button, styles.safeButton, focusRingStyle(s)]}
             onPress={endSession}
             accessibilityRole="button"
             accessibilityLabel="I'm safe"
@@ -1200,7 +1205,7 @@ export default function HeadOut() {
             <Text style={styles.simLabel}>Message:</Text>
             <Text style={styles.simValue}>{simPreview?.body}</Text>
             <Pressable
-              style={[styles.button, { marginTop: 8 }]}
+              style={(s) => [styles.button, { marginTop: 8 }, focusRingStyle(s)]}
               onPress={() => setSimPreview(null)}
               accessibilityRole="button"
               accessibilityLabel="Close simulated alert preview"
@@ -1243,7 +1248,7 @@ export default function HeadOut() {
             <Pressable
               testID="headout-change-dest-save"
               disabled={changingDest || !changeDestLabel.trim()}
-              style={[styles.button, (changingDest || !changeDestLabel.trim()) && styles.buttonDisabled, { marginTop: 8 }]}
+              style={(s) => [styles.button, (changingDest || !changeDestLabel.trim()) && styles.buttonDisabled, { marginTop: 8 }, focusRingStyle(s)]}
               onPress={handleSaveChangeDestination}
               accessibilityRole="button"
               accessibilityLabel="Save new destination"
@@ -1252,7 +1257,7 @@ export default function HeadOut() {
             </Pressable>
             <Pressable
               testID="headout-change-dest-cancel"
-              style={{ marginTop: 10, alignItems: 'center' }}
+              style={(s) => [{ marginTop: 10, alignItems: 'center' }, focusRingStyle(s)]}
               onPress={() => setShowChangeDest(false)}
               accessibilityRole="button"
               accessibilityLabel="Cancel"

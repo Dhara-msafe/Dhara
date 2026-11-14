@@ -1303,7 +1303,7 @@ ${data.bot_message}`);
     return (
       <SafeAreaView testID="fir-start-screen" style={styles.root}>
         <View style={styles.preHeader}>
-          <Pressable testID="fir-start-back" onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
+          <Pressable testID="fir-start-back" onPress={() => router.back()} style={(s) => [styles.backBtn, focusRingStyle(s)]} hitSlop={12} accessibilityRole="button" accessibilityLabel="Go back">
             <Ionicons name="arrow-back" size={22} color={NAVY} />
           </Pressable>
           <Text style={styles.preTitle}>FIR Draft Assistant</Text>
@@ -1313,7 +1313,7 @@ ${data.bot_message}`);
           {resumeError ? <Text testID="fir-resume-error" accessibilityRole="alert" style={{ color: theme.colors.error, lineHeight: 22 }}>{resumeError}</Text> : null}
           {/* v3.3: Resume banner */}
           {savedSessionId && (
-            <Pressable testID="fir-resume-saved" style={styles.resumeCard} onPress={() => resumeSession(savedSessionId)}>
+            <Pressable testID="fir-resume-saved" style={(s) => [styles.resumeCard, focusRingStyle(s)]} onPress={() => resumeSession(savedSessionId)} accessibilityRole="button" accessibilityLabel="Continue your complaint. You have an unfinished session, tap to resume.">
               <Ionicons name="refresh-circle-outline" size={24} color={GOLD} />
               <View style={{ flex: 1, marginLeft: 10 }}>
                 <Text style={styles.resumeTitle}>Continue your complaint</Text>
@@ -1349,8 +1349,11 @@ ${data.bot_message}`);
                 <Pressable
                   key={mod.key}
                   testID={`module-${mod.key}`}
-                  style={[styles.moduleCard, isSelected && { borderColor: mod.color, borderWidth: 2.5, backgroundColor: `${mod.color}12` }]}
+                  style={(s) => [styles.moduleCard, isSelected && { borderColor: mod.color, borderWidth: 2.5, backgroundColor: `${mod.color}12` }, focusRingStyle(s)]}
                   onPress={() => setSelectedModule(isSelected ? null : mod.key)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${mod.label}, ${mod.sublabel}, ${mod.bns}`}
+                  accessibilityState={{ selected: isSelected }}
                 >
                   <View style={[styles.moduleEmojiBadge, { backgroundColor: `${mod.color}18` }]}>
                     <Text style={styles.moduleEmoji}>{mod.emoji}</Text>
@@ -1374,8 +1377,11 @@ ${data.bot_message}`);
             {FIR_LANGUAGES.map(l => (
               <Pressable
                 key={l.code}
-                style={[styles.langChip, language === l.code && styles.langChipActive]}
+                style={(s) => [styles.langChip, language === l.code && styles.langChipActive, focusRingStyle(s)]}
                 onPress={() => saveLanguage(l.code)}
+                accessibilityRole="button"
+                accessibilityLabel={l.native}
+                accessibilityState={{ selected: language === l.code }}
               >
                 <Text style={[styles.langChipText, language === l.code && styles.langChipTextActive]}>
                   {l.native}
@@ -1394,7 +1400,7 @@ ${data.bot_message}`);
           </View>
 
           {/* Start button */}
-          <Pressable testID="fir-start-complaint" style={styles.startBtn} onPress={startSession}>
+          <Pressable testID="fir-start-complaint" style={(s) => [styles.startBtn, focusRingStyle(s)]} onPress={startSession} accessibilityRole="button" accessibilityLabel={savedSessionId ? 'Start New Complaint' : 'Start My Complaint'}>
             {selectedModule && selectedModule !== 'other' ? (
               <Text style={styles.startBtnText}>
                 {`Start ${INCIDENT_MODULES.find(m => m.key === selectedModule)?.label ?? ''} Complaint`}
@@ -1435,7 +1441,7 @@ ${data.bot_message}`);
       {/* Header */}
       <View style={styles.headerShell} testID="fir-chat-header">
       <View style={styles.chatHeader}>
-        <Pressable testID="fir-header-back" accessibilityLabel="Go back" onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable testID="fir-header-back" accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={(s) => [styles.backBtn, focusRingStyle(s)]}>
           <Ionicons name="arrow-back" size={22} color={SURFACE} />
         </Pressable>
         <View style={styles.headerCenter}>
@@ -1450,22 +1456,23 @@ ${data.bot_message}`);
           </View>
         )}
         {currentStage === 'probe' && (
-          <Pressable testID="fir-previous-question" accessibilityLabel="Previous question" onPress={handleBack} style={styles.pauseBtn}>
+          <Pressable testID="fir-previous-question" accessibilityRole="button" accessibilityLabel="Previous question" onPress={handleBack} style={(s) => [styles.pauseBtn, focusRingStyle(s)]}>
             <Ionicons name="arrow-undo-outline" size={20} color={GOLD} />
           </Pressable>
         )}
         {suggestedSections.length > 0 && (
-          <Pressable testID="fir-sections-button" accessibilityLabel="Suggested sections" onPress={() => setShowSectionDrawer(true)} style={styles.pauseBtn}>
+          <Pressable testID="fir-sections-button" accessibilityRole="button" accessibilityLabel="Suggested sections" onPress={() => setShowSectionDrawer(true)} style={(s) => [styles.pauseBtn, focusRingStyle(s)]}>
             <Ionicons name="list-outline" size={20} color={GOLD} />
           </Pressable>
         )}
         {/* TTS auto-speak toggle */}
         <Pressable
           testID="fir-auto-speak-toggle"
+          accessibilityRole="switch"
           accessibilityLabel={autoSpeak ? 'Turn automatic voice off' : 'Turn automatic voice on'}
           accessibilityState={{ checked: autoSpeak }}
           onPress={() => { setAutoSpeak(p => !p); if (autoSpeak) stopTTS(); }}
-          style={styles.pauseBtn}
+          style={(s) => [styles.pauseBtn, focusRingStyle(s)]}
         >
           <Ionicons
             name={autoSpeak ? 'volume-high-outline' : 'volume-mute-outline'}
@@ -1473,7 +1480,7 @@ ${data.bot_message}`);
             color={autoSpeak ? GOLD : MUTED}
           />
         </Pressable>
-        <Pressable testID="fir-save-pause" accessibilityLabel="Save and continue later" onPress={handlePause} style={styles.pauseBtn}>
+        <Pressable testID="fir-save-pause" accessibilityRole="button" accessibilityLabel="Save and continue later" onPress={handlePause} style={(s) => [styles.pauseBtn, focusRingStyle(s)]}>
           <Ionicons name="bookmark-outline" size={20} color={GOLD} />
         </Pressable>
       </View>
@@ -1516,7 +1523,7 @@ ${data.bot_message}`);
           {isLoading && <TypingIndicator />}
           {/* v3.3: Save & Continue Later link */}
           {sessionId && !isLoading && inputType !== 'done' && (
-            <Pressable style={styles.saveLaterRow} onPress={handlePause}>
+            <Pressable style={(s) => [styles.saveLaterRow, focusRingStyle(s)]} onPress={handlePause} accessibilityRole="button" accessibilityLabel="Save and continue later">
               <Text style={styles.saveLaterText}>Save & continue later</Text>
             </Pressable>
           )}
@@ -1664,11 +1671,13 @@ ${data.bot_message}`);
 
             {inputType === 'done' && (
               <Pressable
-                style={styles.viewDraftBtn}
+                style={(s) => [styles.viewDraftBtn, focusRingStyle(s)]}
                 onPress={() => router.push({
                   pathname: '/fir-draft/result',
                   params: { sessionId: sessionId || '' },
                 })}
+                accessibilityRole="button"
+                accessibilityLabel="View your FIR draft"
               >
                 <Ionicons name="document-text-outline" size={22} color="#fff" />
                 <Text style={styles.viewDraftBtnText}>View Your FIR Draft</Text>
@@ -1731,8 +1740,10 @@ function MessageBubble({
           <Pressable
             testID={`fir-listen-${msgId}`}
             onPress={() => onSpeak(msgId, text)}
-            style={styles.ttsBubbleBtn}
+            style={(s) => [styles.ttsBubbleBtn, focusRingStyle(s)]}
             hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={isSpeaking ? 'Stop reading aloud' : 'Read this message aloud'}
           >
             {isTtsLoading ? (
               <ActivityIndicator size="small" color={GOLD} />
@@ -2348,8 +2359,8 @@ const styles = StyleSheet.create({
   headerCenter: { flex: 1, minWidth: 0 },
   headerTitle: { fontSize: 15, fontWeight: '700', color: '#fff' },
   headerLang: { fontSize: 12, color: GOLD },
-  backBtn: { width: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  pauseBtn: { width: 38, minHeight: 44, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  backBtn: { width: UI_REVISION_V1 ? 48 : 44, minHeight: UI_REVISION_V1 ? 48 : 44, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  pauseBtn: { width: UI_REVISION_V1 ? 44 : 38, minHeight: UI_REVISION_V1 ? 48 : 44, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   // v3.4: Probe progress chip in header
   progressChip: {
     backgroundColor: 'rgba(255,255,255,0.12)',
@@ -2569,7 +2580,7 @@ const styles = StyleSheet.create({
   },
   resumeTitle: { color: GOLD, fontSize: 14, fontWeight: '700' },
   resumeSubtitle: { color: '#94a3b8', fontSize: 12, marginTop: 2 },
-  saveLaterRow: { alignItems: 'center', paddingVertical: 8, marginTop: 4 },
+  saveLaterRow: { alignItems: 'center', paddingVertical: 8, marginTop: 4, minHeight: UI_REVISION_V1 ? 44 : undefined, justifyContent: 'center' },
   saveLaterText: { color: MUTED, fontSize: 13, textDecorationLine: 'underline' },
   evidenceThumb: { width: 36, height: 36, borderRadius: 6, marginRight: 4 },
   evidenceRemoveBtn: { padding: 2 },

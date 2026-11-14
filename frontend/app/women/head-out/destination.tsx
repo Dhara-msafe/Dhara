@@ -28,6 +28,9 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
 import { theme } from '@/src/theme';
+// NF-UI-REV-13 (Group G follow-up, DHARA UI Revision v2.2.1): visible
+// keyboard-focus ring only. No destination/search/map logic changes.
+import { focusRingStyle } from '@/src/a11yFocus';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { DestinationMapPicker } from '@/src/women/DestinationMapPicker';
 import { useAuth } from '@/src/auth';
@@ -377,7 +380,7 @@ export default function ChooseDestination() {
               <Pressable
                 key={s.kind === 'coords' ? `coords-${s.latitude}-${s.longitude}-${i}` : `places-${s.place_id}`}
                 testID={`headout-address-suggestion-${i}`}
-                style={styles.suggestionRow}
+                style={(st) => [styles.suggestionRow, focusRingStyle(st)]}
                 onPress={() => selectAddressSuggestion(s)}
                 accessibilityRole="button"
                 accessibilityLabel={`Select address ${s.label}`}
@@ -398,7 +401,7 @@ export default function ChooseDestination() {
             <Pressable
               key={t.key}
               testID={`headout-dest-tab-${t.key}`}
-              style={[styles.tab, tab === t.key && styles.tabActive]}
+              style={(s) => [styles.tab, tab === t.key && styles.tabActive, focusRingStyle(s)]}
               onPress={() => setTab(t.key)}
               accessibilityRole="tab"
               accessibilityState={{ selected: tab === t.key }}
@@ -423,7 +426,7 @@ export default function ChooseDestination() {
               <Pressable
                 key={p.place_id}
                 testID={`headout-saved-${p.place_id}`}
-                style={[styles.placeRow, value.savedPlaceId === p.place_id && styles.placeRowActive]}
+                style={(s) => [styles.placeRow, value.savedPlaceId === p.place_id && styles.placeRowActive, focusRingStyle(s)]}
                 onPress={() => selectSavedPlace(p)}
                 accessibilityRole="button"
                 accessibilityLabel={`${p.label}, ${p.radius_label} arrival area`}
@@ -434,7 +437,7 @@ export default function ChooseDestination() {
             ))}
             <Pressable
               testID="headout-add-custom"
-              style={styles.customRow}
+              style={(s) => [styles.customRow, focusRingStyle(s)]}
               onPress={useAsCustom}
               accessibilityRole="button"
               accessibilityLabel="Use typed text as a custom destination"
@@ -456,7 +459,7 @@ export default function ChooseDestination() {
               <Pressable
                 key={`${r.label}-${i}`}
                 testID={`headout-recent-${i}`}
-                style={styles.placeRow}
+                style={(s) => [styles.placeRow, focusRingStyle(s)]}
                 onPress={() => selectRecent(r)}
                 accessibilityRole="button"
                 accessibilityLabel={r.label}
@@ -486,7 +489,7 @@ export default function ChooseDestination() {
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
         <Pressable
           testID="headout-dest-next"
-          style={[styles.nextBtn, !canContinue && styles.nextBtnDisabled]}
+          style={(s) => [styles.nextBtn, !canContinue && styles.nextBtnDisabled, focusRingStyle(s)]}
           disabled={!canContinue}
           onPress={handleNext}
           accessibilityRole="button"
