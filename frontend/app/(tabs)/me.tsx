@@ -12,6 +12,10 @@ import { getPhotoViewToken } from '@/src/trustedCircle/api';
 import { useFamilyJourneyEnabled } from '@/src/familyJourney/store';
 import { FJ_SEND_ENABLED } from '@/src/familyJourney/flags';
 import { API_BASE } from '@/src/apiBase';
+// NF-UI-REV-06 (Group F, DHARA UI Revision v2.2.1): visible keyboard-focus
+// ring only — this screen's touch targets/contrast/a11y labels were already
+// compliant. No logic changes.
+import { focusRingStyle } from '@/src/a11yFocus';
 
 const c = theme.colors;
 
@@ -52,7 +56,7 @@ export default function Me() {
         <Text style={styles.title}>{tr('me.title', lang)}</Text>
 
         <View style={styles.profile}>
-          <Pressable onPress={() => router.push('/edit-profile')} testID="me-avatar" accessibilityRole="button" accessibilityLabel="Edit profile photo">
+          <Pressable onPress={() => router.push('/edit-profile')} testID="me-avatar" style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Edit profile photo">
             {photoSrc ? (
               <Image source={{ uri: photoSrc }} style={styles.avatarImg} />
             ) : (
@@ -73,7 +77,7 @@ export default function Me() {
             a <button> (invalid HTML) which pops a blocking dev warning. */}
         <View style={styles.emergencyCard} testID="me-emergency-card">
           <Pressable
-            style={styles.emergencyCardTap}
+            style={(s) => [styles.emergencyCardTap, focusRingStyle(s)]}
             onPress={() => router.push('/emergency')}
             accessibilityRole="button"
             accessibilityLabel="Open emergency help — helplines, SOS numbers, what to do next"
@@ -93,7 +97,7 @@ export default function Me() {
           {rows.map((r, i) => (
             <Pressable
               key={r.key}
-              style={[styles.row, i < rows.length - 1 && styles.rowBorder]}
+              style={(s) => [styles.row, i < rows.length - 1 && styles.rowBorder, focusRingStyle(s)]}
               onPress={() => r.route && router.push(r.route as any)}
               testID={`me-${r.key}`}
               accessibilityRole="button"
@@ -126,10 +130,11 @@ export default function Me() {
                   testID={`interest-chip-${interest.key}`}
                   accessibilityRole="button"
                   accessibilityLabel={`${interest.label}${isOn ? ', selected' : ''}`}
-                  style={[
+                  style={(s) => [
                     styles.interestChip,
                     isOn && { backgroundColor: interest.bgColor, borderColor: interest.color },
                     !canPick && { opacity: 0.38 },
+                    focusRingStyle(s),
                   ]}
                   onPress={() => {
                     let next: ProfileInterest[];
@@ -171,7 +176,7 @@ export default function Me() {
           )}
         </View>
 
-        <Pressable style={styles.signout} onPress={async () => { await logout(); router.replace('/login'); }} testID="me-signout" accessibilityRole="button" accessibilityLabel={tr('me.signout', lang)}>
+        <Pressable style={(s) => [styles.signout, focusRingStyle(s)]} onPress={async () => { await logout(); router.replace('/login'); }} testID="me-signout" accessibilityRole="button" accessibilityLabel={tr('me.signout', lang)}>
           <Ionicons name="log-out-outline" size={20} color={c.error} />
           <Text style={styles.signoutTxt}>{tr('me.signout', lang)}</Text>
         </Pressable>

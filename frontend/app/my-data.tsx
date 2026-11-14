@@ -25,6 +25,11 @@ import { theme } from '@/src/theme';
 import { goBackOr } from '@/src/goBackOr';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+// NF-UI-REV-12 (Group J, DHARA UI Revision v2.2.1): presentation-only
+// rollback flag + visible keyboard-focus ring + missing a11y labels. No
+// export/fetch/delete logic changes.
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 
 interface MyDataSummary {
   profile: Record<string, any>;
@@ -144,7 +149,7 @@ export default function MyDataScreen() {
         <View style={styles.loadingWrap}>
           <Ionicons name="cloud-offline-outline" size={36} color={theme.colors.onSurfaceSecondary} />
           <Text testID="my-data-load-failed" style={styles.loadingText}>We could not load your data right now.</Text>
-          <Pressable testID="my-data-retry" onPress={fetchSummary} hitSlop={8}>
+          <Pressable testID="my-data-retry" onPress={fetchSummary} hitSlop={16} style={(s) => [{ paddingVertical: 10 }, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Try again">
             <Text style={[styles.loadingText, { color: theme.colors.brand, fontWeight: '700' }]}>Try again</Text>
           </Pressable>
         </View>
@@ -161,7 +166,7 @@ export default function MyDataScreen() {
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       {/* ── Header ── */}
       <View style={styles.header}>
-        <Pressable onPress={() => goBackOr(router, '/(tabs)/settings')} hitSlop={8} style={styles.backBtn}>
+        <Pressable onPress={() => goBackOr(router, '/(tabs)/settings')} hitSlop={8} style={(s) => [styles.backBtn, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={24} color={theme.colors.brand} />
         </Pressable>
         <Text style={styles.headerTitle}>My Data</Text>
@@ -233,9 +238,12 @@ export default function MyDataScreen() {
         {/* ── Actions ── */}
         <View style={styles.actionsSection}>
           <Pressable
-            style={({ pressed }) => [styles.exportBtn, pressed && { opacity: 0.75 }]}
+            style={(s) => [styles.exportBtn, s.pressed && { opacity: 0.75 }, focusRingStyle(s)]}
             onPress={handleExport}
             disabled={exporting}
+            accessibilityRole="button"
+            accessibilityLabel={exporting ? 'Preparing export' : 'Export my data as JSON, downloads a copy of your consent record'}
+            accessibilityState={{ disabled: exporting, busy: exporting }}
           >
             {exporting
               ? <ActivityIndicator size="small" color="#fff" />
@@ -252,8 +260,10 @@ export default function MyDataScreen() {
           )}
 
           <Pressable
-            style={({ pressed }) => [styles.deleteLink, pressed && { opacity: 0.7 }]}
+            style={(s) => [styles.deleteLink, s.pressed && { opacity: 0.7 }, focusRingStyle(s)]}
             onPress={() => router.push('/settings' as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Delete my account"
           >
             <Ionicons name="trash-outline" size={16} color={theme.colors.error} />
             <Text style={styles.deleteLinkText}>Delete my account</Text>
@@ -428,6 +438,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 10,
+    minHeight: UI_REVISION_V1 ? 44 : undefined,
   },
   deleteLinkText: {
     color: theme.colors.error,
@@ -437,7 +448,9 @@ const styles = StyleSheet.create({
   // Legal note
   legalNote: {
     fontSize: 11,
-    color: theme.colors.onSurfaceTertiary,
+    // NF-UI-REV-12: onSurfaceTertiary directly on this screen's cream root
+    // background measured ~4.33:1 — under 4.5:1. onSurfaceSecondary clears ~6.5:1.
+    color: UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : theme.colors.onSurfaceTertiary,
     lineHeight: 17,
     textAlign: 'center',
     paddingHorizontal: theme.spacing.md,

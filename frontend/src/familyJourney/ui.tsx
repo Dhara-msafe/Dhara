@@ -11,6 +11,11 @@ import { theme } from '../theme';
 import { SosPill } from '../components/dhara/SosPill';
 import { PREVIEW_LABEL, SEND_LABEL } from './previewCopy';
 import { FJ_SEND_ENABLED } from './flags';
+// NF-UI-REV-07 (Group G, DHARA UI Revision v2.2.1): presentation-only
+// rollback flag + visible keyboard-focus ring + missing a11y labels. This
+// file is shared by all Family Journey screens; no logic/copy changes.
+import { UI_REVISION_V1 } from '../designRevision';
+import { focusRingStyle } from '../a11yFocus';
 
 const c = theme.colors;
 
@@ -20,7 +25,7 @@ export function JourneyHeader({ title, subtitle }: { title: string; subtitle?: s
   const router = useRouter();
   return (
     <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-      <Pressable onPress={() => router.back()} hitSlop={8} style={styles.back} testID="fj-back" accessibilityRole="button" accessibilityLabel="Go back">
+      <Pressable onPress={() => router.back()} hitSlop={8} style={(s) => [styles.back, focusRingStyle(s)]} testID="fj-back" accessibilityRole="button" accessibilityLabel="Go back">
         <Ionicons name="chevron-back" size={24} color="#fff" />
       </Pressable>
       <View style={{ flex: 1 }}>
@@ -37,11 +42,11 @@ export function JourneyHelpRow() {
   const router = useRouter();
   return (
     <View style={styles.helpRow} testID="fj-help-row">
-      <Pressable style={styles.helpBtn} onPress={() => router.push('/emergency')} testID="fj-help-emergency">
+      <Pressable style={(s) => [styles.helpBtn, focusRingStyle(s)]} onPress={() => router.push('/emergency')} testID="fj-help-emergency" accessibilityRole="button" accessibilityLabel="Emergency help">
         <Ionicons name="alert-circle-outline" size={16} color={c.navy} />
         <Text style={styles.helpTxt}>Emergency help</Text>
       </Pressable>
-      <Pressable style={styles.helpBtn} onPress={() => router.push('/all-help')} testID="fj-help-all">
+      <Pressable style={(s) => [styles.helpBtn, focusRingStyle(s)]} onPress={() => router.push('/all-help')} testID="fj-help-all" accessibilityRole="button" accessibilityLabel="Legal help">
         <Ionicons name="help-buoy-outline" size={16} color={c.navy} />
         <Text style={styles.helpTxt}>Legal help</Text>
       </Pressable>
@@ -141,11 +146,11 @@ export function ConfirmSheet({
               ? <PreviewBadge testID="fj-confirm-preview-badge" />
               : <PhaseBadge testID="fj-confirm-preview-badge" />}
           </ScrollView>
-          <Pressable style={styles.primaryBtn} onPress={onConfirm} testID="fj-confirm-yes">
+          <Pressable style={(s) => [styles.primaryBtn, focusRingStyle(s)]} onPress={onConfirm} testID="fj-confirm-yes" accessibilityRole="button" accessibilityLabel={confirmLabel}>
             <Text style={styles.primaryBtnTxt}>{confirmLabel}</Text>
           </Pressable>
           {hideCancel ? null : (
-            <Pressable style={styles.ghostBtn} onPress={onCancel} testID="fj-confirm-cancel">
+            <Pressable style={(s) => [styles.ghostBtn, focusRingStyle(s)]} onPress={onCancel} testID="fj-confirm-cancel" accessibilityRole="button" accessibilityLabel="Cancel">
               <Text style={styles.ghostBtnTxt}>Cancel</Text>
             </Pressable>
           )}
@@ -169,7 +174,7 @@ export function FamilyJourneyOff() {
             You turned this feature off. No new message will be prepared for anyone. You can switch it
             back on in Family Journey or in Settings → Data &amp; Privacy.
           </Text>
-          <Pressable style={fjStyles.primary} onPress={() => router.replace('/family-journey')} testID="fj-off-hub">
+          <Pressable style={(s) => [fjStyles.primary, focusRingStyle(s)]} onPress={() => router.replace('/family-journey')} testID="fj-off-hub" accessibilityRole="button" accessibilityLabel="Open Family Journey">
             <Text style={fjStyles.primaryTxt}>Open Family Journey</Text>
           </Pressable>
         </View>
@@ -204,13 +209,13 @@ export const fjStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.navy, paddingHorizontal: 12, paddingBottom: 14 },
-  back: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  back: { width: UI_REVISION_V1 ? 48 : 44, height: UI_REVISION_V1 ? 48 : 44, alignItems: 'center', justifyContent: 'center' },
   hTitle: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 21 },
   hSub: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 12, marginTop: 2 },
 
   helpRow: { flexDirection: 'row', gap: 10 },
   helpBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 44,
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: UI_REVISION_V1 ? 48 : 44,
     backgroundColor: c.surface, borderRadius: theme.radius.pill, borderWidth: 1, borderColor: c.borderStrong, paddingHorizontal: 12,
   },
   helpTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy },
@@ -235,6 +240,6 @@ const styles = StyleSheet.create({
   sheetBody: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, lineHeight: 20, marginTop: 6 },
   primaryBtn: { backgroundColor: c.navy, borderRadius: theme.radius.pill, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   primaryBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 15 },
-  ghostBtn: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  ghostBtn: { minHeight: UI_REVISION_V1 ? 48 : 44, alignItems: 'center', justifyContent: 'center' },
   ghostBtnTxt: { color: c.muted, fontFamily: theme.fonts.bodySemiBold, fontSize: 14 },
 });

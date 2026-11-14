@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth, Language } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { trackEvent } from '@/src/analytics';
+import { focusRingStyle } from '@/src/a11yFocus';
 
 // Mirrors backend /api/reference/languages — hardcoded so the screen works
 // before login and without a network round-trip.
@@ -49,7 +50,7 @@ export default function LanguageSelect() {
     if (from === 'home') {
       if (router.canGoBack()) router.back();
       else router.replace('/(tabs)/home');
-    } else router.replace('/login');
+    } else router.replace('/how-it-helps');
   };
 
   return (
@@ -68,8 +69,11 @@ export default function LanguageSelect() {
           return (
             <Pressable
               testID={`lang-${item.code}`}
-              style={[styles.row, active && styles.rowActive]}
+              style={(s) => [styles.row, active && styles.rowActive, focusRingStyle(s)]}
               onPress={() => setSelected(item)}
+              accessibilityRole="radio"
+              accessibilityLabel={`${item.native}, ${item.name}`}
+              accessibilityState={{ selected: active }}
             >
               <View style={{ flex: 1 }}>
                 <Text style={[styles.native, active && styles.nativeActive]}>{item.native}</Text>
@@ -81,7 +85,13 @@ export default function LanguageSelect() {
         }}
       />
       <View style={styles.footer}>
-        <Pressable testID="language-continue" style={styles.btn} onPress={onContinue}>
+        <Pressable
+          testID="language-continue"
+          style={(s) => [styles.btn, focusRingStyle(s)]}
+          onPress={onContinue}
+          accessibilityRole="button"
+          accessibilityLabel="Continue"
+        >
           <Text style={styles.btnText}>Continue · जारी रखें</Text>
         </Pressable>
       </View>

@@ -5,6 +5,9 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { DRAFTS } from '@/src/drafts';
+// NF-UI-REV-10 (Group I, DHARA UI Revision v2.2.1): visible keyboard-focus
+// ring + missing a11y labels. No routing/quota logic changes.
+import { focusRingStyle } from '@/src/a11yFocus';
 
 // Batch FREE-V1-001: Pro upgrade / Stripe / Razorpay payment UI gated off for v1.
 const PRO_UPGRADE_ENABLED = process.env.EXPO_PUBLIC_PRO_UPGRADE_ENABLED === 'true';
@@ -18,11 +21,11 @@ export default function DraftsList() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']} testID="drafts-screen">
       <View style={styles.header}>
-        <Pressable testID="drafts-back" onPress={() => router.back()} hitSlop={12}>
+        <Pressable testID="drafts-back" onPress={() => router.back()} hitSlop={12} style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={26} color={theme.colors.onBrandPrimary} />
         </Pressable>
         <Text style={styles.h1}>Ready notices</Text>
-        <Pressable testID="drafts-history-nav" onPress={() => router.push('/drafts/history')} hitSlop={12}>
+        <Pressable testID="drafts-history-nav" onPress={() => router.push('/drafts/history')} hitSlop={12} style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="View notice history">
           <Ionicons name="time-outline" size={24} color={theme.colors.onBrandPrimary} />
         </Pressable>
       </View>
@@ -44,7 +47,7 @@ export default function DraftsList() {
           </Text>
         </View>
 
-        <Pressable testID="drafts-history-card" style={styles.historyCard} onPress={() => router.push('/drafts/history')}>
+        <Pressable testID="drafts-history-card" style={(s) => [styles.historyCard, focusRingStyle(s)]} onPress={() => router.push('/drafts/history')} accessibilityRole="button" accessibilityLabel="View notices you've already written">
           <Ionicons name="time-outline" size={18} color={theme.colors.brand} />
           <Text style={styles.historyCardText}>View notices you&apos;ve already written</Text>
           <Ionicons name="chevron-forward" size={18} color={theme.colors.onSurfaceTertiary} />
@@ -54,8 +57,10 @@ export default function DraftsList() {
           <Pressable
             key={d.type}
             testID={`draft-${d.type}`}
-            style={styles.card}
+            style={(s) => [styles.card, focusRingStyle(s)]}
             onPress={() => router.push(`/drafts/${d.type}`)}
+            accessibilityRole="button"
+            accessibilityLabel={`${d.title}. ${d.subtitle}. ${d.deadline}`}
           >
             <View style={styles.iconWrap}>
               <Ionicons name={d.icon} size={22} color={theme.colors.brand} />

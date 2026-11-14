@@ -9,6 +9,11 @@ import { getCircle, saveCircle, type Contact } from '@/src/women/api';
 import { openPhone } from '@/src/women/helpActions';
 import { useAuth } from '@/src/auth';
 import { inviteContact, listInvitations, revokeInvitation, type InviteLink, type Permissions } from '@/src/trustedCircle/api';
+// NF-UI-REV-07 (Group G, DHARA UI Revision v2.2.1): presentation-only
+// rollback flag + visible keyboard-focus ring + missing a11y labels/targets.
+// No API/storage/invite-permission logic changes.
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 
 const TRUSTED_CIRCLE_RECIPIENT = process.env.EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT === 'true';
 
@@ -134,11 +139,31 @@ export default function TrustedCircle() {
               {TC_V2 && !!ct.email && <Text style={styles.rowEmail}>{ct.email}</Text>}
               <Text style={styles.rowNotify}>{ct.notify === false ? 'Call only' : 'Notified in Silent alert'}</Text>
             </View>
-            <Pressable testID={`circle-toggle-notify-${ct.id}`} disabled={busy} onPress={() => toggleNotify(ct.id)} style={styles.iconBtn}>
+            <Pressable
+              testID={`circle-toggle-notify-${ct.id}`}
+              disabled={busy}
+              onPress={() => toggleNotify(ct.id)}
+              style={(s) => [styles.iconBtn, focusRingStyle(s)]}
+              accessibilityRole="button"
+              accessibilityLabel={ct.notify === false ? `Call only for ${ct.name}. Tap to notify in Silent alert.` : `Notified in Silent alert for ${ct.name}. Tap to switch to call only.`}
+            >
               <Ionicons name={ct.notify === false ? 'notifications-off-outline' : 'notifications-outline'} size={20} color={ct.notify === false ? c.muted : c.navy} />
             </Pressable>
-            <Pressable testID={`circle-call-${ct.id}`} onPress={async () => setStatus(await openPhone(ct.phone))} style={styles.iconBtn}><Ionicons name="call-outline" size={20} color={c.navy} /></Pressable>
-            <Pressable testID={`circle-remove-${ct.id}`} disabled={busy} onPress={() => remove(ct.id)} style={styles.iconBtn}><Ionicons name="trash-outline" size={20} color={c.error} /></Pressable>
+            <Pressable
+              testID={`circle-call-${ct.id}`}
+              onPress={async () => setStatus(await openPhone(ct.phone))}
+              style={(s) => [styles.iconBtn, focusRingStyle(s)]}
+              accessibilityRole="button"
+              accessibilityLabel={`Call ${ct.name}`}
+            ><Ionicons name="call-outline" size={20} color={c.navy} /></Pressable>
+            <Pressable
+              testID={`circle-remove-${ct.id}`}
+              disabled={busy}
+              onPress={() => remove(ct.id)}
+              style={(s) => [styles.iconBtn, focusRingStyle(s)]}
+              accessibilityRole="button"
+              accessibilityLabel={`Remove ${ct.name} from trusted circle`}
+            ><Ionicons name="trash-outline" size={20} color={c.error} /></Pressable>
           </View>
         ))}
 
@@ -153,7 +178,15 @@ export default function TrustedCircle() {
                 <Text style={styles.connectedTxt}>
                   Connected — sharing: {shared.length ? shared.join(', ') : 'nothing yet'}
                 </Text>
-                <Pressable testID={`circle-revoke-${ct.id}`} disabled={isBusy} onPress={() => revoke(invite)} style={styles.revokeBtn}>
+                <Pressable
+                  testID={`circle-revoke-${ct.id}`}
+                  disabled={isBusy}
+                  onPress={() => revoke(invite)}
+                  style={(s) => [styles.revokeBtn, focusRingStyle(s)]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Revoke ${ct.name}'s access`}
+                  accessibilityState={{ disabled: isBusy, busy: isBusy }}
+                >
                   <Text style={styles.revokeBtnTxt}>{isBusy ? 'Revoking…' : 'Revoke access'}</Text>
                 </Pressable>
               </View>
@@ -180,6 +213,9 @@ export default function TrustedCircle() {
                     testID={`circle-reinvite-${ct.id}`}
                     disabled={!authToken}
                     onPress={() => setExpandedId(ct.id)}
+                    style={(s) => [styles.inviteLinkBtn, focusRingStyle(s)]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Invite ${ct.name} again`}
                   >
                     <Text style={styles.inviteLinkTxt}>Invite {ct.name} again →</Text>
                   </Pressable>
@@ -221,7 +257,14 @@ export default function TrustedCircle() {
           if (!isExpanded) {
             return (
               <View key={`invite-${ct.id}`} style={styles.inviteRow}>
-                <Pressable testID={`circle-invite-${ct.id}`} disabled={!authToken} onPress={() => setExpandedId(ct.id)}>
+                <Pressable
+                  testID={`circle-invite-${ct.id}`}
+                  disabled={!authToken}
+                  onPress={() => setExpandedId(ct.id)}
+                  style={(s) => [styles.inviteLinkBtn, focusRingStyle(s)]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Invite ${ct.name} to see your Safety Alerts in DHARA`}
+                >
                   <Text style={styles.inviteLinkTxt}>Invite {ct.name} to see your Safety Alerts in DHARA →</Text>
                 </Pressable>
               </View>
@@ -241,10 +284,24 @@ export default function TrustedCircle() {
                 </View>
               ))}
               <View style={styles.permActionsRow}>
-                <Pressable testID={`circle-perm-cancel-${ct.id}`} style={styles.permCancelBtn} onPress={() => setExpandedId(null)}>
+                <Pressable
+                  testID={`circle-perm-cancel-${ct.id}`}
+                  style={(s) => [styles.permCancelBtn, focusRingStyle(s)]}
+                  onPress={() => setExpandedId(null)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel"
+                >
                   <Text style={styles.permCancelTxt}>Cancel</Text>
                 </Pressable>
-                <Pressable testID={`circle-perm-send-${ct.id}`} disabled={isBusy} style={styles.permSendBtn} onPress={() => sendInvite(ct)}>
+                <Pressable
+                  testID={`circle-perm-send-${ct.id}`}
+                  disabled={isBusy}
+                  style={(s) => [styles.permSendBtn, focusRingStyle(s)]}
+                  onPress={() => sendInvite(ct)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Send invitation to ${ct.name}`}
+                  accessibilityState={{ disabled: isBusy, busy: isBusy }}
+                >
                   <Text style={styles.permSendTxt}>{isBusy ? 'Sending…' : 'Send invitation'}</Text>
                 </Pressable>
               </View>
@@ -255,15 +312,29 @@ export default function TrustedCircle() {
         {list.length < 3 && (
           <View style={styles.addCard}>
             <Text style={styles.addTitle}>Add a person</Text>
-            <TextInput testID="circle-name" value={name} onChangeText={setName} placeholder="Name" placeholderTextColor={c.muted} style={styles.input} />
-            <TextInput testID="circle-phone" value={phone} onChangeText={setPhone} placeholder="Phone number" placeholderTextColor={c.muted} keyboardType="phone-pad" style={styles.input} />
-            <TextInput testID="circle-relationship" value={relationship} onChangeText={setRelationship} placeholder="Relationship (e.g. Friend, Family) — optional" placeholderTextColor={c.muted} style={styles.input} />
-            {TC_V2 && <TextInput testID="circle-email" value={email} onChangeText={setEmail} placeholder="Email address (optional)" placeholderTextColor={c.muted} keyboardType="email-address" autoCapitalize="none" style={styles.input} />}
-            <Pressable testID="circle-add" disabled={busy} style={styles.addBtn} onPress={add}><Text style={styles.addBtnTxt}>{busy ? 'Please wait…' : 'Add to circle'}</Text></Pressable>
+            <TextInput testID="circle-name" value={name} onChangeText={setName} placeholder="Name" placeholderTextColor={c.muted} style={styles.input} accessibilityLabel="Name" />
+            <TextInput testID="circle-phone" value={phone} onChangeText={setPhone} placeholder="Phone number" placeholderTextColor={c.muted} keyboardType="phone-pad" style={styles.input} accessibilityLabel="Phone number" />
+            <TextInput testID="circle-relationship" value={relationship} onChangeText={setRelationship} placeholder="Relationship (e.g. Friend, Family) — optional" placeholderTextColor={c.muted} style={styles.input} accessibilityLabel="Relationship, optional" />
+            {TC_V2 && <TextInput testID="circle-email" value={email} onChangeText={setEmail} placeholder="Email address (optional)" placeholderTextColor={c.muted} keyboardType="email-address" autoCapitalize="none" style={styles.input} accessibilityLabel="Email address, optional" />}
+            <Pressable
+              testID="circle-add"
+              disabled={busy}
+              style={(s) => [styles.addBtn, focusRingStyle(s)]}
+              onPress={add}
+              accessibilityRole="button"
+              accessibilityLabel="Add to circle"
+              accessibilityState={{ disabled: busy, busy }}
+            ><Text style={styles.addBtnTxt}>{busy ? 'Please wait…' : 'Add to circle'}</Text></Pressable>
           </View>
         )}
         {list.length >= 3 && <Text style={styles.full}>Circle full (3 of 3). Remove one to add another.</Text>}
-        <Pressable testID="circle-prepare-alert" style={[styles.addBtn, { marginTop: 20 }]} onPress={() => router.dismissTo('/women/silent-alert')}><Text style={styles.addBtnTxt}>Prepare silent alert</Text></Pressable>
+        <Pressable
+          testID="circle-prepare-alert"
+          style={(s) => [styles.addBtn, { marginTop: 20 }, focusRingStyle(s)]}
+          onPress={() => router.dismissTo('/women/silent-alert')}
+          accessibilityRole="button"
+          accessibilityLabel="Prepare silent alert"
+        ><Text style={styles.addBtnTxt}>Prepare silent alert</Text></Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -279,18 +350,20 @@ const styles = StyleSheet.create({
   rowPhone: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted },
   rowEmail: { fontFamily: theme.fonts.body, fontSize: 12, color: c.navy, marginTop: 1 },
   rowNotify: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 2 },
-  iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  iconBtn: { width: UI_REVISION_V1 ? 48 : 44, height: UI_REVISION_V1 ? 48 : 44, alignItems: 'center', justifyContent: 'center' },
   addCard: { backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.lines, padding: 16, marginTop: 6 },
   addTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.ink, marginBottom: 12 },
   input: { backgroundColor: c.background, borderWidth: 1, borderColor: c.lines, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontFamily: theme.fonts.body, fontSize: 16, color: c.ink, marginBottom: 12 },
-  addBtn: { backgroundColor: c.navy, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  addBtn: { backgroundColor: c.navy, borderRadius: 12, paddingVertical: 14, alignItems: 'center', minHeight: UI_REVISION_V1 ? 48 : undefined, justifyContent: 'center' },
   addBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 16 },
   full: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, marginTop: 8 },
   inviteRow: { marginTop: -6, marginBottom: 10, paddingLeft: 56 },
+  // NF-UI-REV-07: this link was bare text with no padding — under 44px.
+  inviteLinkBtn: { minHeight: UI_REVISION_V1 ? 44 : undefined, justifyContent: 'center' },
   inviteLinkTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12.5, color: c.navy },
   inviteSentTxt: { fontFamily: theme.fonts.body, fontSize: 12.5, color: c.muted },
   connectedTxt: { fontFamily: theme.fonts.body, fontSize: 12.5, color: c.success, marginBottom: 6 },
-  revokeBtn: { alignSelf: 'flex-start', minHeight: 36, paddingHorizontal: 12, justifyContent: 'center', backgroundColor: '#FCEBE9', borderRadius: 999 },
+  revokeBtn: { alignSelf: 'flex-start', minHeight: UI_REVISION_V1 ? 44 : 36, paddingHorizontal: 12, justifyContent: 'center', backgroundColor: '#FCEBE9', borderRadius: 999 },
   revokeBtnTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12.5, color: c.error },
   permPanel: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 14, padding: 14, marginTop: -6, marginBottom: 12 },
   permPanelTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.ink, marginBottom: 10 },

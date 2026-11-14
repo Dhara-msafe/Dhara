@@ -33,6 +33,12 @@ import {
   computeSessionElapsedMs,
   type EvidenceSession,
 } from '@/src/women/evidenceSession';
+// NF-UI-REV-08 (Group G, DHARA UI Revision v2.2.1): presentation-only
+// rollback flag + visible keyboard-focus ring + missing a11y labels only.
+// Zero changes to PIN/lockout/recording/encryption logic — every existing
+// `disabled`/`pointerEvents` guard below is left untouched.
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 
 const EVIDENCE_ACTIONS_ENABLED = process.env.EXPO_PUBLIC_EVIDENCE_ACTIONS === 'true';
 
@@ -162,6 +168,7 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
         style={styles.pinInput}
         editable={!locked}
         autoFocus
+        accessibilityLabel={mode === 'confirm' ? 'Confirm PIN' : 'Enter PIN'}
       />
       {!!error && <Text testID="evidence-pin-error" style={[styles.note, { color: c.emergencyRed }]}>{error}</Text>}
       {locked && <Text testID="evidence-pin-lockout" style={[styles.note, { color: c.emergencyRed }]}>Locked for {formatLockoutRemaining(lockoutMs)}.</Text>}
@@ -171,8 +178,11 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
         // (d) Explicit pointer-events block — `disabled` alone was observed
         // in testing to still let a click through to onPress on web.
         pointerEvents={locked ? 'none' : 'auto'}
-        style={[styles.button, locked && { opacity: 0.5 }]}
+        style={(s) => [styles.button, locked && { opacity: 0.5 }, focusRingStyle(s)]}
         onPress={submit}
+        accessibilityRole="button"
+        accessibilityLabel={mode === 'enter' ? 'Unlock' : 'Continue'}
+        accessibilityState={{ disabled: locked }}
       >
         <Text style={styles.buttonText}>{mode === 'enter' ? 'Unlock' : 'Continue'}</Text>
       </Pressable>
@@ -196,10 +206,10 @@ function NoteEditor({ initial, onSave, onCancel }: { initial: string; onSave: (t
         testID="evidence-note-input"
       />
       <View style={{ flexDirection: 'row', gap: 10 }}>
-        <Pressable onPress={() => onSave(text)} style={{ flex: 1, backgroundColor: tc.navy, borderRadius: 10, padding: 10, alignItems: 'center' }} testID="evidence-note-save">
+        <Pressable onPress={() => onSave(text)} style={(s) => [{ flex: 1, backgroundColor: tc.navy, borderRadius: 10, padding: 10, alignItems: 'center' }, focusRingStyle(s)]} testID="evidence-note-save" accessibilityRole="button" accessibilityLabel="Save note">
           <Text style={{ color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14 }}>Save note</Text>
         </Pressable>
-        <Pressable onPress={onCancel} style={{ flex: 1, borderWidth: 1, borderColor: tc.lines, borderRadius: 10, padding: 10, alignItems: 'center' }} testID="evidence-note-cancel">
+        <Pressable onPress={onCancel} style={(s) => [{ flex: 1, borderWidth: 1, borderColor: tc.lines, borderRadius: 10, padding: 10, alignItems: 'center' }, focusRingStyle(s)]} testID="evidence-note-cancel" accessibilityRole="button" accessibilityLabel="Cancel note">
           <Text style={{ color: tc.muted, fontFamily: theme.fonts.body, fontSize: 14 }}>Cancel</Text>
         </Pressable>
       </View>
@@ -940,14 +950,14 @@ export default function EvidenceLocker() {
               : `Recording · ${Math.floor(state.durationMillis / 1000)}s`
             : 'Ready to record'}
         </Text>
-        <Pressable testID="evidence-record-toggle" disabled={busy} style={styles.button} onPress={state.isRecording ? save : start}>
+        <Pressable testID="evidence-record-toggle" disabled={busy} style={(s) => [styles.button, focusRingStyle(s)]} onPress={state.isRecording ? save : start} accessibilityRole="button" accessibilityLabel={state.isRecording ? 'Stop and save recording' : 'Start voice recording'} accessibilityState={{ disabled: busy, busy }}>
           {busy
             ? state.isRecording
               ? <Text style={styles.buttonText}>Saving…</Text>
               : <ActivityIndicator color={c.onBrandPrimary} />
             : <Text style={styles.buttonText}>{state.isRecording ? 'Stop & save' : 'Start voice recording'}</Text>}
         </Pressable>
-        {state.isRecording && <Pressable testID="evidence-discard" style={styles.secondary} onPress={() => crossAlert(
+        {state.isRecording && <Pressable testID="evidence-discard" style={(s) => [styles.secondary, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Discard recording" onPress={() => crossAlert(
           'Discard this recording?',
           'This permanently deletes the audio captured since you tapped record. It cannot be undone.',
           [
@@ -961,20 +971,20 @@ export default function EvidenceLocker() {
             <Text style={styles.label}>Interrupted recording found — {ses.segments.length} segment(s) saved</Text>
             <Text style={styles.note}>Started {new Date(ses.startedAt).toLocaleString()}</Text>
             <View style={styles.captureRow}>
-              <Pressable style={[styles.control, { flex: 1 }]} onPress={() => handleRecover(ses)} disabled={busy}>
+              <Pressable style={(s) => [styles.control, { flex: 1 }, focusRingStyle(s)]} onPress={() => handleRecover(ses)} disabled={busy} accessibilityRole="button" accessibilityLabel="Recover interrupted recording" accessibilityState={{ disabled: busy }}>
                 <Text style={[styles.label, { color: c.verifiedGreen }]}>Recover</Text>
               </Pressable>
-              <Pressable style={[styles.control, { flex: 1 }]} onPress={() => dismissRecoverable(ses)} disabled={busy}>
+              <Pressable style={(s) => [styles.control, { flex: 1 }, focusRingStyle(s)]} onPress={() => dismissRecoverable(ses)} disabled={busy} accessibilityRole="button" accessibilityLabel="Discard interrupted recording" accessibilityState={{ disabled: busy }}>
                 <Text style={[styles.label, { color: c.emergencyRed }]}>Discard</Text>
               </Pressable>
             </View>
           </View>
         ))}
         <View style={styles.captureRow}>
-          <Pressable testID="evidence-take-photo" disabled={busy || state.isRecording} style={[styles.secondary, styles.captureBtn]} onPress={() => capture('photo')}>
+          <Pressable testID="evidence-take-photo" disabled={busy || state.isRecording} style={(s) => [styles.secondary, styles.captureBtn, focusRingStyle(s)]} onPress={() => capture('photo')} accessibilityRole="button" accessibilityLabel="Take photo">
             <Text style={styles.label}>📷 Take photo</Text>
           </Pressable>
-          <Pressable testID="evidence-record-video" disabled={busy || state.isRecording} style={[styles.secondary, styles.captureBtn]} onPress={() => capture('video')}>
+          <Pressable testID="evidence-record-video" disabled={busy || state.isRecording} style={(s) => [styles.secondary, styles.captureBtn, focusRingStyle(s)]} onPress={() => capture('video')} accessibilityRole="button" accessibilityLabel="Record video, max 2 minutes">
             <Text style={styles.label}>🎥 Record video (max 2 min)</Text>
           </Pressable>
         </View>
@@ -998,8 +1008,10 @@ export default function EvidenceLocker() {
             <Pressable
               testID={`recording-preview-video-${item.id}`}
               disabled={previewLoading === item.id}
-              style={styles.videoPlaceholder}
+              style={(s) => [styles.videoPlaceholder, focusRingStyle(s)]}
               onPress={() => previewVideo(item)}
+              accessibilityRole="button"
+              accessibilityLabel="Preview video"
             >
               {previewLoading === item.id
                 ? <ActivityIndicator color={c.navy} />
@@ -1007,12 +1019,12 @@ export default function EvidenceLocker() {
             </Pressable>
           )}
           {item.type === 'audio' && (
-            <Pressable testID={`recording-play-${item.id}`} disabled={state.isRecording || busy} style={styles.control} onPress={() => play(item)}><Text style={styles.label}>{playing === item.id ? 'Stop playback' : 'Play recording'}</Text></Pressable>
+            <Pressable testID={`recording-play-${item.id}`} disabled={state.isRecording || busy} style={(s) => [styles.control, focusRingStyle(s)]} onPress={() => play(item)} accessibilityRole="button" accessibilityLabel={playing === item.id ? 'Stop playback' : 'Play recording'}><Text style={styles.label}>{playing === item.id ? 'Stop playback' : 'Play recording'}</Text></Pressable>
           )}
           {item.type === 'video' && videoPreview?.id === item.id && (
-            <Pressable testID={`recording-close-preview-${item.id}`} style={styles.control} onPress={closeVideoPreview}><Text style={styles.label}>Close preview</Text></Pressable>
+            <Pressable testID={`recording-close-preview-${item.id}`} style={(s) => [styles.control, focusRingStyle(s)]} onPress={closeVideoPreview} accessibilityRole="button" accessibilityLabel="Close preview"><Text style={styles.label}>Close preview</Text></Pressable>
           )}
-          <Pressable testID={`recording-share-${item.id}`} style={styles.control} onPress={() => shareItem(item)}><Text style={styles.label}>Share / Open</Text></Pressable>
+          <Pressable testID={`recording-share-${item.id}`} style={(s) => [styles.control, focusRingStyle(s)]} onPress={() => shareItem(item)} accessibilityRole="button" accessibilityLabel="Share or open this recording"><Text style={styles.label}>Share / Open</Text></Pressable>
           <View style={styles.vaultRow}>
             <Text testID={`recording-vault-status-${item.id}`} style={styles.note}>
               {manifestMap[item.id]?.anchor
@@ -1021,24 +1033,24 @@ export default function EvidenceLocker() {
               {manifestMap[item.id]?.backup ? ' · ☁️ Backed up' : ''}
             </Text>
             {vaultEnabled && !manifestMap[item.id]?.anchor && (
-              <Pressable testID={`recording-anchor-${item.id}`} disabled={anchoring === item.id} style={styles.control} onPress={() => handleAnchor(item)}>
+              <Pressable testID={`recording-anchor-${item.id}`} disabled={anchoring === item.id} style={(s) => [styles.control, focusRingStyle(s)]} onPress={() => handleAnchor(item)} accessibilityRole="button" accessibilityLabel="Anchor and verify, needs signal" accessibilityState={{ disabled: anchoring === item.id, busy: anchoring === item.id }}>
                 {anchoring === item.id ? <ActivityIndicator color={c.navy} /> : <Text style={styles.label}>Anchor & verify (needs signal)</Text>}
               </Pressable>
             )}
             {vaultEnabled && !!manifestMap[item.id]?.anchor && !manifestMap[item.id]?.backup && (
-              <Pressable testID={`recording-backup-${item.id}`} disabled={item.id in backingUp} style={styles.control} onPress={() => handleBackup(item)}>
+              <Pressable testID={`recording-backup-${item.id}`} disabled={item.id in backingUp} style={(s) => [styles.control, focusRingStyle(s)]} onPress={() => handleBackup(item)} accessibilityRole="button" accessibilityLabel="Back up to secure cloud" accessibilityState={{ disabled: item.id in backingUp, busy: item.id in backingUp }}>
                 <Text style={styles.label}>{item.id in backingUp ? `Backing up… ${Math.round((backingUp[item.id] || 0) * 100)}%` : 'Back up to secure cloud'}</Text>
               </Pressable>
             )}
             {!!manifestMap[item.id]?.anchor && (
-              <Pressable testID={`recording-certificate-${item.id}`} style={styles.control} onPress={() => handleCertificate(item)}>
+              <Pressable testID={`recording-certificate-${item.id}`} style={(s) => [styles.control, focusRingStyle(s)]} onPress={() => handleCertificate(item)} accessibilityRole="button" accessibilityLabel="Export certificate draft">
                 <Text style={styles.label}>Export certificate (draft)</Text>
               </Pressable>
             )}
           </View>
           <Pressable
             testID={`recording-delete-${item.id}`}
-            style={styles.control}
+            style={(s) => [styles.control, focusRingStyle(s)]}
             onPress={() => { setDeleteError(''); setDeleting(item.id); }}
             accessibilityRole="button"
             accessibilityLabel="Delete this recording"
@@ -1056,8 +1068,10 @@ export default function EvidenceLocker() {
               ) : (
                 <Pressable
                   testID={`recording-note-${item.id}`}
-                  style={styles.control}
+                  style={(s) => [styles.control, focusRingStyle(s)]}
                   onPress={() => setEditingNoteId(item.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={notesMap[item.id] ? `Edit note: ${notesMap[item.id].slice(0, 60)}` : 'Add note'}
                 >
                   <Text style={styles.label}>
                     {notesMap[item.id] ? `📝 Note: ${notesMap[item.id].slice(0, 60)}${notesMap[item.id].length > 60 ? '…' : ''}` : '📝 Add note'}
@@ -1066,8 +1080,10 @@ export default function EvidenceLocker() {
               )}
               <Pressable
                 testID={`recording-fir-${item.id}`}
-                style={styles.control}
+                style={(s) => [styles.control, focusRingStyle(s)]}
                 onPress={() => router.push({ pathname: '/fir-draft', params: { evidence_id: item.id, evidence_date: new Date(item.createdAt).toISOString(), evidence_type: item.type, evidence_note: notesMap[item.id] || '' } })}
+                accessibilityRole="button"
+                accessibilityLabel="Start FIR draft from this recording"
               >
                 <Text style={[styles.label, { color: c.darkGold }]}>⚖️ Start FIR draft from this recording</Text>
               </Pressable>
@@ -1112,10 +1128,12 @@ export default function EvidenceLocker() {
             )}
             <Pressable
               testID={deleteTarget ? `recording-delete-confirm-${deleteTarget.id}` : 'recording-delete-confirm'}
-              style={[styles.modalDanger, deleteBusy && { opacity: 0.6 }]}
+              style={(s) => [styles.modalDanger, deleteBusy && { opacity: 0.6 }, focusRingStyle(s)]}
               disabled={deleteBusy}
               onPress={() => { if (deleteTarget) void remove(deleteTarget); }}
               accessibilityRole="button"
+              accessibilityLabel="Delete"
+              accessibilityState={{ disabled: deleteBusy, busy: deleteBusy }}
             >
               {deleteBusy
                 ? <ActivityIndicator color={c.onBrandPrimary} />
@@ -1123,10 +1141,11 @@ export default function EvidenceLocker() {
             </Pressable>
             <Pressable
               testID={deleteTarget ? `recording-keep-${deleteTarget.id}` : 'recording-keep'}
-              style={styles.modalKeep}
+              style={(s) => [styles.modalKeep, focusRingStyle(s)]}
               disabled={deleteBusy}
               onPress={() => { setDeleting(null); setDeleteError(''); }}
               accessibilityRole="button"
+              accessibilityLabel="Keep recording"
             >
               <Text style={styles.modalKeepTxt}>Keep</Text>
             </Pressable>
@@ -1145,7 +1164,7 @@ const styles = StyleSheet.create({
   buttonText: { fontFamily: theme.fonts.bodyBold, fontSize: 17, color: c.onBrandPrimary },
   secondary: { borderRadius: 14, borderWidth: 1, borderColor: c.lines, padding: 16, backgroundColor: c.surface },
   label: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.navy },
-  control: { minHeight: 44, justifyContent: 'center', marginTop: 8 },
+  control: { minHeight: UI_REVISION_V1 ? 48 : 44, justifyContent: 'center', marginTop: 8 },
   toast: {
     position: 'absolute', left: 20, right: 20, backgroundColor: c.navy, borderRadius: 12,
     paddingVertical: 14, paddingHorizontal: 16,

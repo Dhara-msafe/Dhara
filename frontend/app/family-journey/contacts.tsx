@@ -17,6 +17,9 @@ import { loadPickableContacts, type PickableContact } from '@/src/familyJourney/
 import { isLocalOnly, loadJourney, saveJourney, useFamilyJourneyEnabled, type Journey, type JourneyContact } from '@/src/familyJourney/store';
 import { MODE_META, modeNote, buildPreview, type PreviewMode } from '@/src/familyJourney/previewCopy';
 import { FJ_SEND_ENABLED } from '@/src/familyJourney/flags';
+// NF-UI-REV-10 (Group I, DHARA UI Revision v2.2.1): visible keyboard-focus
+// ring + missing a11y labels. No journey/contact-permission logic changes.
+import { focusRingStyle } from '@/src/a11yFocus';
 
 const c = theme.colors;
 const MODES: PreviewMode[] = ['arrival', 'missedCheckin', 'helpRequest'];
@@ -88,7 +91,7 @@ export default function JourneyContacts() {
         <JourneyHeader title="Choose contacts" />
         <ScrollView contentContainerStyle={fjStyles.body}>
           <Text style={fjStyles.empty}>Plan a journey first, then come back to choose contacts.</Text>
-          <Pressable style={fjStyles.primary} onPress={() => router.replace('/family-journey/new')} testID="fj-contacts-plan-first">
+          <Pressable style={(s) => [fjStyles.primary, focusRingStyle(s)]} onPress={() => router.replace('/family-journey/new')} testID="fj-contacts-plan-first" accessibilityRole="button" accessibilityLabel="Plan a journey">
             <Text style={fjStyles.primaryTxt}>Plan a journey</Text>
           </Pressable>
           <JourneyHelpRow />
@@ -118,7 +121,7 @@ export default function JourneyContacts() {
             <Text style={fjStyles.cardSub}>
               You can still keep this journey local-only, or add contacts in your Trusted Circle first.
             </Text>
-            <Pressable style={fjStyles.secondary} onPress={() => router.push('/women/trusted-circle')} testID="fj-open-trusted-circle">
+            <Pressable style={(s) => [fjStyles.secondary, focusRingStyle(s)]} onPress={() => router.push('/women/trusted-circle')} testID="fj-open-trusted-circle" accessibilityRole="button" accessibilityLabel="Open Trusted Circle">
               <Text style={fjStyles.secondaryTxt}>Open Trusted Circle</Text>
             </Pressable>
           </View>
@@ -127,7 +130,14 @@ export default function JourneyContacts() {
             const sel = picked(ct.id);
             return (
               <View key={ct.id} style={fjStyles.card} testID={`fj-contact-${ct.id}`}>
-                <Pressable style={styles.ctRow} onPress={() => togglePicked(ct)} testID={`fj-pick-${ct.id}`}>
+                <Pressable
+                  style={(s) => [styles.ctRow, focusRingStyle(s)]}
+                  onPress={() => togglePicked(ct)}
+                  testID={`fj-pick-${ct.id}`}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: !!sel }}
+                  accessibilityLabel={`${ct.name}, ${ct.phone}`}
+                >
                   <View style={[styles.checkbox, sel && styles.checkboxOn]}>
                     {sel ? <Ionicons name="checkmark" size={16} color="#fff" /> : null}
                   </View>
@@ -168,7 +178,7 @@ export default function JourneyContacts() {
           })
         )}
 
-        <Pressable style={fjStyles.primary} onPress={() => router.push('/family-journey/preview')} testID="fj-contacts-continue">
+        <Pressable style={(s) => [fjStyles.primary, focusRingStyle(s)]} onPress={() => router.push('/family-journey/preview')} testID="fj-contacts-continue" accessibilityRole="button" accessibilityLabel="See the preview">
           <Text style={fjStyles.primaryTxt}>See the preview</Text>
         </Pressable>
         <Text style={fjStyles.empty}>

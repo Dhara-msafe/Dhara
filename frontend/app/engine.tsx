@@ -18,6 +18,11 @@ import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { useComplaints, isDraftReady, complaintTitle, complaintProgress } from '@/src/home/complaints';
 import { loadHistory, DraftHistoryItem } from '@/src/draftHistory';
 import { draftByType } from '@/src/drafts';
+// NF-UI-REV-05 (Group F, DHARA UI Revision v2.2.1): presentation-only
+// rollback flag + visible keyboard-focus ring + missing accessibility
+// labels. No routing/API/logic changes.
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 
 const c = theme.colors;
 
@@ -71,9 +76,11 @@ export default function DharaEngine() {
               return (
                 <Pressable
                   key={item.session_id}
-                  style={styles.continueCard}
+                  style={(s) => [styles.continueCard, focusRingStyle(s)]}
                   testID={`engine-continue-fir-${item.session_id}`}
                   onPress={() => router.push({ pathname: '/fir-draft', params: { resumeId: item.session_id } } as any)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Continue: ${complaintTitle(item)}, ${progress.label}, step ${progress.step} of ${progress.total}`}
                 >
                   <View style={styles.continueIcon}><Ionicons name="ribbon-outline" size={18} color={c.navy} /></View>
                   <View style={{ flex: 1 }}>
@@ -89,9 +96,11 @@ export default function DharaEngine() {
               return (
                 <Pressable
                   key={item.id}
-                  style={styles.continueCard}
+                  style={(s) => [styles.continueCard, focusRingStyle(s)]}
                   testID={`engine-continue-notice-${item.id}`}
                   onPress={() => router.push('/drafts/history')}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Continue: ${item.title}, notice written on ${new Date(item.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}`}
                 >
                   <View style={styles.continueIcon}><Ionicons name={spec?.icon || 'document-text-outline'} size={18} color={c.navy} /></View>
                   <View style={{ flex: 1 }}>
@@ -108,7 +117,14 @@ export default function DharaEngine() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Start something new</Text>
           {TOOLS.map((t) => (
-            <Pressable key={t.key} style={styles.toolCard} testID={`engine-tool-${t.key}`} onPress={() => router.push(t.route as any)}>
+            <Pressable
+              key={t.key}
+              style={(s) => [styles.toolCard, focusRingStyle(s)]}
+              testID={`engine-tool-${t.key}`}
+              onPress={() => router.push(t.route as any)}
+              accessibilityRole="button"
+              accessibilityLabel={`${t.title}. ${t.sub}`}
+            >
               <View style={styles.toolIcon}><Ionicons name={t.icon} size={22} color={c.gold} /></View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.toolTitle}>{t.title}</Text>
@@ -132,7 +148,17 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
   loadingWrap: { paddingVertical: 30, alignItems: 'center' },
   section: { marginBottom: 8 },
-  sectionTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.onSurfaceTertiary, letterSpacing: 1, marginBottom: 12, textTransform: 'uppercase' },
+  sectionTitle: {
+    fontFamily: theme.fonts.bodyBold,
+    fontSize: 13,
+    // NF-UI-REV-05: onSurfaceTertiary on this cream background measured
+    // ~4.33:1 — under 4.5:1 for 13px bold (does not qualify as "large text").
+    // onSurfaceSecondary clears ~6:1.
+    color: UI_REVISION_V1 ? c.onSurfaceSecondary : c.onSurfaceTertiary,
+    letterSpacing: 1,
+    marginBottom: 12,
+    textTransform: 'uppercase',
+  },
   continueCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.navySoft, borderRadius: 14, padding: 14, marginBottom: 10 },
   continueIcon: { width: 38, height: 38, borderRadius: 10, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' },
   continueTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink },

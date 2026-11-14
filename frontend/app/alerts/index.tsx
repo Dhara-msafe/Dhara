@@ -7,6 +7,10 @@ import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { listAlerts, listInvitations, SafetyAlert, InviteLink } from '@/src/trustedCircle/api';
+// NF-UI-REV-10 (Group I, DHARA UI Revision v2.2.1): presentation-only
+// rollback flag + visible keyboard-focus ring + missing a11y labels.
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 
 const c = theme.colors;
 
@@ -83,7 +87,7 @@ export default function AlertsInbox() {
       <ScreenHeader title="Safety alerts" subtitle="Updates from people who added you to their Trusted Circle" />
       <View style={styles.tabs}>
         {TABS.map(t => (
-          <Pressable key={t} onPress={() => setTab(t)} style={[styles.tabBtn, tab === t && styles.tabBtnActive]} testID={`alerts-tab-${t}`}>
+          <Pressable key={t} onPress={() => setTab(t)} style={(s) => [styles.tabBtn, tab === t && styles.tabBtnActive, focusRingStyle(s)]} testID={`alerts-tab-${t}`} accessibilityRole="button" accessibilityLabel={TAB_LABEL[t]} accessibilityState={{ selected: tab === t }}>
             <Text style={[styles.tabTxt, tab === t && styles.tabTxtActive]}>{TAB_LABEL[t]}</Text>
           </Pressable>
         ))}
@@ -105,9 +109,11 @@ export default function AlertsInbox() {
           const type = isInvite ? 'invitation' : (item.data as SafetyAlert).type;
           return (
             <Pressable
-              style={styles.card}
+              style={(s) => [styles.card, focusRingStyle(s)]}
               testID={isInvite ? `alerts-row-invite-${item.data.id}` : `alerts-row-${item.data.id}`}
               onPress={() => router.push(isInvite ? `/invite/${item.data.id}` as any : `/alerts/${item.data.id}` as any)}
+              accessibilityRole="button"
+              accessibilityLabel={isInvite ? `Trusted Circle invitation from ${(item.data as InviteLink).owner_name}` : `${(item.data as SafetyAlert).title}, from ${(item.data as SafetyAlert).owner_name}${unread ? ', unread' : ''}`}
             >
               <View style={[styles.iconWrap, { backgroundColor: colorFor(type) + '1A' }]}>
                 <Ionicons name={isInvite ? 'person-add' : iconFor(type)} size={20} color={colorFor(type)} />
@@ -134,7 +140,7 @@ export default function AlertsInbox() {
 
 const styles = StyleSheet.create({
   tabs: { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 12, gap: 8 },
-  tabBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: c.surfaceSecondary },
+  tabBtn: { paddingHorizontal: 14, paddingVertical: 8, minHeight: UI_REVISION_V1 ? 44 : undefined, justifyContent: 'center', borderRadius: 999, backgroundColor: c.surfaceSecondary },
   tabBtnActive: { backgroundColor: c.navy },
   tabTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy },
   tabTxtActive: { color: '#fff' },

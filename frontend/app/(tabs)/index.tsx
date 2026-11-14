@@ -48,6 +48,10 @@ import {
 } from '@/src/chat/messageUtils';
 import type { Citation, Msg } from '@/src/chat/types';
 import { styles } from '@/src/chat/chatStyles';
+// NF-UI-REV-03 (Group D, DHARA UI Revision v2.2.1): presentation-only
+// rollback flag + visible keyboard-focus ring. No API/routing/state changes.
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 
 const CANCEL_THRESHOLD = -80; // px the user must drag left to cancel
 const LOCK_THRESHOLD = -55; // px the user must drag up to lock hands-free recording
@@ -1891,9 +1895,11 @@ export default function ChatScreen() {
           </View>
           <Pressable
             testID="header-lang-chip"
-            style={styles.langChip}
+            style={(s) => [styles.langChip, focusRingStyle(s)]}
             onPress={() => router.push('/(tabs)/settings')}
-            hitSlop={6}
+            hitSlop={UI_REVISION_V1 ? 14 : 6}
+            accessibilityRole="button"
+            accessibilityLabel={`Change language. Current language: ${language.native}`}
           >
             <Ionicons name="language-outline" size={12} color={theme.colors.brand} />
             <Text style={styles.langChipText}>{language.native}</Text>
@@ -1902,15 +1908,23 @@ export default function ChatScreen() {
 
         {/* Right: New Chat + History — clean header, no usage clutter */}
         <View style={styles.headerButtons}>
-          <Pressable testID="new-chat-button" style={styles.newChatBtn} onPress={startNewChat}>
+          <Pressable
+            testID="new-chat-button"
+            style={(s) => [styles.newChatBtn, focusRingStyle(s)]}
+            onPress={startNewChat}
+            accessibilityRole="button"
+            accessibilityLabel={t('home.newChat', language.code)}
+          >
             <Ionicons name="add" size={16} color={theme.colors.brand} />
             <Text style={styles.newChatText}>{t('home.newChat', language.code)}</Text>
           </Pressable>
           <Pressable
             testID="history-header-btn"
-            style={styles.historyHeaderBtn}
+            style={(s) => [styles.historyHeaderBtn, focusRingStyle(s)]}
             onPress={() => router.push('/(tabs)/history')}
             hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel="Chat history"
           >
             <Ionicons name="time-outline" size={22} color={theme.colors.brand} />
           </Pressable>
@@ -1932,8 +1946,10 @@ export default function ChatScreen() {
           <Pressable
             testID="voice-banner-dismiss"
             onPress={() => setVoiceBanner(null)}
-            hitSlop={10}
-            style={{ padding: 4 }}
+            hitSlop={UI_REVISION_V1 ? 13 : 10}
+            style={(s) => [{ padding: 4 }, focusRingStyle(s)]}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss voice notice"
           >
             <Ionicons name="close" size={18} color={theme.colors.onSurfaceTertiary} />
           </Pressable>
@@ -2008,8 +2024,10 @@ export default function ChatScreen() {
                   <Pressable
                     key={i}
                     testID={`suggestion-${i}`}
-                    style={styles.suggestion}
+                    style={(s) => [styles.suggestion, focusRingStyle(s)]}
                     onPress={() => send(s.text)}
+                    accessibilityRole="button"
+                    accessibilityLabel={s.text}
                   >
                     <Ionicons name={s.icon} size={20} color={theme.colors.brand} />
                     <Text style={styles.suggestionText} numberOfLines={3}>{s.text}</Text>
@@ -2022,8 +2040,10 @@ export default function ChatScreen() {
               {PRO_UPGRADE_ENABLED && !isPro && (
                 <Pressable
                   testID="pro-upgrade-card"
-                  style={styles.proUpgradeCard}
+                  style={(s) => [styles.proUpgradeCard, focusRingStyle(s)]}
                   onPress={() => router.push('/upgrade')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Upgrade to Pro. Lawyer-style deep answers, drafts and action plans."
                 >
                   <View style={styles.proUpgradeIconWrap}>
                     <Ionicons name="star" size={16} color="#fff" />
@@ -2064,8 +2084,12 @@ export default function ChatScreen() {
                       <Pressable
                         testID={`save-${m.id}`}
                         onPress={() => saveAnswer(m)}
-                        hitSlop={10}
+                        hitSlop={UI_REVISION_V1 ? 13 : 10}
                         disabled={!!m.saved}
+                        style={(s) => [focusRingStyle(s)]}
+                        accessibilityRole="button"
+                        accessibilityLabel={m.saved ? 'Saved for offline reading' : 'Save answer for offline reading'}
+                        accessibilityState={{ disabled: !!m.saved }}
                       >
                         <Ionicons
                           name={m.saved ? 'bookmark' : 'bookmark-outline'}
@@ -2077,14 +2101,23 @@ export default function ChatScreen() {
                       <Pressable
                         testID={`speed-${m.id}`}
                         onPress={cycleSpeechRate}
-                        hitSlop={8}
-                        style={styles.speedChip}
+                        hitSlop={UI_REVISION_V1 ? 15 : 8}
+                        style={(s) => [styles.speedChip, focusRingStyle(s)]}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Playback speed: ${speechRate === 1.0 ? '1 times' : speechRate === 1.5 ? '1.5 times' : '2 times'}. Tap to change.`}
                       >
                         <Text style={styles.speedChipText}>
                           {speechRate === 1.0 ? '1x' : speechRate === 1.5 ? '1.5x' : '2x'}
                         </Text>
                       </Pressable>
-                      <Pressable testID={`speak-${m.id}`} onPress={() => speak(m.id, m.content)} hitSlop={10}>
+                      <Pressable
+                        testID={`speak-${m.id}`}
+                        onPress={() => speak(m.id, m.content)}
+                        hitSlop={UI_REVISION_V1 ? 12 : 10}
+                        style={(s) => [focusRingStyle(s)]}
+                        accessibilityRole="button"
+                        accessibilityLabel={speakingId === m.id ? 'Stop reading aloud' : 'Read answer aloud'}
+                      >
                         {ttsLoadingId === m.id ? (
                           <ActivityIndicator size="small" color={theme.colors.brand} />
                         ) : (
@@ -2125,11 +2158,14 @@ export default function ChatScreen() {
                     <>
                       <Pressable
                         testID={`legal-details-toggle-${m.id}`}
-                        style={styles.detailsToggle}
+                        style={(s) => [styles.detailsToggle, focusRingStyle(s)]}
                         onPress={() =>
                           setExpandedDetails((prev) => ({ ...prev, [m.id]: !prev[m.id] }))
                         }
                         hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded: open }}
+                        accessibilityLabel={open ? 'Hide legal details' : 'View legal details'}
                       >
                         <Ionicons
                           name={open ? 'chevron-up' : 'document-text-outline'}
@@ -2273,8 +2309,10 @@ export default function ChatScreen() {
                   return (
                     <Pressable
                       testID={`next-step-${m.id}`}
-                      style={styles.nextStep}
+                      style={(s) => [styles.nextStep, focusRingStyle(s)]}
                       onPress={() => router.push(step.route as any)}
+                      accessibilityRole="button"
+                      accessibilityLabel={step.label}
                     >
                       <Ionicons name={step.icon} size={18} color={theme.colors.onBrandSecondary} />
                       <Text style={styles.nextStepText}>{step.label}</Text>
@@ -2285,8 +2323,10 @@ export default function ChatScreen() {
                 {m.role === 'assistant' && m.firIntent && (
                   <Pressable
                     testID={`fir-intent-cta-${m.id}`}
-                    style={styles.firIntentCard}
+                    style={(s) => [styles.firIntentCard, focusRingStyle(s)]}
                     onPress={() => router.push('/fir-draft' as any)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Start Guided FIR Draft. Answer 10 quick questions by voice or text to get a ready FIR draft in your language."
                   >
                     <Ionicons name="document-text" size={20} color="#fff" />
                     <View style={{ flex: 1 }}>
@@ -2299,8 +2339,10 @@ export default function ChatScreen() {
                 {m.role === 'assistant' && !!m.statePrompt && (
                   <Pressable
                     testID={`state-prompt-${m.id}`}
-                    style={styles.stateCard}
+                    style={(s) => [styles.stateCard, focusRingStyle(s)]}
                     onPress={() => router.push('/state')}
+                    accessibilityRole="button"
+                    accessibilityLabel={m.statePrompt}
                   >
                     <Ionicons name="location-outline" size={18} color={theme.colors.brand} />
                     <Text style={styles.stateCardText}>{m.statePrompt}</Text>
@@ -2320,9 +2362,11 @@ export default function ChatScreen() {
                       <Pressable
                         key={qi}
                         testID={`followup-chip-${m.id}-${qi}`}
-                        style={styles.followUpChip}
+                        style={(s) => [styles.followUpChip, focusRingStyle(s)]}
                         onPress={() => send(q)}
-                        hitSlop={6}
+                        hitSlop={UI_REVISION_V1 ? 8 : 6}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Ask: ${q}`}
                       >
                         <Ionicons name="arrow-redo-outline" size={13} color={theme.colors.brand} />
                         <Text style={styles.followUpChipText} numberOfLines={2}>{q}</Text>
@@ -2355,15 +2399,19 @@ export default function ChatScreen() {
             <View style={styles.guestLimitBtnRow}>
               <Pressable
                 testID="guest-create-account-btn"
-                style={styles.guestLimitPrimaryBtn}
+                style={(s) => [styles.guestLimitPrimaryBtn, focusRingStyle(s)]}
                 onPress={() => { trackEvent('guest_converted_to_account'); router.push('/signup'); }}
+                accessibilityRole="button"
+                accessibilityLabel="Create free account"
               >
                 <Text style={styles.guestLimitPrimaryBtnText}>Create Free Account</Text>
               </Pressable>
               <Pressable
                 testID="guest-sign-in-btn"
-                style={styles.guestLimitSecondaryBtn}
+                style={(s) => [styles.guestLimitSecondaryBtn, focusRingStyle(s)]}
                 onPress={() => router.push('/login')}
+                accessibilityRole="button"
+                accessibilityLabel="Sign in"
               >
                 <Text style={styles.guestLimitSecondaryBtnText}>Sign In</Text>
               </Pressable>
@@ -2386,10 +2434,24 @@ export default function ChatScreen() {
               </Text>
             </View>
             <Waveform />
-            <Pressable testID="locked-cancel-btn" style={styles.lockedIconBtn} onPress={onLockedCancel} hitSlop={10}>
+            <Pressable
+              testID="locked-cancel-btn"
+              style={(s) => [styles.lockedIconBtn, focusRingStyle(s)]}
+              onPress={onLockedCancel}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Discard recording"
+            >
               <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
             </Pressable>
-            <Pressable testID="locked-finish-btn" style={styles.lockedSendBtn} onPress={onLockedFinish} hitSlop={10}>
+            <Pressable
+              testID="locked-finish-btn"
+              style={(s) => [styles.lockedSendBtn, focusRingStyle(s)]}
+              onPress={onLockedFinish}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Finish recording and send"
+            >
               <Ionicons name="checkmark" size={22} color={theme.colors.onBrandPrimary} />
             </Pressable>
           </View>
@@ -2473,8 +2535,9 @@ export default function ChatScreen() {
                   value={input}
                   onChangeText={setInput}
                   placeholder={`Ask in ${language.native}…`}
-                  placeholderTextColor={theme.colors.onSurfaceTertiary}
+                  placeholderTextColor={UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : theme.colors.onSurfaceTertiary}
                   multiline
+                  accessibilityLabel={`Ask a question in ${language.native}`}
                   editable={!streaming && !transcribing}
                   returnKeyType={Platform.OS !== 'web' ? 'send' : 'default'}
                   blurOnSubmit={false}
@@ -2503,7 +2566,10 @@ export default function ChatScreen() {
                 testID="send-button"
                 onPress={() => send(input)}
                 disabled={streaming}
-                style={styles.send}
+                style={(s) => [styles.send, focusRingStyle(s)]}
+                accessibilityRole="button"
+                accessibilityLabel="Send message"
+                accessibilityState={{ disabled: streaming }}
               >
                 <Ionicons name="arrow-up" size={24} color={theme.colors.onBrandPrimary} />
               </Pressable>
@@ -2511,7 +2577,9 @@ export default function ChatScreen() {
               <Pressable
                 testID="mic-button"
                 onPress={onWebMicPress}
-                style={recording ? styles.micRecording : styles.mic}
+                style={(s) => [recording ? styles.micRecording : styles.mic, focusRingStyle(s)]}
+                accessibilityRole="button"
+                accessibilityLabel={recording ? 'Stop recording and send' : 'Record a voice message'}
               >
                 {transcribing ? (
                   <ActivityIndicator color={theme.colors.onBrandPrimary} />
@@ -2522,6 +2590,9 @@ export default function ChatScreen() {
             ) : (
               <Animated.View
                 testID="mic-button"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={recording ? (slideCancelled ? 'Release to cancel recording' : 'Recording — slide left to cancel, up to lock') : 'Press and hold to record a voice message'}
                 style={[
                   recording ? styles.micRecording : styles.mic,
                   recording && {
@@ -2591,8 +2662,10 @@ export default function ChatScreen() {
 
             <Pressable
               testID="transcript-send-btn"
-              style={[styles.tcSendBtn, transcriptMismatch && styles.tcSendBtnWarn]}
+              style={(s) => [styles.tcSendBtn, transcriptMismatch && styles.tcSendBtnWarn, focusRingStyle(s)]}
               onPress={sendTranscript}
+              accessibilityRole="button"
+              accessibilityLabel={transcriptMismatch ? 'Send anyway' : 'Correct, send message'}
             >
               <Ionicons name="send" size={16} color={theme.colors.onBrandPrimary} />
               <Text style={styles.tcSendText}>{transcriptMismatch ? 'Send anyway' : 'Correct — send'}</Text>
@@ -2601,16 +2674,20 @@ export default function ChatScreen() {
             <View style={styles.tcRow}>
               <Pressable
                 testID="transcript-edit-btn"
-                style={styles.tcSecondaryBtn}
+                style={(s) => [styles.tcSecondaryBtn, focusRingStyle(s)]}
                 onPress={editTranscriptInComposer}
+                accessibilityRole="button"
+                accessibilityLabel="Edit transcript in the text box"
               >
                 <Ionicons name="pencil" size={14} color={theme.colors.brand} />
                 <Text style={styles.tcSecondaryText}>Edit</Text>
               </Pressable>
               <Pressable
                 testID="transcript-cancel-btn"
-                style={styles.tcSecondaryBtn}
+                style={(s) => [styles.tcSecondaryBtn, focusRingStyle(s)]}
                 onPress={cancelTranscript}
+                accessibilityRole="button"
+                accessibilityLabel="Re-record your voice message"
               >
                 <Ionicons name="mic-off" size={14} color={theme.colors.brand} />
                 <Text style={styles.tcSecondaryText}>Re-record</Text>
@@ -2645,11 +2722,13 @@ export default function ChatScreen() {
 
                 <Pressable
                   testID="paywall-upgrade-btn"
-                  style={styles.pwUpgrade}
+                  style={(s) => [styles.pwUpgrade, focusRingStyle(s)]}
                   onPress={() => {
                     setPaywall(null);
                     router.push('/upgrade');
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Upgrade to Pro"
                 >
                   <Ionicons name="star" size={18} color={theme.colors.onBrandPrimary} />
                   <Text style={styles.pwUpgradeText}>Upgrade to Pro</Text>
@@ -2659,10 +2738,13 @@ export default function ChatScreen() {
 
             <Pressable
               testID="paywall-continue-basic-btn"
+              style={(s) => [UI_REVISION_V1 && { minHeight: 44, paddingVertical: 10, paddingHorizontal: 4 }, focusRingStyle(s)]}
               onPress={() => {
                 setPaywall(null);
                 setProMode(false);
               }}
+              accessibilityRole="button"
+              accessibilityLabel="Continue in Basic mode, free and unlimited"
             >
               <Text style={styles.pwContinue}>Continue in Basic mode (free, unlimited) →</Text>
             </Pressable>

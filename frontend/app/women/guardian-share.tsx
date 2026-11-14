@@ -23,6 +23,9 @@ import { API_BASE } from '@/src/apiBase';
 import { getCircle, type Contact } from '@/src/women/api';
 
 import { openExternal, composeSms } from '@/src/outbound';
+// NF-UI-REV-09 (Group H, DHARA UI Revision v2.2.1): visible keyboard-focus
+// ring only — a11y labels already present. No logic changes.
+import { focusRingStyle } from '@/src/a11yFocus';
 const c = theme.colors;
 
 function formatDeadline(startTime: number, durationMins: number): string {
@@ -271,7 +274,7 @@ export default function GuardianShare() {
               key={mins}
               testID={`guardian-duration-${mins}`}
               disabled={fieldsLocked}
-              style={[styles.chip, durationMins === mins && styles.chipOn, fieldsLocked && styles.inputLocked]}
+              style={(s) => [styles.chip, durationMins === mins && styles.chipOn, fieldsLocked && styles.inputLocked, focusRingStyle(s)]}
               onPress={() => { setDurationMins(mins); baselineDurationRef.current = mins; setCustomDur(''); setDurError(null); }}
               accessibilityRole="button"
               accessibilityLabel={`Check in within ${mins} minutes`}
@@ -362,7 +365,7 @@ export default function GuardianShare() {
           </Text>
           <Pressable
             testID="guardian-add-circle"
-            style={styles.safeBtn}
+            style={(s) => [styles.safeBtn, focusRingStyle(s)]}
             onPress={() => router.push('/women/trusted-circle')}
             accessibilityRole="button"
             accessibilityLabel="Manage trusted circle"
@@ -388,7 +391,7 @@ export default function GuardianShare() {
               </View>
               <Pressable
                 testID={`guardian-prepare-${ct.id}`}
-                style={[styles.prepareBtn, (!destination || !!durError) && styles.sendBtnDisabled]}
+                style={(s) => [styles.prepareBtn, (!destination || !!durError) && styles.sendBtnDisabled, focusRingStyle(s)]}
                 disabled={preparingId === ct.id || creating || !destination || !!durError}
                 onPress={() => prepareFor(ct)}
                 accessibilityRole="button"
@@ -440,7 +443,7 @@ export default function GuardianShare() {
       {sent && journeyToken && !markedSafe && (
         <Pressable
           testID="guardian-mark-safe"
-          style={styles.safeBtn}
+          style={(s) => [styles.safeBtn, focusRingStyle(s)]}
           onPress={markSafe}
           disabled={markingSafe}
           accessibilityRole="button"
@@ -459,7 +462,7 @@ export default function GuardianShare() {
       {safeError && (
         <View style={styles.revokeSection} testID="guardian-safe-error">
           <Text style={styles.errorTxt}>{safeError}</Text>
-          <Pressable style={styles.safeBtn} onPress={markSafe} disabled={markingSafe} testID="guardian-safe-retry" accessibilityRole="button">
+          <Pressable style={(s) => [styles.safeBtn, focusRingStyle(s)]} onPress={markSafe} disabled={markingSafe} testID="guardian-safe-retry" accessibilityRole="button" accessibilityLabel={markingSafe ? 'Trying again' : 'Try again'}>
             <Text style={styles.safeBtnTxt}>{markingSafe ? 'Trying again…' : 'Try again'}</Text>
           </Pressable>
         </View>
@@ -496,7 +499,7 @@ export default function GuardianShare() {
           </Text>
           <Pressable
             testID="guardian-revoke-sharing"
-            style={styles.revokeSharingBtn}
+            style={(s) => [styles.revokeSharingBtn, focusRingStyle(s)]}
             onPress={revokeSharing}
             disabled={revoking}
             accessibilityRole="button"
@@ -516,7 +519,7 @@ export default function GuardianShare() {
       {revokeError && (
         <View style={styles.revokeSection} testID="guardian-revoke-error">
           <Text style={styles.errorTxt}>{revokeError}</Text>
-          <Pressable style={styles.revokeSharingBtn} onPress={revokeSharing} disabled={revoking} testID="guardian-revoke-retry" accessibilityRole="button">
+          <Pressable style={(s) => [styles.revokeSharingBtn, focusRingStyle(s)]} onPress={revokeSharing} disabled={revoking} testID="guardian-revoke-retry" accessibilityRole="button" accessibilityLabel={revoking ? 'Trying again' : 'Try again'}>
             <Text style={styles.revokeSharingBtnTxt}>{revoking ? 'Trying again…' : 'Try again'}</Text>
           </Pressable>
         </View>

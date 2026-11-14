@@ -10,6 +10,9 @@ import { useAuth } from '@/src/auth';
 import { getAlert, markAlertRead, ackAlert, SafetyAlert } from '@/src/trustedCircle/api';
 
 import { openExternal } from '@/src/outbound';
+// NF-UI-REV-10 (Group I, DHARA UI Revision v2.2.1): visible keyboard-focus
+// ring + missing a11y labels. No alert/ack logic changes.
+import { focusRingStyle } from '@/src/a11yFocus';
 const c = theme.colors;
 
 const PRIMARY_MSG: Record<string, (owner: string) => string> = {
@@ -123,7 +126,7 @@ export default function AlertDetail() {
                 <AlertLocationMap lat={loc.lat} lng={loc.lng} accuracyMeters={loc.accuracy} />
               )}
               {!!(loc.lat && loc.lng) && (
-                <Pressable onPress={onOpenMaps} style={styles.linkRow} testID="alert-open-maps">
+                <Pressable onPress={onOpenMaps} style={(s) => [styles.linkRow, focusRingStyle(s)]} testID="alert-open-maps" hitSlop={10} accessibilityRole="button" accessibilityLabel="Open in Maps">
                   <Ionicons name="map-outline" size={16} color={c.navy} />
                   <Text style={styles.linkTxt}>Open in Maps</Text>
                 </Pressable>
@@ -137,15 +140,15 @@ export default function AlertDetail() {
         </View>
 
         <View style={styles.actionsCol}>
-          <Pressable style={styles.actionBtn} onPress={onCall} disabled={!(alert as any).owner_phone} testID="alert-call">
+          <Pressable style={(s) => [styles.actionBtn, focusRingStyle(s)]} onPress={onCall} disabled={!(alert as any).owner_phone} testID="alert-call" accessibilityRole="button" accessibilityLabel={`Call ${alert.owner_name}`} accessibilityState={{ disabled: !(alert as any).owner_phone }}>
             <Ionicons name="call-outline" size={18} color="#fff" />
             <Text style={styles.actionBtnTxt}>Call {alert.owner_name}</Text>
           </Pressable>
-          <Pressable style={styles.actionBtnSecondary} onPress={onMessage} disabled={!(alert as any).owner_phone} testID="alert-message">
+          <Pressable style={(s) => [styles.actionBtnSecondary, focusRingStyle(s)]} onPress={onMessage} disabled={!(alert as any).owner_phone} testID="alert-message" accessibilityRole="button" accessibilityLabel="Send message" accessibilityState={{ disabled: !(alert as any).owner_phone }}>
             <Ionicons name="chatbubble-outline" size={18} color={c.navy} />
             <Text style={styles.actionBtnSecondaryTxt}>Send message</Text>
           </Pressable>
-          <Pressable style={styles.actionBtnSecondary} onPress={onAck} disabled={acking || !!alert.acknowledged_at} testID="alert-ack">
+          <Pressable style={(s) => [styles.actionBtnSecondary, focusRingStyle(s)]} onPress={onAck} disabled={acking || !!alert.acknowledged_at} testID="alert-ack" accessibilityRole="button" accessibilityLabel={alert.acknowledged_at ? 'Acknowledged' : 'Acknowledge alert'} accessibilityState={{ disabled: acking || !!alert.acknowledged_at, busy: acking }}>
             <Ionicons name="checkmark-done-outline" size={18} color={c.navy} />
             <Text style={styles.actionBtnSecondaryTxt}>{alert.acknowledged_at ? 'Acknowledged' : 'Acknowledge alert'}</Text>
           </Pressable>

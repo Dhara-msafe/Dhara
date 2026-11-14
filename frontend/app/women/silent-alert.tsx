@@ -13,6 +13,11 @@ import { triggerFromSilentAlert, describeEvidenceFailure } from '@/src/women/saf
 import { OUTBOUND_LIVE, SIMULATED_TEXT } from '@/src/outbound';
 import { useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
+// NF-UI-REV-09 (Group H, DHARA UI Revision v2.2.1): presentation-only
+// rollback flag + visible keyboard-focus ring + missing a11y labels. No
+// alert/evidence/outbound logic changes.
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 
 const c = theme.colors;
 // Feature flag — toggle UI only shown when env var is true (QA/dev builds).
@@ -95,8 +100,8 @@ export default function SilentAlert() {
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
         <Text testID="silent-alert-disclosure" style={styles.note}>{OUTBOUND_LIVE ? 'This opens your SMS app with the message ready — you read it and press Send yourself, one person at a time. DHARA never sends anything by itself, and delivery is not confirmed. SMS service may be required, and either phone may make a sound; DHARA cannot guarantee silence.' : `QA mode — ${SIMULATED_TEXT}. Your SMS app will not open and no alert will leave this device.`}</Text>
         <Text testID="silent-alert-message" selectable style={styles.message}>{body}</Text>
-        <Pressable testID="alert-add-location" style={styles.button} disabled={busy} onPress={addLocation}>{busy ? <ActivityIndicator color={c.onBrandPrimary} /> : <Text style={styles.buttonText}>{location ? 'Update location (optional)' : 'Add my location (optional)'}</Text>}</Pressable>
-        {(!!location || busy) && <Pressable testID="alert-remove-location" style={styles.secondary} onPress={() => { request.current++; setBusy(false); setLocation(''); }}><Text style={styles.label}>{busy ? 'Continue without location' : 'Remove location'}</Text></Pressable>}
+        <Pressable testID="alert-add-location" style={(s) => [styles.button, focusRingStyle(s)]} disabled={busy} onPress={addLocation} accessibilityRole="button" accessibilityLabel={location ? 'Update location, optional' : 'Add my location, optional'} accessibilityState={{ disabled: busy, busy }}>{busy ? <ActivityIndicator color={c.onBrandPrimary} /> : <Text style={styles.buttonText}>{location ? 'Update location (optional)' : 'Add my location (optional)'}</Text>}</Pressable>
+        {(!!location || busy) && <Pressable testID="alert-remove-location" style={(s) => [styles.secondary, focusRingStyle(s)]} onPress={() => { request.current++; setBusy(false); setLocation(''); }} accessibilityRole="button" accessibilityLabel={busy ? 'Continue without location' : 'Remove location'}><Text style={styles.label}>{busy ? 'Continue without location' : 'Remove location'}</Text></Pressable>}
 
         {/* Evidence toggle — only shown when EXPO_PUBLIC_SILENT_ALERT_EVIDENCE_V1=true */}
         {SILENT_EVIDENCE_ENABLED && (
@@ -132,7 +137,7 @@ export default function SilentAlert() {
         {contacts.length === 0 && (
           <View style={styles.emptyCard} testID="alert-no-contacts">
             <Text style={styles.note}>No trusted contacts saved yet. Add someone in your trusted circle, or copy this message and send it yourself.</Text>
-            <Pressable testID="alert-empty-manage-circle" style={styles.button} onPress={() => router.push('/women/trusted-circle')}>
+            <Pressable testID="alert-empty-manage-circle" style={(s) => [styles.button, focusRingStyle(s)]} onPress={() => router.push('/women/trusted-circle')} accessibilityRole="button" accessibilityLabel="Manage circle">
               <Text style={styles.buttonText}>Manage circle</Text>
             </Pressable>
           </View>
@@ -144,13 +149,13 @@ export default function SilentAlert() {
                 ? 'Your contacts for Silent alert have no phone number saved. Add a number in your trusted circle so a message can be prepared.'
                 : 'All your contacts are set to "Call only". Open your trusted circle and tap the bell to enable one for Silent alert.'}
             </Text>
-            <Pressable testID="alert-empty-manage-circle" style={styles.button} onPress={() => router.push('/women/trusted-circle')}>
+            <Pressable testID="alert-empty-manage-circle" style={(s) => [styles.button, focusRingStyle(s)]} onPress={() => router.push('/women/trusted-circle')} accessibilityRole="button" accessibilityLabel="Manage circle">
               <Text style={styles.buttonText}>Manage circle</Text>
             </Pressable>
           </View>
         )}
         {notifyContacts.map(contact => (
-          <Pressable key={contact.id} testID={`alert-contact-${contact.id}`} style={styles.secondary} onPress={() => handlePrepareAlert(contact.phone)}>
+          <Pressable key={contact.id} testID={`alert-contact-${contact.id}`} style={(s) => [styles.secondary, focusRingStyle(s)]} onPress={() => handlePrepareAlert(contact.phone)} accessibilityRole="button" accessibilityLabel={`Prepare SMS to ${contact.name}, ${contact.phone}`}>
             <View style={styles.contactRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.label}>Prepare SMS to {contact.name}</Text>
@@ -165,8 +170,8 @@ export default function SilentAlert() {
             </View>
           </Pressable>
         ))}
-        <Pressable testID="alert-copy-message" style={styles.secondary} onPress={async () => { try { await Clipboard.setStringAsync(body); setStatus('Message copied. No alert has been sent.'); } catch { setStatus('Copy unavailable. Select the message text to copy it.'); } }}><Text style={styles.label}>Copy message</Text></Pressable>
-        <Pressable testID="alert-manage-circle" style={styles.secondary} onPress={() => router.push('/women/trusted-circle')}><Text style={styles.label}>Manage trusted circle</Text></Pressable>
+        <Pressable testID="alert-copy-message" style={(s) => [styles.secondary, focusRingStyle(s)]} onPress={async () => { try { await Clipboard.setStringAsync(body); setStatus('Message copied. No alert has been sent.'); } catch { setStatus('Copy unavailable. Select the message text to copy it.'); } }} accessibilityRole="button" accessibilityLabel="Copy message"><Text style={styles.label}>Copy message</Text></Pressable>
+        <Pressable testID="alert-manage-circle" style={(s) => [styles.secondary, focusRingStyle(s)]} onPress={() => router.push('/women/trusted-circle')} accessibilityRole="button" accessibilityLabel="Manage trusted circle"><Text style={styles.label}>Manage trusted circle</Text></Pressable>
         {!!status && <Text testID="silent-alert-status" accessibilityLiveRegion="polite" style={styles.note}>{status}</Text>}
       </ScrollView>
     </View>
@@ -190,7 +195,12 @@ const styles = StyleSheet.create({
   toggleSub:     { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18 },
   recordingBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingBottom: 14 },
   recordingDot:   { width: 8, height: 8, borderRadius: 4, backgroundColor: '#ef4444' },
-  recordingText:  { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: '#ef4444' },
+  recordingText:  {
+    fontFamily: theme.fonts.bodyBold, fontSize: 13,
+    // NF-UI-REV-09: '#ef4444' on white measured ~3.76:1 — under 4.5:1.
+    // theme.colors.emergencyRed ('#B42318') clears ~5.9:1 on the same bg.
+    color: UI_REVISION_V1 ? c.emergencyRed : '#ef4444',
+  },
   evidenceTip:     { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 16, paddingBottom: 14 },
   evidenceTipText: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18 },
   contactRow:       { flexDirection: 'row', alignItems: 'center' },

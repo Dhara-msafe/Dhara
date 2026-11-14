@@ -12,6 +12,11 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { theme } from '@/src/theme';
 import { JourneyHeader, JourneyHelpRow, PhaseBadge, FamilyJourneyOff, fjStyles } from '@/src/familyJourney/ui';
 import { CHECKIN_OPTIONS, emptyJourney, loadJourney, saveJourney, useFamilyJourneyEnabled, type Journey } from '@/src/familyJourney/store';
+// NF-UI-REV-10 (Group I, DHARA UI Revision v2.2.1): presentation-only
+// rollback flag + visible keyboard-focus ring + missing a11y labels. No
+// journey-save logic changes.
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 
 const c = theme.colors;
 
@@ -64,8 +69,9 @@ export default function NewJourney() {
             value={j.destination}
             onChangeText={t => { set({ destination: t }); if (error) setError(''); }}
             placeholder="e.g. Library, friend's place, hostel"
-            placeholderTextColor={c.onSurfaceTertiary}
+            placeholderTextColor={UI_REVISION_V1 ? c.onSurfaceSecondary : c.onSurfaceTertiary}
             maxLength={80}
+            accessibilityLabel="Destination label"
           />
           <Text style={fjStyles.cardSub}>A label only. No map, pin or location is used in this version.</Text>
         </View>
@@ -79,8 +85,9 @@ export default function NewJourney() {
             value={j.departAt}
             onChangeText={t => set({ departAt: t })}
             placeholder="e.g. 7:30 pm today"
-            placeholderTextColor={c.onSurfaceTertiary}
+            placeholderTextColor={UI_REVISION_V1 ? c.onSurfaceSecondary : c.onSurfaceTertiary}
             maxLength={60}
+            accessibilityLabel="Leaving around"
           />
           <Text style={fjStyles.label}>Expect to arrive around</Text>
           <TextInput
@@ -89,8 +96,9 @@ export default function NewJourney() {
             value={j.arriveAt}
             onChangeText={t => set({ arriveAt: t })}
             placeholder="e.g. 8:15 pm"
-            placeholderTextColor={c.onSurfaceTertiary}
+            placeholderTextColor={UI_REVISION_V1 ? c.onSurfaceSecondary : c.onSurfaceTertiary}
             maxLength={60}
+            accessibilityLabel="Expect to arrive around"
           />
           <Text style={fjStyles.label}>Expect to be back around (optional)</Text>
           <TextInput
@@ -99,8 +107,9 @@ export default function NewJourney() {
             value={j.returnAt}
             onChangeText={t => set({ returnAt: t })}
             placeholder="e.g. 11 pm"
-            placeholderTextColor={c.onSurfaceTertiary}
+            placeholderTextColor={UI_REVISION_V1 ? c.onSurfaceSecondary : c.onSurfaceTertiary}
             maxLength={60}
+            accessibilityLabel="Expect to be back around, optional"
           />
         </View>
 
@@ -118,7 +127,10 @@ export default function NewJourney() {
                   key={opt.label}
                   testID={`fj-checkin-${opt.mins ?? 'none'}`}
                   onPress={() => set({ checkinMins: opt.mins })}
-                  style={[styles.chip, on && styles.chipOn]}
+                  style={(s) => [styles.chip, on && styles.chipOn, focusRingStyle(s)]}
+                  accessibilityRole="button"
+                  accessibilityLabel={opt.label}
+                  accessibilityState={{ selected: on }}
                 >
                   <Text style={[styles.chipTxt, on && styles.chipTxtOn]}>{opt.label}</Text>
                 </Pressable>
@@ -130,7 +142,7 @@ export default function NewJourney() {
 
         {error ? <Text style={styles.error} testID="fj-new-error">{error}</Text> : null}
 
-        <Pressable style={fjStyles.primary} onPress={onContinue} disabled={!ready} testID="fj-new-continue">
+        <Pressable style={(s) => [fjStyles.primary, focusRingStyle(s)]} onPress={onContinue} disabled={!ready} testID="fj-new-continue" accessibilityRole="button" accessibilityLabel="Choose contacts" accessibilityState={{ disabled: !ready }}>
           <Text style={fjStyles.primaryTxt}>Choose contacts</Text>
         </Pressable>
 
@@ -143,7 +155,7 @@ export default function NewJourney() {
 const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   chip: {
-    minHeight: 44, justifyContent: 'center', paddingHorizontal: 14, borderRadius: theme.radius.pill,
+    minHeight: UI_REVISION_V1 ? 48 : 44, justifyContent: 'center', paddingHorizontal: 14, borderRadius: theme.radius.pill,
     borderWidth: 1, borderColor: c.borderStrong, backgroundColor: c.surface,
   },
   chipOn: { backgroundColor: c.navy, borderColor: c.navy },

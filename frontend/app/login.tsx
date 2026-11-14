@@ -6,6 +6,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { trackEvent } from '@/src/analytics';
+// NF-UI-REV-05 (Group F, DHARA UI Revision v2.2.1): presentation-only
+// rollback flag + visible keyboard-focus ring. Zero changes to login(),
+// loginWithGoogle(), continueAsGuest(), validation, or session handling.
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 
 export default function Login() {
   const { login, loginWithGoogle, continueAsGuest, sessionExpired, clearSessionExpired, googleError, clearGoogleError } = useAuth();
@@ -115,10 +120,11 @@ export default function Login() {
               value={email}
               onChangeText={setEmail}
               placeholder="you@example.com"
-              placeholderTextColor={theme.colors.onSurfaceTertiary}
+              placeholderTextColor={UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : theme.colors.onSurfaceTertiary}
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="email-address"
+              accessibilityLabel="Email address"
             />
 
             <Text style={styles.label}>Password</Text>
@@ -129,14 +135,18 @@ export default function Login() {
                 value={password}
                 onChangeText={setPassword}
                 placeholder="••••••••"
-                placeholderTextColor={theme.colors.onSurfaceTertiary}
+                placeholderTextColor={UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : theme.colors.onSurfaceTertiary}
                 secureTextEntry={!showPassword}
+                accessibilityLabel="Password"
               />
               <Pressable
                 testID="toggle-password-visibility"
                 onPress={() => setShowPassword(v => !v)}
                 hitSlop={8}
-                style={styles.eyeBtn}
+                style={(s) => [styles.eyeBtn, focusRingStyle(s)]}
+                accessibilityRole="button"
+                accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                accessibilityState={{ expanded: showPassword }}
               >
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
@@ -149,13 +159,21 @@ export default function Login() {
             {error && <Text style={styles.error} testID="login-error">{error}</Text>}
             {minorBlocked && (
               <View testID="login-minor-help" style={{ flexDirection: 'row', gap: 16, marginTop: 8 }}>
-                <Pressable onPress={() => router.push('/emergency')} accessibilityRole="button" accessibilityLabel="Emergency helplines">
+                <Pressable onPress={() => router.push('/emergency')} accessibilityRole="button" accessibilityLabel="Emergency helplines" style={(s) => [focusRingStyle(s)]} hitSlop={8}>
                   <Text style={{ color: theme.colors.primary, fontWeight: '600' }}>Emergency helplines</Text>
                 </Pressable>
               </View>
             )}
 
-            <Pressable testID="login-submit-button" style={[styles.btn, loading && { opacity: 0.6 }]} disabled={loading} onPress={onSubmit}>
+            <Pressable
+              testID="login-submit-button"
+              style={(s) => [styles.btn, loading && { opacity: 0.6 }, focusRingStyle(s)]}
+              disabled={loading}
+              onPress={onSubmit}
+              accessibilityRole="button"
+              accessibilityLabel="Sign in"
+              accessibilityState={{ disabled: loading, busy: loading }}
+            >
               {loading ? <ActivityIndicator color={theme.colors.onBrandPrimary} /> : <Text style={styles.btnText}>Sign In</Text>}
             </Pressable>
 
@@ -169,9 +187,12 @@ export default function Login() {
             {/* ── Google Sign-In ── */}
             <Pressable
               testID="google-signin-button"
-              style={[styles.googleBtn, googleLoading && { opacity: 0.6 }]}
+              style={(s) => [styles.googleBtn, googleLoading && { opacity: 0.6 }, focusRingStyle(s)]}
               disabled={googleLoading}
               onPress={onGoogleSignIn}
+              accessibilityRole="button"
+              accessibilityLabel="Continue with Google"
+              accessibilityState={{ disabled: googleLoading, busy: googleLoading }}
             >
               {googleLoading ? (
                 <ActivityIndicator color={theme.colors.onSurface} size="small" />
@@ -184,7 +205,7 @@ export default function Login() {
             </Pressable>
 
             <Link href="/forgot-password" asChild>
-              <Pressable testID="go-to-forgot-password" style={styles.forgotWrap}>
+              <Pressable testID="go-to-forgot-password" style={(s) => [styles.forgotWrap, focusRingStyle(s)]} accessibilityRole="link" accessibilityLabel="Forgot password?">
                 <Text style={styles.forgotLink}>Forgot password?</Text>
               </Pressable>
             </Link>
@@ -192,7 +213,7 @@ export default function Login() {
             <View style={styles.row}>
               <Text style={styles.sub}>New here? </Text>
               <Link href="/signup" asChild>
-                <Pressable testID="go-to-signup"><Text style={styles.link}>Create an account</Text></Pressable>
+                <Pressable testID="go-to-signup" style={(s) => [styles.signupLink, focusRingStyle(s)]} accessibilityRole="link" accessibilityLabel="Create an account"><Text style={styles.link}>Create an account</Text></Pressable>
               </Link>
             </View>
           </View>
@@ -205,9 +226,12 @@ export default function Login() {
             </Text>
             <Pressable
               testID="continue-as-guest-button"
-              style={[styles.guestBtn, guestLoading && { opacity: 0.6 }]}
+              style={(s) => [styles.guestBtn, guestLoading && { opacity: 0.6 }, focusRingStyle(s)]}
               disabled={guestLoading}
               onPress={onGuestContinue}
+              accessibilityRole="button"
+              accessibilityLabel="Continue as guest"
+              accessibilityState={{ disabled: guestLoading, busy: guestLoading }}
             >
               {guestLoading ? (
                 <ActivityIndicator color={theme.colors.onSurface} size="small" />
@@ -254,9 +278,11 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'center', marginTop: theme.spacing.lg },
   // "Create an account" link: navy-on-cream — 11.92:1 ✅ + underline for link affordance
   link: { color: theme.dhara.textPrimary, fontWeight: '700', textDecorationLine: 'underline' },
-  forgotWrap: { alignItems: 'center', marginTop: theme.spacing.md, padding: 6 },
+  forgotWrap: { alignItems: 'center', marginTop: theme.spacing.md, padding: 6, minHeight: UI_REVISION_V1 ? 44 : undefined, justifyContent: 'center' },
   // "Forgot password?": navy-on-cream — 11.92:1 ✅ (already had underline)
   forgotLink: { color: theme.dhara.textPrimary, fontWeight: '600', fontSize: 14, textDecorationLine: 'underline' },
+  // NF-UI-REV-05: this link had zero padding/touch-target before — under 44px.
+  signupLink: { minHeight: UI_REVISION_V1 ? 44 : undefined, justifyContent: 'center', paddingVertical: 6 },
   error: { color: theme.colors.error, marginTop: theme.spacing.md },
   guestCard: {
     backgroundColor: theme.colors.surface,

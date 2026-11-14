@@ -16,6 +16,9 @@ import { isLocalOnly, loadJourney, saveJourney, clearJourney, nextCheckinDueAt, 
 import { buildPreview, MODE_META, modeNote, type PreviewMode } from '@/src/familyJourney/previewCopy';
 import { SendSheet } from '@/src/familyJourney/SendSheet';
 import { FJ_SEND_ENABLED } from '@/src/familyJourney/flags';
+// NF-UI-REV-07 (Group G, DHARA UI Revision v2.2.1): visible keyboard-focus
+// ring + missing a11y labels only. No journey/send logic changes.
+import { focusRingStyle } from '@/src/a11yFocus';
 
 const c = theme.colors;
 
@@ -68,7 +71,7 @@ export default function ActiveJourney() {
         <JourneyHeader title="Journey" />
         <ScrollView contentContainerStyle={fjStyles.body}>
           <Text style={fjStyles.empty}>No journey is running right now.</Text>
-          <Pressable style={fjStyles.primary} onPress={() => router.replace('/family-journey')} testID="fj-active-home">
+          <Pressable style={(s) => [fjStyles.primary, focusRingStyle(s)]} onPress={() => router.replace('/family-journey')} testID="fj-active-home" accessibilityRole="button" accessibilityLabel="Back to Family Journey">
             <Text style={fjStyles.primaryTxt}>Back to Family Journey</Text>
           </Pressable>
           <JourneyHelpRow />
@@ -127,7 +130,7 @@ export default function ActiveJourney() {
                 : 'A reminder for you only. There is no deadline and nothing happens if you skip it.'}
             </Text>
             {overdue && contactsFor('missedCheckin').length > 0 ? (
-              <Pressable style={fjStyles.secondary} onPress={() => openEvent('missedCheckin')} testID="fj-show-missed-preview">
+              <Pressable style={(s) => [fjStyles.secondary, focusRingStyle(s)]} onPress={() => openEvent('missedCheckin')} testID="fj-show-missed-preview" accessibilityRole="button" accessibilityLabel={FJ_SEND_ENABLED ? 'Tell a contact my check-in is late' : 'See what this would look like'}>
                 <Ionicons name={FJ_SEND_ENABLED ? 'chatbubble-ellipses-outline' : 'eye-outline'} size={16} color={c.navy} />
                 <Text style={fjStyles.secondaryTxt}>
                   {FJ_SEND_ENABLED ? 'Tell a contact my check-in is late' : 'See what this would look like'}
@@ -140,32 +143,36 @@ export default function ActiveJourney() {
         <View style={fjStyles.card}>
           <Text style={fjStyles.cardTitle}>Journey controls</Text>
           <Pressable
-            style={[fjStyles.primary, { marginTop: 6 }]}
+            style={(s) => [fjStyles.primary, { marginTop: 6 }, focusRingStyle(s)]}
             onPress={() => persist({ lastCheckinAt: Date.now() })}
             testID="fj-checkin-now"
+            accessibilityRole="button"
+            accessibilityLabel="Check in now"
           >
             <Text style={fjStyles.primaryTxt}>Check in now</Text>
           </Pressable>
           <Pressable
-            style={fjStyles.secondary}
+            style={(s) => [fjStyles.secondary, focusRingStyle(s)]}
             onPress={async () => {
               await persist({ arrivedAt: Date.now() });
               if (contactsFor('arrival').length > 0) openEvent('arrival');
             }}
             testID="fj-arrived"
+            accessibilityRole="button"
+            accessibilityLabel="I've arrived"
           >
             <Ionicons name="flag-outline" size={16} color={c.navy} />
             <Text style={fjStyles.secondaryTxt}>I&rsquo;ve arrived</Text>
           </Pressable>
-          <Pressable style={fjStyles.secondary} onPress={() => router.push('/family-journey/new')} testID="fj-change-plan">
+          <Pressable style={(s) => [fjStyles.secondary, focusRingStyle(s)]} onPress={() => router.push('/family-journey/new')} testID="fj-change-plan" accessibilityRole="button" accessibilityLabel="Change the plan">
             <Ionicons name="create-outline" size={16} color={c.navy} />
             <Text style={fjStyles.secondaryTxt}>Change the plan</Text>
           </Pressable>
-          <Pressable style={fjStyles.secondary} onPress={() => router.push('/family-journey/preview')} testID="fj-open-previews">
+          <Pressable style={(s) => [fjStyles.secondary, focusRingStyle(s)]} onPress={() => router.push('/family-journey/preview')} testID="fj-open-previews" accessibilityRole="button" accessibilityLabel="See all previews">
             <Ionicons name="eye-outline" size={16} color={c.navy} />
             <Text style={fjStyles.secondaryTxt}>See all previews</Text>
           </Pressable>
-          <Pressable style={fjStyles.secondary} onPress={() => setAskStop(true)} testID="fj-stop">
+          <Pressable style={(s) => [fjStyles.secondary, focusRingStyle(s)]} onPress={() => setAskStop(true)} testID="fj-stop" accessibilityRole="button" accessibilityLabel="Stop journey">
             <Ionicons name="stop-circle-outline" size={16} color={c.navy} />
             <Text style={fjStyles.secondaryTxt}>Stop journey</Text>
           </Pressable>
@@ -175,7 +182,7 @@ export default function ActiveJourney() {
         <View style={fjStyles.card}>
           <Text style={fjStyles.cardTitle}>Ask a contact for help</Text>
           <Text style={fjStyles.cardSub}>{modeNote('helpRequest')}</Text>
-          <Pressable style={fjStyles.secondary} onPress={() => setAskHelp(true)} testID="fj-help-request">
+          <Pressable style={(s) => [fjStyles.secondary, focusRingStyle(s)]} onPress={() => setAskHelp(true)} testID="fj-help-request" accessibilityRole="button" accessibilityLabel="Ask for help">
             <Ionicons name="hand-left-outline" size={16} color={c.navy} />
             <Text style={fjStyles.secondaryTxt}>Ask for help</Text>
           </Pressable>

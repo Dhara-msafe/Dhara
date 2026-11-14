@@ -10,6 +10,10 @@ import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { draftByType } from '@/src/drafts';
 import { addToHistory } from '@/src/draftHistory';
+// NF-UI-REV-04 (Group E, DHARA UI Revision v2.2.1): presentation-only
+// rollback flag + visible keyboard-focus ring. No API/routing/state changes.
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 
 import { shareExternal } from '@/src/outbound';
 
@@ -102,7 +106,14 @@ export default function DraftForm() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']} testID="draft-form-screen">
       <View style={styles.header}>
-        <Pressable testID="draft-back" onPress={() => router.back()} hitSlop={12}>
+        <Pressable
+          testID="draft-back"
+          onPress={() => router.back()}
+          hitSlop={12}
+          style={(s) => [focusRingStyle(s)]}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="chevron-back" size={26} color={theme.colors.onBrandPrimary} />
         </Pressable>
         <Text style={styles.h1} numberOfLines={1}>{spec.title}</Text>
@@ -129,11 +140,23 @@ export default function DraftForm() {
             </View>
           </ScrollView>
           <View style={styles.actionBar}>
-            <Pressable testID="draft-copy" style={styles.secondaryBtn} onPress={onCopy}>
+            <Pressable
+              testID="draft-copy"
+              style={(s) => [styles.secondaryBtn, focusRingStyle(s)]}
+              onPress={onCopy}
+              accessibilityRole="button"
+              accessibilityLabel={copied ? 'Copied to clipboard' : 'Copy notice text'}
+            >
               <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={18} color={theme.colors.brand} />
               <Text style={styles.secondaryBtnText}>{copied ? 'Copied' : 'Copy'}</Text>
             </Pressable>
-            <Pressable testID="draft-share" style={styles.primaryBtn} onPress={onShare}>
+            <Pressable
+              testID="draft-share"
+              style={(s) => [styles.primaryBtn, focusRingStyle(s)]}
+              onPress={onShare}
+              accessibilityRole="button"
+              accessibilityLabel="Send notice"
+            >
               <Ionicons name="share-social-outline" size={18} color={theme.colors.onBrandSecondary} />
               <Text style={styles.primaryBtnText}>Send</Text>
             </Pressable>
@@ -170,10 +193,11 @@ export default function DraftForm() {
                   value={values[f.key] || ''}
                   onChangeText={(t) => set(f.key, t)}
                   placeholder={f.placeholder}
-                  placeholderTextColor={theme.colors.onSurfaceTertiary}
+                  placeholderTextColor={UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : theme.colors.onSurfaceTertiary}
                   keyboardType={f.keyboard === 'numeric' ? 'numeric' : 'default'}
                   multiline={!!f.multiline}
                   style={[styles.input, f.multiline && styles.inputMulti]}
+                  accessibilityLabel={f.label}
                 />
               </View>
             ))}
@@ -184,9 +208,12 @@ export default function DraftForm() {
           <View style={styles.actionBar}>
             <Pressable
               testID="draft-generate"
-              style={[styles.primaryBtn, { flex: 1 }, busy && { opacity: 0.6 }]}
+              style={(s) => [styles.primaryBtn, { flex: 1 }, busy && { opacity: 0.6 }, focusRingStyle(s)]}
               onPress={onGenerate}
               disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel="Write my notice"
+              accessibilityState={{ disabled: busy, busy }}
             >
               {busy ? (
                 <ActivityIndicator color={theme.colors.onBrandSecondary} />

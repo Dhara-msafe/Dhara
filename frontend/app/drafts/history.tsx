@@ -10,6 +10,13 @@ import { draftByType } from '@/src/drafts';
 import { DraftHistoryItem, loadHistory, removeFromHistory } from '@/src/draftHistory';
 
 import { shareExternal } from '@/src/outbound';
+// NF-UI-REV-10 (Group I, DHARA UI Revision v2.2.1): presentation-only
+// rollback flag + visible keyboard-focus ring + missing a11y labels.
+// Also fixes a nested-Pressable structural issue (delete button was a
+// Pressable inside the card's toggle Pressable) — restructured as siblings,
+// same visual layout, same onCopy/onShare/onDelete/toggle logic.
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 /** Every notice a user generated, kept on-device so it can be reopened,
  * edited (copy → paste into a fresh form) and re-sent later without
  * spending another draft from the free/Pro quota. */
@@ -52,7 +59,7 @@ export default function DraftHistoryScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']} testID="draft-history-screen">
       <View style={styles.header}>
-        <Pressable testID="draft-history-back" onPress={() => router.back()} hitSlop={12}>
+        <Pressable testID="draft-history-back" onPress={() => router.back()} hitSlop={12} style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={26} color={theme.colors.onBrandPrimary} />
         </Pressable>
         <Text style={styles.h1}>Notice history</Text>
@@ -75,57 +82,71 @@ export default function DraftHistoryScreen() {
           renderItem={({ item }) => {
             const open = openId === item.id;
             const spec = draftByType(item.type);
+            const toggle = () => setOpenId(open ? null : item.id);
+            const dateStr = `${new Date(item.created_at).toLocaleDateString()} · ${new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
             return (
-              <Pressable
-                testID={`draft-history-${item.id}`}
-                style={styles.card}
-                onPress={() => setOpenId(open ? null : item.id)}
-              >
+              <View testID={`draft-history-${item.id}`} style={styles.card}>
                 <View style={styles.cardHead}>
                   <View style={styles.iconWrap}>
                     <Ionicons name={spec?.icon || 'document-text-outline'} size={18} color={theme.colors.brand} />
                   </View>
-                  <View style={{ flex: 1 }}>
+                  {/* NF-UI-REV-10: this Pressable and the delete button below are
+                      siblings, not nested — fixes a pre-existing nested-button
+                      structural issue (the delete button used to live inside
+                      this same toggle Pressable). */}
+                  <Pressable
+                    style={(s) => [{ flex: 1 }, focusRingStyle(s)]}
+                    onPress={toggle}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${item.title}, ${dateStr}. ${open ? 'Tap to collapse' : 'Tap to read in full'}`}
+                    accessibilityState={{ expanded: open }}
+                  >
                     <Text style={styles.title}>{item.title}</Text>
-                    <Text style={styles.meta}>
-                      {new Date(item.created_at).toLocaleDateString()} ·{' '}
-                      {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </Text>
-                  </View>
+                    <Text style={styles.meta}>{dateStr}</Text>
+                  </Pressable>
                   <Pressable
                     testID={`draft-history-delete-${item.id}`}
                     hitSlop={12}
-                    onPress={(e) => { e.stopPropagation?.(); onDelete(item); }}
+                    style={(s) => [focusRingStyle(s)]}
+                    onPress={() => onDelete(item)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Delete this notice"
                   >
                     <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
                   </Pressable>
                 </View>
 
-                <Text style={styles.preview} numberOfLines={open ? undefined : 3}>{item.text}</Text>
+                <Pressable onPress={toggle} style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel={open ? 'Tap to collapse' : 'Tap to read in full'} accessibilityState={{ expanded: open }}>
+                  <Text style={styles.preview} numberOfLines={open ? undefined : 3}>{item.text}</Text>
+
+                  <Text style={styles.expand}>{open ? 'Tap to collapse' : 'Tap to read in full'}</Text>
+                </Pressable>
 
                 {open && (
                   <View style={styles.actionRow}>
                     <Pressable
                       testID={`draft-history-copy-${item.id}`}
-                      style={styles.secondaryBtn}
+                      style={(s) => [styles.secondaryBtn, focusRingStyle(s)]}
                       onPress={() => onCopy(item)}
+                      accessibilityRole="button"
+                      accessibilityLabel={copiedId === item.id ? 'Copied' : 'Copy notice text'}
                     >
                       <Ionicons name={copiedId === item.id ? 'checkmark' : 'copy-outline'} size={16} color={theme.colors.brand} />
                       <Text style={styles.secondaryBtnText}>{copiedId === item.id ? 'Copied' : 'Copy'}</Text>
                     </Pressable>
                     <Pressable
                       testID={`draft-history-share-${item.id}`}
-                      style={styles.primaryBtn}
+                      style={(s) => [styles.primaryBtn, focusRingStyle(s)]}
                       onPress={() => onShare(item)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Send again"
                     >
                       <Ionicons name="share-social-outline" size={16} color={theme.colors.onBrandSecondary} />
                       <Text style={styles.primaryBtnText}>Send again</Text>
                     </Pressable>
                   </View>
                 )}
-
-                <Text style={styles.expand}>{open ? 'Tap to collapse' : 'Tap to read in full'}</Text>
-              </Pressable>
+              </View>
             );
           }}
         />
@@ -152,19 +173,25 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.colors.border,
   },
   title: { color: theme.colors.brand, fontWeight: '700', fontSize: 14 },
-  meta: { color: theme.colors.onSurfaceTertiary, fontSize: 11, marginTop: 2 },
+  meta: {
+    // NF-UI-REV-10: onSurfaceTertiary on this card's surfaceSecondary
+    // background measured ~4.03:1 — under 4.5:1. onSurfaceSecondary
+    // (the darker token) clears ~6:1.
+    color: UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : theme.colors.onSurfaceTertiary,
+    fontSize: 11, marginTop: 2,
+  },
   preview: { color: theme.colors.onSurface, fontSize: 13, lineHeight: 19, marginTop: theme.spacing.sm },
   actionRow: { flexDirection: 'row', gap: theme.spacing.sm, marginTop: theme.spacing.md },
   secondaryBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     borderWidth: 2, borderColor: theme.colors.brand, borderRadius: theme.radius.md,
-    paddingHorizontal: theme.spacing.md, minHeight: 40, flex: 1,
+    paddingHorizontal: theme.spacing.md, minHeight: UI_REVISION_V1 ? 48 : 40, flex: 1,
   },
   secondaryBtnText: { color: theme.colors.brand, fontWeight: '800', fontSize: 13 },
   primaryBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     backgroundColor: theme.colors.brandSecondary, borderRadius: theme.radius.md,
-    paddingHorizontal: theme.spacing.md, minHeight: 40, flex: 1,
+    paddingHorizontal: theme.spacing.md, minHeight: UI_REVISION_V1 ? 48 : 40, flex: 1,
   },
   primaryBtnText: { color: theme.colors.onBrandSecondary, fontWeight: '800', fontSize: 13 },
   expand: { color: theme.colors.brandSecondary, fontSize: 12, fontWeight: '700', marginTop: theme.spacing.md },

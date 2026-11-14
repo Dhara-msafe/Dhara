@@ -4,6 +4,10 @@
  */
 import { StyleSheet, Platform } from 'react-native';
 import { theme } from '../theme';
+// NF-UI-REV-03 (Group D, DHARA UI Revision v2.2.1): presentation-only
+// rollback flag — gates touch-target/contrast fixes below so they can be
+// instantly reverted. See src/designRevision.ts.
+import { UI_REVISION_V1 } from '../designRevision';
 
 export const styles = StyleSheet.create({
   safe: {
@@ -68,11 +72,14 @@ export const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.xs,
     backgroundColor: theme.colors.surface,
-    minHeight: 44,
+    // NF-UI-REV-03: 44pt was the pre-revision minimum (iOS); bumped to the
+    // 48px Android/Material minimum under the flag.
+    minHeight: UI_REVISION_V1 ? 48 : 44,
   },
   newChatText: { color: theme.colors.brand, fontSize: 13, fontWeight: '500' },
   historyHeaderBtn: {
-    width: 44, height: 44, borderRadius: 22, flexShrink: 0,
+    width: UI_REVISION_V1 ? 48 : 44, height: UI_REVISION_V1 ? 48 : 44,
+    borderRadius: UI_REVISION_V1 ? 24 : 22, flexShrink: 0,
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: theme.colors.surfaceSecondary,
     borderWidth: 1, borderColor: theme.colors.border,
@@ -251,7 +258,10 @@ export const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.2,
-    color: theme.colors.onSurfaceTertiary,
+    // NF-UI-REV-03: onSurfaceTertiary (#6B7682) on this label's cream
+    // background measured ~4.0:1 — under the 4.5:1 minimum for 10px text.
+    // onSurfaceSecondary (#505B68) on the same background clears ~6:1.
+    color: UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : theme.colors.onSurfaceTertiary,
     textTransform: 'uppercase',
   },
 
@@ -449,6 +459,9 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.brand,
     backgroundColor: theme.colors.surfaceSecondary,
+    // NF-UI-REV-03: this toggle's visual box was ~30px tall — under the
+    // 44/48px touch-target minimum.
+    minHeight: UI_REVISION_V1 ? 44 : undefined,
   },
   detailsToggleText: {
     fontSize: 13,
@@ -493,7 +506,12 @@ export const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.3,
   },
-  citationVerified: { fontSize: 10, color: theme.colors.onSurfaceTertiary },
+  citationVerified: {
+    fontSize: 10,
+    // NF-UI-REV-03: onSurfaceTertiary on this card's '#FFFBEC' background
+    // measured ~4.46:1 — just under 4.5:1. onSurfaceSecondary clears ~6.7:1.
+    color: UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : theme.colors.onSurfaceTertiary,
+  },
   staleWarningRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   staleWarningText: { fontSize: 10, color: theme.colors.warning, fontWeight: '600' },
   ipcNoticeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: '#FEF3C7', borderRadius: 8, padding: 8, marginTop: 6 },
@@ -653,9 +671,10 @@ export const styles = StyleSheet.create({
     minHeight: 68,
   },
   lockedIconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    // NF-UI-REV-03: 40px was under the 44/48px minimum.
+    width: UI_REVISION_V1 ? 48 : 40,
+    height: UI_REVISION_V1 ? 48 : 40,
+    borderRadius: UI_REVISION_V1 ? 24 : 20,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.colors.surface,
@@ -663,9 +682,9 @@ export const styles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
   lockedSendBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: UI_REVISION_V1 ? 48 : 46,
+    height: UI_REVISION_V1 ? 48 : 46,
+    borderRadius: UI_REVISION_V1 ? 24 : 23,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.colors.brandSecondary,
@@ -736,7 +755,9 @@ export const styles = StyleSheet.create({
     gap: 4,
   },
   slideHintText: {
-    color: theme.colors.onSurfaceTertiary,
+    // NF-UI-REV-03: onSurfaceTertiary on the recording bar's '#FFF5F5'
+    // background measured ~4.33:1. onSurfaceSecondary clears ~6.5:1.
+    color: UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : theme.colors.onSurfaceTertiary,
     fontSize: 13,
     fontWeight: '500',
   },
@@ -830,6 +851,8 @@ export const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     paddingVertical: theme.spacing.md,
     backgroundColor: theme.colors.surfaceSecondary,
+    // NF-UI-REV-03: ~38px tall pre-revision — under the 44/48px minimum.
+    minHeight: UI_REVISION_V1 ? 48 : undefined,
   },
   tcSecondaryText: { color: theme.colors.brand, fontWeight: '700', fontSize: 13 },
   pwOverlay: {

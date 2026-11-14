@@ -37,6 +37,13 @@ import FirSectionDrawer, { SectionItem, DroppedSection } from '@/src/components/
 import { MarqueeBanner } from '@/src/components/MarqueeBanner';
 
 import { openExternal } from '@/src/outbound';
+// NF-UI-REV-11 (Group I, DHARA UI Revision v2.2.1): presentation-only
+// rollback flag + visible keyboard-focus ring + missing a11y labels on the
+// shared step components below (QuickReplyChips, TextInputArea, GPSWidget,
+// EvidenceWidget, ConfirmButtons, EmergencyOverlay). Zero changes to the
+// FIR wizard's stage/question/upload/recording logic.
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 // Native location is optional; importing it on web fails in the installed version.
 const Location: typeof import('expo-location') | null =
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -1550,22 +1557,26 @@ ${data.bot_message}`);
                 <View style={styles.voiceConfirmRow}>
                   <Pressable
                     testID="fir-voice-confirm-yes"
-                    style={styles.voiceConfirmYesBtn}
+                    style={(s) => [styles.voiceConfirmYesBtn, focusRingStyle(s)]}
                     onPress={() => {
                       setTextInput(prev => (prev ? prev + ' ' + pendingVoiceConfirm : pendingVoiceConfirm || ''));
                       setPendingVoiceConfirm(null);
                       voiceSMRef.current?.tryTo('IDLE');
                     }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Yes, that's right"
                   >
                     <Text style={styles.voiceConfirmYesText}>Yes, that&apos;s right</Text>
                   </Pressable>
                   <Pressable
                     testID="fir-voice-confirm-discard"
-                    style={styles.voiceConfirmDiscardBtn}
+                    style={(s) => [styles.voiceConfirmDiscardBtn, focusRingStyle(s)]}
                     onPress={() => {
                       setPendingVoiceConfirm(null);
                       voiceSMRef.current?.tryTo('IDLE');
                     }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Discard, I'll type it"
                   >
                     <Text style={styles.voiceConfirmDiscardText}>Discard, I&apos;ll type it</Text>
                   </Pressable>
@@ -1765,15 +1776,17 @@ function QuickReplyChips({
         return (
           <Pressable
             key={r}
-            style={[styles.chip, isNoBtn && styles.chipDanger]}
+            style={(s) => [styles.chip, isNoBtn && styles.chipDanger, focusRingStyle(s)]}
             onPress={() => onSelect(r)}
+            accessibilityRole="button"
+            accessibilityLabel={r}
           >
             <Text style={[styles.chipText, isNoBtn && styles.chipTextDanger]}>{r}</Text>
           </Pressable>
         );
       })}
       {!!skipLabel && (
-        <Pressable style={[styles.chip, styles.chipSkip]} onPress={onSkip}>
+        <Pressable style={(s) => [styles.chip, styles.chipSkip, focusRingStyle(s)]} onPress={onSkip} accessibilityRole="button" accessibilityLabel={skipLabel}>
           <Text style={[styles.chipText, styles.chipTextSkip]}>{skipLabel}</Text>
         </Pressable>
       )}
@@ -1830,10 +1843,10 @@ function TextInputArea({
             ))}
           </View>
         )}
-        <Pressable testID="fir-locked-cancel-btn" style={styles.lockedIconBtn} onPress={onLockedCancel} hitSlop={10}>
+        <Pressable testID="fir-locked-cancel-btn" style={(s) => [styles.lockedIconBtn, focusRingStyle(s)]} onPress={onLockedCancel} hitSlop={10} accessibilityRole="button" accessibilityLabel="Discard recording">
           <Ionicons name="trash-outline" size={20} color={RED} />
         </Pressable>
-        <Pressable testID="fir-locked-finish-btn" style={styles.lockedSendBtn} onPress={onLockedFinish} hitSlop={10}>
+        <Pressable testID="fir-locked-finish-btn" style={(s) => [styles.lockedSendBtn, focusRingStyle(s)]} onPress={onLockedFinish} hitSlop={10} accessibilityRole="button" accessibilityLabel="Finish recording and send">
           <Ionicons name="checkmark" size={22} color={SURFACE} />
         </Pressable>
       </View>
@@ -1867,7 +1880,7 @@ function TextInputArea({
                 )}
                 <Text style={styles.attachChipName} numberOfLines={1}>{f.filename}</Text>
                 {onRemoveAttach && (
-                  <Pressable onPress={() => onRemoveAttach(f.file_id)} hitSlop={8}>
+                  <Pressable onPress={() => onRemoveAttach(f.file_id)} hitSlop={8} style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel={`Remove ${f.filename}`}>
                     <Ionicons name="close-circle" size={16} color={RED} />
                   </Pressable>
                 )}
@@ -1876,7 +1889,7 @@ function TextInputArea({
           })}
           {/* Add more button */}
           {onAttach && (
-            <Pressable style={styles.attachAddBtn} onPress={onAttach}>
+            <Pressable style={(s) => [styles.attachAddBtn, focusRingStyle(s)]} onPress={onAttach} accessibilityRole="button" accessibilityLabel="Add more files">
               <Ionicons name="add" size={18} color={NAVY} />
             </Pressable>
           )}
@@ -1958,8 +1971,9 @@ function TextInputArea({
             {onAttach && (
               <Pressable
                 testID="fir-attach-evidence"
+                accessibilityRole="button"
                 accessibilityLabel="Attach evidence"
-                style={styles.attachBtn}
+                style={(s) => [styles.attachBtn, focusRingStyle(s)]}
                 onPress={onAttach}
                 hitSlop={8}
               >
@@ -1980,6 +1994,7 @@ function TextInputArea({
               placeholderTextColor={MUTED}
               multiline
               maxLength={2000}
+              accessibilityLabel="Type your response"
             />
           </>
         )}
@@ -1989,8 +2004,9 @@ function TextInputArea({
             // Web: click to start / click again to stop (more natural for desktop)
             <Pressable
               testID="fir-mic-button"
+              accessibilityRole="button"
               accessibilityLabel={isRecording ? 'Stop recording' : 'Start recording'}
-              style={[styles.micBtn, isRecording && styles.micBtnActive]}
+              style={(s) => [styles.micBtn, isRecording && styles.micBtnActive, focusRingStyle(s)]}
               disabled={transcribing}
               onPress={isRecording ? onStopRecord : onStartRecord}
             >
@@ -2003,7 +2019,9 @@ function TextInputArea({
             // slide-up-to-lock, driven by the parent's PanResponder.
             <Animated.View
               testID="fir-mic-button"
-              accessibilityLabel="Hold to record your answer"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={isRecording ? (slideCancelled ? 'Release to cancel recording' : 'Recording — slide left to cancel, up to lock') : 'Press and hold to record your answer'}
               style={[
                 styles.micBtn,
                 isRecording && styles.micBtnActive,
@@ -2027,16 +2045,19 @@ function TextInputArea({
         {!isRecording && (
           <Pressable
             testID="fir-send-btn"
-            style={[styles.sendBtn, !value.trim() && styles.sendBtnDisabled]}
+            style={(s) => [styles.sendBtn, !value.trim() && styles.sendBtnDisabled, focusRingStyle(s)]}
             onPress={() => onSend(value)}
             disabled={!value.trim()}
+            accessibilityRole="button"
+            accessibilityLabel="Send"
+            accessibilityState={{ disabled: !value.trim() }}
           >
             <Ionicons name="send" size={18} color="#fff" />
           </Pressable>
         )}
       </View>
       {onSkip && !!skipLabel && !isRecording && (
-        <Pressable style={styles.skipRow} onPress={onSkip}>
+        <Pressable style={(s) => [styles.skipRow, focusRingStyle(s)]} onPress={onSkip} accessibilityRole="button" accessibilityLabel={skipLabel}>
           <Text style={styles.skipText}>{skipLabel}</Text>
         </Pressable>
       )}
@@ -2052,11 +2073,11 @@ function GPSWidget({
       <Text style={styles.widgetHint}>
         Your precise GPS location helps police identify the exact spot
       </Text>
-      <Pressable style={styles.gpsBtn} onPress={onGetGPS}>
+      <Pressable style={(s) => [styles.gpsBtn, focusRingStyle(s)]} onPress={onGetGPS} accessibilityRole="button" accessibilityLabel="Get GPS location">
         <Ionicons name="location" size={22} color="#fff" />
         <Text style={styles.gpsBtnText}>Get GPS Location</Text>
       </Pressable>
-      <Pressable style={styles.skipRow} onPress={onSkip}>
+      <Pressable style={(s) => [styles.skipRow, focusRingStyle(s)]} onPress={onSkip} accessibilityRole="button" accessibilityLabel={skipLabel || 'No, text description is enough'}>
         <Text style={styles.skipText}>{skipLabel || 'No, text description is enough'}</Text>
       </Pressable>
     </View>
@@ -2101,8 +2122,10 @@ function EvidenceWidget({
                   {onRemove && (
                     <Pressable
                       onPress={() => onRemove(f.file_id)}
-                      style={styles.evidenceRemoveBtn}
+                      style={(s) => [styles.evidenceRemoveBtn, focusRingStyle(s)]}
                       hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove ${f.filename}`}
                     >
                       <Ionicons name="close-circle" size={18} color={RED} />
                     </Pressable>
@@ -2118,6 +2141,7 @@ function EvidenceWidget({
                     placeholderTextColor={MUTED}
                     returnKeyType="done"
                     maxLength={200}
+                    accessibilityLabel={`Caption for ${f.filename}`}
                   />
                 )}
               </View>
@@ -2127,9 +2151,12 @@ function EvidenceWidget({
       )}
       <View style={styles.evidenceBtns}>
         <Pressable
-          style={[styles.evidenceAddBtn, uploading && { opacity: 0.6 }]}
+          style={(s) => [styles.evidenceAddBtn, uploading && { opacity: 0.6 }, focusRingStyle(s)]}
           onPress={onPick}
           disabled={uploading}
+          accessibilityRole="button"
+          accessibilityLabel={uploading ? 'Uploading' : `Add files${files.length > 0 ? `, ${files.length} added` : ''}`}
+          accessibilityState={{ disabled: uploading, busy: uploading }}
         >
           {uploading
             ? <ActivityIndicator size="small" color={NAVY} />
@@ -2139,12 +2166,12 @@ function EvidenceWidget({
           </Text>
         </Pressable>
         {files.length > 0 && (
-          <Pressable style={styles.evidenceDoneBtn} onPress={onDone}>
+          <Pressable style={(s) => [styles.evidenceDoneBtn, focusRingStyle(s)]} onPress={onDone} accessibilityRole="button" accessibilityLabel={`Done, ${files.length} file${files.length === 1 ? '' : 's'}`}>
             <Text style={styles.evidenceDoneText}>Done ({files.length})</Text>
           </Pressable>
         )}
       </View>
-      <Pressable style={styles.skipRow} onPress={onSkip}>
+      <Pressable style={(s) => [styles.skipRow, focusRingStyle(s)]} onPress={onSkip} accessibilityRole="button" accessibilityLabel={skipLabel || 'No evidence to upload'}>
         <Text style={styles.skipText}>{skipLabel || 'No evidence to upload'}</Text>
       </Pressable>
     </View>
@@ -2156,10 +2183,10 @@ function ConfirmButtons({
 }: { confirmLabel: string; cancelLabel: string; onConfirm: () => void; onCancel: () => void }) {
   return (
     <View style={styles.confirmWrap}>
-      <Pressable style={styles.confirmYes} onPress={onConfirm}>
+      <Pressable style={(s) => [styles.confirmYes, focusRingStyle(s)]} onPress={onConfirm} accessibilityRole="button" accessibilityLabel={confirmLabel}>
         <Text style={styles.confirmYesText}>{confirmLabel}</Text>
       </Pressable>
-      <Pressable style={styles.confirmNo} onPress={onCancel}>
+      <Pressable style={(s) => [styles.confirmNo, focusRingStyle(s)]} onPress={onCancel} accessibilityRole="button" accessibilityLabel={cancelLabel}>
         <Text style={styles.confirmNoText}>{cancelLabel}</Text>
       </Pressable>
     </View>
@@ -2183,7 +2210,7 @@ function EmergencyOverlay({
           If you are in immediate danger, please call for help first.
         </Text>
         {numbers.map(n => (
-          <Pressable key={n.number} style={eStyles.callBtn} onPress={() => handleCall(n.number)}>
+          <Pressable key={n.number} style={(s) => [eStyles.callBtn, focusRingStyle(s)]} onPress={() => handleCall(n.number)} accessibilityRole="button" accessibilityLabel={`Call ${n.label}, ${n.number}`}>
             <Ionicons name="call" size={22} color="#fff" />
             <View style={{ marginLeft: 10 }}>
               <Text style={eStyles.callLabel}>{n.label}</Text>
@@ -2191,10 +2218,10 @@ function EmergencyOverlay({
             </View>
           </Pressable>
         ))}
-        <Pressable style={eStyles.continueBtn} onPress={onContinue}>
+        <Pressable style={(s) => [eStyles.continueBtn, focusRingStyle(s)]} onPress={onContinue} accessibilityRole="button" accessibilityLabel="I'm safe now, continue filing">
           <Text style={eStyles.continueBtnText}>{"I'm safe now \u2014 continue filing"}</Text>
         </Pressable>
-        <Pressable style={eStyles.exitBtn} onPress={onExit}>
+        <Pressable style={(s) => [eStyles.exitBtn, focusRingStyle(s)]} onPress={onExit} accessibilityRole="button" accessibilityLabel="Exit for now, session saved">
           <Text style={eStyles.exitBtnText}>Exit for now (session saved)</Text>
         </Pressable>
       </View>
@@ -2232,7 +2259,7 @@ const eStyles = StyleSheet.create({
     paddingVertical: 14, alignItems: 'center', marginTop: 8,
   },
   continueBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  exitBtn: { paddingVertical: 12, alignItems: 'center', marginTop: 6 },
+  exitBtn: { paddingVertical: 12, alignItems: 'center', marginTop: 6, minHeight: UI_REVISION_V1 ? 48 : undefined, justifyContent: 'center' },
   exitBtnText: { color: '#6B7280', fontSize: 14 },
 });
 
@@ -2360,7 +2387,7 @@ const styles = StyleSheet.create({
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: 4 },
   chip: {
     borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10,
-    backgroundColor: NAVY, borderWidth: 0,
+    backgroundColor: NAVY, borderWidth: 0, minHeight: UI_REVISION_V1 ? 44 : undefined, justifyContent: 'center',
   },
   chipSkip: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: BORDER },
   chipText: { fontSize: 13, color: '#fff', fontWeight: '600' },
@@ -2375,12 +2402,12 @@ const styles = StyleSheet.create({
     maxHeight: 120, backgroundColor: SURFACE,
   },
   micBtn: {
-    width: 44, height: 44, borderRadius: 22,
+    width: UI_REVISION_V1 ? 48 : 44, height: UI_REVISION_V1 ? 48 : 44, borderRadius: UI_REVISION_V1 ? 24 : 22,
     backgroundColor: NAVY, alignItems: 'center', justifyContent: 'center',
   },
   micBtnActive: { backgroundColor: RED },
   sendBtn: {
-    width: 44, height: 44, borderRadius: 22,
+    width: UI_REVISION_V1 ? 48 : 44, height: UI_REVISION_V1 ? 48 : 44, borderRadius: UI_REVISION_V1 ? 24 : 22,
     backgroundColor: NAVY, alignItems: 'center', justifyContent: 'center',
   },
   sendBtnDisabled: { backgroundColor: BORDER },
@@ -2394,12 +2421,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10, minHeight: 56,
   },
   lockedIconBtn: {
-    width: 40, height: 40, borderRadius: 20,
+    width: UI_REVISION_V1 ? 48 : 40, height: UI_REVISION_V1 ? 48 : 40, borderRadius: UI_REVISION_V1 ? 24 : 20,
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER,
   },
   lockedSendBtn: {
-    width: 46, height: 46, borderRadius: 23,
+    width: UI_REVISION_V1 ? 48 : 46, height: UI_REVISION_V1 ? 48 : 46, borderRadius: UI_REVISION_V1 ? 24 : 23,
     alignItems: 'center', justifyContent: 'center', backgroundColor: NAVY,
   },
   // Live "is listening" waveform — plain Animated bars, matches Home.
@@ -2506,11 +2533,12 @@ const styles = StyleSheet.create({
   evidenceAddBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     borderWidth: 1.5, borderColor: NAVY, borderRadius: 10, paddingVertical: 10, borderStyle: 'dashed',
+    minHeight: UI_REVISION_V1 ? 48 : undefined,
   },
   evidenceAddText: { fontSize: 14, color: NAVY, fontWeight: '600' },
   evidenceDoneBtn: {
     backgroundColor: GREEN, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16,
-    alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center', minHeight: UI_REVISION_V1 ? 48 : undefined,
   },
   evidenceDoneText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 
@@ -2523,7 +2551,7 @@ const styles = StyleSheet.create({
   confirmYesText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   confirmNo: {
     backgroundColor: 'transparent', borderWidth: 1.5, borderColor: BORDER,
-    borderRadius: 12, paddingVertical: 12, alignItems: 'center',
+    borderRadius: 12, paddingVertical: 12, alignItems: 'center', minHeight: UI_REVISION_V1 ? 48 : undefined, justifyContent: 'center',
   },
   confirmNoText: { color: MUTED, fontSize: 14 },
 

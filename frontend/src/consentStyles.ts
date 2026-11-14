@@ -1,5 +1,8 @@
 import { StyleSheet } from 'react-native';
 import { theme } from './theme';
+// NF-UI-REV-12 (Group J, DHARA UI Revision v2.2.1): presentation-only
+// rollback flag. No consent-logic changes.
+import { UI_REVISION_V1 } from './designRevision';
 
 const colors = theme.colors;
 export const consentStyles = StyleSheet.create({
@@ -34,7 +37,11 @@ export const consentStyles = StyleSheet.create({
   continueBtn: { backgroundColor: colors.primary, borderRadius: 12, minHeight: 52, padding: 14, alignItems: 'center', justifyContent: 'center' },
   continueDisabled: { backgroundColor: colors.divider },
   continueText: { color: colors.onBrandPrimary, fontSize: 16, fontWeight: '700' },
-  disabledText: { color: colors.onSurfaceTertiary },
+  disabledText: {
+    // NF-UI-REV-12: onSurfaceTertiary on the disabled button's 'divider'
+    // background measured ~3.79:1 — under 4.5:1. onSurfaceSecondary clears ~5.7:1.
+    color: UI_REVISION_V1 ? colors.onSurfaceSecondary : colors.onSurfaceTertiary,
+  },
   note: { fontSize: 13, lineHeight: 20, color: colors.onSurfaceTertiary, marginTop: 16 },
   pressed: { opacity: 0.75 },
   helpButtons: { gap: 8, marginTop: 12 },

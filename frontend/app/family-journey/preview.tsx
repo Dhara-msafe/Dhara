@@ -15,6 +15,9 @@ import { JourneyHeader, JourneyHelpRow, PreviewScreenBadge, FamilyJourneyOff, fj
 import { isLocalOnly, loadJourney, saveJourney, useFamilyJourneyEnabled, type Journey } from '@/src/familyJourney/store';
 import { MODE_META, buildPreview, enabledModes } from '@/src/familyJourney/previewCopy';
 import { FJ_SEND_ENABLED } from '@/src/familyJourney/flags';
+// NF-UI-REV-10 (Group I, DHARA UI Revision v2.2.1): visible keyboard-focus
+// ring + missing a11y labels. No journey logic changes.
+import { focusRingStyle } from '@/src/a11yFocus';
 
 const c = theme.colors;
 
@@ -106,14 +109,14 @@ export default function JourneyPreview() {
           </View>
         ))}
 
-        <Pressable style={fjStyles.secondary} onPress={() => router.push('/family-journey/contacts')} testID="fj-preview-edit">
+        <Pressable style={(s) => [fjStyles.secondary, focusRingStyle(s)]} onPress={() => router.push('/family-journey/contacts')} testID="fj-preview-edit" accessibilityRole="button" accessibilityLabel="Change contacts or permissions">
           <Ionicons name="create-outline" size={16} color={c.navy} />
           <Text style={fjStyles.secondaryTxt}>Change contacts or permissions</Text>
         </Pressable>
 
         {journey?.status === 'active' ? (
           <Pressable
-            style={fjStyles.primary}
+            style={(s) => [fjStyles.primary, focusRingStyle(s)]}
             onPress={() => {
               // Return to the running journey itself, not merely one screen back
               // (the plan/contacts screens may sit in between).
@@ -121,11 +124,13 @@ export default function JourneyPreview() {
               catch { router.replace('/family-journey/active'); }
             }}
             testID="fj-preview-back-active"
+            accessibilityRole="button"
+            accessibilityLabel="Back to journey"
           >
             <Text style={fjStyles.primaryTxt}>Back to journey</Text>
           </Pressable>
         ) : (
-          <Pressable style={fjStyles.primary} onPress={start} disabled={!journey} testID="fj-preview-start">
+          <Pressable style={(s) => [fjStyles.primary, focusRingStyle(s)]} onPress={start} disabled={!journey} testID="fj-preview-start" accessibilityRole="button" accessibilityLabel="Start journey" accessibilityState={{ disabled: !journey }}>
             <Text style={fjStyles.primaryTxt}>Start journey</Text>
           </Pressable>
         )}

@@ -14,6 +14,11 @@ import {
   normalizePhrase,
 } from '@/src/women/codePhraseStore';
 import { useAuth } from '@/src/auth';
+// NF-UI-REV-09 (Group H, DHARA UI Revision v2.2.1): presentation-only
+// rollback flag + visible keyboard-focus ring + missing a11y labels. No
+// changes to phrase save/conflict/storage logic below.
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 
 const c = theme.colors;
 const PRIVACY_COVER_ENABLED = process.env.EXPO_PUBLIC_PRIVACY_COVER_V1 === 'true';
@@ -302,6 +307,7 @@ export default function CodePhrase() {
           style={[styles.input, sosConflictsWithHide && styles.inputConflict, Platform.OS === 'web' && { opacity: 0.45 }]}
           multiline
           editable={Platform.OS !== 'web'}
+          accessibilityLabel="SOS code phrase"
         />
 
         {/* On web: replace Save with a capability notice — do NOT show ARMED */}
@@ -311,7 +317,7 @@ export default function CodePhrase() {
             <Text style={styles.webSaveReplaceTxt}>Available in the DHARA mobile app</Text>
           </View>
         ) : (
-          <Pressable style={styles.saveBtn} onPress={save}>
+          <Pressable style={(s) => [styles.saveBtn, focusRingStyle(s)]} onPress={save} accessibilityRole="button" accessibilityLabel={saved ? 'Saved' : 'Save code phrase'}>
             <Ionicons name={saved ? 'checkmark-circle' : 'lock-closed-outline'} size={18} color="#fff" />
             <Text style={styles.saveTxt}>{saved ? 'Saved' : 'Save code phrase'}</Text>
           </Pressable>
@@ -319,7 +325,7 @@ export default function CodePhrase() {
 
         {/* Remove phrase — only shown when truly armed (storage confirmed) and on native */}
         {armed && Platform.OS !== 'web' && (
-          <Pressable style={styles.clearBtn} onPress={clear}>
+          <Pressable style={(s) => [styles.clearBtn, focusRingStyle(s)]} onPress={clear} accessibilityRole="button" accessibilityLabel="Remove code phrase">
             <Ionicons name="trash-outline" size={16} color={c.emergencyRed} />
             <Text style={styles.clearTxt}>Remove code phrase</Text>
           </Pressable>
@@ -327,7 +333,7 @@ export default function CodePhrase() {
 
         <Text style={styles.sugTitle}>Suggestions</Text>
         {SUGGESTIONS.map(s => (
-          <Pressable key={s} style={styles.sug} onPress={() => { setPhrase(s); setSosConflictsWithHide(false); }}>
+          <Pressable key={s} style={(st) => [styles.sug, focusRingStyle(st)]} onPress={() => { setPhrase(s); setSosConflictsWithHide(false); }} accessibilityRole="button" accessibilityLabel={`Use suggestion: ${s}`}>
             <Ionicons name="bulb-outline" size={16} color={c.darkGold} />
             <Text style={styles.sugTxt}>{s}</Text>
           </Pressable>
@@ -404,17 +410,21 @@ export default function CodePhrase() {
           placeholderTextColor={c.muted}
           style={[styles.input, (hideConflictsWithSOS || hidePersistedConflict) && styles.inputConflict]}
           multiline
+          accessibilityLabel="Privacy code phrase"
         />
         <Pressable
-          style={[styles.hideSaveBtn, hideConflictsWithSOS && styles.btnDisabled]}
+          style={(s) => [styles.hideSaveBtn, hideConflictsWithSOS && styles.btnDisabled, focusRingStyle(s)]}
           onPress={saveHide}
           disabled={hideConflictsWithSOS}
+          accessibilityRole="button"
+          accessibilityLabel={hideSaved ? 'Saved' : 'Save privacy phrase'}
+          accessibilityState={{ disabled: hideConflictsWithSOS }}
         >
           <Ionicons name={hideSaved ? 'checkmark-circle' : 'eye-off-outline'} size={18} color="#fff" />
           <Text style={styles.saveTxt}>{hideSaved ? 'Saved' : 'Save privacy phrase'}</Text>
         </Pressable>
         {hideArmed && (
-          <Pressable style={styles.clearBtn} onPress={clearHide}>
+          <Pressable style={(s) => [styles.clearBtn, focusRingStyle(s)]} onPress={clearHide} accessibilityRole="button" accessibilityLabel="Remove privacy phrase">
             <Ionicons name="trash-outline" size={16} color={c.emergencyRed} />
             <Text style={styles.clearTxt}>Remove privacy phrase</Text>
           </Pressable>
@@ -422,7 +432,7 @@ export default function CodePhrase() {
 
         <Text style={styles.sugTitle}>Suggestions</Text>
         {HIDE_SUGGESTIONS.map(s => (
-          <Pressable key={s} style={styles.sug} onPress={() => setHidePhrase(s)}>
+          <Pressable key={s} style={(st) => [styles.sug, focusRingStyle(st)]} onPress={() => setHidePhrase(s)} accessibilityRole="button" accessibilityLabel={`Use suggestion: ${s}`}>
             <Ionicons name="bulb-outline" size={16} color={c.darkGold} />
             <Text style={styles.sugTxt}>{s}</Text>
           </Pressable>
@@ -493,10 +503,16 @@ const styles = StyleSheet.create({
   hideSaveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.onBrandPrimary, borderRadius: 12, paddingVertical: 15, marginTop: 14 },
   btnDisabled: { opacity: 0.4 },
   saveTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 16 },
-  clearBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 12, paddingVertical: 12, marginTop: 8, borderWidth: 1, borderColor: '#fecaca' },
+  clearBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 12, paddingVertical: 12, marginTop: 8, borderWidth: 1, borderColor: '#fecaca', minHeight: UI_REVISION_V1 ? 48 : undefined },
   clearTxt: { color: c.emergencyRed, fontFamily: theme.fonts.bodyBold, fontSize: 15 },
   // Suggestions
-  sugTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.onSurfaceTertiary, letterSpacing: 1, marginTop: 26, marginBottom: 10 },
+  sugTitle: {
+    fontFamily: theme.fonts.bodyBold, fontSize: 13,
+    // NF-UI-REV-09: onSurfaceTertiary on this cream page background measured
+    // ~4.33:1 — under 4.5:1. onSurfaceSecondary clears ~6.5:1.
+    color: UI_REVISION_V1 ? c.onSurfaceSecondary : c.onSurfaceTertiary,
+    letterSpacing: 1, marginTop: 26, marginBottom: 10,
+  },
   sug: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 12, padding: 14, marginBottom: 10 },
   sugTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 15, color: c.ink },
   // Tips

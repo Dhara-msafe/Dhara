@@ -23,6 +23,11 @@ import { useFamilyJourneyEnabled } from '@/src/familyJourney/store';
 
 import { openExternal } from '@/src/outbound';
 import { grievanceOfficerName } from '@/src/operatorIdentity';
+// NF-UI-REV-12 (Group J, DHARA UI Revision v2.2.1): presentation-only
+// rollback flag + visible keyboard-focus ring + missing a11y labels. No
+// export/delete/withdraw/grievance navigation logic changes.
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 // ── Contact constants ─────────────────────────────────────────────────────────
 const GRIEVANCE_EMAIL        = 'grievance@calviltech.com';
 const SUPPORT_EMAIL          = 'support@calviltech.com';
@@ -105,7 +110,7 @@ export default function DataPrivacyScreen() {
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       {/* ── Header ── */}
       <View style={styles.header}>
-        <Pressable onPress={() => goBackOr(router, '/(tabs)/settings')} hitSlop={8} style={styles.backBtn}>
+        <Pressable onPress={() => goBackOr(router, '/(tabs)/settings')} hitSlop={8} style={(s) => [styles.backBtn, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={24} color={PRIMARY} />
         </Pressable>
         <Text style={styles.headerTitle}>Data &amp; Privacy</Text>
@@ -121,9 +126,10 @@ export default function DataPrivacyScreen() {
             SECTION 1 — What DHARA collects  (collapsible accordion)
             ══════════════════════════════════════════════════════════ */}
         <Pressable
-          style={styles.accordionHeader}
+          style={(s) => [styles.accordionHeader, focusRingStyle(s)]}
           onPress={() => setSec1Open(v => !v)}
           accessibilityRole="button"
+          accessibilityLabel="What DHARA collects"
           accessibilityState={{ expanded: sec1Open }}
         >
           <Text style={styles.accordionTitle}>What DHARA collects</Text>
@@ -160,9 +166,10 @@ export default function DataPrivacyScreen() {
             SECTION 2 — How we use your data  (collapsible accordion)
             ══════════════════════════════════════════════════════════ */}
         <Pressable
-          style={[styles.accordionHeader, { marginTop: theme.spacing.sm }]}
+          style={(s) => [styles.accordionHeader, { marginTop: theme.spacing.sm }, focusRingStyle(s)]}
           onPress={() => setSec2Open(v => !v)}
           accessibilityRole="button"
+          accessibilityLabel="How we use your data"
           accessibilityState={{ expanded: sec2Open }}
         >
           <Text style={styles.accordionTitle}>How we use your data</Text>
@@ -192,9 +199,12 @@ export default function DataPrivacyScreen() {
         {/* 3a. Download my data */}
         <Pressable
           testID="download-data-btn"
-          style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.8 }]}
+          style={(s) => [styles.actionCard, s.pressed && { opacity: 0.8 }, focusRingStyle(s)]}
           onPress={handleDownload}
           disabled={exportLoading}
+          accessibilityRole="button"
+          accessibilityLabel="Download my data. See your data and download a copy now"
+          accessibilityState={{ disabled: exportLoading, busy: exportLoading }}
         >
           <View style={styles.actionIconWrap}>
             {exportLoading
@@ -222,8 +232,10 @@ export default function DataPrivacyScreen() {
         {/* 3b. Delete my account — destructive */}
         <Pressable
           testID="delete-account-btn"
-          style={({ pressed }) => [styles.actionCard, styles.actionCardDestructive, pressed && { opacity: 0.8 }]}
+          style={(s) => [styles.actionCard, styles.actionCardDestructive, s.pressed && { opacity: 0.8 }, focusRingStyle(s)]}
           onPress={handleDeleteAccount}
+          accessibilityRole="button"
+          accessibilityLabel="Delete my account. Delete account and all data"
         >
           <View style={[styles.actionIconWrap, { backgroundColor: '#FEF2F2' }]}>
             <Ionicons name="trash-outline" size={20} color={DESTRUCTIVE} />
@@ -238,8 +250,10 @@ export default function DataPrivacyScreen() {
         {/* 3c. Withdraw consent */}
         <Pressable
           testID="withdraw-consent-btn"
-          style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.8 }]}
+          style={(s) => [styles.actionCard, s.pressed && { opacity: 0.8 }, focusRingStyle(s)]}
           onPress={handleWithdrawConsent}
+          accessibilityRole="button"
+          accessibilityLabel="Withdraw consent. Change my data preferences"
         >
           <View style={styles.actionIconWrap}>
             <Ionicons name="options-outline" size={20} color={PRIMARY} />
@@ -254,8 +268,10 @@ export default function DataPrivacyScreen() {
         {/* 3d. Contact us */}
         <Pressable
           testID="contact-grievance-btn"
-          style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.8 }]}
+          style={(s) => [styles.actionCard, s.pressed && { opacity: 0.8 }, focusRingStyle(s)]}
           onPress={handleContact}
+          accessibilityRole="button"
+          accessibilityLabel={`Grievance or data question? Acknowledged within 48 hours, resolved within 30 days. Grievance Officer: ${GRIEVANCE_OFFICER_NAME}`}
         >
           <View style={styles.actionIconWrap}>
             <Ionicons name="mail-outline" size={20} color={PRIMARY} />
@@ -521,7 +537,9 @@ const styles = StyleSheet.create({
   },
   operatorNote: {
     fontSize: 11,
-    color: theme.colors.onSurfaceTertiary,
+    // NF-UI-REV-12: onSurfaceTertiary directly on this screen's cream root
+    // background measured ~4.33:1 — under 4.5:1. onSurfaceSecondary clears ~6.5:1.
+    color: UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : theme.colors.onSurfaceTertiary,
     lineHeight: 17,
     marginTop: theme.spacing.md,
   },

@@ -16,6 +16,11 @@ import { theme } from '@/src/theme';
 import FirSectionDrawer, { SectionItem, DroppedSection } from '@/src/components/FirSectionDrawer';
 
 import { openExternal, shareExternal } from '@/src/outbound';
+// NF-UI-REV-11 (Group I, DHARA UI Revision v2.2.1): presentation-only
+// rollback flag + visible keyboard-focus ring + missing a11y labels. No
+// draft-fetch/share/export/PDF logic changes.
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 // ── Theme ─────────────────────────────────────────────────────────────────────
 const NAVY   = theme.colors.primary;
 const GOLD   = theme.colors.gold;
@@ -247,7 +252,7 @@ pre{white-space:pre-wrap;font-size:13px;line-height:1.7;font-family:'Courier New
         <View style={styles.center}>
           <Ionicons name="alert-circle-outline" size={48} color={RED} />
           <Text style={[styles.loadingText, { color: RED, marginTop: 12 }]}>{draftError || 'Draft could not be loaded.'}</Text>
-          <Pressable testID="fir-result-error-back" onPress={() => router.back()} style={{ marginTop: 20, padding: 12, backgroundColor: NAVY, borderRadius: 8 }}>
+          <Pressable testID="fir-result-error-back" onPress={() => router.back()} style={(s) => [{ marginTop: 20, padding: 12, backgroundColor: NAVY, borderRadius: 8, minHeight: UI_REVISION_V1 ? 48 : undefined, justifyContent: 'center' }, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
             <Text style={{ color: '#fff', fontWeight: '600' }}>← Go Back</Text>
           </Pressable>
         </View>
@@ -259,7 +264,7 @@ pre{white-space:pre-wrap;font-size:13px;line-height:1.7;font-family:'Courier New
     <SafeAreaView testID="fir-result-screen" style={styles.root}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable testID="fir-result-back" accessibilityLabel="Go back" onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
+        <Pressable testID="fir-result-back" accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={(s) => [styles.backBtn, focusRingStyle(s)]} hitSlop={12}>
           <Ionicons name="arrow-back" size={22} color={SURFACE} />
         </Pressable>
         <View style={styles.headerCenter}>
@@ -270,8 +275,10 @@ pre{white-space:pre-wrap;font-size:13px;line-height:1.7;font-family:'Courier New
         {suggestedSections.length > 0 && (
           <Pressable
             testID="fir-result-sections-menu" onPress={() => setShowSectionDrawer(true)}
-            style={styles.sectionMenuBtn}
+            style={(s) => [styles.sectionMenuBtn, focusRingStyle(s)]}
             hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Open suggested legal sections"
           >
             <Ionicons name="list-outline" size={22} color={GOLD} />
           </Pressable>
@@ -299,7 +306,7 @@ pre{white-space:pre-wrap;font-size:13px;line-height:1.7;font-family:'Courier New
 
         {/* Issue 9: Sections summary badge (if sections available) */}
         {suggestedSections.length > 0 && (
-          <Pressable testID="fir-result-sections-summary" style={styles.sectionsSummaryCard} onPress={() => setShowSectionDrawer(true)}>
+          <Pressable testID="fir-result-sections-summary" style={(s) => [styles.sectionsSummaryCard, focusRingStyle(s)]} onPress={() => setShowSectionDrawer(true)} accessibilityRole="button" accessibilityLabel={`${suggestedSections.length} BNS section${suggestedSections.length !== 1 ? 's' : ''} suggested${droppedSections.length > 0 ? `, ${droppedSections.length} not applicable` : ''}`}>
             <Ionicons name="library-outline" size={16} color={NAVY} />
             <Text style={styles.sectionsSummaryText}>
               {suggestedSections.length} BNS section{suggestedSections.length !== 1 ? 's' : ''} suggested
@@ -320,29 +327,29 @@ pre{white-space:pre-wrap;font-size:13px;line-height:1.7;font-family:'Courier New
 
         {/* Action buttons */}
         <View style={styles.actions}>
-          <Pressable testID="fir-result-copy" style={styles.actionBtn} onPress={handleCopy}>
+          <Pressable testID="fir-result-copy" style={(s) => [styles.actionBtn, focusRingStyle(s)]} onPress={handleCopy} accessibilityRole="button" accessibilityLabel={copyDone ? 'Copied' : 'Copy text'}>
             <Ionicons name={copyDone ? 'checkmark-circle' : 'copy-outline'} size={20} color={NAVY} />
             <Text style={styles.actionBtnText}>{copyDone ? 'Copied!' : 'Copy Text'}</Text>
           </Pressable>
-          <Pressable testID="fir-result-share" style={styles.actionBtn} onPress={handleShare} disabled={sharing}>
+          <Pressable testID="fir-result-share" style={(s) => [styles.actionBtn, focusRingStyle(s)]} onPress={handleShare} disabled={sharing} accessibilityRole="button" accessibilityLabel="Share" accessibilityState={{ disabled: sharing, busy: sharing }}>
             {sharing
               ? <ActivityIndicator size="small" color={NAVY} />
               : <Ionicons name="share-outline" size={20} color={NAVY} />}
             <Text style={styles.actionBtnText}>Share</Text>
           </Pressable>
-          <Pressable testID="fir-result-export-text" style={styles.actionBtn} onPress={handleExport}>
+          <Pressable testID="fir-result-export-text" style={(s) => [styles.actionBtn, focusRingStyle(s)]} onPress={handleExport} accessibilityRole="button" accessibilityLabel="Export as text file">
             <Ionicons name="download-outline" size={20} color={NAVY} />
             <Text style={styles.actionBtnText}>Export .txt</Text>
           </Pressable>
           {/* v3.3: PDF download */}
-          <Pressable testID="fir-result-export-pdf" style={[styles.actionBtn, styles.actionBtnPdf]} onPress={handleDownloadPdf} disabled={downloadingPdf}>
+          <Pressable testID="fir-result-export-pdf" style={(s) => [styles.actionBtn, styles.actionBtnPdf, focusRingStyle(s)]} onPress={handleDownloadPdf} disabled={downloadingPdf} accessibilityRole="button" accessibilityLabel="Export PDF" accessibilityState={{ disabled: downloadingPdf, busy: downloadingPdf }}>
             {downloadingPdf
               ? <ActivityIndicator size="small" color="#fff" />
               : <Ionicons name="document-attach-outline" size={20} color="#fff" />}
             <Text style={[styles.actionBtnText, { color: '#fff' }]}>Export PDF</Text>
           </Pressable>
           {/* Print */}
-          <Pressable testID="fir-result-print" style={[styles.actionBtn, styles.actionBtnPrint]} onPress={handlePrint}>
+          <Pressable testID="fir-result-print" style={(s) => [styles.actionBtn, styles.actionBtnPrint, focusRingStyle(s)]} onPress={handlePrint} accessibilityRole="button" accessibilityLabel="Print">
             <Ionicons name="print-outline" size={20} color="#fff" />
             <Text style={[styles.actionBtnText, { color: '#fff' }]}>Print</Text>
           </Pressable>
@@ -382,8 +389,10 @@ pre{white-space:pre-wrap;font-size:13px;line-height:1.7;font-family:'Courier New
         {/* Start new complaint */}
         <Pressable
           testID="fir-result-new-complaint"
-          style={styles.newComplaintBtn}
+          style={(s) => [styles.newComplaintBtn, focusRingStyle(s)]}
           onPress={() => router.replace('/fir-draft')}
+          accessibilityRole="button"
+          accessibilityLabel="Start new complaint"
         >
           <Ionicons name="add-circle-outline" size={20} color={NAVY} />
           <Text style={styles.newComplaintText}>Start New Complaint</Text>
@@ -416,7 +425,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontWeight: '700', color: '#fff' },
   headerSub: { fontSize: 12, color: GOLD },
   backBtn: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  sectionMenuBtn: { padding: 6 },
+  sectionMenuBtn: { padding: 6, minWidth: UI_REVISION_V1 ? 44 : undefined, minHeight: UI_REVISION_V1 ? 44 : undefined, alignItems: 'center', justifyContent: 'center' },
 
   // Scroll
   scroll: { flex: 1 },
@@ -460,7 +469,7 @@ const styles = StyleSheet.create({
   actionBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, backgroundColor: CREAM, borderRadius: 10, paddingVertical: 12,
-    borderWidth: 1.5, borderColor: BORDER, minWidth: 80,
+    borderWidth: 1.5, borderColor: BORDER, minWidth: 80, minHeight: UI_REVISION_V1 ? 48 : undefined,
   },
   actionBtnPdf: { backgroundColor: NAVY, borderColor: NAVY, flexBasis: '100%', flex: 0 },
   actionBtnPrint: { backgroundColor: '#2D6A4F', borderColor: '#2D6A4F', flexBasis: '100%', flex: 0 },

@@ -14,6 +14,10 @@ import { enterWomensShield, leaveWomensShield } from '@/src/voice/speechGate';
 import { activateCover } from '@/src/women/coverState';
 
 import { openExternal } from '@/src/outbound';
+// NF-UI-REV-09 (Group H, DHARA UI Revision v2.2.1): visible keyboard-focus
+// ring only — no contrast/touch-target gaps found on this screen. No logic
+// changes.
+import { focusRingStyle } from '@/src/a11yFocus';
 const PRIVACY_COVER_ENABLED = process.env.EXPO_PUBLIC_PRIVACY_COVER_V1 === 'true';
 
 const HEAD_OUT_ENABLED = process.env.EXPO_PUBLIC_SAFETY_SESSION_V1 === 'true';
@@ -158,19 +162,19 @@ export default function WomenShield() {
         {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
           <View style={styles.topRow}>
-            <Pressable onPress={() => router.back()} style={styles.backBtn} testID="ws-back" accessibilityRole="button" accessibilityLabel="Go back">
+            <Pressable onPress={() => router.back()} style={(s) => [styles.backBtn, focusRingStyle(s)]} testID="ws-back" accessibilityRole="button" accessibilityLabel="Go back">
               <Ionicons name="chevron-back" size={24} color="#fff" />
             </Pressable>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               {/* Privacy Cover — visible manual Hide action (PRIVACY_COVER_V1 gate) */}
               {PRIVACY_COVER_ENABLED && (
-                <Pressable onPress={activatePrivacyCover} style={styles.hideBtn} testID="ws-hide-btn" accessibilityRole="button" accessibilityLabel="Hide sensitive content">
+                <Pressable onPress={activatePrivacyCover} style={(s) => [styles.hideBtn, focusRingStyle(s)]} testID="ws-hide-btn" accessibilityRole="button" accessibilityLabel="Hide sensitive content">
                   <Ionicons name="eye-off-outline" size={15} color="#fff" />
                   <Text style={styles.hideBtnTxt}>Hide</Text>
                 </Pressable>
               )}
               {/* DHARA-P0-3 (B025): one-tap safe exit to a neutral page */}
-              <Pressable onPress={quickExit} style={styles.quickExit} testID="ws-quick-exit" accessibilityRole="button" accessibilityLabel={tr('ws.quickexit', lang)}>
+              <Pressable onPress={quickExit} style={(s) => [styles.quickExit, focusRingStyle(s)]} testID="ws-quick-exit" accessibilityRole="button" accessibilityLabel={tr('ws.quickexit', lang)}>
                 <Ionicons name="exit-outline" size={16} color={c.navy} />
                 <Text style={styles.quickExitTxt}>{tr('ws.quickexit', lang)}</Text>
               </Pressable>
@@ -205,7 +209,7 @@ export default function WomenShield() {
               {'This hides this screen. It does not change phone notifications or erase browsing history.'}
             </Text>
             <Pressable
-              style={styles.revealBtn}
+              style={(s) => [styles.revealBtn, focusRingStyle(s)]}
               onPress={() => handleDiscreet(false)}
               accessibilityRole="button"
               accessibilityLabel="Show sensitive content again"
@@ -225,7 +229,7 @@ export default function WomenShield() {
           <Text style={styles.h2sub}>{tr('ws.rights.sub', lang)}</Text>
           <View style={styles.grid}>
             {RIGHTS.map(r => (
-              <Pressable key={r.key} style={styles.rightCard} onPress={() => openScenario(r.scenario)} testID={`ws-${r.key}`} accessibilityRole="button" accessibilityLabel={tr(r.key, lang)}>
+              <Pressable key={r.key} style={(s) => [styles.rightCard, focusRingStyle(s)]} onPress={() => openScenario(r.scenario)} testID={`ws-${r.key}`} accessibilityRole="button" accessibilityLabel={tr(r.key, lang)}>
                 <View style={styles.rightIcon}><Ionicons name={r.icon} size={18} color={c.darkGold} /></View>
                 <Text style={styles.rightTxt} numberOfLines={2}>{tr(r.key, lang)}</Text>
               </Pressable>
@@ -259,7 +263,7 @@ export default function WomenShield() {
               <ToolRow icon="people-circle-outline" title="Guardian Journey" sub="Share where you're going with someone you trust" action="Share" onPress={() => router.push('/women/guardian-share')} />
             </>}
           </View>
-          <Pressable style={styles.lessonRow} onPress={() => router.push('/women/panic-lesson')}>
+          <Pressable style={(s) => [styles.lessonRow, focusRingStyle(s)]} onPress={() => router.push('/women/panic-lesson')} accessibilityRole="button" accessibilityLabel="Learn the 20-second panic trigger for 112">
             <Ionicons name="school-outline" size={18} color={c.darkGold} />
             <Text style={styles.lessonTxt}>Learn the 20-second panic trigger for 112</Text>
             <Ionicons name="chevron-forward" size={18} color={c.onSurfaceTertiary} />
@@ -307,7 +311,7 @@ export default function WomenShield() {
               <Text style={styles.planTitle}>{tr('ws.plan', lang)}</Text>
               <Text style={styles.planSub}>{tr('ws.plan.sub', lang)}</Text>
             </View>
-            <Pressable style={styles.planBtn} onPress={() => router.push('/women/safety-plan')} accessibilityRole="button" accessibilityLabel="Create my safety plan">
+            <Pressable style={(s) => [styles.planBtn, focusRingStyle(s)]} onPress={() => router.push('/women/safety-plan')} accessibilityRole="button" accessibilityLabel="Create my safety plan">
               <Text style={styles.planBtnTxt}>{tr('ws.start', lang)}</Text>
             </Pressable>
           </View>
@@ -343,7 +347,7 @@ function ToolRow({ icon, title, sub, action, onPress }: { icon: any; title: stri
   }
   return (
     <Pressable
-      style={styles.toolRow}
+      style={(s) => [styles.toolRow, focusRingStyle(s)]}
       testID={`ws-tool-${icon}`}
       onPress={onPress}
       accessibilityRole="button"

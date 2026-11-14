@@ -9,6 +9,9 @@ import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { editProfileName, getPhotoViewToken } from '@/src/trustedCircle/api';
 import { API_BASE } from '@/src/apiBase';
+// NF-UI-REV-05 (Group F, DHARA UI Revision v2.2.1): visible keyboard-focus
+// ring + missing accessibility label. No logic changes.
+import { focusRingStyle } from '@/src/a11yFocus';
 
 const c = theme.colors;
 
@@ -46,7 +49,7 @@ export default function EditProfileScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={['bottom']}>
       <ScreenHeader title="Edit profile" />
       <ScrollView contentContainerStyle={styles.body}>
-        <Pressable onPress={() => setPickerOpen(true)} style={styles.avatarWrap} testID="edit-profile-avatar" accessibilityRole="button" accessibilityLabel="Change profile photo">
+        <Pressable onPress={() => setPickerOpen(true)} style={(s) => [styles.avatarWrap, focusRingStyle(s)]} testID="edit-profile-avatar" accessibilityRole="button" accessibilityLabel="Change profile photo">
           {photoSrc ? (
             <Image source={{ uri: photoSrc }} style={styles.avatarImg} />
           ) : (
@@ -56,18 +59,28 @@ export default function EditProfileScreen() {
           )}
           <View style={styles.cameraBadge}><Ionicons name="camera" size={14} color="#fff" /></View>
         </Pressable>
-        <Text style={styles.changeTxt} onPress={() => setPickerOpen(true)} accessibilityRole="button">Change photo</Text>
+        <Pressable onPress={() => setPickerOpen(true)} style={(s) => [styles.changeBtn, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Change photo">
+          <Text style={styles.changeTxt}>Change photo</Text>
+        </Pressable>
 
         <View style={styles.field}>
           <Text style={styles.label}>Display name</Text>
-          <TextInput value={name} onChangeText={setName} style={styles.input} placeholder="Your name" placeholderTextColor={c.muted} testID="edit-profile-name-input" />
+          <TextInput value={name} onChangeText={setName} style={styles.input} placeholder="Your name" placeholderTextColor={c.muted} testID="edit-profile-name-input" accessibilityLabel="Display name" />
         </View>
         <View style={styles.field}>
           <Text style={styles.label}>Email</Text>
           <Text style={styles.readOnly}>{user?.email || '—'}</Text>
         </View>
 
-        <Pressable style={styles.saveBtn} onPress={onSave} disabled={saving} testID="edit-profile-save">
+        <Pressable
+          style={(s) => [styles.saveBtn, focusRingStyle(s)]}
+          onPress={onSave}
+          disabled={saving}
+          testID="edit-profile-save"
+          accessibilityRole="button"
+          accessibilityLabel="Save profile"
+          accessibilityState={{ disabled: saving, busy: saving }}
+        >
           {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnTxt}>Save</Text>}
         </Pressable>
       </ScrollView>
@@ -89,7 +102,10 @@ const styles = StyleSheet.create({
   avatarImg: { width: 104, height: 104, borderRadius: 52, borderWidth: 3, borderColor: c.gold },
   avatarFallback: { width: 104, height: 104, borderRadius: 52, backgroundColor: c.surfaceSecondary, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: c.gold },
   cameraBadge: { position: 'absolute', right: 0, bottom: 0, width: 30, height: 30, borderRadius: 15, backgroundColor: c.navy, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: c.background },
-  changeTxt: { fontFamily: theme.fonts.bodySemiBold, color: c.navy, fontSize: 14, marginTop: 10, marginBottom: 20 },
+  // NF-UI-REV-05: "Change photo" was a bare <Text onPress> with no padding
+  // — well under the 44/48px touch-target minimum.
+  changeBtn: { marginTop: 10, marginBottom: 20, minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
+  changeTxt: { fontFamily: theme.fonts.bodySemiBold, color: c.navy, fontSize: 14 },
   field: { width: '100%', marginBottom: 16 },
   label: { fontFamily: theme.fonts.bodySemiBold, color: c.navy, fontSize: 13, marginBottom: 6 },
   input: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, fontFamily: theme.fonts.body, fontSize: 15, color: c.ink, minHeight: 48 },

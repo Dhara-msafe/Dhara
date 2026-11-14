@@ -6,6 +6,10 @@ import { theme } from '@/src/theme';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { API_BASE } from '@/src/apiBase';
 import { useScreenSpeech } from '@/src/hooks/useScreenSpeech';
+// NF-UI-REV-09 (Group H, DHARA UI Revision v2.2.1): presentation-only
+// rollback flag + visible keyboard-focus ring + missing a11y labels.
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 
 const c = theme.colors;
 type Step = { icon: string; title: string; body: string };
@@ -44,7 +48,13 @@ export default function PanicLesson() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
-          <Pressable testID="panic-lesson-listen" style={styles.listenBtn} onPress={speech.speaking ? speech.stop : listenToLesson}>
+          <Pressable
+            testID="panic-lesson-listen"
+            style={(s) => [styles.listenBtn, focusRingStyle(s)]}
+            onPress={speech.speaking ? speech.stop : listenToLesson}
+            accessibilityRole="button"
+            accessibilityLabel={speech.speaking ? 'Stop listening' : 'Listen to this lesson'}
+          >
             <Ionicons name={speech.speaking ? 'stop-circle-outline' : 'volume-high-outline'} size={18} color={c.navy} />
             <Text style={styles.listenTxt}>{speech.speaking ? 'Stop' : 'Listen to this lesson'}</Text>
           </Pressable>
@@ -64,7 +74,7 @@ export default function PanicLesson() {
             <Ionicons name="information-circle-outline" size={18} color={c.darkGold} />
             <Text style={styles.noteTxt}>{lesson.note}</Text>
           </View>
-          <Pressable style={styles.btn} onPress={() => { speech.stop(); router.back(); }}>
+          <Pressable style={(s) => [styles.btn, focusRingStyle(s)]} onPress={() => { speech.stop(); router.back(); }} accessibilityRole="button" accessibilityLabel="I understand">
             <Text style={styles.btnTxt}>I understand</Text>
           </Pressable>
         </ScrollView>
@@ -76,7 +86,7 @@ export default function PanicLesson() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
   intro: { fontFamily: theme.fonts.body, fontSize: 15, color: c.muted, lineHeight: 22, marginBottom: 18 },
-  listenBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.navySoft, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, alignSelf: 'flex-start', marginBottom: 14, minHeight: 44 },
+  listenBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.navySoft, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, alignSelf: 'flex-start', marginBottom: 14, minHeight: UI_REVISION_V1 ? 48 : 44 },
   listenTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.navy },
   speechError: { fontFamily: theme.fonts.body, fontSize: 12, color: c.error, marginBottom: 10 },
   step: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.lines, padding: 16, marginBottom: 12 },

@@ -16,6 +16,9 @@ import {
 } from '@/src/familyJourney/ui';
 import { loadJourney, clearJourney, useFamilyJourneyEnabled, type Journey } from '@/src/familyJourney/store';
 import { FJ_SEND_ENABLED } from '@/src/familyJourney/flags';
+// NF-UI-REV-10 (Group I, DHARA UI Revision v2.2.1): visible keyboard-focus
+// ring + missing a11y labels. No journey/send logic changes.
+import { focusRingStyle } from '@/src/a11yFocus';
 
 const c = theme.colors;
 
@@ -70,7 +73,7 @@ export default function FamilyJourneyHub() {
             <PhaseNotice />
 
             {active ? (
-              <Pressable style={fjStyles.card} onPress={() => router.navigate('/family-journey/active')} testID="fj-resume-active">
+              <Pressable style={(s) => [fjStyles.card, focusRingStyle(s)]} onPress={() => router.navigate('/family-journey/active')} testID="fj-resume-active" accessibilityRole="button" accessibilityLabel={`Open journey: ${journey!.destination || 'Your journey'}, in progress`}>
                 <View style={fjStyles.pill}><Text style={fjStyles.pillTxt}>JOURNEY IN PROGRESS</Text></View>
                 <Text style={fjStyles.cardTitle}>{journey!.destination || 'Your journey'}</Text>
                 <Text style={fjStyles.cardSub}>Check in, mark that you have arrived, change the plan or stop — any time.</Text>
@@ -81,10 +84,10 @@ export default function FamilyJourneyHub() {
                 <View style={fjStyles.pill}><Text style={fjStyles.pillTxt}>DRAFT SAVED ON THIS PHONE</Text></View>
                 <Text style={fjStyles.cardTitle}>{journey!.destination || 'Untitled journey'}</Text>
                 <Text style={fjStyles.cardSub}>You have a journey you have not started yet.</Text>
-                <Pressable style={[fjStyles.primary, { marginTop: 8 }]} onPress={() => router.push('/family-journey/contacts')} testID="fj-continue-draft">
+                <Pressable style={(s) => [fjStyles.primary, { marginTop: 8 }, focusRingStyle(s)]} onPress={() => router.push('/family-journey/contacts')} testID="fj-continue-draft" accessibilityRole="button" accessibilityLabel="Continue setup">
                   <Text style={fjStyles.primaryTxt}>Continue setup</Text>
                 </Pressable>
-                <Pressable style={fjStyles.secondary} onPress={() => setAskDiscard(true)} testID="fj-discard-draft">
+                <Pressable style={(s) => [fjStyles.secondary, focusRingStyle(s)]} onPress={() => setAskDiscard(true)} testID="fj-discard-draft" accessibilityRole="button" accessibilityLabel="Discard draft">
                   <Text style={fjStyles.secondaryTxt}>Discard draft</Text>
                 </Pressable>
               </View>
@@ -96,7 +99,7 @@ export default function FamilyJourneyHub() {
                   could be told, and exactly what they would see.
                 </Text>
                 <PhaseBadge testID="fj-hub-preview-badge" />
-                <Pressable style={[fjStyles.primary, { marginTop: 10 }]} onPress={() => router.push('/family-journey/new')} testID="fj-start-plan">
+                <Pressable style={(s) => [fjStyles.primary, { marginTop: 10 }, focusRingStyle(s)]} onPress={() => router.push('/family-journey/new')} testID="fj-start-plan" accessibilityRole="button" accessibilityLabel="Plan a journey">
                   <Text style={fjStyles.primaryTxt}>Plan a journey</Text>
                 </Pressable>
               </View>
