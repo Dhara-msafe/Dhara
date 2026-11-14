@@ -623,6 +623,15 @@ _VAGUE_WITNESS = ["yes", "yeah", "yep", "sure", "there were", "yes there",
                   "they were witnesses", "they are witnesses", "they were present",
                   "my friends were", "few people"]
 
+# B-112: a user saying there were NO witnesses must never be treated as a
+# "vague" (affirmative-but-unspecific) witness answer -- those two are
+# opposites. Checked before anything else in _is_vague_witness_response.
+_NO_WITNESS_PATTERNS = [
+    r"^no\b", r"^none\b", r"^nobody\b", r"^no\s*one\b", r"^not\s*any\b",
+    r"^nil\b", r"^n/?a\b", r"^no\s*witness", r"^not\s*that\s*i\s*(know|saw|am aware)",
+    r"^don'?t\s*(know|think)\s*(of\s*)?any", r"^didn'?t\s*see\s*any",
+]
+
 # Common sentence-starter or generic words that are capitalised but are NOT person names
 _COMMON_CAPS: set[str] = {
     "Yes", "No", "There", "They", "The", "This", "That", "Some", "My",
@@ -648,10 +657,22 @@ def _is_vague_witness_response(text: str) -> bool:
     - at least one digit run that looks like a phone number, OR
     - at least one capitalized word that is NOT a common English word
       (i.e., a real person name such as 'Ramesh', 'Priya', 'Suresh')
+
+    B-112: a "no witnesses" answer is the OPPOSITE of a vague-but-affirmative
+    one, and must never be treated as vague here. Before this fix, "No" (or
+    "None", "Nobody", etc.) matched none of _VAGUE_WITNESS's affirmative
+    prefixes, had no digit, and had no capitalised non-common word long
+    enough to match the person-name regex -- so it fell through to this
+    function's own "no phone number, no person name -> vague" default,
+    triggering probe_witnesses_detail's "You mentioned witnesses were
+    present..." follow-up even though the user said the opposite. Checked
+    first, before anything else, so a negative answer short-circuits clean.
     """
     if not text:
         return True
     t = text.lower().strip()
+    if any(re.match(pat, t) for pat in _NO_WITNESS_PATTERNS):
+        return False
     # Very short or just "yes / yeah / sure"
     if len(t) < 30 and any(t.startswith(v) for v in _VAGUE_WITNESS):
         return True
