@@ -1,0 +1,23 @@
+original_claim,corrected_wording,evidence,status,unresolved_dependency
+"Police notified (Emergency, Silent alert)","Remove. Say what the app actually does: opens your phone dialler, or prepares a message to your circle","Preview showed ""Calling not yet active"" and ""Prepare a message to my circle""",Corrected in design,Confirm each capability and environment flag before any wording returns
+send without unlocking,Removed,No evidence,Corrected in design,Capability confirmation
+Guaranteed background recording,Removed; no background-recording guarantee is shown,No evidence,Corrected in design,Platform permission and OS behaviour test
+Sharing active / Viewing / Contact accepted (Guardian share),Not sharing / Invited; active states appear only when the app reports them,Design sample states,Corrected in design,App state source for sharing
+Everything stays on your device / end-to-end encrypted,Removed; wording must match the approved privacy policy,Live notice describes cloud storage,Corrected in design,Per-data-category storage and encryption facts
+DPDP / PIPEDA compliance badges,"Replaced with: ""Pending legal and implementation review. This flow is intended to support rights under India's DPDP Act 2023 and Canada's PIPEDA. It is not a certification and has not been confirmed as sufficient.""",Not a certification,Corrected in design,Legal and implementation review
+199/499 pricing (Pro),Price to be confirmed,No approved pricing available to the design,Corrected in design,Approved application pricing configuration
+"Advocate ratings, cases won, Bar Council verification",Removed,Sample data,Corrected in design,Real verification process and flags
+"Verified answers / citations (Answer, Sources)","Placeholders; production uses the legal engine verification, uncertainty and escalation states",Sample content,Unchanged in design,Legal engine state mapping
+"All languages support voice, transcription and read-aloud",Not claimed,No evidence,Corrected in design,Per-language capability matrix
+Works offline (whole app),Qualify by feature,No evidence,Corrected in design,Per-feature offline matrix
+Court updates in Family journey,Family Journey renamed to Support a family member and kept separate from legal-case tracking; check that no court-update sample remains,Product scope,Corrected in design,Product decision
+Consent record saved with date and time (new),Design only; wording says what is saved,No backend verified,"Designed, UNVERIFIED","Backend ledger, storage, retention"
+"Withdraw ""Processing my data"" and stop answering (design v2)",Removed. Required consent cannot be withdrawn in the app,Code audit: core is always true; no path sets it to false,Corrected in design v2.1,Product and legal decision if withdrawal of required consent is wanted
+Voice / Location / Messages to my circle as consent purposes (design v2),Removed. The app has analytics and updates only,"Code audit: purposes core, analytics, updates",Corrected in design v2.1,Product decision if more purposes are wanted
+Also delete saved data when withdrawing (design v2),Removed. Withdrawal does not delete data; deletion is account deletion,Code audit,Corrected in design v2.1,None
+Updates by SMS or WhatsApp stop when withdrawn,Design says enforcement is to be confirmed by engineering,Code audit: updates flag stored but not used,Open,Engineering to enforce or remove the claim
+Terms version and Privacy Policy version shown separately (design v2),Single notice version,Code audit: one string 2026-10-01,Corrected in design v2.1,None
+Pause and dark-screen controls on Record,Removed from the design,Not found in evidence-locker.tsx,Corrected in design v2.1,None
+Saved to this phone,Saved on this phone. Sharing is your choice.,Local-only storage seen in code; exact words not found,Corrected; behaviour needs device test,Device test
+Emergency 112 call,Design must not imply a call is placed by the 112 element,Code audit: element has no onPress; label says Calling not yet active,Open,Product decision on whether to wire it
+Consent record kept after account deletion,"Draft wording on screens 54 and 56, marked to be confirmed by legal",Code audit: consent_log exempt from deletion,Open,Legal decision

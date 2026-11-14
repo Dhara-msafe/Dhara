@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>54 Consent record</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=Hind:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}*{box-sizing:border-box}a{text-decoration:none}button{cursor:pointer;font-family:inherit}
+button:active,a:active{transform:scale(.97)}
+a:focus-visible,button:focus-visible{outline:3px solid #14365A;outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.rise{animation:rise .3s ease both}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="width:390px;height:844px;background:#FBF7EE;color:#17212B;font-family:'Hind',sans-serif;display:flex;flex-direction:column">
+
+  <div style="padding:16px 20px 0;display:flex;align-items:center;gap:12px">
+    <a href="Consent.dc.html" aria-label="Back" style="width:48px;height:48px;border-radius:24px;background:#fff;border:1.5px solid #E7DFCC;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 5l-7 7 7 7"></path></svg></a>
+    <div style="flex:1"></div>
+    <div style="font-size:13px;color:#505B68;font-weight:500">Step 3 of 4</div>
+  </div>
+
+  <div style="flex:1;overflow:auto;padding:16px 20px 8px">
+
+    <div class="rise" style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+      <div style="width:48px;height:48px;border-radius:24px;background:#1F6B4A;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></div>
+      <h1 style="margin:0;font-family:'Fraunces',serif;font-size:26px;font-weight:600;color:#14365A;line-height:1.15">Your consent record</h1>
+    </div>
+    <p style="margin:0 0 14px;font-size:15px;color:#505B68;line-height:1.4">This is what you agreed to. If you are a guest, the record is tied to this install until you sign in.</p>
+
+    <!-- Receipt card -->
+    <div class="rise" style="background:#fff;border:1.5px solid #E7DFCC;border-radius:16px;padding:6px 16px;margin-bottom:14px">
+      <sc-for list="{{rows}}" as="r" hint-placeholder-count="6">
+        <div style="display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid #EFE8D6">
+          <span style="font-size:14px;color:#505B68;flex-shrink:0">{{r.k}}</span>
+          <span style="font-size:14px;font-weight:600;color:#17212B;text-align:right;word-break:break-word">{{r.v}}</span>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="font-size:12px;font-weight:700;color:#505B68;letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px">Your choices</div>
+    <div class="rise" style="background:#fff;border:1.5px solid #E7DFCC;border-radius:16px;padding:6px 16px;margin-bottom:14px">
+      <sc-for list="{{choices}}" as="c" hint-placeholder-count="5">
+        <div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #EFE8D6">
+          <span style="flex:1;font-size:14px;color:#17212B;line-height:1.3">{{c.label}}<span style="display:block;font-size:12px;color:#505B68">{{c.kind}}</span></span>
+          <span style="font-size:13px;font-weight:700;color:{{c.fg}};background:{{c.bg}};border-radius:8px;padding:4px 10px">{{c.state}}</span>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-bottom:12px">
+      <button onClick="{{save}}" style="flex:1;min-height:52px;border-radius:14px;border:1.5px solid #14365A;background:#fff;color:#14365A;font-size:15px;font-weight:600">{{saveLabel}}</button>
+    </div>
+
+    <p style="margin:0 0 10px;font-size:13px;line-height:1.45;color:#505B68">You can change the two optional choices later in Privacy choices. The app has no way to withdraw the required choices other than deleting your account. Whether the consent record is kept after deletion is a legal decision to be confirmed.</p>
+    <a href="ConsentHistory.dc.html" style="min-height:48px;display:flex;align-items:center;font-size:15px;font-weight:600;color:#6B4F10;text-decoration:underline">See consent history</a>
+  </div>
+
+  <div style="padding:10px 20px 6px;font-size:13px;line-height:1.4;color:#7F1D1D">Proposed screen. Not in the current app. Needs separate approval. Backend and legal sufficiency unverified.</div>
+  <div style="padding:10px 20px 28px">
+    <a href="StatePick.dc.html" style="height:58px;border-radius:16px;background:#14365A;color:#fff;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px">
+      Continue
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+    </a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals(){
+  const s = this.state || {};
+  // Layout sample. Every value is written by the app at the moment of consent.
+  const granted = { state:'Agreed', fg:'#14522F', bg:'#E3F1E9' };
+  const notGiven = { state:'Not given', fg:'#3A444F', bg:'#ECE7DA' };
+  return {
+    rows: [
+      { k:'Date and time', v:'Saved by the server (UTC)' },
+      { k:'Notice version', v:'Version string from the app' },
+      { k:'Language shown', v:'The language you chose' },
+      { k:'App version', v:'Saved with the record' },
+      { k:'Held for', v:'Guest (this install) or your account' }
+    ],
+    choices: [
+      Object.assign({ label:'I am 18 years or older', kind:'Required' }, granted),
+      Object.assign({ label:'Terms of Use', kind:'Required' }, granted),
+      Object.assign({ label:'Dhara using my information to answer my questions and prepare my complaint draft', kind:'Required' }, granted),
+      Object.assign({ label:'Help improve Dhara (anonymous usage)', kind:'Optional. Shows what you chose.' }, notGiven),
+      Object.assign({ label:'Legal awareness tips and updates by SMS or WhatsApp', kind:'Optional. Shows what you chose.' }, notGiven)
+    ],
+    save: () => { window.location.href = 'ConsentDownload.dc.html'; },
+    saveLabel: 'Download record',
+      };
+}
+}
+</script>
+</body>
+</html>

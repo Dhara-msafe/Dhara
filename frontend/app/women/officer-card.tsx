@@ -8,6 +8,7 @@ import { useAuth } from '@/src/auth';
 import { useRightsCard } from '@/src/hooks/useRightsCard';
 import { useScreenSpeech } from '@/src/hooks/useScreenSpeech';
 import { openPhone } from '@/src/women/helpActions';
+import { UI_REVISION_V1 } from '@/src/designRevision';
 
 const c = theme.colors;
 
@@ -54,7 +55,12 @@ export default function OfficerCard() {
   return (
     <View style={styles.root} testID="officer-card-screen">
       <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>
-        <Pressable testID="officer-close" onPress={() => router.back()} style={styles.back}><Ionicons name="close" size={26} color="#fff" /></Pressable>
+        <Pressable
+          testID="officer-close"
+          onPress={() => router.back()}
+          style={styles.back}
+          {...(UI_REVISION_V1 ? { accessibilityRole: 'button' as const, accessibilityLabel: 'Close officer card' } : {})}
+        ><Ionicons name="close" size={26} color="#fff" /></Pressable>
         <Text style={styles.barTitle}>Officer card</Text>
         <Pressable
           testID="officer-silent-toggle"

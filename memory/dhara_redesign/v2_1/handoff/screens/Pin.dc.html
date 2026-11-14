@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Make a PIN</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600&amp;family=Hind:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#14365A}a:hover{color:#0E2740}
+a,button{transition:transform .1s ease,background-color .15s ease;-webkit-tap-highlight-color:transparent;cursor:pointer}
+a:active,button:active{transform:scale(.92)}
+a:focus-visible,button:focus-visible{outline:3px solid #7A5B17;outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.rise{animation:rise .4s ease both}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #FBF7EE; color: #17212B; font-family: 'Hind', 'Noto Sans', sans-serif; display: flex; flex-direction: column; padding: 16px 20px 20px; gap: 14px">
+  <div style="display: flex; align-items: center; gap: 8px">
+    <a href="Login.dc.html" aria-label="Back" style="width: 48px; height: 48px; border-radius: 24px; border: 1.5px solid #E7DFCC; background: #FFFFFF; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    </a>
+    <a href="Home.dc.html" aria-label="Home" style="width: 48px; height: 48px; border-radius: 24px; border: 1.5px solid #E7DFCC; background: #FFFFFF; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7M6 10v9h12v-9"/></svg>
+    </a>
+    <a href="Emergency.dc.html" style="margin-left: auto; height: 48px; min-width: 56px; justify-content: center; padding: 0 18px; border-radius: 24px; background: #B42318; color: #FFFFFF; font-size: 16px; font-weight: 600; text-decoration: none; display: flex; align-items: center">SOS</a>
+  </div>
+  <div aria-hidden="true" style="display: flex; gap: 6px">
+    <span style="flex: 1; height: 6px; border-radius: 3px; background: #14365A"></span>
+    <span style="flex: 1; height: 6px; border-radius: 3px; background: #14365A"></span>
+    <span style="flex: 1; height: 6px; border-radius: 3px; background: {{bar3}}"></span>
+  </div>
+  <div style="text-align: center">
+    <h1 style="margin: 0; font-family: 'Fraunces', serif; font-size: 28px; font-weight: 600; line-height: 1.25; color: #14365A">{{title}}</h1>
+    <p style="margin: 6px 0 0; font-size: 16px; line-height: 1.4; color: #505B68">{{sub}}</p>
+  </div>
+  <div aria-label="{{dotsLabel}}" role="img" style="display: flex; justify-content: center; gap: 18px; padding: 10px 0">
+    <sc-for list="{{dots}}" as="d" hint-placeholder-count="4">
+      <span style="width: 26px; height: 26px; border-radius: 13px; border: 2.5px solid {{d.bd}}; background: {{d.bg}}; box-sizing: border-box; transition: background-color .15s ease"></span>
+    </sc-for>
+  </div>
+  <sc-if value="{{typing}}" hint-placeholder-val="{{true}}">
+    <div style="margin-top: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+      <sc-for list="{{keys}}" as="k" hint-placeholder-count="12">
+        <button onClick="{{k.press}}" aria-label="{{k.aria}}" style="height: 76px; border-radius: 20px; border: 1.5px solid {{k.bd}}; background: {{k.bg}}; font-family: inherit; font-size: {{k.size}}; font-weight: 600; color: #14365A; font-variant-numeric: tabular-nums">{{k.label}}</button>
+      </sc-for>
+    </div>
+  </sc-if>
+  <sc-if value="{{done}}" hint-placeholder-val="{{false}}">
+    <div class="rise" style="margin-top: auto; display: flex; flex-direction: column; gap: 12px">
+      <div style="background: #FFFFFF; border: 2px solid #1F6B4A; border-radius: 18px; padding: 16px; display: flex; gap: 14px; align-items: center">
+        <div style="width: 52px; height: 52px; border-radius: 26px; background: #1F6B4A; display: flex; align-items: center; justify-content: center; flex-shrink: 0">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+        </div>
+        <p style="margin: 0; font-size: 16px; line-height: 1.4">My Files will ask for these 4 numbers each time. Do not share them.</p>
+      </div>
+      <a href="Draft.dc.html" style="height: 64px; border-radius: 18px; background: #1F6B4A; color: #FFFFFF; font-size: 20px; font-weight: 600; text-decoration: none; display: flex; align-items: center; justify-content: center">Save my letter</a>
+      <button onClick="{{reset}}" style="height: 52px; border-radius: 18px; border: none; background: none; font-family: inherit; font-size: 16px; font-weight: 600; color: #14365A">Choose different numbers</button>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+const s = this.state || {};
+const pin = s.pin || '';
+const done = pin.length === 4;
+const add = (d) => () => { if (pin.length < 4) this.setState({ pin: pin + d }); };
+const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => ({ label: d, aria: d, size: '30px', bg: '#FFFFFF', bd: '#E7DFCC', press: add(d) }));
+keys.push({ label: 'Clear', aria: 'Clear all', size: '16px', bg: '#FBF7EE', bd: '#FBF7EE', press: () => this.setState({ pin: '' }) });
+keys.push({ label: '0', aria: '0', size: '30px', bg: '#FFFFFF', bd: '#E7DFCC', press: add('0') });
+keys.push({ label: 'Undo', aria: 'Remove last number', size: '16px', bg: '#FBF7EE', bd: '#FBF7EE', press: () => this.setState({ pin: pin.slice(0, -1) }) });
+return {
+typing: !done, done: done,
+bar3: done ? '#14365A' : '#E7DFCC',
+title: done ? 'Your PIN is set' : 'Choose 4 secret numbers',
+sub: done ? 'Only you can open My Files now.' : 'This locks My Files so only you can open it.',
+dotsLabel: pin.length + ' of 4 numbers entered',
+dots: [0, 1, 2, 3].map((i) => ({ bg: i < pin.length ? (done ? '#1F6B4A' : '#14365A') : '#FFFFFF', bd: done ? '#1F6B4A' : '#14365A' })),
+keys: keys,
+reset: () => this.setState({ pin: '' })
+};
+}
+}
+</script>
+</body>
+</html>

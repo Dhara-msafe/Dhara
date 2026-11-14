@@ -1,0 +1,40 @@
+id,test_case,expected_behaviour,platform,evidence_required,result
+T01,Language: selected state not colour-only,Selected row shows check and text label,Web + Android,Screenshot + screen reader recording,NOT RUN
+T02,Language: search filters 23 options (if added),Filters by native and English name,Web + Android,Recording,NOT RUN
+T03,Consent: nothing preselected,All boxes unchecked on first load,Web + Android,Screenshot,NOT RUN
+T04,"Consent: CTA disabled until age, terms, processing ticked",Disabled until all 3; optional not required,Web + Android,Recording,NOT RUN
+T05,Consent: record saved with timestamp and versions,Entry created at agreement,Web + Android + backend,API log excerpt (no personal data),NOT RUN
+T06,Consent: guest record tied to install,Guest entry persists and can be downloaded,Android,Recording,NOT RUN
+T07,Consent: version change prompts re-consent,Prompt shown after policy version bump,Web + Android,Recording,NOT RUN
+T08,Withdrawal: consequences shown before confirm,Stops / still works / saved data shown first,Web + Android,Screenshot,NOT RUN
+T09,Withdrawal: affected processing stops,Processing for that purpose stops; other features work,Web + Android + backend,Logs,NOT RUN
+T10,Withdrawal: required consent withdrawn,Essential access handled as approved by product,Web + Android,Decision record,NOT RUN
+T11,Download record PDF/JSON,"File downloads; busy, fail, offline states work",Web + Android,File + recording,NOT RUN
+T12,Ledger sync: pending and failed states,"Shown, with retry only if retry exists",Android,Recording,NOT RUN
+T13,Emergency: dialler opens only on user action,No automatic call,Physical Android,Recording,NOT RUN
+T14,Emergency: SMS prepared vs sent vs delivered wording,"Distinct labels, no delivery claim without confirmation",Physical Android,Screenshots,NOT RUN
+T15,Emergency: quick exit visible,Quick exit present on safety screens,Web + Android,Screenshot,NOT RUN
+T16,Record: microphone denied,Denied state with next step,Physical Android,Recording,NOT RUN
+T17,Record: save failure,"Failure state, data not lost",Physical Android,Recording,NOT RUN
+T18,Guardian share: expiry and revocation,Works as before redesign,Web + Android,Recording,NOT RUN
+T19,Scan completion routing,Unchanged from existing OCR workflow,Web + Android,Route trace,NOT RUN
+T20,Fraud-help navigation,Unchanged,Web + Android,Route trace,NOT RUN
+T21,Auth: guest access and existing sign-in,Unchanged; no OTP/PIN added,Web + Android,Recording,NOT RUN
+T22,Storage keys and account isolation,Unchanged after presentation flag on/off,Web + Android,Diff of storage,NOT RUN
+T23,Rollback: presentation flag off,"Original look returns, data unchanged",Web + Android,Recording,NOT RUN
+T24,Enlarged text (OS-level) on key screens,No clipping,Physical Android,Screenshots,NOT RUN
+T25,Keyboard-open forms,Fields and primary action visible,Physical Android,Screenshots,NOT RUN
+T26,Screen reader (TalkBack) on consent and withdrawal,"Names, roles, states announced",Physical Android,Recording,NOT RUN
+T27,Long translated labels,No clipping,Web + Android,Screenshots,NOT RUN
+T28,Pro: no price shown until configured,"Shows ""Price to be confirmed""",Web + Android,Screenshot,NOT RUN
+T28,Consent: under-18 choice behaviour,Documented and matches product decision,Web + Android,Recording,NOT RUN
+T29,"Consent: Continue enabled only after 18+, Terms, data processing",As specified,Web + Android,Recording,NOT RUN
+T30,Privacy choices: analytics off stops tracking events,No events sent after turning off,Web + Android,Network log without personal data,NOT RUN
+T31,Privacy choices: updates off,Behaviour documented; no SMS/WhatsApp sent if enforced,Backend,Backend log,NOT RUN
+T32,Privacy choices: every change adds a consent_log row,New append-only row each time,Backend,API log excerpt,NOT RUN
+T33,Re-consent after notice version change,Redirect to /consent; Emergency screen not blocked,Web + Android,Recording,NOT RUN
+T34,Account deletion and consent_log,Matches the legal decision,Backend,Decision record + DB check,NOT RUN
+T35,"Nav: 4 tabs Home, Rights, My files, Me",Unchanged after redesign,Web + Android,Screenshot,NOT RUN
+T36,Record screen: no Pause or dark-screen control,Not shown,Physical Android,Screenshot,NOT RUN
+T37,Emergency: 112 element behaviour unchanged,No call placed unless product approves wiring,Physical Android,Recording,NOT RUN
+T38,SAFETY: run emergency tests only on a test profile,OUTBOUND_PROFILE=internal_qa; never the preview set to live/production,Test setup,Config record,NOT RUN

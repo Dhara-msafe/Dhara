@@ -17,6 +17,7 @@ import interviewData from '@/src/content/missing_interview.json';
 import { trackEvent } from '@/src/analytics';
 
 import { openExternal } from '@/src/outbound';
+import { UI_REVISION_V1 } from '@/src/designRevision';
 type Lang = 'en' | 'hi' | 'mr';
 
 const NAVY = theme.colors.primary;
@@ -149,5 +150,9 @@ const s = StyleSheet.create({
   },
   continueBtnText: { fontSize: 17, fontWeight: '700', color: '#FFF' },
 
-  note:          { fontSize: 12, color: '#888', textAlign: 'center', lineHeight: 17 },
+  // UI-revision pilot (reversible via UI_REVISION_V1): #888 measured ~3.6:1
+  // against this screen's cream background, below the 4.5:1 minimum for
+  // normal text. theme.colors.onSurfaceTertiary is the existing token
+  // already used elsewhere on this screen for the same muted-text role.
+  note:          { fontSize: 12, color: UI_REVISION_V1 ? theme.colors.onSurfaceTertiary : '#888', textAlign: 'center', lineHeight: 17 },
 });

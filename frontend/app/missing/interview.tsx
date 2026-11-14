@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { answersKey } from '@/src/missing/support';
 import interviewData from '@/src/content/missing_interview.json';
+import { UI_REVISION_V1 } from '@/src/designRevision';
 
 type Lang = 'en' | 'hi' | 'mr';
 
@@ -295,9 +296,12 @@ const st = StyleSheet.create({
   progressRow:    { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   progressBar:    { flex: 1, height: 4, backgroundColor: '#E5E7EB', borderRadius: 2, marginRight: 10 },
   progressFill:   { height: 4, backgroundColor: GOLD, borderRadius: 2 },
-  progressText:   { fontSize: 12, color: '#999', minWidth: 38, textAlign: 'right' },
+  // UI-revision pilot (reversible via UI_REVISION_V1): #999 measured ~2.9:1
+  // against this screen's backgrounds, below the 4.5:1 minimum for normal
+  // text — both uses are small (11-12px) so the stricter threshold applies.
+  progressText:   { fontSize: 12, color: UI_REVISION_V1 ? theme.colors.onSurfaceTertiary : '#999', minWidth: 38, textAlign: 'right' },
 
-  sectionLabel:   { fontSize: 11, fontWeight: '700', color: '#999', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
+  sectionLabel:   { fontSize: 11, fontWeight: '700', color: UI_REVISION_V1 ? theme.colors.onSurfaceTertiary : '#999', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
 
   minorBanner:    {
     backgroundColor: '#FFF0F0', borderRadius: 10, padding: 14, marginBottom: 16,
@@ -344,7 +348,10 @@ const st = StyleSheet.create({
     marginTop: 12, paddingHorizontal: 4, paddingVertical: 6,
     flexDirection: 'row', alignItems: 'center',
   },
-  privacyText:    { fontSize: 11, color: '#AAA', lineHeight: 16 },
+  // UI-revision pilot (reversible via UI_REVISION_V1): #AAA measured ~2.3:1
+  // on white, well below 4.5:1 — this is the privacy-notice text, so
+  // legibility matters more than most, not less.
+  privacyText:    { fontSize: 11, color: UI_REVISION_V1 ? theme.colors.onSurfaceTertiary : '#AAA', lineHeight: 16 },
 
   savingText:     { color: NAVY, fontSize: 16, fontWeight: '600' },
 
