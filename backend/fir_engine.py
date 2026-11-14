@@ -1025,7 +1025,7 @@ PROBE_Q: dict[str, dict] = {
     # ── Incident-specific ─────────────────────────────────────────────────────
     "probe_theft_items": {
         "message": "What exactly was stolen? List each item with approximate value.\nE.g., \"iPhone 14 — ₹80,000, wallet with ₹3,000 cash\"",
-        "slot": "theft_items", "input_type": INPUT_TEXT, "skip_label": "Skip",
+        "slot": "theft_items", "input_type": INPUT_VOICE_TEXT, "skip_label": "Skip",
     },
     "probe_injury": {
         "message": "Was anyone physically injured? Did anyone need medical attention?",
@@ -1034,11 +1034,11 @@ PROBE_Q: dict[str, dict] = {
     },
     "probe_assault_mlc": {
         "message": "Did you go to a hospital or doctor? Do you have a Medico-Legal Certificate (MLC)?",
-        "slot": "assault_mlc", "input_type": INPUT_TEXT, "skip_label": "Skip",
+        "slot": "assault_mlc", "input_type": INPUT_VOICE_TEXT, "skip_label": "Skip",
     },
     "probe_cyber_amount": {
         "message": "How much money was lost? (₹ amount)\nWhat platform was used? (UPI / bank transfer / website / app)",
-        "slot": "cyber_amount", "input_type": INPUT_TEXT, "skip_label": "Skip",
+        "slot": "cyber_amount", "input_type": INPUT_VOICE_TEXT, "skip_label": "Skip",
     },
     "probe_harassment_online": {
         "message": "Did this harassment happen online, in person, or both?",
@@ -1048,7 +1048,7 @@ PROBE_Q: dict[str, dict] = {
     # ── Common optional slots ─────────────────────────────────────────────────
     "probe_accused": {
         "message": "Do you know who did this?\nName, age, appearance, or relationship — or say \"Not known\".",
-        "slot": "accused", "input_type": INPUT_TEXT, "skip_label": "Not known",
+        "slot": "accused", "input_type": INPUT_VOICE_TEXT, "skip_label": "Not known",
     },
     "probe_witnesses": {
         "message": "Were there any witnesses?\nNames and contact numbers if available.",
@@ -1099,7 +1099,7 @@ PROBE_Q: dict[str, dict] = {
     },
     "probe_incident_place_detail": {
         "message": "Any additional location details?\n(e.g., bus number/route, train compartment, exact seat, vehicle registration)",
-        "slot": "incident_place_detail", "input_type": INPUT_TEXT,
+        "slot": "incident_place_detail", "input_type": INPUT_VOICE_TEXT,
         "skip_label": "No additional details",
     },
     "probe_transaction_ids": {
@@ -1115,7 +1115,7 @@ PROBE_Q: dict[str, dict] = {
     # ── Domestic Violence specific ─────────────────────────────────────────────
     "probe_dv_duration": {
         "message": "How long has this been happening?\n(e.g., 3 months, 2 years)",
-        "slot": "dv_duration", "input_type": INPUT_TEXT, "skip_label": "Skip",
+        "slot": "dv_duration", "input_type": INPUT_VOICE_TEXT, "skip_label": "Skip",
     },
     "probe_dv_children": {
         "message": "Are there children (under 18) in the household affected by this?\n(You don't need to share their names — this helps the magistrate under the DV Act)",
@@ -1125,11 +1125,11 @@ PROBE_Q: dict[str, dict] = {
     # ── POSH / Workplace Harassment specific ─────────────────────────────────
     "probe_posh_employer": {
         "message": "What is the name of your employer/company and your workplace address?",
-        "slot": "posh_employer", "input_type": INPUT_TEXT, "skip_label": "Skip",
+        "slot": "posh_employer", "input_type": INPUT_VOICE_TEXT, "skip_label": "Skip",
     },
     "probe_posh_role": {
         "message": "What is your role at the company, and what is the harasser's designation or role?",
-        "slot": "posh_role", "input_type": INPUT_TEXT, "skip_label": "Skip",
+        "slot": "posh_role", "input_type": INPUT_VOICE_TEXT, "skip_label": "Skip",
     },
     "probe_posh_icc": {
         "message": "Has this already been reported to your company's Internal Complaints Committee (ICC) under the POSH Act, 2013?",
@@ -1139,7 +1139,7 @@ PROBE_Q: dict[str, dict] = {
     # ── Consumer / Banking Fraud specific ────────────────────────────────────
     "probe_consumer_company": {
         "message": "What is the name of the company or platform involved?\n(e.g., Amazon, Flipkart, HDFC Bank, Paytm, local shop)",
-        "slot": "consumer_company", "input_type": INPUT_TEXT, "skip_label": "Skip",
+        "slot": "consumer_company", "input_type": INPUT_VOICE_TEXT, "skip_label": "Skip",
     },
     "probe_consumer_order_id": {
         "message": "Do you have an order ID, transaction reference, or complaint number from the company?",
@@ -1757,9 +1757,28 @@ async def process_turn(
     current_probe: Optional[str] = session.get("current_probe")
     incident_types: list[str] = list(session.get("incident_types", []))
 
-    # Log user turn to conversation history
-    if user_message or gps or action:
-        msg_log = user_message or (f"[GPS:{gps}]" if gps else f"[{action}]")
+    # Log user turn to conversation history.
+    # B-108 fix: 'continue_safe', 'not_safe' and 'resume' are internal
+    # continuation signals the client posts automatically (emergency-overlay
+    # "Continue"/"Exit" taps and the silent re-ask on app reopen) -- the live
+    # chat UI (sendTurn() in fir-draft/index.tsx) never shows a user bubble
+    # for any of them either. Logging them as raw "[continue_safe]" /
+    # "[not_safe]" / "[resume]" tokens had no effect live, but leaked into
+    # view the moment a session was resumed and its narrative_turns were
+    # replayed verbatim as chat bubbles. 'skip' DOES show a bubble live (the
+    # current probe's own skip_label, e.g. "No witnesses"), so log that same
+    # friendly text here instead of the raw "[skip]" token, so a resumed
+    # session's history matches what the citizen actually saw.
+    _SILENT_ACTIONS = {"continue_safe", "not_safe", "resume"}
+    if user_message or gps or (action and action not in _SILENT_ACTIONS):
+        if user_message:
+            msg_log = user_message
+        elif gps:
+            msg_log = "📍 Shared GPS location"
+        elif action == "skip":
+            msg_log = PROBE_Q.get(current_probe, {}).get("skip_label") or "Skip"
+        else:
+            msg_log = action
         await db.fir_sessions.update_one(
             {"session_id": session_id},
             {"$push": {"narrative_turns": {"role": "user", "message": msg_log, "timestamp": now}},
