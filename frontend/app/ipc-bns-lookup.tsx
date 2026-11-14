@@ -18,9 +18,16 @@ import { theme } from '@/src/theme';
 
 import { openExternal } from '@/src/outbound';
 import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 const NAVY   = theme.colors.primary;
 const GOLD   = theme.colors.gold;
 const CUTOFF = '2024-07-01';
+// NF-UI-REV-02: secondary-text grey used across this screen. The old literal
+// greys ('#6B7280' / '#9CA3AF') measured below 4.5:1 on this screen's light
+// card/chip backgrounds; MUTED_TEXT (theme.colors.onSurfaceSecondary) clears
+// 4.5:1 on every background used here with margin to spare.
+const MUTED_TEXT = UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : '#9CA3AF';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface XRef {
@@ -152,8 +159,14 @@ function CodeAppliesHelper() {
           maxLength={10}
           returnKeyType="done"
           onSubmitEditing={check}
+          accessibilityLabel="Offence date, year-month-day"
         />
-        <Pressable style={h.checkBtn} onPress={check}>
+        <Pressable
+          style={(s) => [h.checkBtn, focusRingStyle(s)]}
+          onPress={check}
+          accessibilityRole="button"
+          accessibilityLabel="Check which code applies to this date"
+        >
           <Text style={h.checkBtnText}>Check</Text>
         </Pressable>
       </View>
@@ -281,9 +294,11 @@ function NotYetApprovedBanner({ reason }: { reason: string }) {
           Next step: confirm the correct section with an advocate or at the police station before relying on it.
         </Text>
         <Pressable
-          style={na.cta}
+          style={(s) => [na.cta, focusRingStyle(s)]}
           onPress={(e) => { e.stopPropagation(); router.push({ pathname: '/(tabs)', params: { autostartMic: Date.now().toString() } } as any); }}
           testID="not-yet-approved-ask-dhara"
+          accessibilityRole="button"
+          accessibilityLabel="Ask DHARA about this section"
         >
           <Ionicons name="chatbubble-ellipses-outline" size={13} color="#3730A3" />
           <Text style={na.ctaTxt}>Ask DHARA</Text>
@@ -313,90 +328,107 @@ function ResultCard({ item }: { item: XRef }) {
   const hasNewSec = !isWithheld && hasBnsEquivalent(item.new_section);
 
   return (
-    <Pressable style={rc.card} onPress={() => setExpanded(e => !e)}>
+    // NF-UI-REV-02: the whole card used to be ONE Pressable (expand/collapse)
+    // that also contained the "Ask DHARA" button (inside NotYetApprovedBanner)
+    // and the "View on India Code" link — a button nested inside a button,
+    // invalid on web and an accessibility-tree violation. The outer card is
+    // now a plain View; only the explanation toggle is a Pressable, and the
+    // banner / source link are separate, un-nested Pressables.
+    <View style={rc.card}>
       {/* Guard E: not-yet-approved — rendered FIRST so it is always visible */}
       {isWithheld && <NotYetApprovedBanner reason={corrApproval!} />}
 
-      {/* Guard C: unverified banner — only shown when NOT withheld, to avoid
-          stacking two warning banners on the same card */}
-      {!item.verified && !isWithheld && <UnverifiedBanner />}
+      <Pressable
+        style={(s) => [focusRingStyle(s)]}
+        onPress={() => setExpanded(e => !e)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        accessibilityLabel={`${item.old_section || 'Section'} to ${isWithheld ? 'pending review' : hasNewSec ? `BNS ${item.new_section}` : 'deleted, no BNS equivalent'}.`}
+        accessibilityHint={expanded ? 'Collapses the explanation' : 'Expands to show the explanation'}
+      >
+        {/* Guard C: unverified banner — only shown when NOT withheld, to avoid
+            stacking two warning banners on the same card */}
+        {!item.verified && !isWithheld && <UnverifiedBanner />}
 
-      {/* Source + change-type badges */}
-      <View style={rc.sourceRow}>
-        <View style={[rc.srcBadge, {
-          backgroundColor: item.source.includes('CrPC')     ? '#EFF6FF'
-                         : item.source.includes('Evidence') ? '#F5F3FF' : '#F0FDF4',
-        }]}>
-          <Text style={[rc.srcTxt, {
-            color: item.source.includes('CrPC')     ? theme.colors.primary
-                 : item.source.includes('Evidence') ? '#6D28D9' : '#166534',
-          }]}>{item.source}</Text>
+        {/* Source + change-type badges */}
+        <View style={rc.sourceRow}>
+          <View style={[rc.srcBadge, {
+            backgroundColor: item.source.includes('CrPC')     ? '#EFF6FF'
+                           : item.source.includes('Evidence') ? '#F5F3FF' : '#F0FDF4',
+          }]}>
+            <Text style={[rc.srcTxt, {
+              color: item.source.includes('CrPC')     ? theme.colors.primary
+                   : item.source.includes('Evidence') ? '#6D28D9' : '#166534',
+            }]}>{item.source}</Text>
+          </View>
+          <View style={[rc.chgBadge, { backgroundColor: meta.bg }]}>
+            <Text style={[rc.chgTxt, { color: meta.color }]}>{meta.label}</Text>
+          </View>
         </View>
-        <View style={[rc.chgBadge, { backgroundColor: meta.bg }]}>
-          <Text style={[rc.chgTxt, { color: meta.color }]}>{meta.label}</Text>
-        </View>
-      </View>
 
-      {/* Section numbers — Guard B + Guard E */}
-      <View style={rc.secRow}>
-        <View style={rc.secBox}>
-          <Text style={rc.secLabel}>Old Section</Text>
-          <Text style={rc.secNum}>{item.old_section || '—'}</Text>
-        </View>
-        <Ionicons
-          name={isWithheld ? 'lock-closed' : 'arrow-forward'} size={18}
-          color={isWithheld ? '#6366F1' : hasNewSec ? NAVY : '#B91C1C'}
-          style={{ marginTop: 14 }}
-        />
-        <View style={[rc.secBox, !hasNewSec && !isWithheld && rc.secBoxDeleted, isWithheld && rc.secBoxWithheld]}>
-          <Text style={rc.secLabel}>{isWithheld ? 'Status' : hasNewSec ? 'New Section' : 'Status'}</Text>
-          {isWithheld
-            ? <Text style={[rc.secNum, { color: '#6366F1', fontSize: 11, lineHeight: 16 }]}>
-                Pending{'\n'}review
-              </Text>
-            : hasNewSec
-              ? <Text style={rc.secNum}>{item.new_section}</Text>
-              : <Text style={[rc.secNum, { color: '#B91C1C', fontSize: 13, lineHeight: 18 }]}>
-                  Deleted{'\n'}No BNS equiv.
+        {/* Section numbers — Guard B + Guard E */}
+        <View style={rc.secRow}>
+          <View style={rc.secBox}>
+            <Text style={rc.secLabel}>Old Section</Text>
+            <Text style={rc.secNum}>{item.old_section || '—'}</Text>
+          </View>
+          <Ionicons
+            name={isWithheld ? 'lock-closed' : 'arrow-forward'} size={18}
+            color={isWithheld ? '#6366F1' : hasNewSec ? NAVY : '#B91C1C'}
+            style={{ marginTop: 14 }}
+          />
+          <View style={[rc.secBox, !hasNewSec && !isWithheld && rc.secBoxDeleted, isWithheld && rc.secBoxWithheld]}>
+            <Text style={rc.secLabel}>{isWithheld ? 'Status' : hasNewSec ? 'New Section' : 'Status'}</Text>
+            {isWithheld
+              ? <Text style={[rc.secNum, { color: '#6366F1', fontSize: 11, lineHeight: 16 }]}>
+                  Pending{'\n'}review
                 </Text>
-          }
+              : hasNewSec
+                ? <Text style={rc.secNum}>{item.new_section}</Text>
+                : <Text style={[rc.secNum, { color: '#B91C1C', fontSize: 13, lineHeight: 18 }]}>
+                    Deleted{'\n'}No BNS equiv.
+                  </Text>
+            }
+          </View>
         </View>
-      </View>
 
-      {/* Offence — DEFENSE IN DEPTH: never render if withheld.
-          Server already nulls offence when not approved; this guard is an
-          explicit second layer ensuring NotYetApprovedBanner can never
-          coexist with non-null offence text (contract invariant). */}
-      {!isWithheld && !!item.offence && (
-        <Text style={rc.offence} numberOfLines={expanded ? undefined : 2}>
-          {item.offence}
-        </Text>
-      )}
+        {/* Offence — DEFENSE IN DEPTH: never render if withheld.
+            Server already nulls offence when not approved; this guard is an
+            explicit second layer ensuring NotYetApprovedBanner can never
+            coexist with non-null offence text (contract invariant). */}
+        {!isWithheld && !!item.offence && (
+          <Text style={rc.offence} numberOfLines={expanded ? undefined : 2}>
+            {item.offence}
+          </Text>
+        )}
 
-      {/* Explanation */}
-      {expanded && item.what_changed ? (
-        <View style={rc.explainBox}>
-          <Text style={rc.explainTxt}>{item.what_changed}</Text>
-        </View>
-      ) : (
-        <View style={rc.expandHint}>
-          <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color="#9CA3AF" />
-          <Text style={rc.expandHintTxt}>{expanded ? 'Collapse' : 'Tap for explanation'}</Text>
-        </View>
-      )}
+        {/* Explanation */}
+        {expanded && item.what_changed ? (
+          <View style={rc.explainBox}>
+            <Text style={rc.explainTxt}>{item.what_changed}</Text>
+          </View>
+        ) : (
+          <View style={rc.expandHint}>
+            <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color={MUTED_TEXT} />
+            <Text style={rc.expandHintTxt}>{expanded ? 'Collapse' : 'Tap for explanation'}</Text>
+          </View>
+        )}
+      </Pressable>
 
-      {/* Source link */}
+      {/* Source link — sibling of the toggle Pressable, not nested inside it */}
       {expanded && !!item.source_link && (
         <Pressable
-          style={rc.srcLinkRow}
+          style={(s) => [rc.srcLinkRow, focusRingStyle(s)]}
           onPress={() => openExternal(item.source_link!)}
-          hitSlop={6}
+          hitSlop={10}
+          accessibilityRole="link"
+          accessibilityLabel="View on India Code"
         >
           <Ionicons name="open-outline" size={12} color={theme.colors.primary} />
           <Text style={rc.srcLinkTxt}>View on India Code</Text>
         </Pressable>
       )}
-    </Pressable>
+    </View>
   );
 }
 
@@ -486,7 +518,13 @@ export default function IpcBnsLookup() {
     <SafeAreaView style={s.safe}>
       {/* Header */}
       <View style={s.header}>
-        <Pressable onPress={() => router.back()} style={s.backBtn} hitSlop={8}>
+        <Pressable
+          onPress={() => router.back()}
+          style={(st) => [s.backBtn, focusRingStyle(st)]}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </Pressable>
         <View style={{ flex: 1 }}>
@@ -515,7 +553,7 @@ export default function IpcBnsLookup() {
             {tabs.map(t => (
               <Pressable
                 key={t.key}
-                style={[s.tab, mode === t.key && s.tabActive]}
+                style={(st) => [s.tab, mode === t.key && s.tabActive, focusRingStyle(st)]}
                 onPress={() => {
                   modeRef.current = t.key;
                   setMode(t.key);
@@ -523,8 +561,11 @@ export default function IpcBnsLookup() {
                   setQuery('');
                   setResults([]); setSearched(false); setGuard(null);
                 }}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: mode === t.key }}
+                accessibilityLabel={t.label}
               >
-                <Ionicons name={t.icon as any} size={14} color={mode === t.key ? NAVY : '#6B7280'} />
+                <Ionicons name={t.icon as any} size={14} color={mode === t.key ? NAVY : MUTED_TEXT} />
                 <Text style={[s.tabTxt, mode === t.key && s.tabTxtActive]}>{t.label}</Text>
               </Pressable>
             ))}
@@ -546,11 +587,15 @@ export default function IpcBnsLookup() {
               onSubmitEditing={search}
               autoCapitalize="none"
               autoCorrect={false}
+              accessibilityLabel="Search query"
             />
             <Pressable
-              style={[s.searchBtn, (!query.trim() || loading) && s.searchBtnOff]}
+              style={(st) => [s.searchBtn, (!query.trim() || loading) && s.searchBtnOff, focusRingStyle(st)]}
               onPress={search}
               disabled={!query.trim() || loading}
+              accessibilityRole="button"
+              accessibilityLabel="Search"
+              accessibilityState={{ disabled: !query.trim() || loading }}
             >
               {loading
                 ? <ActivityIndicator color={NAVY} size="small" />
@@ -610,8 +655,10 @@ export default function IpcBnsLookup() {
                 ].map(c => (
                   <Pressable
                     key={c.label}
-                    style={s.chip}
+                    style={(st) => [s.chip, focusRingStyle(st)]}
                     onPress={() => { setMode(c.m); setQuery(c.sec); }}
+                    accessibilityRole="button"
+                    accessibilityLabel={c.label}
                   >
                     <Text style={s.chipTxt}>{c.label}</Text>
                   </Pressable>
@@ -622,7 +669,7 @@ export default function IpcBnsLookup() {
 
           {/* Disclaimer */}
           <View style={s.disclaimer}>
-            <Ionicons name="information-circle-outline" size={14} color="#9CA3AF" />
+            <Ionicons name="information-circle-outline" size={14} color={MUTED_TEXT} />
             <Text style={s.disclaimerTxt}>
               {totalInDb} entries — all pending dual advocate sign-off.
               Always cross-check against the bare Act before filing.
@@ -643,7 +690,10 @@ const s = StyleSheet.create({
     backgroundColor: NAVY, flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16, gap: 12,
   },
-  backBtn:    { padding: 4 },
+  // NF-UI-REV-02: 22px icon + 4px padding (~30px) was below the 44px
+  // minimum touch target; hitSlop above already helps, this widens the
+  // visible hit area too so sighted users see where they can tap.
+  backBtn:    { padding: UI_REVISION_V1 ? 10 : 4 },
   title:      { fontSize: 18, fontWeight: '800', color: '#fff' },
   sub:        { fontSize: 12, color: '#94A3B8', marginTop: 1 },
   guardPill: {
@@ -654,14 +704,18 @@ const s = StyleSheet.create({
   scroll: { padding: 16, gap: 14, paddingBottom: 40 },
 
   tabs:       { flexDirection: 'row', gap: 8 },
+  // NF-UI-REV-02: paddingVertical 9 (~32px tall) was below the 48px minimum
+  // touch target.
   tab: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 5, paddingVertical: 9, borderRadius: 10,
+    gap: 5, paddingVertical: UI_REVISION_V1 ? 14 : 9, borderRadius: 10,
     backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB',
   },
   tabActive:    { backgroundColor: GOLD, borderColor: GOLD },
-  tabTxt:       { fontSize: 12, fontWeight: '600', color: '#6B7280' },
-  tabTxtActive: { color: NAVY },
+  tabTxt:       { fontSize: 12, fontWeight: '600', color: MUTED_TEXT },
+  // NF-UI-REV-02: the active tab used to be distinguished by colour alone —
+  // now its label is also bolder, for users who can't tell colours apart.
+  tabTxtActive: UI_REVISION_V1 ? { color: NAVY, fontWeight: '800' } : { color: NAVY },
 
   searchRow:  { flexDirection: 'row', gap: 8 },
   searchInput: {
@@ -683,26 +737,28 @@ const s = StyleSheet.create({
 
   noResults:     { alignItems: 'center', gap: 8, paddingVertical: 20, paddingHorizontal: 16 },
   noResultsTitle:{ fontSize: 15, fontWeight: '700', color: '#374151', textAlign: 'center' },
-  noResultsSub:  { fontSize: 13, color: '#6B7280', textAlign: 'center', lineHeight: 20 },
+  noResultsSub:  { fontSize: 13, color: MUTED_TEXT, textAlign: 'center', lineHeight: 20 },
 
   empty:      { alignItems: 'center', paddingTop: 12, gap: 10 },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: '#374151' },
   emptySub: {
-    fontSize: 13, color: '#6B7280', textAlign: 'center',
+    fontSize: 13, color: MUTED_TEXT, textAlign: 'center',
     lineHeight: 20, paddingHorizontal: 20,
   },
   chips: {
     flexDirection: 'row', flexWrap: 'wrap', gap: 8,
     justifyContent: 'center', marginTop: 4,
   },
-  chip:    { backgroundColor: '#EEF2FF', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
+  // NF-UI-REV-02: paddingVertical 7 (~30px tall) was below the 44px minimum
+  // touch target for these quick-search suggestion chips.
+  chip:    { backgroundColor: '#EEF2FF', paddingHorizontal: 12, paddingVertical: UI_REVISION_V1 ? 12 : 7, borderRadius: 20 },
   chipTxt: { fontSize: 12, fontWeight: '600', color: NAVY },
 
   disclaimer: {
     flexDirection: 'row', gap: 6, alignItems: 'flex-start',
     backgroundColor: '#F9FAFB', borderRadius: 10, padding: 12,
   },
-  disclaimerTxt: { flex: 1, fontSize: 11, color: '#9CA3AF', lineHeight: 16 },
+  disclaimerTxt: { flex: 1, fontSize: 11, color: MUTED_TEXT, lineHeight: 16 },
 });
 
 // ── Wall styles ────────────────────────────────────────────────────────────────
@@ -728,7 +784,9 @@ const w = StyleSheet.create({
     backgroundColor: '#EEF2FF', borderRadius: 10, padding: 12, width: '100%',
   },
   actionText: { flex: 1, fontSize: 13, color: '#1E40AF', lineHeight: 19 },
-  note: { fontSize: 11, color: '#9CA3AF', textAlign: 'center', lineHeight: 16 },
+  // NF-UI-REV-02: '#9CA3AF' on this wall's '#FFF5F5' background measured
+  // ~2.4:1 — MUTED_TEXT clears 4.5:1 here.
+  note: { fontSize: 11, color: MUTED_TEXT, textAlign: 'center', lineHeight: 16 },
 });
 
 // ── Guard status bar styles ────────────────────────────────────────────────────
@@ -773,12 +831,12 @@ const h = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#1F2937',
     backgroundColor: '#FAFAFA',
   },
-  checkBtn:     { backgroundColor: NAVY, paddingHorizontal: 16, borderRadius: 10, justifyContent: 'center' },
+  checkBtn:     { backgroundColor: NAVY, paddingHorizontal: 16, borderRadius: 10, justifyContent: 'center', minHeight: UI_REVISION_V1 ? 48 : undefined },
   checkBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   resultBox:    { borderLeftWidth: 3, paddingLeft: 12, marginBottom: 8 },
   resultLabel:  { fontSize: 13, fontWeight: '700', marginBottom: 4 },
   resultDetail: { fontSize: 12, color: '#374151', lineHeight: 18 },
-  cutoffNote:   { fontSize: 11, color: '#9CA3AF', marginTop: 4 },
+  cutoffNote:   { fontSize: 11, color: MUTED_TEXT, marginTop: 4 },
 });
 
 // ── Result card styles ─────────────────────────────────────────────────────────
@@ -804,8 +862,10 @@ const rc = StyleSheet.create({
   },
   secBoxDeleted: { backgroundColor: '#FEF2F2' },
   secBoxWithheld: { backgroundColor: '#EEF2FF' },
+  // NF-UI-REV-02: '#9CA3AF' measured below 4.5:1 on every secBox background
+  // variant used here (default/deleted/withheld) — MUTED_TEXT clears it.
   secLabel: {
-    fontSize: 10, color: '#9CA3AF', fontWeight: '600',
+    fontSize: 10, color: MUTED_TEXT, fontWeight: '600',
     textTransform: 'uppercase', marginBottom: 3,
   },
   secNum:        { fontSize: 20, fontWeight: '800', color: NAVY, textAlign: 'center' },
@@ -815,11 +875,12 @@ const rc = StyleSheet.create({
     borderLeftWidth: 3, borderLeftColor: GOLD,
   },
   explainTxt:    { fontSize: 13, color: '#1F2937', lineHeight: 20 },
-  expandHint:    { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  expandHintTxt: { fontSize: 11, color: '#9CA3AF' },
+  expandHint:    { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: UI_REVISION_V1 ? 44 : undefined, paddingVertical: UI_REVISION_V1 ? 10 : 0 },
+  expandHintTxt: { fontSize: 11, color: MUTED_TEXT },
   srcLinkRow: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#F3F4F6',
+    minHeight: UI_REVISION_V1 ? 44 : undefined,
   },
   srcLinkTxt: { fontSize: 11, color: theme.colors.primary, textDecorationLine: 'underline' },
 });
@@ -844,7 +905,7 @@ const na = StyleSheet.create({
   cta: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     backgroundColor: '#E0E7FF', borderRadius: 8, paddingVertical: 8, marginTop: 8,
-    minHeight: 32, alignSelf: 'flex-start', paddingHorizontal: 12,
+    minHeight: UI_REVISION_V1 ? 44 : 32, alignSelf: 'flex-start', paddingHorizontal: 12,
   },
   ctaTxt: { fontSize: 12, fontWeight: '700', color: '#3730A3' },
 });

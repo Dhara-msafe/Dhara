@@ -9,6 +9,8 @@ import { useAuth } from '@/src/auth';
 import { getPlan, savePlan } from '@/src/women/api';
 import { getLastLocation, type CachedLocation } from '@/src/safety/locationCache';
 import { formatLocationFix } from '@/src/safety/locationPresentation';
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 
 // ─── Failsafe setup checklist data ──────────────────────────────────────────────
 const FAILSAFE_ITEMS = [
@@ -109,7 +111,7 @@ export default function SafetyPlan() {
         {/* ── F0-B: Plus Code emergency card ── */}
         {cachedLoc && (
           <Pressable
-            style={styles.plusCodeCard}
+            style={(s) => [styles.plusCodeCard, focusRingStyle(s)]}
             onPress={handleCopyPlusCode}
             accessibilityRole="button"
             accessibilityLabel={`Emergency Plus Code: ${cachedLoc.plusCode}. Tap to copy.`}
@@ -155,7 +157,7 @@ export default function SafetyPlan() {
 
         {/* ── Failsafe setup checklist ── */}
         <Pressable
-          style={styles.checklistHeader}
+          style={(s) => [styles.checklistHeader, focusRingStyle(s)]}
           onPress={() => setChecklistOpen(o => !o)}
           accessibilityRole="button"
           accessibilityState={{ expanded: checklistOpen }}
@@ -199,10 +201,23 @@ export default function SafetyPlan() {
         {QUESTIONS.map((q, i) => (
           <View key={i} style={styles.qCard}>
             <Text style={styles.q}>{i + 1}. {q}</Text>
-            <TextInput value={ans[i] || ''} onChangeText={v => set(i, v)} placeholder="Your answer (optional)" placeholderTextColor={c.muted} style={styles.input} multiline />
+            <TextInput
+              value={ans[i] || ''}
+              onChangeText={v => set(i, v)}
+              placeholder="Your answer (optional)"
+              placeholderTextColor={c.muted}
+              style={styles.input}
+              multiline
+              accessibilityLabel={`Answer for question ${i + 1}: ${q}`}
+            />
           </View>
         ))}
-        <Pressable style={styles.saveBtn} onPress={save}>
+        <Pressable
+          style={(s) => [styles.saveBtn, focusRingStyle(s)]}
+          onPress={save}
+          accessibilityRole="button"
+          accessibilityLabel={done ? 'Saved privately' : 'Save my plan'}
+        >
           <Ionicons name={done ? 'checkmark-circle' : 'save-outline'} size={18} color="#fff" />
           <Text style={styles.saveTxt}>{done ? 'Saved privately' : 'Save my plan'}</Text>
         </Pressable>
@@ -278,7 +293,10 @@ const styles = StyleSheet.create({
   offlineBadgeTxt: {
     fontFamily: theme.fonts.body,
     fontSize: 10,
-    color: '#6b7280',
+    // NF-UI-REV-02: '#6b7280' on this chip's '#f3f4f6' background measured
+    // ~4.37:1 — just under the 4.5:1 minimum for small text. c.muted
+    // (#505B68) on the same background measures ~6:1.
+    color: UI_REVISION_V1 ? c.muted : '#6b7280',
   },
   plusCodeValue: {
     fontFamily: theme.fonts.displayBold,

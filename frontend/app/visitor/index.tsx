@@ -15,8 +15,14 @@ import {
   TOURIST_LANGUAGES, INDIAN_STATES,
   saveVisitorSession, VisitorLang, getStateLocalLang,
 } from '@/src/visitor/session';
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 
 const C = theme.colors;
+// NF-UI-REV-02: onSurfaceTertiary (#6B7682) measured ~4.35:1 on this
+// screen's cream background — just under the 4.5:1 minimum for small text.
+// onSurfaceSecondary clears it with margin.
+const MUTED_LABEL = UI_REVISION_V1 ? C.onSurfaceSecondary : C.onSurfaceTertiary;
 
 export default function VisitorSetup() {
   const router = useRouter();
@@ -54,14 +60,26 @@ export default function VisitorSetup() {
 
         {/* Language picker */}
         <Text style={s.label}>YOUR LANGUAGE</Text>
-        <Pressable style={s.picker} onPress={() => setShowLangPicker(true)}>
+        <Pressable
+          style={(st) => [s.picker, focusRingStyle(st)]}
+          onPress={() => setShowLangPicker(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`Your language: ${selectedLang.native}, ${selectedLang.label}`}
+          accessibilityHint="Opens a list to change your language"
+        >
           <Text style={s.pickerText}>{selectedLang.native} ({selectedLang.label})</Text>
           <Ionicons name="chevron-down" size={18} color={C.primary} />
         </Pressable>
 
         {/* State picker */}
         <Text style={[s.label, { marginTop: 16 }]}>WHICH STATE ARE YOU IN?</Text>
-        <Pressable style={s.picker} onPress={() => setShowStatePicker(true)}>
+        <Pressable
+          style={(st) => [s.picker, focusRingStyle(st)]}
+          onPress={() => setShowStatePicker(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`State: ${selectedState.name}`}
+          accessibilityHint="Opens a list to change your state"
+        >
           <Ionicons name="location-outline" size={18} color={C.primary} />
           <Text style={[s.pickerText, { flex: 1 }]}>{selectedState.name}</Text>
           <Ionicons name="chevron-down" size={18} color={C.primary} />
@@ -81,7 +99,12 @@ export default function VisitorSetup() {
           ))}
         </View>
 
-        <Pressable style={s.cta} onPress={proceed}>
+        <Pressable
+          style={(st) => [s.cta, focusRingStyle(st)]}
+          onPress={proceed}
+          accessibilityRole="button"
+          accessibilityLabel="Get Help"
+        >
           <Text style={s.ctaText}>Get Help →</Text>
         </Pressable>
 
@@ -100,8 +123,11 @@ export default function VisitorSetup() {
               keyExtractor={i => i.code}
               renderItem={({ item }) => (
                 <Pressable
-                  style={[s.modalItem, item.code === selectedLang.code && s.modalItemSelected]}
+                  style={(st) => [s.modalItem, item.code === selectedLang.code && s.modalItemSelected, focusRingStyle(st)]}
                   onPress={() => { setSelectedLang(item); setShowLangPicker(false); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.native}, ${item.label}`}
+                  accessibilityState={{ selected: item.code === selectedLang.code }}
                 >
                   <Text style={s.modalItemNative}>{item.native}</Text>
                   <Text style={s.modalItemLabel}>{item.label}</Text>
@@ -109,7 +135,12 @@ export default function VisitorSetup() {
                 </Pressable>
               )}
             />
-            <Pressable style={s.modalCancel} onPress={() => setShowLangPicker(false)}>
+            <Pressable
+              style={(st) => [s.modalCancel, focusRingStyle(st)]}
+              onPress={() => setShowLangPicker(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel"
+            >
               <Text style={s.modalCancelText}>Cancel</Text>
             </Pressable>
           </View>
@@ -127,21 +158,30 @@ export default function VisitorSetup() {
               value={stateSearch}
               onChangeText={setStateSearch}
               autoFocus
+              accessibilityLabel="Search state or union territory"
             />
             <FlatList
               data={filteredStates}
               keyExtractor={i => i.code}
               renderItem={({ item }) => (
                 <Pressable
-                  style={[s.modalItem, item.code === selectedState.code && s.modalItemSelected]}
+                  style={(st) => [s.modalItem, item.code === selectedState.code && s.modalItemSelected, focusRingStyle(st)]}
                   onPress={() => { setSelectedState(item); setShowStatePicker(false); setStateSearch(''); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.name}
+                  accessibilityState={{ selected: item.code === selectedState.code }}
                 >
                   <Text style={s.modalItemNative}>{item.name}</Text>
                   {item.code === selectedState.code && <Ionicons name="checkmark" size={18} color={C.primary} />}
                 </Pressable>
               )}
             />
-            <Pressable style={s.modalCancel} onPress={() => { setShowStatePicker(false); setStateSearch(''); }}>
+            <Pressable
+              style={(st) => [s.modalCancel, focusRingStyle(st)]}
+              onPress={() => { setShowStatePicker(false); setStateSearch(''); }}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel"
+            >
               <Text style={s.modalCancelText}>Cancel</Text>
             </Pressable>
           </View>
@@ -160,11 +200,15 @@ const s = StyleSheet.create({
   heroTitle: { fontSize: 24, fontWeight: '800', color: '#fff', marginBottom: 8 },
   heroSub:   { fontSize: 13, color: '#C5CEEA', textAlign: 'center', lineHeight: 20 },
 
-  label:     { fontSize: 11, fontWeight: '700', letterSpacing: 1, color: C.onSurfaceTertiary, marginBottom: 8 },
+  // NF-UI-REV-02: C.onSurfaceTertiary measured ~4.35:1 on this cream
+  // background, just under the 4.5:1 minimum for this small uppercase
+  // label — MUTED_LABEL (onSurfaceSecondary) clears it.
+  label:     { fontSize: 11, fontWeight: '700', letterSpacing: 1, color: MUTED_LABEL, marginBottom: 8 },
   picker:    {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: C.surface, borderRadius: 12, padding: 14,
     borderWidth: 1.5, borderColor: C.border,
+    minHeight: UI_REVISION_V1 ? 48 : undefined,
   },
   pickerText: { flex: 1, fontSize: 15, color: C.onSurface, fontWeight: '600' },
 
@@ -182,7 +226,7 @@ const s = StyleSheet.create({
   },
   ctaText: { fontSize: 16, fontWeight: '800', color: C.primary },
 
-  disclaimer: { fontSize: 11, color: C.onSurfaceTertiary, textAlign: 'center', lineHeight: 16 },
+  disclaimer: { fontSize: 11, color: MUTED_LABEL, textAlign: 'center', lineHeight: 16 },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
@@ -200,10 +244,11 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingHorizontal: 18, paddingVertical: 14,
     borderBottomWidth: 1, borderBottomColor: C.divider,
+    minHeight: UI_REVISION_V1 ? 48 : undefined,
   },
   modalItemSelected: { backgroundColor: C.navySoft },
   modalItemNative:   { flex: 1, fontSize: 15, color: C.onSurface, fontWeight: '600' },
-  modalItemLabel:    { fontSize: 12, color: C.onSurfaceTertiary },
-  modalCancel:       { padding: 18, alignItems: 'center' },
+  modalItemLabel:    { fontSize: 12, color: MUTED_LABEL },
+  modalCancel:       { padding: 18, alignItems: 'center', minHeight: UI_REVISION_V1 ? 48 : undefined, justifyContent: 'center' },
   modalCancelText:   { fontSize: 15, color: C.error, fontWeight: '600' },
 });

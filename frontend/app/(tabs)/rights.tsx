@@ -6,6 +6,8 @@ import { useRouter } from 'expo-router';
 import { API_BASE, useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { useUserProfile } from '@/src/userProfile';
+import { UI_REVISION_V1 } from '@/src/designRevision';
+import { focusRingStyle } from '@/src/a11yFocus';
 
 import { openExternal } from '@/src/outbound';
 type Citation = { label: string; url: string };
@@ -78,8 +80,10 @@ export default function Rights() {
         {primaryInterest?.key === 'women' || primaryInterest?.key === 'domestic' ? (
           <Pressable
             testID="women-entry-card"
-            style={[styles.firCard, { backgroundColor: primaryInterest.color }]}
+            style={(s) => [styles.firCard, { backgroundColor: primaryInterest.color }, focusRingStyle(s)]}
             onPress={() => router.push('/women-shield' as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Women's Shield. Evidence locker, safe journey, trusted circle."
           >
             <View style={[styles.firIconWrap, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
               <Ionicons name="shield-checkmark" size={26} color="#fff" />
@@ -93,8 +97,10 @@ export default function Rights() {
         ) : (
           <Pressable
             testID="fir-entry-card"
-            style={styles.firCard}
+            style={(s) => [styles.firCard, focusRingStyle(s)]}
             onPress={() => router.push('/fir-draft' as any)}
+            accessibilityRole="button"
+            accessibilityLabel="File a Police Complaint. Get a ready FIR draft in your language, by voice or text."
           >
             <View style={styles.firIconWrap}>
               <Ionicons name="document-text" size={26} color="#fff" />
@@ -111,22 +117,34 @@ export default function Rights() {
         {sortedTopics.map(t => {
           const open = expanded === t.id;
           return (
-            <Pressable
-              key={t.id}
-              testID={`topic-${t.id}`}
-              onPress={() => setExpanded(open ? null : t.id)}
-              style={styles.card}
-            >
-              <View style={styles.cardHead}>
-                <View style={styles.iconWrap}>
-                  <Ionicons name={ICON_MAP[t.icon] || 'library-outline'} size={24} color={theme.colors.brand} />
+            // NF-UI-REV-02 (Group B): this card used to be ONE Pressable
+            // wrapping both the header and, when expanded, further nested
+            // Pressables (citation links, "Ask Dhara more"). A Pressable
+            // inside a Pressable renders as <button><button/></button> on
+            // web, which is invalid HTML and an accessibility-tree
+            // violation. Now only the header toggles expand/collapse; the
+            // body below is a plain View, so the inner links are proper
+            // standalone buttons again.
+            <View key={t.id} style={styles.card} testID={`topic-${t.id}`}>
+              <Pressable
+                onPress={() => setExpanded(open ? null : t.id)}
+                style={(s) => [styles.cardHeadPressable, focusRingStyle(s)]}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: open }}
+                accessibilityLabel={`${t.title}. ${t.summary}`}
+                accessibilityHint={open ? 'Collapses this topic' : 'Expands to show your rights in detail'}
+              >
+                <View style={styles.cardHead}>
+                  <View style={styles.iconWrap}>
+                    <Ionicons name={ICON_MAP[t.icon] || 'library-outline'} size={24} color={theme.colors.brand} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardTitle}>{t.title}</Text>
+                    <Text style={styles.cardSummary}>{t.summary}</Text>
+                  </View>
+                  <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={20} color={theme.colors.onSurfaceSecondary} />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.cardTitle}>{t.title}</Text>
-                  <Text style={styles.cardSummary}>{t.summary}</Text>
-                </View>
-                <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={20} color={theme.colors.onSurfaceSecondary} />
-              </View>
+              </Pressable>
               {open && (
                 <View style={styles.body}>
                   <View style={styles.lawPill}>
@@ -153,7 +171,10 @@ export default function Rights() {
                           key={i}
                           testID={`citation-${t.id}-${i}`}
                           onPress={() => openExternal(c.url)}
-                          style={styles.citeRow}
+                          style={(s) => [styles.citeRow, focusRingStyle(s)]}
+                          accessibilityRole="link"
+                          accessibilityLabel={`${c.label}. Opens official source in browser.`}
+                          hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
                         >
                           <Ionicons name="open-outline" size={13} color={theme.colors.brand} />
                           <Text style={styles.citeText}>{c.label}</Text>
@@ -168,15 +189,17 @@ export default function Rights() {
                   )}
                   <Pressable
                     testID={`ask-more-${t.id}`}
-                    style={styles.askBtn}
+                    style={(s) => [styles.askBtn, focusRingStyle(s)]}
                     onPress={() => router.push({ pathname: '/(tabs)', params: { topicId: t.id } })}
+                    accessibilityRole="button"
+                    accessibilityLabel="Ask Dhara more about this topic"
                   >
                     <Ionicons name="chatbubbles-outline" size={16} color={theme.colors.onBrandPrimary} />
                     <Text style={styles.askText}>Ask Dhara more</Text>
                   </Pressable>
                 </View>
               )}
-            </Pressable>
+            </View>
           );
         })}
       </ScrollView>
@@ -209,23 +232,29 @@ const styles = StyleSheet.create({
   },
   firCardTitle: { color: '#fff', fontSize: 16, fontWeight: '800' },
   firCardSub: { color: 'rgba(255,255,255,0.85)', fontSize: 12.5, marginTop: 2, lineHeight: 17 },
-  card: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.colors.border, padding: theme.spacing.lg, marginBottom: theme.spacing.md },
+  // Card is now a plain (non-pressable) container — only the header below
+  // is interactive, so it owns no padding of its own (see cardHeadPressable).
+  card: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.colors.border, marginBottom: theme.spacing.md, overflow: 'hidden' },
+  // 48px-minimum touch target for the expand/collapse toggle (NF-UI-REV-02).
+  cardHeadPressable: { padding: theme.spacing.lg, minHeight: UI_REVISION_V1 ? 48 : undefined },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
   iconWrap: { width: 44, height: 44, borderRadius: 22, backgroundColor: theme.colors.surfaceSecondary, alignItems: 'center', justifyContent: 'center' },
   cardTitle: { fontFamily: theme.fonts.display, fontSize: 17, fontWeight: '700', color: theme.colors.onSurface },
   cardSummary: { color: theme.colors.onSurfaceSecondary, marginTop: 2, fontSize: 13 },
-  body: { marginTop: theme.spacing.lg, paddingTop: theme.spacing.lg, borderTopWidth: 1, borderTopColor: theme.colors.divider },
+  body: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg, paddingTop: theme.spacing.lg, borderTopWidth: 1, borderTopColor: theme.colors.divider },
   lawPill: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: theme.colors.surfaceSecondary, paddingHorizontal: theme.spacing.md, paddingVertical: theme.spacing.sm, borderRadius: theme.radius.pill, marginBottom: theme.spacing.md },
   lawText: { color: theme.colors.brandSecondary, fontSize: 12, fontWeight: '600' },
   point: { flexDirection: 'row', gap: theme.spacing.sm, marginBottom: theme.spacing.sm },
   bullet: { color: theme.colors.brandSecondary, fontSize: 18, lineHeight: 22 },
   pointText: { flex: 1, color: theme.colors.onSurface, lineHeight: 22, fontSize: 14 },
-  askBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: theme.colors.brand, borderRadius: theme.radius.md, padding: theme.spacing.md, marginTop: theme.spacing.md },
+  askBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: theme.colors.brand, borderRadius: theme.radius.md, padding: theme.spacing.md, marginTop: theme.spacing.md, minHeight: UI_REVISION_V1 ? 48 : undefined },
   askText: { color: theme.colors.onBrandPrimary, fontWeight: '700' },
   noticeBox: { flexDirection: 'row', gap: theme.spacing.sm, backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md, padding: theme.spacing.md, marginBottom: theme.spacing.md },
   noticeText: { flex: 1, color: theme.colors.onSurfaceSecondary, fontSize: 12.5, lineHeight: 18 },
   citeWrap: { marginTop: theme.spacing.sm, paddingTop: theme.spacing.sm, borderTopWidth: 1, borderTopColor: theme.colors.divider },
   citeHeading: { fontSize: 11, fontWeight: '700', color: theme.colors.onSurfaceSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 },
+  // 44px-minimum tap target via hitSlop above; visual row height stays
+  // compact so the citation list doesn't balloon (NF-UI-REV-02).
   citeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4, minHeight: 28 },
   citeText: { color: theme.colors.brand, fontSize: 13, textDecorationLine: 'underline', flex: 1 },
   verifiedText: { color: theme.colors.onSurfaceSecondary, fontSize: 11, marginTop: 4, fontStyle: 'italic' },

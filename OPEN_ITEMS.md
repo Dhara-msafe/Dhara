@@ -51,3 +51,20 @@ available in this environment.
 `profile=production`/`profile=closed_testing`), and the `qa_outbox`
 collection's oldest entry is 2026-11-04 with 0 `decision=live` documents out
 of 751 — but nothing before 2026-11-03 could be checked.
+
+### 4. Production deployment requirement — read before deploying this backend change
+`backend/services/outbound_guard.py`'s `validate_outbound_config()` now requires
+`DEPLOYMENT_ENV` to be set. **Before this backend change reaches production,
+production's real configuration must set `DEPLOYMENT_ENV=production`** (not
+`preview`) — if it's missing, the production server will refuse to start.
+This is a deploy-time checklist item, not something changeable from preview.
+
+### 5. Test helpers changed by the DEPLOYMENT_ENV guard (for review)
+Two pre-existing test files called `validate_outbound_config()` without the
+now-mandatory `DEPLOYMENT_ENV` variable, which would otherwise fail them for
+an unrelated reason (the new guard, not what they were testing). Both were
+pinned to `DEPLOYMENT_ENV=production` — the value that adds no extra
+restriction — so their original intent still holds:
+- `backend/tests/test_outbound_guard.py` — `_set(monkeypatch, value)` helper.
+- `backend/tests/test_outbound_policy.py` — `_env(monkeypatch, mode=None, profile=None, email_key=None)` helper.
+
