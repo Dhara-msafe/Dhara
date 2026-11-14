@@ -239,6 +239,7 @@ export default function Settings() {
           </View>
           <Switch
             testID="auto-speak-switch"
+            accessibilityLabel="Answers spoken aloud automatically"
             value={autoSpeak}
             onValueChange={setAutoSpeak}
             trackColor={{ true: theme.colors.brandSecondary, false: theme.colors.borderStrong }}
@@ -262,6 +263,7 @@ export default function Settings() {
             </View>
             <Switch
               testID="push-notifications-switch"
+              accessibilityLabel="Push notifications"
               value={pushState === 'granted'}
               onValueChange={onTogglePush}
               trackColor={{ true: theme.colors.brandSecondary, false: theme.colors.borderStrong }}

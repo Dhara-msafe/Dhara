@@ -300,6 +300,7 @@ export default function DataPrivacyScreen() {
           </View>
           <Switch
             testID="fj-privacy-toggle"
+            accessibilityLabel="Family Journey"
             value={fjEnabled}
             onValueChange={setFjEnabled}
             trackColor={{ true: PRIMARY, false: theme.colors.borderStrong }}

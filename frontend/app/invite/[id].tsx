@@ -112,7 +112,7 @@ export default function InviteDetail() {
             <Text style={styles.sectionTitle}>Notification preferences</Text>
             <View style={styles.muteRow}>
               <Text style={styles.permTxt}>Mute routine journey updates</Text>
-              <Switch value={link.muted} onValueChange={onMuteToggle} testID="invite-mute-switch" />
+              <Switch value={link.muted} onValueChange={onMuteToggle} testID="invite-mute-switch" accessibilityLabel="Mute routine journey updates" />
             </View>
             <Pressable style={styles.leaveBtn} onPress={onLeave} disabled={busy} testID="invite-leave">
               <Text style={styles.leaveBtnTxt}>Leave this Trusted Circle</Text>
