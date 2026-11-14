@@ -6,6 +6,7 @@ import { useFocusEffect } from 'expo-router';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { Bookmark, loadLocal, removeBookmark, syncBookmarks } from '@/src/bookmarks';
+import { formatDateDMY } from '@/src/dateFormat';
 
 export default function SavedScreen() {
   const { token, user } = useAuth();
@@ -107,7 +108,7 @@ export default function SavedScreen() {
                   </Pressable>
                 </View>
                 <Text style={styles.meta}>
-                  {new Date(item.created_at).toLocaleDateString()}
+                  {formatDateDMY(item.created_at)}
                   {item.synced ? '' : ' · saved on this phone'}
                 </Text>
                 <Text style={styles.a} numberOfLines={open ? undefined : 3}>{item.answer}</Text>
