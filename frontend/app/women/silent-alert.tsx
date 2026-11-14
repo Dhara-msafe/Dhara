@@ -108,6 +108,7 @@ export default function SilentAlert() {
               </View>
               <Switch
                 testID="evidence-toggle"
+                accessibilityLabel="Also start Evidence Recording"
                 value={evidenceEnabled}
                 onValueChange={toggleEvidence}
                 trackColor={{ false: c.lines, true: c.navy }}

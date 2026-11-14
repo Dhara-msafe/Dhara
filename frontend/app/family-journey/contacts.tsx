@@ -154,6 +154,7 @@ export default function JourneyContacts() {
                         </View>
                         <Switch
                           testID={`fj-mode-${mode}-${ct.id}`}
+                          accessibilityLabel={`${MODE_META[mode].title} for ${ct.name}`}
                           value={!!sel[mode]}
                           onValueChange={v => onModeSwitch(ct.id, mode, v)}
                           trackColor={{ true: c.navy, false: c.borderStrong }}

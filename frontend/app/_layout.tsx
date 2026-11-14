@@ -291,12 +291,24 @@ export default function RootLayout() {
   const loaded = iconsLoaded && brandLoaded;
   const error = iconError || brandError;
   const { width } = useWindowDimensions();
+  const pathname = usePathname();
   // C9 adaptive web: on a wide browser, center the app in a phone-width column
   // instead of stretching the mobile layout edge-to-edge (which looked broken).
   // 1200px threshold ensures tablets and phones (even in landscape or desktop
   // mode) always get the single-column mobile layout. The 3-column desktop
   // shell only appears on actual laptop/desktop screens.
-  const isWideWeb = Platform.OS === 'web' && width >= 1200;
+  // B-65: the desktop shell's sidebar links straight into the full app
+  // (Women's Shield, FIR draft, Dhara Engine, …), which has no business
+  // showing next to a standalone, pre-app screen -- most importantly the
+  // required consent screen, where a sidebar invited the user to navigate
+  // away before finishing a compliance step, but the same is true of
+  // sign-in/sign-up and the account-deletion flows. These screens get the
+  // plain, full-bleed layout even on a wide browser.
+  const STANDALONE_ROUTES = ['/consent', '/login', '/signup', '/forgot-password', '/delete-account'];
+  const isStandaloneScreen = STANDALONE_ROUTES.some(
+    (r) => pathname === r || pathname?.startsWith(`${r}/`),
+  );
+  const isWideWeb = Platform.OS === 'web' && width >= 1200 && !isStandaloneScreen;
   // Safety net: never block app boot forever on a font fetch. If icons
   // haven't resolved within 4s (e.g. a stalled network request), render the
   // app anyway — icons repaint themselves the instant the font does arrive,
