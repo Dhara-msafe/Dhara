@@ -2442,6 +2442,35 @@ async def _dispatch(
             "quick_replies": [], "completed": True,
         }
 
+    # ── B-110: self-heal a session wedged mid-generation ───────────────────────
+    # STAGE_READ_BACK writes stage=STAGE_DRAFT *before* awaiting generate_draft(),
+    # then writes STAGE_COMPLETED only after it returns. generate_draft() itself
+    # always returns (its own try/except falls back to a deterministic template
+    # on any LLM error), so this used to be safe — but the request itself can
+    # still be cut off mid-await by a slow LLM call colliding with the host's
+    # own sleep/restart behavior (the B-80/B-105/B-107 family), which leaves the
+    # session parked at stage="draft" forever: every later message (including
+    # "resume"/"draft"/"next") fell through every branch above with no match
+    # and got "Unknown stage: draft" back, with no way to recover.
+    # Fix: treat landing back here with stage=STAGE_DRAFT as "retry generation"
+    # instead of an error, using the same slots/sections already on the session.
+    elif stage == STAGE_DRAFT:
+        sections = session.get("suggested_sections", [])
+        evidence_files = list(session.get("evidence_files", []))
+        draft_text = await generate_draft(
+            slots, sections, evidence_files, language, language_name, llm_key
+        )
+        await db.fir_sessions.update_one(
+            {"session_id": sid},
+            {"$set": {"draft": draft_text, "stage": STAGE_COMPLETED, "status": "completed", "updated_at": now}},
+        )
+        return {
+            "session_id": sid, "stage": STAGE_COMPLETED,
+            "bot_message": _tm("draft_ready", language),
+            "input_type": INPUT_DONE, "quick_replies": [],
+            "draft": draft_text, "completed": True,
+        }
+
     return {"error": f"Unknown stage: {stage}", "session_id": sid}
 
 
