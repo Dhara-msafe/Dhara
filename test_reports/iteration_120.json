@@ -1,0 +1,81 @@
+{
+  "summary": "Phase 0.5 containment changes B1–B6 tested on web preview. All 6 items verified via code review + UI automation. B1, B5 (a/b/c/d) confirmed via Playwright. B2/B3/B4/B6 confirmed via static code review. No regressions found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "B2 stale temp cleanup on web",
+        "issue": "expo-file-system/next (Paths.cache.list) is not supported on web — console logs 'expo-file-system is not supported on web'. The useEffect runs after unlock but the file-sweep code path throws and is caught non-fatally (correct per spec). No crash. No impact on native builds.",
+        "affected_testIDs": []
+      }
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "b1_result": {
+    "status": "PASS",
+    "details": [
+      "Navigating directly to /women/evidence-locker shows the PIN gate (evidence-pin-gate testID rendered)",
+      "Recording timer shows 'Ready to record' — microphone NOT auto-started",
+      "URL param ?record=1 is removed; consumeEvidenceAutoRecord() is used instead",
+      "useEffect guard: `if (!unlocked) return` and `if (!navigation.canGoBack()) return` both present"
+    ]
+  },
+  "b2_result": {
+    "status": "PASS (code review) / INFO (web only)",
+    "details": [
+      "useEffect present at evidence-locker.tsx lines 269-286 with `if (!unlocked) return` guard",
+      "Runs after unlock, sweeps dhara-evidence-tmp-* files",
+      "Checks pendingSet to never delete unsealed pending URIs",
+      "try/catch wraps the whole block — non-fatal",
+      "On web: expo-file-system not supported, so sweep silently no-ops (correct behavior)"
+    ]
+  },
+  "b3_result": {
+    "status": "PASS (code review)",
+    "details": [
+      "OOM check at lines 879-890: /out of memory|oom|allocation|heap|rangeError/i regex",
+      "OOM shows 'too large to encrypt on this device'",
+      "Other errors show 'The original file has not been changed'",
+      "Cannot trigger camera-capture error in web automation (no real camera), but code path confirmed correct"
+    ]
+  },
+  "b4_result": {
+    "status": "PASS (code review)",
+    "details": [
+      "Comment 'B4 (Phase 0.5)' present at evidence-locker.tsx line 473",
+      "commitCurrentSegment restarts recorder (prepareToRecordAsync + record()) BEFORE the encrypt+persist step (lines 496-517)",
+      "prevSegStartMs captured at line 487 before any state mutation",
+      "segStartTimeRef updated for new segment at line 506 after restart"
+    ]
+  },
+  "b5_result": {
+    "status": "PASS",
+    "details": [
+      "(a) 'Change PIN' button (testID=evidence-change-pin) visible in unlocked locker screen — PASS",
+      "(b) Tapping it shows Modal with 'Enter your current PIN' heading — PASS",
+      "(c) Entering wrong PIN (9999) shows 'Incorrect PIN. Try again.' error; modal stays on current-PIN step, blocks progression — PASS",
+      "(d) changePin() and clearPinAuthenticated() both exported from evidenceLock.ts lines 146-166 — PASS"
+    ]
+  },
+  "b6_result": {
+    "status": "PASS",
+    "details": [
+      "app.json android.allowBackup = false (line 43) — confirmed"
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_120.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "B2: expo-file-system/next (Paths.cache.list) is a no-op on web — this is expected and non-fatal but means stale-temp cleanup only runs on native builds. Web does not clean up. This is acceptable per spec."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 0.5 B1-B6 all verified. Test PIN used: 1234 (set via create-PIN flow on web, stored in AsyncStorage). Login credentials: voicetest2026@example.com / TestPass123!. The consent/onboarding flow must be completed before accessing the evidence locker (use consent-age-adult, consent-terms-checkbox, consent-data-checkbox, consent-continue-button testIDs)."
+}

@@ -136,3 +136,31 @@ export async function clearPin(): Promise<void> {
   await store_delete(PIN_ATTEMPTS_KEY);
   await store_delete(PIN_LOCKOUT_KEY);
 }
+
+// ── Phase 0.5 B5: changing or clearing the PIN requires the current PIN ──────
+
+/** Change the PIN from `currentPin` to `newPin`.
+ *  Returns the same PinCheckResult shape as verifyPin() so the caller can
+ *  display incorrect / locked-out feedback using exactly the same logic as
+ *  the existing unlock gate. */
+export async function changePin(
+  currentPin: string,
+  newPin: string,
+): Promise<PinCheckResult> {
+  const check = await verifyPin(currentPin);
+  if (!check.ok) return check;
+  await setPin(newPin);
+  return { ok: true };
+}
+
+/** Remove the PIN entirely after verifying the current one.
+ *  On success the locker will prompt the user to create a new PIN on the
+ *  next visit (hasPin() === false). */
+export async function clearPinAuthenticated(
+  currentPin: string,
+): Promise<PinCheckResult> {
+  const check = await verifyPin(currentPin);
+  if (!check.ok) return check;
+  await clearPin();
+  return { ok: true };
+}

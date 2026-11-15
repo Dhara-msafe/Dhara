@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Platform, AppState, Image, TextInput, Linking, Modal } from 'react-native';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useRouter, useNavigation } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AudioModule, setAudioModeAsync } from 'expo-audio';
@@ -8,8 +8,10 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import * as Location from 'expo-location';
-import { theme } from '@/src/theme';
+import { Paths, File as EfsFile } from 'expo-file-system/next';
 import { crossAlert } from '@/src/utils/crossAlert';
+import { consumeEvidenceAutoRecord } from '@/src/women/evidenceAutoRecord';
+import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { useEvidenceRecorder } from '@/src/women/EvidenceRecorderProvider';
@@ -18,7 +20,7 @@ import {
   discardTemporaryRecording, getDecryptedTempUri, getSegmentedShareZipUri, releaseDecryptedTempUri, type RecordingItem,
   saveSegment, createSegmentedParent, loadSegments, loadVisibleRecordings,
 } from '@/src/women/evidenceStore';
-import { hasPin, setPin, verifyPin, getLockoutRemainingMs } from '@/src/women/evidenceLock';
+import { hasPin, setPin, verifyPin, getLockoutRemainingMs, changePin } from '@/src/women/evidenceLock';
 import { getManifestEntry, markManifestDeleted, type ManifestEntry, type GpsPoint } from '@/src/women/evidenceManifest';
 import { anchorItem, backupItem } from '@/src/women/evidenceBackup';
 import { fetchFlags } from '@/src/women/api';
@@ -219,11 +221,18 @@ function NoteEditor({ initial, onSave, onCancel }: { initial: string; onSave: (t
 
 export default function EvidenceLocker() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ record?: string }>();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
   const scope = user?.id || 'device';
   const [unlocked, setUnlocked] = useState(false);
+  // B5 (Phase 0.5): Change-PIN modal state
+  const [changePinVisible, setChangePinVisible] = useState(false);
+  const [cpCurrentInput, setCpCurrentInput] = useState('');
+  const [cpNewInput, setCpNewInput] = useState('');
+  const [cpConfirmInput, setCpConfirmInput] = useState('');
+  const [cpStep, setCpStep] = useState<'current' | 'new' | 'confirm'>('current');
+  const [cpError, setCpError] = useState('');
+  const [cpBusy, setCpBusy] = useState(false);
   // Item G: Get recorder from EvidenceRecorderProvider (survives navigation).
   const { recorder, recorderState: state, claimForLocker, releaseLockerClaim, stopTriggerRecording, getOwner } = useEvidenceRecorder();
   const [items, setItems] = useState<RecordingItem[]>([]);
@@ -253,6 +262,28 @@ export default function EvidenceLocker() {
     if (!unlocked) return;
     AsyncStorage.getItem(`evidence_notes_${scope}`).then(v => { if (v) setNotesMap(JSON.parse(v)); }).catch(() => {});
   }, [scope, unlocked]);
+  // B2 (Phase 0.5): on unlock, sweep cache dir for leftover decrypted temp
+  // files from previous sessions that were killed before releaseDecryptedTempUri
+  // could clean them up.  NEVER removes a URI that is still pending (not yet
+  // sealed) — those are tracked in evidencePendingTemp and must survive.
+  useEffect(() => {
+    if (!unlocked) return;
+    void (async () => {
+      try {
+        const pending = await listPendingTemps(AsyncStorage, scope);
+        const pendingSet = new Set(pending.map(p => p.uri));
+        const entries = Paths.cache.list();
+        for (const entry of entries) {
+          const name = entry.uri.split('/').pop() ?? '';
+          if (!name.startsWith('dhara-evidence-tmp-')) continue;
+          if (pendingSet.has(entry.uri)) continue; // never remove unsealed pending
+          try { new EfsFile(entry.uri).delete(); } catch {}
+        }
+      } catch {
+        // non-fatal: stale temp cleanup is best-effort
+      }
+    })();
+  }, [unlocked, scope]);
   const player = useRef<TtsPlayer | null>(null);
   const epoch = useRef(0);
   const working = useRef(false);
@@ -436,25 +467,64 @@ export default function EvidenceLocker() {
     return () => sub.remove();
   }, []);
   // ── P0-B: Segment cycling ─────────────────────────────────────────────────
-  // commitCurrentSegment: stop recorder → encrypt+persist the segment →
-  // restart recording for the next segment. Runs on a ~SEGMENT_TARGET_MS timer.
+  // commitCurrentSegment: stop recorder → restart recorder (B4: before
+  // encrypting, to minimise the gap) → encrypt+persist the old segment.
+  //
+  // B4 (Phase 0.5): the recorder is restarted BEFORE the encrypt+persist step.
+  // The gap between segments is now only stop→prepare→record latency, not
+  // stop+encrypt+persist+prepare+record. The encrypt+persist of the previous
+  // segment happens concurrently with the new recording. commitPromiseRef still
+  // covers the ENTIRE async function (including the post-restart save work) so
+  // save() correctly awaits it via the existing guard.
+  //
+  // Gap measurement: NOT RUN. A continuous-tone test on a real device is
+  // required to report p50 and p95; see Phase 0 inventory item h.
   const commitCurrentSegment = useCallback(async (): Promise<void> => {
     if (!active.current || !sessionRef.current) return;
     const session = sessionRef.current;
     const segIdx = segCountRef.current;
+    // Capture the old segment start time NOW, before any state mutation.
+    const prevSegStartMs = segStartTimeRef.current;
+    let uri: string | null = null;
     try {
       await recorder.stop();
-      // We save the segment regardless of whether active.current changed during
-      // the stop() await — the data is already captured and save() is waiting
-      // on this promise before it calls recorder.stop(), so there is no
-      // concurrent access to recorder.uri here (fix a).
-      const uri = recorder.uri;
+      // Capture URI immediately after stop — before prepare/record so the
+      // native recorder can transition state cleanly.
+      uri = recorder.uri ?? null;
+      const stopTimeMs = Date.now(); // end of old segment (before gap ends)
+
+      // B4: restart the recorder BEFORE encrypting the previous segment.
+      // FIX (b): re-check active BEFORE restarting (identical guard as before).
+      if (active.current && sessionRef.current) {
+        try {
+          await recorder.prepareToRecordAsync();
+          // FIX (b): re-check AFTER prepare — the most critical guard.
+          if (!active.current || !sessionRef.current) {
+            try { await recorder.stop(); } catch {}
+          } else {
+            recorder.record();
+            segStartTimeRef.current = Date.now(); // start of NEW segment
+            // FIX (a): schedule NEXT commit after recorder is running.
+            segTimerRef.current = setTimeout(() => {
+              commitPromiseRef.current = commitCurrentSegment();
+            }, SEGMENT_TARGET_MS);
+          }
+        } catch (e: any) {
+          console.warn('[P0-B] segment restart error:', e?.message);
+          active.current = false;
+          setStatus(`Recording stopped after ${segCountRef.current} segment(s). Saved segments can be recovered.`);
+        }
+      }
+
+      // Now encrypt+persist the OLD segment (overlapping with new recording).
+      // durationMs uses the captured prevSegStartMs and stopTimeMs so it
+      // measures only actual recorded time, not the restart latency.
       if (uri) {
+        const durationMs = stopTimeMs - prevSegStartMs;
         await markPendingTemp(AsyncStorage, scope, uri); // A2: protect before saving
         const segItem = await saveSegment(scope, uri, session.sessionId);
         await persistThenDiscard(segItem, uri); // A2: delete only after read-back
         lastCommittedUriRef.current = uri; // FIX (RC4): mark so save() skips it
-        const durationMs = Date.now() - segStartTimeRef.current; // Fix (S1-3)
         await commitSegment(scope, session.sessionId, {
           segId: segItem.id, index: segIdx, itemId: segItem.id,
           durationMs, committedAt: new Date().toISOString(),
@@ -465,30 +535,6 @@ export default function EvidenceLocker() {
       }
     } catch (e: any) {
       console.warn('[P0-B] segment commit error:', e?.message);
-    }
-    // FIX (b): re-check active BEFORE restarting the recorder.
-    // save() sets active.current=false before the timer fires, so this guard
-    // is what prevents the "records forever" infinite-commit loop.
-    if (!active.current || !sessionRef.current) return;
-    try {
-      await recorder.prepareToRecordAsync();
-      // FIX (b): re-check AFTER prepareToRecordAsync — the most critical guard.
-      // If save() fired while we were preparing, stop the prepared (but not
-      // yet recording) recorder and exit without calling recorder.record().
-      if (!active.current || !sessionRef.current) {
-        try { await recorder.stop(); } catch {}
-        return;
-      }
-      recorder.record();
-      segStartTimeRef.current = Date.now();
-      // FIX (a): store the promise so save() can await it before stopping.
-      segTimerRef.current = setTimeout(() => {
-        commitPromiseRef.current = commitCurrentSegment();
-      }, SEGMENT_TARGET_MS);
-    } catch (e: any) {
-      console.warn('[P0-B] segment restart error:', e?.message);
-      active.current = false;
-      setStatus(`Recording stopped after ${segCountRef.current} segment(s). Saved segments can be recovered.`);
     }
   }, [recorder, scope, persistThenDiscard]);
 
@@ -559,9 +605,21 @@ export default function EvidenceLocker() {
     finally { working.current = false; setBusy(false); }
   }, [recorder, stopPlayer, scope, commitCurrentSegment, claimForLocker, releaseLockerClaim, stopTriggerRecording]);
   const started = useRef(false);
+  const navigation = useNavigation();
+  // B1 (Phase 0.5): only auto-start when (a) the locker is already unlocked
+  // and (b) the intent was set by in-app navigation (consumeEvidenceAutoRecord).
+  // The old URL-param check (params.record === '1') has been removed: any
+  // external deep-link could carry that param and start the microphone before
+  // the user even opened the PIN gate. The module-level flag in
+  // evidenceAutoRecord.ts can only be set from within this JS bundle.
   useEffect(() => {
-    if (params.record === '1' && !started.current) { started.current = true; router.setParams({ record: '' }); void start(); }
-  }, [params.record, router, start]);
+    if (!unlocked) return;              // never before PIN cleared
+    if (!navigation.canGoBack()) return; // reject cold deep-links (no back stack)
+    if (!started.current && consumeEvidenceAutoRecord()) {
+      started.current = true;
+      void start();
+    }
+  }, [unlocked, navigation, start]);
   const save = async () => {
     // FIX (c): never silently no-op — show feedback when already saving
     if (working.current) { setStatus('Saving… please wait.'); return; }
@@ -814,7 +872,23 @@ export default function EvidenceLocker() {
       }
       setStatus(`${kind === 'photo' ? 'Photo' : 'Video'} saved on this device. Nothing was uploaded or sent.`);
     } catch (error: any) {
-      setStatus(error?.message || `Could not capture ${kind}. Please try again.`);
+      // B3 (Phase 0.5): distinguish out-of-memory / large-file errors from
+      // general failures. The original file from the picker is NEVER deleted
+      // by DHARA — it stays in the system photo library or the picker's temp
+      // cache. The user has not lost their photo or video.
+      const msg = String(error?.message || error || '');
+      const isOom = /out of memory|oom|allocation|heap|rangeError/i.test(msg);
+      if (isOom) {
+        setStatus(
+          `${kind === 'photo' ? 'Photo' : 'Video'} is too large to encrypt on this device — ` +
+          'the original is still in your photo library. Try a shorter video or a lower-resolution photo.',
+        );
+      } else {
+        setStatus(
+          `Could not save this ${kind}. The original file has not been changed. ` +
+          (msg ? `(${msg.slice(0, 120)})` : 'Please try again.'),
+        );
+      }
     } finally { setBusy(false); }
   }, [busy, scope]);
 
@@ -938,11 +1012,61 @@ export default function EvidenceLocker() {
 
   if (!unlocked) return <PinGate onUnlock={() => setUnlocked(true)} />;
 
+  // B5 (Phase 0.5): Change-PIN handler — requires the current PIN.
+  const handleChangePinStep = async () => {
+    setCpError('');
+    if (cpStep === 'current') {
+      // Verify the current PIN using verifyPin (not changePin) so we don't
+      // commit yet; we just check the current PIN is correct.
+      setCpBusy(true);
+      try {
+        const { verifyPin: vp } = await import('@/src/women/evidenceLock');
+        const result = await vp(cpCurrentInput);
+        if (!result.ok) {
+          setCpError(result.lockedOut ? `Too many attempts — wait ${Math.ceil((result.remainingMs ?? 0) / 1000)}s.` : 'Incorrect PIN. Try again.');
+          setCpCurrentInput('');
+          return;
+        }
+        setCpStep('new');
+      } catch { setCpError('Could not verify PIN. Please try again.'); }
+      finally { setCpBusy(false); }
+    } else if (cpStep === 'new') {
+      if (cpNewInput.length < 4) { setCpError('PIN must be at least 4 digits.'); return; }
+      setCpStep('confirm');
+    } else {
+      if (cpConfirmInput !== cpNewInput) { setCpError('PINs do not match. Try again.'); setCpConfirmInput(''); return; }
+      setCpBusy(true);
+      try {
+        const result = await changePin(cpCurrentInput, cpNewInput);
+        if (!result.ok) { setCpError('Could not save new PIN. Please try again.'); return; }
+        setChangePinVisible(false);
+        setCpCurrentInput(''); setCpNewInput(''); setCpConfirmInput('');
+        setCpStep('current'); setCpError('');
+        setStatus('PIN changed.');
+      } catch { setCpError('Could not save new PIN. Please try again.'); }
+      finally { setCpBusy(false); }
+    }
+  };
+
+  const changePinLabel = cpStep === 'current' ? 'Enter your current PIN' : cpStep === 'new' ? 'Enter new PIN (4–6 digits)' : 'Confirm new PIN';
+  const changePinInput = cpStep === 'current' ? cpCurrentInput : cpStep === 'new' ? cpNewInput : cpConfirmInput;
+  const setChangePinInput = cpStep === 'current' ? setCpCurrentInput : cpStep === 'new' ? setCpNewInput : setCpConfirmInput;
+
   return (
     <View style={styles.root} testID="evidence-locker-screen">
       <ScreenHeader title="Evidence locker" subtitle="Local recordings, photos & video · no network needed" />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
         <Text testID="evidence-storage-notice" style={styles.note}>Capture only when safe. Everything saved here is encrypted on this device and protected by your PIN; it is not backed up or sent to anyone unless you tap Share, Anchor or Back up. Clearing app data or uninstalling can erase it.</Text>
+        {/* B5 (Phase 0.5): Change PIN — requires current PIN to proceed */}
+        <Pressable
+          testID="evidence-change-pin"
+          style={(s) => [styles.changePinBtn, focusRingStyle(s)]}
+          onPress={() => { setCpStep('current'); setCpCurrentInput(''); setCpNewInput(''); setCpConfirmInput(''); setCpError(''); setChangePinVisible(true); }}
+          accessibilityRole="button"
+          accessibilityLabel="Change locker PIN"
+        >
+          <Text style={styles.changePinText}>Change PIN</Text>
+        </Pressable>
         <Text testID="evidence-recording-timer" style={styles.timer}>
           {state.isRecording
             ? segmentedEnabled.current
@@ -1152,6 +1276,47 @@ export default function EvidenceLocker() {
           </Pressable>
         </Pressable>
       </Modal>
+      {/* B5 (Phase 0.5): Change PIN modal — requires current PIN */}
+      <Modal visible={changePinVisible} transparent animationType="fade" onRequestClose={() => !cpBusy && setChangePinVisible(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => !cpBusy && setChangePinVisible(false)}>
+          <Pressable style={styles.modalCard} onPress={e => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>Change PIN</Text>
+            <Text style={styles.modalBody}>{changePinLabel}</Text>
+            <TextInput
+              testID="cp-input"
+              style={styles.cpInput}
+              value={changePinInput}
+              onChangeText={t => { setCpError(''); setChangePinInput(t.replace(/\D/g, '').slice(0, 6)); }}
+              keyboardType="number-pad"
+              secureTextEntry
+              maxLength={6}
+              editable={!cpBusy}
+              autoFocus
+            />
+            {cpError ? <Text style={styles.modalError}>{cpError}</Text> : null}
+            <Pressable
+              testID="cp-next"
+              style={(s) => [styles.button, focusRingStyle(s)]}
+              disabled={cpBusy || changePinInput.length < 4}
+              onPress={handleChangePinStep}
+              accessibilityRole="button"
+              accessibilityLabel="Next step"
+            >
+              {cpBusy ? <ActivityIndicator color={c.onBrandPrimary} /> : <Text style={styles.buttonText}>{cpStep === 'confirm' ? 'Save new PIN' : 'Next'}</Text>}
+            </Pressable>
+            <Pressable
+              testID="cp-cancel"
+              style={(s) => [styles.modalKeep, focusRingStyle(s)]}
+              disabled={cpBusy}
+              onPress={() => { setChangePinVisible(false); setCpCurrentInput(''); setCpNewInput(''); setCpConfirmInput(''); setCpStep('current'); setCpError(''); }}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel"
+            >
+              <Text style={styles.modalKeepTxt}>Cancel</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -1189,4 +1354,8 @@ const styles = StyleSheet.create({
   heading2: { fontFamily: theme.fonts.displayBold, fontSize: 22, color: c.ink },
   note2: { fontFamily: theme.fonts.body, fontSize: 14, lineHeight: 20, color: c.muted, textAlign: 'center', marginTop: 8, marginBottom: 20 },
   pinInput: { fontFamily: theme.fonts.bodyBold, fontSize: 28, letterSpacing: 8, textAlign: 'center', borderWidth: 1, borderColor: c.lines, borderRadius: 12, padding: 14, width: 180, marginBottom: 12, color: c.ink },
+  // B5 (Phase 0.5)
+  changePinBtn: { alignSelf: 'flex-end', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: c.lines, minHeight: 48, justifyContent: 'center' },
+  changePinText: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted },
+  cpInput: { fontFamily: theme.fonts.bodyBold, fontSize: 26, letterSpacing: 8, textAlign: 'center', borderWidth: 1, borderColor: c.lines, borderRadius: 12, padding: 14, width: 180, marginVertical: 10, color: c.ink },
 });

@@ -8,6 +8,7 @@ import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
 import { QuickExit } from '@/src/components/dhara/SosPill';
 import { openPhone } from '@/src/women/helpActions';
+import { setEvidenceAutoRecord } from '@/src/women/evidenceAutoRecord';
 import { focusRingStyle } from '@/src/a11yFocus';
 
 const c = theme.colors;
@@ -20,10 +21,14 @@ export default function Emergency() {
   const [callStatus, setCallStatus] = useState<string | null>(null);
 
   const tiles = [
-    { id: 'silent-alert', icon: 'people-outline', title: tr('em.silent', lang), sub: tr('em.silent.sub', lang), route: '/women/silent-alert' },
-    { id: 'record-now', icon: 'mic-outline', title: tr('em.record', lang), sub: tr('em.record.sub', lang), route: '/women/evidence-locker?record=1' },
-    { id: 'officer-card', icon: 'shield-outline', title: tr('em.officer', lang), sub: tr('em.officer.sub', lang), route: '/women/officer-card?scenario=police_wont_file' },
-    { id: 'nearest-help', icon: 'location-outline', title: tr('em.nearest', lang), sub: tr('em.nearest.sub', lang), route: '/women/nearest-help' },
+    { id: 'silent-alert', icon: 'people-outline', title: tr('em.silent', lang), sub: tr('em.silent.sub', lang), route: '/women/silent-alert', beforeNav: undefined as (() => void) | undefined },
+    // B1 (Phase 0.5): beforeNav sets the module-level auto-record flag so the
+    // locker can verify the intent came from in-app navigation, not a deep-link.
+    // The route no longer carries ?record=1 — the URL param approach allowed any
+    // external link to turn on the microphone.
+    { id: 'record-now', icon: 'mic-outline', title: tr('em.record', lang), sub: tr('em.record.sub', lang), route: '/women/evidence-locker', beforeNav: () => setEvidenceAutoRecord() },
+    { id: 'officer-card', icon: 'shield-outline', title: tr('em.officer', lang), sub: tr('em.officer.sub', lang), route: '/women/officer-card?scenario=police_wont_file', beforeNav: undefined },
+    { id: 'nearest-help', icon: 'location-outline', title: tr('em.nearest', lang), sub: tr('em.nearest.sub', lang), route: '/women/nearest-help', beforeNav: undefined },
   ];
 
   return (
@@ -81,7 +86,7 @@ export default function Emergency() {
 
         <View style={styles.grid}>
           {tiles.map(t => (
-            <Pressable key={t.id} testID={`help-${t.id}`} accessibilityRole="button" accessibilityLabel={`${t.title} — ${t.sub}`} style={({ pressed }) => [styles.tile, pressed && { opacity: 0.7 }]} onPress={() => router.push(t.route as any)}>
+            <Pressable key={t.id} testID={`help-${t.id}`} accessibilityRole="button" accessibilityLabel={`${t.title} — ${t.sub}`} style={({ pressed }) => [styles.tile, pressed && { opacity: 0.7 }]} onPress={() => { t.beforeNav?.(); router.push(t.route as any); }}>
               <Ionicons name={t.icon as any} size={24} color="#fff" />
               <Text testID={`help-${t.id}-title`} style={styles.tileTitle}>{t.title}</Text>
               <Text testID={`help-${t.id}-description`} style={styles.tileSub}>{t.sub}</Text>
