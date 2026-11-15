@@ -456,12 +456,19 @@ export default function EvidenceLocker() {
   }, [scope, exitPreserving, closeVideoPreview, persistThenDiscard]));
   useEffect(() => {
     const sub = AppState.addEventListener('change', value => {
-      if (value !== 'active' && active.current) {
-        // A2 Step 1: backgrounding/interruption STOPS AND SAVES. The temp file
-        // is kept until its encrypted copy is read back; if the OS suspends us
-        // mid-save, the next launch recovers it (see useFocusEffect above).
-        setStatus('Recording stopped — saving your evidence. Nothing is discarded.');
-        void saveRef.current?.();
+      if (value !== 'active') {
+        if (active.current) {
+          // A2 Step 1: backgrounding/interruption STOPS AND SAVES. The temp file
+          // is kept until its encrypted copy is read back; if the OS suspends us
+          // mid-save, the next launch recovers it (see useFocusEffect above).
+          setStatus('Recording stopped — saving your evidence. Nothing is discarded.');
+          void saveRef.current?.();
+        }
+        // EL-057 (Phase 0.5): re-lock the locker on every foreground → background
+        // transition, regardless of whether a recording was in progress.
+        // setUnlocked is the useState setter (line 227); React guarantees its
+        // identity is stable across renders, so the [] dep array stays correct.
+        setUnlocked(false);
       }
     });
     return () => sub.remove();
