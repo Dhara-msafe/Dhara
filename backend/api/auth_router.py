@@ -108,7 +108,13 @@ async def register(body: RegisterIn):
         raise HTTPException(422, PASSWORD_RULE_MSG)
     existing = await db.users.find_one({"email": body.email.lower()})
     if existing:
-        raise HTTPException(400, "Email already registered")
+        # B-28 — do not reveal, from the sign-up form alone, whether a given
+        # email already has an account (that let anyone probe whether a
+        # specific person uses the app at all). Reuse the SAME neutral
+        # wording /auth/login already shows for "wrong email or password" —
+        # same words, same 400-ish failure shape — so a duplicate-email
+        # sign-up attempt is indistinguishable from a plain input mistake.
+        raise HTTPException(400, INVALID_LOGIN_MSG)
     uid = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
     doc = {
@@ -131,7 +137,10 @@ async def register(body: RegisterIn):
     try:
         await db.users.insert_one(doc)
     except DuplicateKeyError:
-        raise HTTPException(400, "Email already registered")
+        # Same B-28 fix — this is the race-condition path (two concurrent
+        # sign-ups for the same email), so it must stay just as neutral as
+        # the upfront check above.
+        raise HTTPException(400, INVALID_LOGIN_MSG)
     # Persist terms acknowledgement in a separate audit collection too
     await db.terms_acknowledgements.insert_one({
         "id": str(uuid.uuid4()),
