@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { OUTBOUND_PROFILE } from '@/src/outbound';
 
 /**
  * DHARA — tester reports & server errors (operator tool).
@@ -23,6 +24,22 @@ import { theme } from '@/src/theme';
  * key lives only in this page's memory for the current session.
  *
  * Reads only. The single write action is changing a report's status.
+ *
+ * B-59 (15 Nov) — "not linked anywhere inside the app" only ever meant no
+ * in-app button pointed here. The route itself still shipped working in
+ * every build, including production and Closed Testing handed to real
+ * external testers/users — anyone who had, guessed, or found the URL in the
+ * bundle could reach a live admin-key form backed by the shared ADMIN_KEY.
+ * Rotating that key is an owner/Emergent item, not a developer fix, but
+ * shrinking where a working copy of this screen ships is. Gated on the same
+ * OUTBOUND_PROFILE build signal already used for admin-upi-review.tsx
+ * (B-41/B-51) and the QA-mode banner (B-06) — internal_qa only. Outside that
+ * profile the screen renders a plain "not available" state before the
+ * admin-key input ever mounts and before a single fetch is ever made, so a
+ * leaked/guessed key is useless against a production or Closed Testing
+ * build. The backend's check_admin_key mechanism and the public /api/issues
+ * submission endpoint (used by the in-app issue reporter) are both
+ * untouched — this only gates whether the operator-review screen renders.
  */
 
 type Report = {
@@ -160,6 +177,17 @@ export default function AdminIssues() {
       setActingOn(null);
     }
   };
+
+  if (OUTBOUND_PROFILE !== 'internal_qa') {
+    return (
+      <SafeAreaView style={styles.safe} testID="admin-issues-unavailable">
+        <View style={styles.centerPad}>
+          <Text style={styles.heading}>Not available</Text>
+          <Text style={styles.sub}>This page isn&apos;t available in this build.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (Platform.OS !== 'web') {
     return (
