@@ -298,6 +298,14 @@ export default function EvidenceLocker() {
   const segDurationsRef = useRef<number[]>([]); // Fix (S1-3): measured per-segment durations, summed for the total
   const commitPromiseRef = useRef<Promise<void>>(Promise.resolve()); // FIX (a): tracks the in-flight segment-commit so save() can await it before stopping
   const lastCommittedUriRef = useRef<string | null>(null); // FIX (RC4): URI of segment most recently committed by commitCurrentSegment — save() skips it to avoid double-save
+  // EL-057 (Phase 0.5): true while any system UI overlay (camera picker, share
+  // sheet, location-permission dialog, certificate share) is in front of the app.
+  // The AppState listener skips setUnlocked(false) while this is true so that
+  // normal in-locker flows are not interrupted by a spurious re-lock.
+  // Cleared by finally blocks in capture/shareItem/requestLocationThenAnchor/
+  // handleCertificate, and also by the AppState 'active' branch as a bounded
+  // fallback for the iOS stuck-sheet edge case.
+  const systemOverlayRef = useRef(false);
   const [segmentCount, setSegmentCount] = useState(0);
   const [recoverable, setRecoverable] = useState<EvidenceSession[]>([]);
   // S5 — Evidence Actions: per-item notes (stored locally, keyed by item.id)
@@ -464,11 +472,19 @@ export default function EvidenceLocker() {
           setStatus('Recording stopped — saving your evidence. Nothing is discarded.');
           void saveRef.current?.();
         }
-        // EL-057 (Phase 0.5): re-lock the locker on every foreground → background
-        // transition, regardless of whether a recording was in progress.
-        // setUnlocked is the useState setter (line 227); React guarantees its
-        // identity is stable across renders, so the [] dep array stays correct.
-        setUnlocked(false);
+        // EL-057 (Phase 0.5): re-lock only when no system overlay is active.
+        // Camera picker, share sheet, and permission dialogs all fire AppState
+        // 'background'/'inactive'; skipping setUnlocked during those transitions
+        // prevents spurious re-locks mid-capture or mid-share.
+        if (!systemOverlayRef.current) {
+          setUnlocked(false);
+        }
+      } else {
+        // Foreground return — bounded fallback for the iOS stuck-sheet edge case:
+        // if shareAsync opened a full-screen share target and the promise never
+        // formally resolved before the user came back, clear the flag here so it
+        // cannot block re-locking on the next background transition.
+        systemOverlayRef.current = false;
       }
     });
     return () => sub.remove();
@@ -853,6 +869,11 @@ export default function EvidenceLocker() {
   const capture = useCallback(async (kind: 'photo' | 'video') => {
     if (busy) return;
     setBusy(true); setStatus('');
+    // EL-057: mark system overlay active for the entire capture flow.
+    // Covers both requestCameraPermissionsAsync() (Android permission dialog)
+    // and launchCameraAsync() (native camera on both platforms), both of which
+    // fire AppState 'background'/'inactive'. Cleared in the outer finally below.
+    systemOverlayRef.current = true;
     try {
       const existing = await ImagePicker.getCameraPermissionsAsync();
       let granted = existing.granted;
@@ -896,7 +917,7 @@ export default function EvidenceLocker() {
           (msg ? `(${msg.slice(0, 120)})` : 'Please try again.'),
         );
       }
-    } finally { setBusy(false); }
+    } finally { setBusy(false); systemOverlayRef.current = false; }
   }, [busy, scope]);
 
   const shareItem = useCallback(async (item: RecordingItem) => {
@@ -920,16 +941,23 @@ export default function EvidenceLocker() {
               ],
             );
           });
-          if (confirmed) await Sharing.shareAsync(zipUri, { mimeType: 'application/zip' });
+          // EL-057: set overlay flag before the share sheet opens.
+          if (confirmed) {
+            systemOverlayRef.current = true;
+            await Sharing.shareAsync(zipUri, { mimeType: 'application/zip' });
+          }
         } finally {
           releaseDecryptedTempUri(zipUri, true);
+          systemOverlayRef.current = false; // EL-057: clear whether confirmed or not
         }
         return;
       }
       // Single-file path — unchanged.
       const tempUri = await getDecryptedTempUri(scope, item);
+      // EL-057: set overlay flag before the share sheet opens.
+      systemOverlayRef.current = true;
       try { await Sharing.shareAsync(tempUri); }
-      finally { releaseDecryptedTempUri(tempUri, !!item.iv); }
+      finally { releaseDecryptedTempUri(tempUri, !!item.iv); systemOverlayRef.current = false; }
     } catch { setStatus('Could not open the share sheet. Please try again.'); }
   }, [scope]);
 
@@ -966,7 +994,12 @@ export default function EvidenceLocker() {
           );
           return;
         }
-        const req = await Location.requestForegroundPermissionsAsync();
+        // EL-057: permission dialog fires AppState on Android — guard the re-lock.
+        // Set true synchronously before the native call, clear in .finally() so
+        // it is always released whether the dialog resolves or throws.
+        systemOverlayRef.current = true;
+        const req = await Location.requestForegroundPermissionsAsync()
+          .finally(() => { systemOverlayRef.current = false; });
         granted = req.granted;
       }
       if (!granted) { await doAnchor(item, null); return; }
@@ -1004,8 +1037,12 @@ export default function EvidenceLocker() {
   const handleCertificate = useCallback(async (item: RecordingItem) => {
     const entry = manifestMap[item.id];
     if (!entry?.anchor) { setStatus('Anchor this item first to generate a certificate.'); return; }
+    // EL-057: exportCertificate calls Sharing.shareAsync internally — guard
+    // the entire call so the share sheet does not trigger a spurious re-lock.
+    systemOverlayRef.current = true;
     try { await exportCertificate(item, entry); }
     catch { setStatus('Could not export the certificate. Please try again.'); }
+    finally { systemOverlayRef.current = false; }
   }, [manifestMap]);
 
   // The item whose delete confirmation is open (if any).
