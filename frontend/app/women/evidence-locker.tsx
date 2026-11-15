@@ -262,12 +262,12 @@ export default function EvidenceLocker() {
     if (!unlocked) return;
     AsyncStorage.getItem(`evidence_notes_${scope}`).then(v => { if (v) setNotesMap(JSON.parse(v)); }).catch(() => {});
   }, [scope, unlocked]);
-  // B2 (Phase 0.5): on unlock, sweep cache dir for leftover decrypted temp
-  // files from previous sessions that were killed before releaseDecryptedTempUri
-  // could clean them up.  NEVER removes a URI that is still pending (not yet
-  // sealed) — those are tracked in evidencePendingTemp and must survive.
+  // B2 (Phase 0.5 — corrected): sweep cache dir for leftover decrypted temp
+  // files at every launch (component mount or scope change), NOT on unlock.
+  // The cleanup only reads file names; it never reads file contents or uses
+  // the encryption key, so the PIN gate does not need to have resolved first.
+  // Pending URIs (not yet sealed) are skipped regardless.
   useEffect(() => {
-    if (!unlocked) return;
     void (async () => {
       try {
         const pending = await listPendingTemps(AsyncStorage, scope);
@@ -283,7 +283,7 @@ export default function EvidenceLocker() {
         // non-fatal: stale temp cleanup is best-effort
       }
     })();
-  }, [unlocked, scope]);
+  }, [scope]); // runs at mount and on scope change — does NOT wait for unlock
   const player = useRef<TtsPlayer | null>(null);
   const epoch = useRef(0);
   const working = useRef(false);
