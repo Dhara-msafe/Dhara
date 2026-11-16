@@ -153,12 +153,13 @@ async function fetchAddressSuggestions(base: string, query: string): Promise<Add
 // Both calls THROW on any non-2xx/network error so callers can fail closed
 // (hide the dropdown, leave the manual Search button fully functional).
 async function fetchPlacesAutocomplete(
-  base: string, input: string, sessionToken: string,
+  base: string, input: string, sessionToken: string, authToken: string,
   bias?: { latitude: number; longitude: number } | null,
 ): Promise<PlacesSuggestion[]> {
   const r = await fetch(
     `${base}/api/geo/autocomplete?input=${encodeURIComponent(input)}&session_token=${encodeURIComponent(sessionToken)}&limit=6`
-    + (bias ? `&lat=${bias.latitude.toFixed(5)}&lng=${bias.longitude.toFixed(5)}` : '')
+    + (bias ? `&lat=${bias.latitude.toFixed(5)}&lng=${bias.longitude.toFixed(5)}` : ''),
+    { headers: { Authorization: `Bearer ${authToken}` } },
   );
   if (!r.ok) throw new Error(`places_autocomplete_${r.status}`);
   const j = await r.json();
@@ -166,10 +167,11 @@ async function fetchPlacesAutocomplete(
 }
 
 async function fetchPlaceDetails(
-  base: string, placeId: string, sessionToken: string, provider: string
+  base: string, placeId: string, sessionToken: string, provider: string, authToken: string,
 ): Promise<{ label: string; latitude: number; longitude: number } | null> {
   const r = await fetch(
-    `${base}/api/geo/details?place_id=${encodeURIComponent(placeId)}&session_token=${encodeURIComponent(sessionToken)}&provider=${encodeURIComponent(provider)}`
+    `${base}/api/geo/details?place_id=${encodeURIComponent(placeId)}&session_token=${encodeURIComponent(sessionToken)}&provider=${encodeURIComponent(provider)}`,
+    { headers: { Authorization: `Bearer ${authToken}` } },
   );
   if (!r.ok) throw new Error(`places_details_${r.status}`);
   return r.json();
@@ -637,7 +639,10 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
     setSearchError(false);
 
     if (placesDebounceRef.current) clearTimeout(placesDebounceRef.current);
-    if (!PLACES_AUTOCOMPLETE_ENABLED) return;
+    // N-02: /api/geo/autocomplete now requires an authenticated session.
+    // Without one, fail closed exactly like the flag-off path — dropdown
+    // stays off, the manual OSM Search button keeps working.
+    if (!PLACES_AUTOCOMPLETE_ENABLED || !authToken) return;
 
     const trimmed = text.trim();
     if (trimmed.length < SEARCH_MIN_CHARS) {
@@ -663,7 +668,7 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
       setPlacesLoading(true);
       try {
         // Bias only when the user has already allowed location.
-        const results = await fetchPlacesAutocomplete(base, trimmed, token, livePointRef.current);
+        const results = await fetchPlacesAutocomplete(base, trimmed, token, authToken, livePointRef.current);
         if (placesReqRef.current !== reqId) return; // superseded by newer keystroke
         setPlacesSuggestions(results);
         setPlacesEmpty(results.length === 0);
@@ -678,15 +683,15 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
         if (placesReqRef.current === reqId) setPlacesLoading(false);
       }
     }, PLACES_DEBOUNCE_MS);
-  }, [onChange, base]);
+  }, [onChange, base, authToken]);
 
   const selectPlacesSuggestion = useCallback(async (s: PlacesSuggestion) => {
     const token = placesSessionTokenRef.current;
     setShowPlacesDropdown(false);
-    if (!token) return;
+    if (!token || !authToken) return;
     setPlacesLoading(true);
     try {
-      const details = await fetchPlaceDetails(base, s.place_id, token, s.provider);
+      const details = await fetchPlaceDetails(base, s.place_id, token, s.provider, authToken);
       if (details) {
         // Read ref: the user may have changed radiusMeters after typing started.
         onChange({
@@ -706,7 +711,7 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
       setPlacesEmpty(false);
       placesSessionTokenRef.current = null; // session concluded — fresh token next search
     }
-  }, [base, onChange]);
+  }, [base, onChange, authToken]);
 
   const selectSuggestion = useCallback((s: AddressSuggestion) => {
     // Read ref: address suggestions may resolve after a radius chip was tapped.

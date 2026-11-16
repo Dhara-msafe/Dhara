@@ -32,6 +32,17 @@ after a selection, then discards it. We validate the shape server-side but
 otherwise just pass it through to Google.
 
 Mounted at /api/geo/ via server.py.
+
+N-02 (B-40) — auth + rate limit: every route below now requires a valid
+session (current_user — a real account OR a guest JWT from /auth/guest;
+there is no anonymous access) and is metered per-user and per-IP per day,
+reusing the exact `usage_daily` counter pattern auth_router.py already uses
+for the guest-session IP throttle. Both of these proxy a paid, server-keyed
+Google API, so an unauthenticated or unbounded caller is a real spend risk,
+not just an abuse risk. Unauthenticated calls now get 401 (via the
+dependency); calls over the daily cap get 429. A spend alert on the Google
+Cloud project itself is a billing-console setting, not something this
+codebase can configure — that piece stays with the owner.
 """
 from __future__ import annotations
 
@@ -42,14 +53,59 @@ import math
 import os
 import re
 import time
+from datetime import datetime, timezone
 from typing import List, Optional, Protocol
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends, Request
 from pydantic import BaseModel
+
+from dependencies import db, current_user
 
 logger = logging.getLogger("geo_router")
 router = APIRouter()
+
+# ── N-02 (B-40): per-user + per-IP daily rate limit ──────────────────────────
+# Same storage/shape as auth_router.py's GUEST_IP_DAILY_LIMIT throttle
+# (db.usage_daily, scope/day/key, $inc + upsert) — no new collection, no new
+# pattern to learn. Limits are per endpoint "kind" since usage patterns
+# differ a lot (autocomplete fires on every debounced keystroke; directions
+# polls repeatedly for the whole length of an active Head Out journey).
+_GEO_USER_DAILY_LIMIT = {
+    "autocomplete": 300,   # several searches' worth of keystrokes
+    "details":       80,   # one call per selected suggestion
+    "nearby":        80,
+    "search_text":   80,
+    "directions":   600,   # polled every ~10-30s during an active journey
+}
+# Looser per-IP ceiling as defense-in-depth against many accounts sharing one
+# network (e.g. guest-account farming) — not meant to bind a normal user.
+_GEO_IP_DAILY_LIMIT = 2000
+
+
+async def _check_geo_rate_limit(kind: str, user_id: str, ip: str) -> None:
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    user_doc = await db.usage_daily.find_one_and_update(
+        {"scope": f"geo_{kind}", "day": day, "user_id": user_id},
+        {"$inc": {"count": 1}},
+        upsert=True,
+        return_document=True,
+    )
+    if int(user_doc.get("count", 0)) > _GEO_USER_DAILY_LIMIT.get(kind, 100):
+        raise HTTPException(429, "Too many location requests today. Please try again tomorrow.")
+
+    ip_doc = await db.usage_daily.find_one_and_update(
+        {"scope": "geo_ip", "day": day, "ip": ip},
+        {"$inc": {"count": 1}},
+        upsert=True,
+        return_document=True,
+    )
+    if int(ip_doc.get("count", 0)) > _GEO_IP_DAILY_LIMIT:
+        raise HTTPException(429, "Too many location requests from this network today. Please try again tomorrow.")
+
+
+def _client_ip(request: Request) -> str:
+    return (request.client.host if request.client else "unknown") or "unknown"
 
 # ── Feature flag + server key (server-side only — never sent to the client) ──
 
@@ -286,12 +342,15 @@ def _active_provider() -> Optional[GeoProvider]:
 
 @router.get("/geo/autocomplete", response_model=dict)
 async def geo_autocomplete(
+    request: Request,
     input: str = Query(..., min_length=2, max_length=120, alias="input"),
     session_token: str = Query(..., min_length=8, max_length=64),
     limit: int = Query(6, ge=1, le=8),
     lat: Optional[float] = Query(None, ge=-90, le=90),
     lng: Optional[float] = Query(None, ge=-180, le=180),
+    user: dict = Depends(current_user),
 ):
+    await _check_geo_rate_limit("autocomplete", user["id"], _client_ip(request))
     if not _SESSION_TOKEN_RE.match(session_token):
         raise HTTPException(400, "Invalid session token")
     # Soft bias, only sent by a client that already has location permission.
@@ -299,15 +358,21 @@ async def geo_autocomplete(
 
     provider = _active_provider()
     if provider is None:
-        # Google not configured — serve free OSM suggestions instead of failing,
-        # so typing still suggests places. Same response shape.
-        try:
-            fallback = NominatimFallbackProvider()
-            suggestions = await fallback.autocomplete(input.strip(), session_token, limit, bias)
-            return {"suggestions": [s.model_dump() for s in suggestions], "provider": fallback.name}
-        except Exception as e:
-            logger.warning("geo_autocomplete: OSM-only lookup failed: %s", e)
-            raise HTTPException(502, "Address search is temporarily unavailable. Try again shortly.")
+        # Bug fix (found while doing N-02): this branch previously called an
+        # undefined `NominatimFallbackProvider()` — no such class exists
+        # anywhere in the repo — so it always raised NameError, silently
+        # swallowed by the `except Exception` below, meaning every call when
+        # the flag/key is unconfigured just 502'd with a misleading
+        # "temporarily unavailable" message. Leftover dead code from an
+        # earlier iteration that DID have an OSM fallback (see the now-stale
+        # test_geo_autocomplete_osm_live.py, removed alongside this fix) —
+        # this module's own docstring and the current, actively-passing
+        # test_head_out_places_autocomplete.py both already document and
+        # test the CURRENT intended design: "deliberately no OSM fallback...
+        # fail closed". This now does exactly that, with the same message
+        # geo_details already uses for the same unconfigured case, so both
+        # endpoints are consistent.
+        raise HTTPException(503, "Places autocomplete is not enabled")
 
     try:
         suggestions = await provider.autocomplete(input.strip(), session_token, limit, bias)
@@ -325,10 +390,13 @@ async def geo_autocomplete(
 
 @router.get("/geo/details", response_model=dict)
 async def geo_details(
+    request: Request,
     place_id: str = Query(..., min_length=1, max_length=512),
     session_token: str = Query(..., min_length=8, max_length=64),
     provider: str = Query("google", pattern="^google$"),
+    user: dict = Depends(current_user),
 ):
+    await _check_geo_rate_limit("details", user["id"], _client_ip(request))
     if not _SESSION_TOKEN_RE.match(session_token):
         raise HTTPException(400, "Invalid session token")
 
@@ -403,11 +471,14 @@ def _parse_places_response(data: dict, origin_lat: float, origin_lng: float) -> 
 
 @router.get("/geo/nearby", response_model=dict)
 async def geo_nearby(
+    request: Request,
     category: str = Query(..., pattern="^(police|hospital)$"),
     lat: float = Query(..., ge=-90, le=90),
     lng: float = Query(..., ge=-180, le=180),
     radius_meters: int = Query(5000, ge=200, le=50000),
+    user: dict = Depends(current_user),
 ):
+    await _check_geo_rate_limit("nearby", user["id"], _client_ip(request))
     if not FEATURE_GOOGLE_PLACES_V1 or not GOOGLE_PLACES_SERVER_KEY:
         raise HTTPException(503, "Nearby search is not enabled")
     headers = {
@@ -436,10 +507,13 @@ async def geo_nearby(
 
 @router.get("/geo/search-text", response_model=dict)
 async def geo_search_text(
+    request: Request,
     query: str = Query(..., min_length=3, max_length=120),
     lat: Optional[float] = Query(None, ge=-90, le=90),
     lng: Optional[float] = Query(None, ge=-180, le=180),
+    user: dict = Depends(current_user),
 ):
+    await _check_geo_rate_limit("search_text", user["id"], _client_ip(request))
     if not FEATURE_GOOGLE_PLACES_V1 or not GOOGLE_PLACES_SERVER_KEY:
         raise HTTPException(503, "Text search is not enabled")
     headers = {
@@ -566,10 +640,12 @@ async def _google_route(origin_lat: float, origin_lng: float, dest_lat: float, d
 
 @router.get("/geo/directions", response_model=dict)
 async def geo_directions(
+    request: Request,
     origin_lat: float = Query(..., ge=-90, le=90),
     origin_lng: float = Query(..., ge=-180, le=180),
     dest_lat: float = Query(..., ge=-90, le=90),
     dest_lng: float = Query(..., ge=-180, le=180),
+    user: dict = Depends(current_user),
 ):
     """Route line + ETA for an active Head Out journey. Fails OPEN to an
     approximate straight-line estimate rather than erroring the caller out —
@@ -577,7 +653,14 @@ async def geo_directions(
     Directions flag/key isn't configured or Google is briefly unavailable.
     Unlike geo_autocomplete, there is no free third-party routing fallback
     used here (OSRM's public demo server is not production-safe to depend
-    on) — "approximate" IS the fallback, clearly labelled via `provider`."""
+    on) — "approximate" IS the fallback, clearly labelled via `provider`.
+
+    N-02 note: this fail-OPEN behaviour is for Google-the-provider being
+    unavailable/unconfigured, not for auth/rate-limit — an unauthenticated or
+    over-limit caller is still rejected (401/429) by the dependency/check
+    below before any of this runs; a live safety journey never depends on
+    this endpoint being reachable with no account at all."""
+    await _check_geo_rate_limit("directions", user["id"], _client_ip(request))
     if not FEATURE_GOOGLE_DIRECTIONS_V1 or not GOOGLE_DIRECTIONS_SERVER_KEY:
         return _approximate_route(origin_lat, origin_lng, dest_lat, dest_lng).model_dump()
     try:
