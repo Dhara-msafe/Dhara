@@ -34,8 +34,11 @@ const bannerSrc = readFileSync(BANNER, 'utf8');
 const layoutSrc = readFileSync(LAYOUT, 'utf8');
 const outboundSrc = readFileSync(OUTBOUND, 'utf8');
 
-test('QaModeBanner only renders for the internal_qa profile, never silently for anything else', () => {
-  assert.ok(/if \(OUTBOUND_PROFILE !== 'internal_qa'\) return null;/.test(bannerSrc));
+test('QaModeBanner renders only for internal_qa (QA MODE) and closed_testing (CLOSED TEST), never in production', () => {
+  // v2.2.1 (owner-approved 14 Nov): closed_testing shows its own "CLOSED TEST"
+  // banner; production never shows one; anything else shows nothing.
+  assert.ok(/if \(OUTBOUND_PROFILE === 'production'\) return null;/.test(bannerSrc));
+  assert.ok(/if \(!isClosedTest && OUTBOUND_PROFILE !== 'internal_qa'\) return null;/.test(bannerSrc));
 });
 
 test('QaModeBanner reads the shared OUTBOUND_PROFILE (same source of truth as the dialler/SMS/share guard), not its own env read', () => {

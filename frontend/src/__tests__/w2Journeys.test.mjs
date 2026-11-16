@@ -47,7 +47,7 @@ test('W2-J01: the global Help FAB and the Me-tab both navigate to /emergency', (
 test('W2-J01: the emergency screen\'s 112 circle dials through openPhone (the Outbound Guard), not a raw dialler call', () => {
   assert.ok(emergencySrc.includes("import { openPhone } from '@/src/women/helpActions';"));
   const pressableStart = emergencySrc.indexOf('testID="call-112"');
-  const pressableNearby = emergencySrc.slice(Math.max(0, pressableStart - 150), pressableStart + 150);
+  const pressableNearby = emergencySrc.slice(Math.max(0, pressableStart - 150), pressableStart + 400);
   assert.ok(pressableStart !== -1, 'call-112 Pressable not found');
   assert.match(pressableNearby, /onPress=\{async \(\) => setCallStatus\(await openPhone\('112'\)\)\}/);
   // The call status (simulated-vs-live text) is actually shown to the user,

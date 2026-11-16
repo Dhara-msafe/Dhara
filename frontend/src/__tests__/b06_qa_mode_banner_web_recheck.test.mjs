@@ -67,8 +67,10 @@ test('QaModeBanner has no Platform.OS branch or web-only early-return that could
   // The only early return must be the OUTBOUND_PROFILE gate, not a
   // platform check.
   const returnNullLines = bannerSrc.split('\n').filter(l => l.includes('return null'));
-  assert.equal(returnNullLines.length, 1);
-  assert.ok(returnNullLines[0].includes("OUTBOUND_PROFILE !== 'internal_qa'"));
+  assert.ok(returnNullLines.length >= 1);
+  // Every early return is an OUTBOUND_PROFILE gate (v2.2.1 added the
+  // closed_testing banner), never a platform check.
+  for (const l of returnNullLines) assert.ok(l.includes('OUTBOUND_PROFILE'), l);
 });
 
 test('there is no QaModeBanner.web.tsx platform-specific override', () => {

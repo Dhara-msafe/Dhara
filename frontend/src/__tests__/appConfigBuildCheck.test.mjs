@@ -57,16 +57,21 @@ function run({ env = {}, version = '1.0.0', platform = 'android' } = {}) {
   }
 }
 
-test('no profile set (defaults to internal_qa, matching outbound.ts) -> "-qa" is appended automatically', () => {
+// NF-DEPLOY-01 (14 Nov 2026, owner-approved): Expo's deploy pipeline rejects a
+// non-semver expo.version such as "1.0.0-qa", so the QA marker moved from
+// `version` to `extra.qaVersionLabel`. The QA MODE banner still marks QA builds.
+test('no profile set (defaults to internal_qa, matching outbound.ts) -> version stays semver, "-qa" goes to extra.qaVersionLabel', () => {
   const result = run({ env: {}, version: '1.0.0' });
-  assert.equal(result.version, '1.0.0-qa');
+  assert.equal(result.version, '1.0.0');
+  assert.equal(result.extra?.qaVersionLabel, '1.0.0-qa');
 });
 
-test('EXPO_PUBLIC_OUTBOUND_PROFILE=internal_qa -> "-qa" is appended, and not doubled if already present', () => {
+test('EXPO_PUBLIC_OUTBOUND_PROFILE=internal_qa -> "-qa" label is set, and not doubled if already present', () => {
   let result = run({ env: { EXPO_PUBLIC_OUTBOUND_PROFILE: 'internal_qa' }, version: '1.0.0' });
-  assert.equal(result.version, '1.0.0-qa');
+  assert.equal(result.version, '1.0.0');
+  assert.equal(result.extra?.qaVersionLabel, '1.0.0-qa');
   result = run({ env: { EXPO_PUBLIC_OUTBOUND_PROFILE: 'internal_qa' }, version: '1.0.0-qa' });
-  assert.equal(result.version, '1.0.0-qa', 'must not become 1.0.0-qa-qa');
+  assert.equal(result.extra?.qaVersionLabel, '1.0.0-qa', 'must not become 1.0.0-qa-qa');
 });
 
 test('EXPO_PUBLIC_OUTBOUND_PROFILE=closed_testing -> version passes through unchanged', () => {
