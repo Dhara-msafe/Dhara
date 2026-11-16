@@ -6,7 +6,7 @@ import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Alert
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
-import { loadVisitorSession, VisitorSession } from '@/src/visitor/session';
+import { useVisitorSessionOrRedirect } from '@/src/visitor/session';
 import { EMERGENCY_STEPS, WorkflowStep } from '@/src/visitor/content';
 import { useAuth } from '@/src/auth';
 import { speakLangFor, phraseIn, playPhrase } from '@/src/visitor/speakForMe';
@@ -16,12 +16,10 @@ const C = theme.colors;
 
 export default function VisitorEmergency() {
   const { token } = useAuth();
-  const [session, setSession] = useState<VisitorSession | null>(null);
+  // B-86: redirects to /visitor if this screen is opened directly (URL hit
+  // or refresh) with no session ever saved, instead of spinning forever.
+  const session = useVisitorSessionOrRedirect();
   const [speaking, setSpeaking] = useState<string | null>(null); // step id being spoken
-
-  useEffect(() => {
-    loadVisitorSession().then(s => setSession(s));
-  }, []);
 
   const lc = session?.touristLang.code || 'en';
   const t = (map: Record<string, string> | undefined) => {
