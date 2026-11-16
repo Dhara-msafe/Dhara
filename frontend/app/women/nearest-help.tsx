@@ -11,6 +11,11 @@ import { openPhone } from '@/src/women/helpActions';
 import { openExternal } from '@/src/outbound';
 const c = theme.colors;
 
+// B-102: how long to wait for the location-permission prompt / fix before
+// giving up and falling back to external Maps, rather than spinning forever
+// on a prompt the user missed or dismissed without choosing.
+const LOCATION_TIMEOUT_MS = 12000;
+
 type Category = 'police' | 'hospital' | 'osc';
 const places: { id: Category; name: string; query: string }[] = [
   { id: 'police', name: 'Police station', query: 'police station near me' },
@@ -47,12 +52,30 @@ export default function NearestHelp() {
     } catch { setStatus('Maps could not open. Open your map app and search for this place.'); }
   };
 
+  // B-102: requestForegroundPermissionsAsync()/getCurrentPositionAsync() have
+  // no timeout of their own — on web, the browser's native permission prompt
+  // can sit unanswered indefinitely (the user looks away, dismisses it
+  // without choosing, or it renders off-screen), and neither promise ever
+  // resolves or rejects on its own. handleSelect awaits this function inside
+  // a try/finally that only clears loadingId when it settles, so a missed
+  // prompt spun the "Searching..." indicator forever with no way out.
+  // withLocationTimeout() bounds the wait; a timeout resolves to null here,
+  // which the existing fail-closed path in handleSelect already turns into
+  // the external-Maps fallback (same path used for "no permission" today),
+  // so a stuck prompt now reaches the same safe outcome instead of hanging.
+  const withLocationTimeout = <T,>(promise: Promise<T>): Promise<T | null> =>
+    Promise.race([
+      promise,
+      new Promise<null>(resolve => setTimeout(() => resolve(null), LOCATION_TIMEOUT_MS)),
+    ]);
+
   const ensureLocation = async (): Promise<{ lat: number; lng: number } | null> => {
     if (locationRef.current) return locationRef.current;
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (!permission.granted) return null;
-      const point = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const permission = await withLocationTimeout(Location.requestForegroundPermissionsAsync());
+      if (!permission || !permission.granted) return null;
+      const point = await withLocationTimeout(Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }));
+      if (!point) return null;
       locationRef.current = { lat: point.coords.latitude, lng: point.coords.longitude };
       return locationRef.current;
     } catch { return null; }
