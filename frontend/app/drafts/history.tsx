@@ -8,6 +8,7 @@ import * as Clipboard from 'expo-clipboard';
 import { theme } from '@/src/theme';
 import { draftByType } from '@/src/drafts';
 import { DraftHistoryItem, loadHistory, removeFromHistory } from '@/src/draftHistory';
+import { formatDateDMY } from '@/src/dateFormat';
 
 import { shareExternal } from '@/src/outbound';
 /** Every notice a user generated, kept on-device so it can be reopened,
@@ -88,7 +89,7 @@ export default function DraftHistoryScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.title}>{item.title}</Text>
                     <Text style={styles.meta}>
-                      {new Date(item.created_at).toLocaleDateString()} ·{' '}
+                      {formatDateDMY(item.created_at)} ·{' '}
                       {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </Text>
                   </View>

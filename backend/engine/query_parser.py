@@ -147,13 +147,41 @@ async def parse_query(
     # original_query is always the raw user text — strip only affects normalized.
     clean_query = strip_imperative_prefix(query)
 
-    # Build the prompt, including prior context if this is a continuation turn
+    # Build the prompt, including prior context if this is a continuation turn.
+    #
+    # B-98 (role reversal on follow-up): the prior-context hint used to pass
+    # the earlier turn's actor_roles under the unlabeled key "actors", with
+    # no mention of the user's own asking_as_role. A short follow-up like
+    # "How do I send that legal notice?" (after "landlord withholding my
+    # deposit") carries no restated subject, so the model would reuse the
+    # earlier counterparty role (landlord) as actor_roles for THIS turn's
+    # new action (send notice) too -- even though the user themself is the
+    # one performing it. Layer B's ACTOR-CONDUCT LOCK then "corrects" the
+    # answer as if the user had asked about someone else's obligation,
+    # producing exactly the reversed "you do not send it -- your landlord
+    # does" answer. Labeling the hint as PRIOR-turn-only, naming it
+    # "counterparty_roles" (not the ambiguous "actors"), surfacing the
+    # user's own prior role, and explicitly telling the model that THIS
+    # turn's actor_roles must reflect who performs THIS turn's action (not
+    # an automatic carry-over) removes the bias at the source.
     prompt = clean_query
     if prior_state and prior_state.candidate_issues:
         prompt = (
-            f"[PRIOR CONTEXT: issues={prior_state.candidate_issues}, "
-            f"actions={prior_state.actions}, actors={prior_state.actor_roles}]\n"
-            f"NEW USER MESSAGE: {clean_query}"
+            f"[PRIOR TURN CONTEXT ONLY: issues={prior_state.candidate_issues}, "
+            f"actions={prior_state.actions}, counterparty_roles={prior_state.actor_roles}, "
+            f"user_role={prior_state.asking_as_role}]\n"
+            f"NEW USER MESSAGE: {clean_query}\n"
+            f"NOTE: the bracketed context above describes the PRIOR turn only. "
+            f"For THIS message, decide actor_roles from THIS message's own "
+            f"action -- it is whoever performs the action in actions above for "
+            f"THIS message specifically, and is NOT automatically the same as "
+            f"counterparty_roles from before. For example, if the prior turn "
+            f"was about a landlord's conduct and this new message asks how the "
+            f"user themself should do something (e.g. send a notice), "
+            f"actor_roles for this message should name the user's own role, "
+            f"not the landlord. If the user doesn't restate their own role in "
+            f"this message, set asking_as_role to the same value as user_role "
+            f"above (do not leave it null just because it wasn't repeated)."
         )
 
     async def _attempt() -> Optional[LegalQuery]:

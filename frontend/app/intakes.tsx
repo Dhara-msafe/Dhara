@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, Pressable, FlatList, StyleSheet, ActivityIndicator, Platform, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, Redirect } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { INTAKE_TEMPLATES, IntakeTemplate } from '@/src/intakeTemplates';
+import { ADVOCATE_MODE_ENABLED } from '@/src/advocateMode/flags';
 
 import { shareExternal } from '@/src/outbound';
 const NAVY = theme.colors.primary;
@@ -37,6 +38,14 @@ function StatusChip({ status }: { status: Intake['status'] }) {
 }
 
 export default function Intakes() {
+  // B-97: advocate/lawyer features are hidden for Wave 1 per D-14 -- this
+  // must hold even on a direct URL hit or a refresh, not just when reached
+  // via the (now-hidden) in-app links. (Note: the client-facing intake
+  // FORM at /intake/[token] and /intake-view/[token] is a different screen
+  // entirely and is intentionally left untouched here -- this list/manage
+  // screen is the advocate-facing one.)
+  if (!ADVOCATE_MODE_ENABLED) return <Redirect href="/(tabs)/home" />;
+
   const { token, user } = useAuth();
   const router = useRouter();
   const [intakes, setIntakes] = useState<Intake[]>([]);

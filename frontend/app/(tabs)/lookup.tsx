@@ -418,7 +418,15 @@ export default function LookupScreen() {
                   style={styles.input}
                   value={cnr}
                   onChangeText={handleCNR}
-                  placeholder="CNR — e.g. DLHC010001232024"
+                  // B-104: the previous example, DLHC010001232024, was a
+                  // real, resolvable CNR on eCourts — searching it (even by
+                  // habit, copying the placeholder) returned a real
+                  // petitioner's full name. XXHC000000002099 keeps the exact
+                  // 16-char shape (and still passes CNR_RE's 4-letter +
+                  // 12-digit check) while using a state code ("XX") that
+                  // appears nowhere in CNR_STATE_CODES and a year far in the
+                  // future, so it can never match a real filed case.
+                  placeholder="CNR — e.g. XXHC000000002099"
                   placeholderTextColor={HINT}
                   autoCapitalize="characters"
                   autoCorrect={false}
@@ -466,7 +474,17 @@ export default function LookupScreen() {
                 </View>
               )}
 
-              {(cnrState || cnrCourt) && (
+              {/* B-103: cnrState/cnrCourt are strings (useState('')), not
+                  booleans. '' || '' is '' (a string, not false), so the old
+                  `(cnrState || cnrCourt) && (...)` rendered the empty string
+                  itself as a bare child of this View whenever the CNR field
+                  was empty or its first 4 chars didn't resolve to a known
+                  state/court code — React Native Web's "Unexpected text
+                  node: ." warning/toast (reported on /lookup and persisting
+                  visibly into /lookup-results after navigating). Every other
+                  conditional in this file already uses an explicit ternary
+                  to `null`; this is the one spot that still used `&&`. */}
+              {(cnrState || cnrCourt) ? (
                 <View style={styles.decodedRow}>
                   {cnrState ? (
                     <View style={styles.decodedChip}>
@@ -481,7 +499,7 @@ export default function LookupScreen() {
                     </View>
                   ) : null}
                 </View>
-              )}
+              ) : null}
 
               <Text style={styles.inputHint}>
                 CNR = 16 characters · found on your case notice or the eCourts portal · or tap 🎙 and speak it

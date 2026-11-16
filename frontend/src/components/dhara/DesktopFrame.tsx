@@ -6,6 +6,7 @@ import { theme } from '../../theme';
 import { useAuth } from '../../auth';
 import { tr } from '../../ui18n';
 import { useComplaintsPassive, isDraftReady, complaintTitle, complaintProgress } from '../../home/complaints';
+import { ADVOCATE_MODE_ENABLED } from '../../advocateMode/flags';
 
 const c = theme.colors;
 
@@ -55,7 +56,12 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
   const active = (m: string) => !!pathname && pathname.includes('/' + m);
   // Home has its own calm layout — SOS lives in the Me tab there instead
   // (see app/(tabs)/me.tsx); still shown on every other screen/tab.
-  const isHome = pathname === '/(tabs)/home' || pathname === '/home' || pathname === '/(tabs)' || pathname === '/';
+  //
+  // B-99 fix: '/(tabs)' and '/' are the (tabs) group's own index route --
+  // the Ask/chat screen (app/(tabs)/index.tsx), not Home. Matching them
+  // here hid the top-bar SOS button and sidebar "SOS · Emergency" link on
+  // the Ask screen (same bug, same stale pattern as app/(tabs)/_layout.tsx).
+  const isHome = pathname === '/(tabs)/home' || pathname === '/home';
   const [q, setQ] = useState('');
 
   const Item = ({ it }: { it: NavItem }) => (
@@ -87,9 +93,12 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
           />
         </View>
         <View style={styles.topRight}>
-          <Pressable accessibilityRole="button" accessibilityLabel="For advocates" style={styles.topLink} onPress={() => router.push('/(tabs)/advocate')}>
-            <Text style={styles.topLinkTxt}>For advocates</Text>
-          </Pressable>
+          {/* B-97: advocate/lawyer features are hidden for Wave 1 per D-14. */}
+          {ADVOCATE_MODE_ENABLED && (
+            <Pressable accessibilityRole="button" accessibilityLabel="For advocates" style={styles.topLink} onPress={() => router.push('/(tabs)/advocate')}>
+              <Text style={styles.topLinkTxt}>For advocates</Text>
+            </Pressable>
+          )}
           <Pressable accessibilityRole="button" accessibilityLabel={`Change language, currently ${language.native}`} style={styles.langPill} onPress={() => router.push('/language')}>
             <Ionicons name="globe-outline" size={14} color="#fff" />
             <Text style={styles.langTxt}>{language.native}</Text>

@@ -20,7 +20,16 @@ export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   // Home has its own calm, uncluttered layout — SOS/Help live in the Me tab
   // instead of floating over Home. Still shown on every other tab.
-  const onHome = pathname === '/(tabs)/home' || pathname === '/home' || pathname === '/(tabs)' || pathname === '/';
+  //
+  // B-99 fix: '/(tabs)' and '/' are NOT Home — they're the (tabs) group's
+  // own index route, which is the Ask/chat screen (app/(tabs)/index.tsx,
+  // the one AppTabBar's raised gold mic button navigates to — see
+  // src/components/AppTabBar.tsx's router.push({ pathname: '/(tabs)', ... })).
+  // Home is a separate screen, app/(tabs)/home.tsx, at '/home' /
+  // '/(tabs)/home'. Matching '/(tabs)'/'/' here as "home" silently hid the
+  // persistent SOS pill on the Ask screen — exactly the reported bug (no
+  // header SOS, no sidebar "SOS - Emergency" on "/").
+  const onHome = pathname === '/(tabs)/home' || pathname === '/home';
 
   useEffect(() => {
     if (loading) return;

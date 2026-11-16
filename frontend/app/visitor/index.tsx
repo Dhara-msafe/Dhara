@@ -5,7 +5,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
-  FlatList, Modal, TextInput, Platform,
+  FlatList, Modal, TextInput, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -21,7 +21,12 @@ const C = theme.colors;
 export default function VisitorSetup() {
   const router = useRouter();
   const [selectedLang, setSelectedLang]   = useState<VisitorLang>(TOURIST_LANGUAGES[0]);
-  const [selectedState, setSelectedState] = useState(INDIAN_STATES[0]);
+  // B-86: this used to default to INDIAN_STATES[0] (Maharashtra), so a
+  // visitor who never opened the state picker silently got Maharashtra's
+  // local-language phrases and Marathi "Speak For Me" audio. Starting with
+  // no state selected and requiring an explicit choice before "Get Help"
+  // proceeds means every visitor's state reflects an actual choice.
+  const [selectedState, setSelectedState] = useState<typeof INDIAN_STATES[number] | null>(null);
   const [showLangPicker,  setShowLangPicker]  = useState(false);
   const [showStatePicker, setShowStatePicker] = useState(false);
   const [stateSearch, setStateSearch] = useState('');
@@ -31,6 +36,11 @@ export default function VisitorSetup() {
   );
 
   const proceed = useCallback(async () => {
+    if (!selectedState) {
+      Alert.alert('Select your state', 'Please choose which state you’re in before continuing.');
+      setShowStatePicker(true);
+      return;
+    }
     await saveVisitorSession({
       touristLang: selectedLang,
       indianState: selectedState.code,
@@ -63,7 +73,9 @@ export default function VisitorSetup() {
         <Text style={[s.label, { marginTop: 16 }]}>WHICH STATE ARE YOU IN?</Text>
         <Pressable style={s.picker} onPress={() => setShowStatePicker(true)}>
           <Ionicons name="location-outline" size={18} color={C.primary} />
-          <Text style={[s.pickerText, { flex: 1 }]}>{selectedState.name}</Text>
+          <Text style={[s.pickerText, { flex: 1 }, !selectedState && s.pickerPlaceholder]}>
+            {selectedState ? selectedState.name : 'Select your state'}
+          </Text>
           <Ionicons name="chevron-down" size={18} color={C.primary} />
         </Pressable>
 
@@ -72,7 +84,7 @@ export default function VisitorSetup() {
           {[
             { icon: 'shield-checkmark-outline', text: 'Emergency assistance in seconds' },
             { icon: 'document-text-outline',    text: 'Lost passport step-by-step guide' },
-            { icon: 'mic-outline',              text: `Speak For Me — plays ${getStateLocalLang(selectedState.code).label} phrase to officials` },
+            { icon: 'mic-outline',              text: `Speak For Me — plays ${getStateLocalLang(selectedState?.code).label} phrase to officials` },
           ].map(({ icon, text }) => (
             <View key={text} style={s.infoCard}>
               <Ionicons name={icon as any} size={22} color={C.primary} />
@@ -133,11 +145,11 @@ export default function VisitorSetup() {
               keyExtractor={i => i.code}
               renderItem={({ item }) => (
                 <Pressable
-                  style={[s.modalItem, item.code === selectedState.code && s.modalItemSelected]}
+                  style={[s.modalItem, item.code === selectedState?.code && s.modalItemSelected]}
                   onPress={() => { setSelectedState(item); setShowStatePicker(false); setStateSearch(''); }}
                 >
                   <Text style={s.modalItemNative}>{item.name}</Text>
-                  {item.code === selectedState.code && <Ionicons name="checkmark" size={18} color={C.primary} />}
+                  {item.code === selectedState?.code && <Ionicons name="checkmark" size={18} color={C.primary} />}
                 </Pressable>
               )}
             />
@@ -167,6 +179,7 @@ const s = StyleSheet.create({
     borderWidth: 1.5, borderColor: C.border,
   },
   pickerText: { flex: 1, fontSize: 15, color: C.onSurface, fontWeight: '600' },
+  pickerPlaceholder: { color: C.onSurfaceTertiary, fontWeight: '500' },
 
   cards:    { gap: 10, marginVertical: 20 },
   infoCard: {

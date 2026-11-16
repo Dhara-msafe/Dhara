@@ -199,6 +199,7 @@ export default function TrustedCircle() {
                     <Text style={styles.permToggleLabel}>{f.label}</Text>
                     <Switch
                       testID={`circle-perm-${f.key}-${ct.id}`}
+                      accessibilityLabel={`${f.label} for ${ct.name}`}
                       value={!!perms[f.key]}
                       onValueChange={(v) => setDraftPerms(cur => ({ ...cur, [ct.id]: { ...perms, [f.key]: v } }))}
                     />
@@ -235,6 +236,7 @@ export default function TrustedCircle() {
                   <Text style={styles.permToggleLabel}>{f.label}</Text>
                   <Switch
                     testID={`circle-perm-${f.key}-${ct.id}`}
+                    accessibilityLabel={`${f.label} for ${ct.name}`}
                     value={!!perms[f.key]}
                     onValueChange={(v) => setDraftPerms(cur => ({ ...cur, [ct.id]: { ...perms, [f.key]: v } }))}
                   />

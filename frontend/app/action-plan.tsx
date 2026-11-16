@@ -49,7 +49,8 @@ export default function ActionPlan() {
   const { speaking, blocked, error: speechError, listen } = useScreenSpeech();
   const { result, loading, error: cardError, retry } = useRightsCard(scenarioKey, lang);
   const card = result?.card;
-  const onListen = useCallback(() => { if (card) void listen(`${card.verdict} ${card.why}`); }, [card, listen]);
+  // B-94/B-79: fixed, canned safety content -- never metered.
+  const onListen = useCallback(() => { if (card) void listen(`${card.verdict} ${card.why}`, 'fixed_screen'); }, [card, listen]);
 
   const steps = [
     { n: 1, title: 'Show this to the officer', body: 'A large-text card with the law in your selected language.', btn: 'Open officer card', icon: 'shield-outline', route: '/women/officer-card' },

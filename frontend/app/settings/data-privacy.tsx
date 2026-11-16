@@ -12,19 +12,28 @@
  *
  */
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator, Alert, Switch } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator, Alert, Switch, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { useFamilyJourneyEnabled } from '@/src/familyJourney/store';
+import { File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 import { openExternal } from '@/src/outbound';
+// B-70: GRIEVANCE_EMAIL / GRIEVANCE_OFFICER_NAME used to be their own local
+// constants here -- a FOURTH value, independent of the consent screen
+// (operatorIdentity.ts's Varuna Moses / varuna@calviltech.com), my-data.tsx
+// and /grievance's hardcoded "grievance@calviltech.com". Now reads the same
+// single source of truth as every other screen.
+import { grievanceOfficerName as GRIEVANCE_OFFICER_NAME, grievanceContactEmail as GRIEVANCE_EMAIL, isGrievanceContactPlaceholder } from '@/src/operatorIdentity';
 // ── Contact constants ─────────────────────────────────────────────────────────
-const GRIEVANCE_EMAIL        = 'grievance@calviltech.com';
+// SUPPORT_EMAIL is the separate, general MSafe Solutions support address
+// (matches backend/legal.py's CONTACT section) -- not a grievance-officer
+// value, so it isn't part of the B-70 consolidation above.
 const SUPPORT_EMAIL          = 'support@calviltech.com';
-const GRIEVANCE_OFFICER_NAME = 'The Grievance Officer, Calvil Technologies';
 
 // ── Accent colours (spec) ─────────────────────────────────────────────────────
 const PRIMARY     = theme.colors.primary;
@@ -76,20 +85,55 @@ export default function DataPrivacyScreen() {
   const [exportLoading, setExportLoading]   = useState(false);
   const [exportSuccess, setExportSuccess]   = useState(false);
 
+  // B-83: this used to POST to a stub endpoint that only logged the request
+  // and showed a canned "we'll email your data export within 24 hours"
+  // banner -- no email was ever sent and no file ever appeared anywhere.
+  // Settings -> My Data (app/my-data.tsx) already has a real, working export
+  // (GET /api/user/my-data/export -> write to a temp file -> native share
+  // sheet), so this now does exactly the same thing instead of promising
+  // something nothing ever fulfilled.
   const handleDownload = useCallback(async () => {
     if (!token) return;
     setExportLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/user/data-export`, {
-        method: 'POST',
+      const res = await fetch(`${API_BASE}/api/user/my-data/export`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error('Request failed');
-      setExportSuccess(true);
-      // Auto-hide after 4 s
-      setTimeout(() => setExportSuccess(false), 4000);
+      const json = await res.json();
+      const jsonStr = JSON.stringify(json, null, 2);
+
+      if (Platform.OS === 'web') {
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `dhara-my-data-${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setExportSuccess(true);
+        setTimeout(() => setExportSuccess(false), 4000);
+      } else {
+        const tempFile = new File(Paths.cache, `dhara-my-data-${Date.now()}.json`);
+        try {
+          tempFile.write(jsonStr);
+          const canShare = await Sharing.isAvailableAsync();
+          if (canShare) {
+            await Sharing.shareAsync(tempFile.uri, {
+              mimeType: 'application/json',
+              dialogTitle: 'Export your Dhara data',
+            });
+            setExportSuccess(true);
+            setTimeout(() => setExportSuccess(false), 4000);
+          } else {
+            Alert.alert('Export complete', 'Your data export is ready, but sharing is not available on this device.');
+          }
+        } finally {
+          try { tempFile.delete(); } catch {}
+        }
+      }
     } catch {
-      Alert.alert('Could not submit request', 'Please try again or email ' + SUPPORT_EMAIL);
+      Alert.alert('Could not export data', 'Please try again or email ' + SUPPORT_EMAIL);
     } finally {
       setExportLoading(false);
     }
@@ -101,9 +145,12 @@ export default function DataPrivacyScreen() {
   };
 
   const handleContact = () => {
-    const url = `mailto:${GRIEVANCE_EMAIL}?subject=DHARA%20Data%20Request`;
+    // Fail closed: never open a mailto: to an unconfirmed placeholder
+    // address. Fall back to the general support inbox, which is real either way.
+    const to = isGrievanceContactPlaceholder() ? SUPPORT_EMAIL : GRIEVANCE_EMAIL;
+    const url = `mailto:${to}?subject=DHARA%20Data%20Request`;
     openExternal(url).catch(() => {
-      Alert.alert('Cannot open email app', `Please email us at ${GRIEVANCE_EMAIL}`);
+      Alert.alert('Cannot open email app', `Please email us at ${to}`);
     });
   };
 
@@ -225,7 +272,9 @@ export default function DataPrivacyScreen() {
           <View testID="export-success-banner" style={styles.successBanner}>
             <Ionicons name="checkmark-circle" size={16} color={BADGE_TEXT} />
             <Text style={styles.successBannerText}>
-              {"We'll email your data export within 24 hours"}
+              {Platform.OS === 'web'
+                ? 'Your data export has downloaded'
+                : 'Your data export is ready to share'}
             </Text>
           </View>
         )}
@@ -274,9 +323,11 @@ export default function DataPrivacyScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.actionTitle}>Grievance or data question?</Text>
             <Text style={styles.actionSub}>Respond within 30 days</Text>
-            <Text style={styles.actionFooter}>
-              Grievance Officer: {GRIEVANCE_OFFICER_NAME}
-            </Text>
+            {!isGrievanceContactPlaceholder() && (
+              <Text style={styles.actionFooter}>
+                Grievance Officer: {GRIEVANCE_OFFICER_NAME}
+              </Text>
+            )}
           </View>
           <Ionicons name="chevron-forward" size={18} color={theme.colors.onSurfaceTertiary} />
         </Pressable>
@@ -300,6 +351,7 @@ export default function DataPrivacyScreen() {
           </View>
           <Switch
             testID="fj-privacy-toggle"
+            accessibilityLabel="Family Journey"
             value={fjEnabled}
             onValueChange={setFjEnabled}
             trackColor={{ true: PRIMARY, false: theme.colors.borderStrong }}

@@ -24,10 +24,35 @@ import { theme } from '@/src/theme';
  *   2. Enter the code + confirm → backend verifies and permanently deletes
  *      the account and every row linked to it. No recovery window.
  */
+// B-29: raw thrown-error text (e.g. "Network request failed" / "TypeError:
+// Failed to fetch") used to reach the user verbatim on a dropped connection.
+// Same pattern as forgot-password.tsx's postJson / auth.tsx's _fetchAuth:
+// a bounded timeout and a friendly message for anything fetch() itself threw.
+const NETWORK_MSG = 'Could not reach DHARA. Check your internet connection and try again.';
+async function postJson(path: string, body: unknown): Promise<{ res: Response; data: any }> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 20000);
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+  } catch {
+    throw new Error(NETWORK_MSG);
+  } finally {
+    clearTimeout(timer);
+  }
+  const data = await res.json().catch(() => null);
+  return { res, data };
+}
+
 export default function DeleteAccount() {
   const [step, setStep] = useState<'request' | 'verify' | 'done'>('request');
   const params = useLocalSearchParams<{ email?: string }>();
-  const { token, logout } = useAuth();
+  const { token, logout, clearSessionExpired } = useAuth();
   const [email, setEmail] = useState(typeof params.email === 'string' ? params.email : '');
   const [code, setCode] = useState('');
   const [confirmChecked, setConfirmChecked] = useState(false);
@@ -43,12 +68,7 @@ export default function DeleteAccount() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/account-deletion/request-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase() }),
-      });
-      const data = await res.json();
+      const { res, data } = await postJson('/api/account-deletion/request-otp', { email: email.trim().toLowerCase() });
       if (!res.ok) {
         setError(data?.detail || 'Could not send the code. Please try again.');
         return;
@@ -56,7 +76,7 @@ export default function DeleteAccount() {
       setNotice(data?.message || 'Check your email for a 6-digit code.');
       setStep('verify');
     } catch (e: any) {
-      setError(e?.message || 'Network error. Please try again.');
+      setError(e?.message || NETWORK_MSG);
     } finally {
       setLoading(false);
     }
@@ -74,20 +94,23 @@ export default function DeleteAccount() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/account-deletion/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), code: code.trim() }),
-      });
-      const data = await res.json();
+      const { res, data } = await postJson('/api/account-deletion/verify', { email: email.trim().toLowerCase(), code: code.trim() });
       if (!res.ok) {
         setError(data?.detail || 'Deletion failed. Please try again.');
         return;
       }
       setStep('done');
-      if (token) logout().catch(() => {});
+      // B-91: this screen stays open after deletion (no redirect to /login),
+      // but if the user does navigate there afterwards, any other screen's
+      // in-flight call on this now-invalid token can race in a 401 and flag
+      // sessionExpired, showing "Your session has expired" -- misleading,
+      // since the user chose to delete their account. Clear it here too.
+      if (token) {
+        await logout().catch(() => {});
+        clearSessionExpired();
+      }
     } catch (e: any) {
-      setError(e?.message || 'Network error. Please try again.');
+      setError(e?.message || NETWORK_MSG);
     } finally {
       setLoading(false);
     }

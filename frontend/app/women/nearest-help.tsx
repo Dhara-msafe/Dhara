@@ -7,9 +7,15 @@ import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { theme } from '@/src/theme';
 import { fetchNearbyPlaces, fetchPlacesTextSearch, type NearbyPlace } from '@/src/women/api';
 import { openPhone } from '@/src/women/helpActions';
+import { useAuth } from '@/src/auth';
 
 import { openExternal } from '@/src/outbound';
 const c = theme.colors;
+
+// B-102: how long to wait for the location-permission prompt / fix before
+// giving up and falling back to external Maps, rather than spinning forever
+// on a prompt the user missed or dismissed without choosing.
+const LOCATION_TIMEOUT_MS = 12000;
 
 type Category = 'police' | 'hospital' | 'osc';
 const places: { id: Category; name: string; query: string }[] = [
@@ -29,6 +35,7 @@ export default function NearestHelp() {
   const [results, setResults] = useState<NearbyPlace[] | null>(null);
   const [activePlace, setActivePlace] = useState<{ id: Category; name: string } | null>(null);
   const insets = useSafeAreaInsets();
+  const { token: authToken } = useAuth();
   // One-shot device location, requested lazily on first in-app search and
   // cached for the rest of this screen visit — never read continuously,
   // never used for anything but biasing/ranking these search results.
@@ -47,12 +54,30 @@ export default function NearestHelp() {
     } catch { setStatus('Maps could not open. Open your map app and search for this place.'); }
   };
 
+  // B-102: requestForegroundPermissionsAsync()/getCurrentPositionAsync() have
+  // no timeout of their own — on web, the browser's native permission prompt
+  // can sit unanswered indefinitely (the user looks away, dismisses it
+  // without choosing, or it renders off-screen), and neither promise ever
+  // resolves or rejects on its own. handleSelect awaits this function inside
+  // a try/finally that only clears loadingId when it settles, so a missed
+  // prompt spun the "Searching..." indicator forever with no way out.
+  // withLocationTimeout() bounds the wait; a timeout resolves to null here,
+  // which the existing fail-closed path in handleSelect already turns into
+  // the external-Maps fallback (same path used for "no permission" today),
+  // so a stuck prompt now reaches the same safe outcome instead of hanging.
+  const withLocationTimeout = <T,>(promise: Promise<T>): Promise<T | null> =>
+    Promise.race([
+      promise,
+      new Promise<null>(resolve => setTimeout(() => resolve(null), LOCATION_TIMEOUT_MS)),
+    ]);
+
   const ensureLocation = async (): Promise<{ lat: number; lng: number } | null> => {
     if (locationRef.current) return locationRef.current;
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (!permission.granted) return null;
-      const point = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const permission = await withLocationTimeout(Location.requestForegroundPermissionsAsync());
+      if (!permission || !permission.granted) return null;
+      const point = await withLocationTimeout(Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }));
+      if (!point) return null;
       locationRef.current = { lat: point.coords.latitude, lng: point.coords.longitude };
       return locationRef.current;
     } catch { return null; }
@@ -66,14 +91,19 @@ export default function NearestHelp() {
     try {
       const loc = await ensureLocation();
       let found: NearbyPlace[] = [];
-      if (place.id === 'osc') {
-        found = await fetchPlacesTextSearch('Sakhi One Stop Centre women', loc?.lat, loc?.lng);
-      } else if (loc) {
-        found = await fetchNearbyPlaces(place.id, loc.lat, loc.lng);
+      // N-02: /api/geo/nearby and /api/geo/search-text now require an
+      // authenticated session — without one, skip straight to the external
+      // Maps fallback below rather than sending a bogus "Bearer null" header.
+      if (authToken) {
+        if (place.id === 'osc') {
+          found = await fetchPlacesTextSearch('Sakhi One Stop Centre women', authToken, loc?.lat, loc?.lng);
+        } else if (loc) {
+          found = await fetchNearbyPlaces(place.id, loc.lat, loc.lng, authToken);
+        }
       }
       // Fail closed to the pre-existing external-Maps action whenever in-app
-      // search isn't usable — no location, feature off server-side (503),
-      // network error, or zero results. Never a dead end.
+      // search isn't usable — no location, no session, feature off
+      // server-side (503), network error, or zero results. Never a dead end.
       if (found.length === 0) {
         await openMap(place.query);
         return;

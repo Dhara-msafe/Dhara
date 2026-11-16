@@ -6,11 +6,12 @@
  */
 import React, { useCallback, useState } from 'react';
 import { View, Text, Pressable, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
-import { useFocusEffect, router } from 'expo-router';
+import { useFocusEffect, router, Redirect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/src/theme';
 import { crossAlert } from '@/src/utils/crossAlert';
 import { useAuth } from '@/src/auth';
+import { ADVOCATE_MODE_ENABLED } from '@/src/advocateMode/flags';
 import { listTasks, updateTaskStatus } from '@/src/notetaker/api';
 import { ScreenHeader } from '@/src/notetaker/ui';
 import type { NtTask, TaskStatus } from '@/src/notetaker/api';
@@ -18,6 +19,10 @@ import type { NtTask, TaskStatus } from '@/src/notetaker/api';
 const c = theme.colors;
 
 export default function TasksScreen() {
+  // B-87: Advocate Consultation Notetaker is not scoped/hidden for Wave 1 --
+  // same gate as B-97's advocate/lawyer screens.
+  if (!ADVOCATE_MODE_ENABLED) return <Redirect href="/(tabs)/home" />;
+
   const { token } = useAuth();
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<TaskStatus>('pending');
