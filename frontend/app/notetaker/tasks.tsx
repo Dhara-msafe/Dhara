@@ -12,6 +12,7 @@ import { theme } from '@/src/theme';
 import { crossAlert } from '@/src/utils/crossAlert';
 import { useAuth } from '@/src/auth';
 import { ADVOCATE_MODE_ENABLED } from '@/src/advocateMode/flags';
+import { useAdvocateProfile } from '@/src/advocateMode/useAdvocateProfile';
 import { listTasks, updateTaskStatus } from '@/src/notetaker/api';
 import { ScreenHeader } from '@/src/notetaker/ui';
 import type { NtTask, TaskStatus } from '@/src/notetaker/api';
@@ -24,6 +25,9 @@ export default function TasksScreen() {
   if (!ADVOCATE_MODE_ENABLED) return <Redirect href="/(tabs)/home" />;
 
   const { token } = useAuth();
+  // B-121: same gate as the other advocate/Notetaker screens -- see
+  // useAdvocateProfile.ts.
+  const advocateGate = useAdvocateProfile();
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<TaskStatus>('pending');
   const [tasks, setTasks] = useState<NtTask[]>([]);
@@ -56,6 +60,9 @@ export default function TasksScreen() {
     }
     setUpdatingId(null);
   };
+
+  if (advocateGate.status === 'none') return <Redirect href="/(tabs)/home" />;
+  if (advocateGate.status === 'loading') return null;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
