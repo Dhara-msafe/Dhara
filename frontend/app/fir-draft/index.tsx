@@ -61,6 +61,13 @@ const FIR_LANGUAGES = [
 ];
 const FIR_LANG_KEY = 'fir_draft_lang_v3';
 const FIR_SESSION_KEY = 'fir_active_session_v3';
+// B-107/B-80: whatever is sitting unsent in the composer (typed or
+// voice-transcribed) only ever lived in React state, so a host
+// restart/reload mid-draft (Preview's sleep/wake cycle restarting the
+// backend also tears down the page) silently threw it away the moment the
+// screen remounted and the citizen had to re-answer from scratch. Persisted
+// here so a resume can restore it.
+const FIR_DRAFT_INPUT_KEY = 'fir_draft_pending_input_v1';
 const FIR_MODULE_KEY = 'fir_selected_module_v1';
 
 // ── Mic gesture thresholds (mirrors the Home screen's WhatsApp-style mic) ──
@@ -335,6 +342,16 @@ export default function FirDraftScreen() {
     await AsyncStorage.setItem(FIR_LANG_KEY, code);
   };
 
+  // ── B-107/B-80: persist the composer's unsent text as it changes ──────────
+  // Best-effort, fire-and-forget -- this is a draft recovery aid, not a
+  // source of truth, so a write failure here should never block typing.
+  // Scoped per session_id so an abandoned draft from one session can never
+  // reappear when a different session is later resumed.
+  useEffect(() => {
+    if (!sessionId) return;
+    AsyncStorage.setItem(`${FIR_DRAFT_INPUT_KEY}:${sessionId}`, textInput).catch(() => {});
+  }, [textInput, sessionId]);
+
   // ── Auto-scroll to bottom ──────────────────────────────────────────────────
   useEffect(() => {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
@@ -511,6 +528,17 @@ export default function FirDraftScreen() {
         addMessage('bot', 'Welcome back! Your session has been restored.');
         setInputType(sess.stage === 'free_narrative' ? 'voice_or_text' : 'text');
       }
+
+      // B-107/B-80: restore any voice-transcribed/typed answer that was
+      // still sitting unsent in the composer the last time this screen was
+      // open. Without this, the fresh textInput('') this component mounts
+      // with silently replaces it on every resume/reload -- the citizen's
+      // last answer (often just finished speaking) would otherwise vanish
+      // with no indication anything was lost.
+      try {
+        const pendingInput = await AsyncStorage.getItem(`${FIR_DRAFT_INPUT_KEY}:${sid}`);
+        if (pendingInput) setTextInput(pendingInput);
+      } catch { /* best-effort restore; losing it is the pre-fix behavior, not worse */ }
     } catch {
       setResumeError('Could not restore your complaint. Check your connection and tap Continue your complaint to retry.');
       setSessionStarted(false);
