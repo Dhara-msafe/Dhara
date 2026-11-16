@@ -284,6 +284,7 @@ export default function TrustedCircleAndRules() {
                               : (
                                 <Switch
                                   testID={`headout-toggle-${link.id}-${t.key}`}
+                                  accessibilityLabel={`${t.label} for ${link.contact_name}`}
                                   value={toggleValue(link.permissions, t.key)}
                                   onValueChange={(v) => handleTogglePermission(link, t.key, v)}
                                   trackColor={{ false: c.lines, true: c.navy }}

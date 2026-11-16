@@ -190,7 +190,7 @@ export default function WomenShield() {
               <Text style={styles.discreetTitle}>{discreet ? tr('ws.discreet', lang) : tr('ws.discreet.off', lang)}</Text>
               <Text style={styles.discreetSub}>{tr('ws.discreet.sub', lang)}</Text>
             </View>
-            <Switch value={discreet} onValueChange={handleDiscreet} trackColor={{ true: c.gold, false: '#334' }} thumbColor="#fff" />
+            <Switch testID="ws-discreet-switch" accessibilityLabel={tr('ws.discreet', lang)} value={discreet} onValueChange={handleDiscreet} trackColor={{ true: c.gold, false: '#334' }} thumbColor="#fff" />
           </View>
         </View>
 
@@ -244,7 +244,7 @@ export default function WomenShield() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.toolTitle}>{tr('ws.checkin', lang)}</Text>
               </View>
-              <Switch value={checkin} onValueChange={onCheckin} trackColor={{ true: c.navy, false: c.surfaceTertiary }} thumbColor="#fff" />
+              <Switch testID="ws-checkin-switch" accessibilityLabel={tr('ws.checkin', lang)} value={checkin} onValueChange={onCheckin} trackColor={{ true: c.navy, false: c.surfaceTertiary }} thumbColor="#fff" />
             </View>
             <Divider />
             <ToolRow icon="lock-closed-outline" title={tr('ws.locker', lang)} sub={tr('ws.locker.sub.count', lang).replace('{n}', String(lockerCount))} action={tr('ws.open', lang)} onPress={() => router.push('/women/evidence-locker')} />
