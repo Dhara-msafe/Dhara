@@ -55,7 +55,12 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
   const active = (m: string) => !!pathname && pathname.includes('/' + m);
   // Home has its own calm layout — SOS lives in the Me tab there instead
   // (see app/(tabs)/me.tsx); still shown on every other screen/tab.
-  const isHome = pathname === '/(tabs)/home' || pathname === '/home' || pathname === '/(tabs)' || pathname === '/';
+  //
+  // B-99 fix: '/(tabs)' and '/' are the (tabs) group's own index route --
+  // the Ask/chat screen (app/(tabs)/index.tsx), not Home. Matching them
+  // here hid the top-bar SOS button and sidebar "SOS · Emergency" link on
+  // the Ask screen (same bug, same stale pattern as app/(tabs)/_layout.tsx).
+  const isHome = pathname === '/(tabs)/home' || pathname === '/home';
   const [q, setQ] = useState('');
 
   const Item = ({ it }: { it: NavItem }) => (
