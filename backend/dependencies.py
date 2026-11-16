@@ -64,9 +64,20 @@ def check_admin_key(key: Optional[str]) -> None:
         raise HTTPException(401, "Invalid admin key.")
 
 
-def make_token(user_id: str) -> str:
+# B-20: before this fix, the only way to invalidate a session was to wait out
+# its 30-day expiry (JWT_EXP_DAYS) or rotate JWT_SECRET for every user at once
+# -- the server itself had no way to end one person's session. A JWT is
+# stateless by design (that's the whole point of not hitting the DB on every
+# request), so instead of a session store we stamp each token with the user's
+# current "token_version" (0 by default) and check it on every request in
+# current_user()/current_user_optional() below. Bumping token_version on the
+# user doc -- via POST /auth/logout-everywhere, or automatically on a password
+# reset -- makes every token minted before that moment fail verification
+# immediately, without touching anyone else's session.
+def make_token(user_id: str, token_version: int = 0) -> str:
     payload = {
         "sub": user_id,
+        "tv": token_version,
         "exp": datetime.now(timezone.utc) + timedelta(days=JWT_EXP_DAYS),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)
@@ -116,6 +127,12 @@ async def current_user(authorization: Optional[str] = Header(None)) -> dict:
     user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0})
     if not user:
         raise HTTPException(401, "User not found")
+    # B-20: a token minted before the user's last logout-everywhere/password
+    # reset carries a stale "tv" and must be rejected even though its
+    # signature and expiry are otherwise fine -- this is how the server ends
+    # a session it no longer trusts.
+    if int(payload.get("tv", 0)) != int(user.get("token_version", 0)):
+        raise HTTPException(401, "Invalid token")
     if user.get("age_confirmed_18") is False:
         raise HTTPException(403, {
             "code": "minor_blocked",
@@ -139,7 +156,10 @@ async def current_user_optional(authorization: Optional[str] = Header(None)) -> 
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG])
     except jwt.PyJWTError:
         return None
-    return await db.users.find_one({"id": payload["sub"]}, {"_id": 0})
+    user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0})
+    if user and int(payload.get("tv", 0)) != int(user.get("token_version", 0)):
+        return None
+    return user
 
 
 # ── LLM spend metering ────────────────────────────────────────────────────────

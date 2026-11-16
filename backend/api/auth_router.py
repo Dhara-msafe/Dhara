@@ -28,6 +28,7 @@ from services.login_guard import (
     check_lock, register_failure, clear_attempts, lock_detail,
     normalize_email, client_ip,
 )
+from services.send_limit import check_and_record_send, clear_sends
 
 router = APIRouter()
 
@@ -92,11 +93,15 @@ class GoogleSessionIn(BaseModel):
 # ── OTP / rate-limit state ────────────────────────────────────────────────────
 OTP_TTL_MINUTES = 10
 OTP_MAX_ATTEMPTS = 5
-_RESET_SENDS: dict[str, list[datetime]] = {}
+# B-21: the "how many codes per hour" counters below used to be
+# _RESET_SENDS / _DELETE_SENDS, plain process-memory dicts — see
+# services/send_limit.py's module docstring for why that undercounts across
+# multiple workers and forgets everything on every restart. They're now kept
+# in MongoDB (via check_and_record_send/clear_sends), shared and durable the
+# same way B-16 already fixed the login-attempt counters.
 _RESET_MAX_SENDS = 3
 _RESET_SEND_WINDOW = timedelta(hours=1)
 _RESET_MIN_GAP = timedelta(seconds=60)
-_DELETE_SENDS: dict[str, list[datetime]] = {}
 _USED_GOOGLE_SESSIONS: set[str] = set()
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -173,7 +178,7 @@ async def login(body: LoginIn, request: Request):
         raise HTTPException(401, INVALID_LOGIN_MSG)
 
     await clear_attempts(db, email_key, ip)
-    return {"token": make_token(user["id"]), "user": public_user(user)}
+    return {"token": make_token(user["id"], user.get("token_version", 0)), "user": public_user(user)}
 
 
 # ---- Guest Mode: anonymous trial, no email/phone/password ----
@@ -311,7 +316,7 @@ async def google_auth_session(body: GoogleSessionIn):
         }
         await db.users.insert_one(user)
 
-    return {"token": make_token(uid), "user": public_user(user)}
+    return {"token": make_token(uid, user.get("token_version", 0)), "user": public_user(user)}
 
 
 # ---- Password reset via emailed one-time code (OTP) ----
@@ -319,13 +324,6 @@ async def google_auth_session(body: GoogleSessionIn):
 # a JWT. Anyone who knew a user's email and mobile number could take the account
 # over, so it was replaced: the code is delivered to the mailbox on the account,
 # is hashed at rest, expires in 10 minutes, is single-use, and is rate limited.
-
-
-def _prune_sends(email: str) -> list[datetime]:
-    cutoff = datetime.now(timezone.utc) - _RESET_SEND_WINDOW
-    kept = [t for t in _RESET_SENDS.get(email, []) if t > cutoff]
-    _RESET_SENDS[email] = kept
-    return kept
 
 
 @router.post("/auth/forgot-password")
@@ -340,11 +338,12 @@ async def forgot_password(body: ForgotPasswordIn):
 
     email = body.email.lower().strip()
     now = datetime.now(timezone.utc)
-    sends = _prune_sends(email)
-    if sends and (now - sends[-1]) < _RESET_MIN_GAP:
-        raise HTTPException(429, "Please wait a minute before requesting another code.")
-    if len(sends) >= _RESET_MAX_SENDS:
-        raise HTTPException(429, "Too many reset requests. Please try again in an hour.")
+    blocked = await check_and_record_send(
+        db, "reset", email,
+        max_sends=_RESET_MAX_SENDS, window=_RESET_SEND_WINDOW, min_gap=_RESET_MIN_GAP,
+    )
+    if blocked:
+        raise HTTPException(429, blocked)
 
     generic = {
         "sent": True,
@@ -353,8 +352,8 @@ async def forgot_password(body: ForgotPasswordIn):
     }
 
     user = await db.users.find_one({"email": email})
-    # Count the request either way so a missing account cannot be probed cheaply.
-    _RESET_SENDS.setdefault(email, []).append(now)
+    # The request was already counted by check_and_record_send() above,
+    # either way, so a missing account cannot be probed cheaply.
     if not user:
         return generic
 
@@ -412,14 +411,21 @@ async def reset_password(body: ResetPasswordIn):
     if not user:
         raise invalid
 
+    # B-20: bump token_version along with the password. A reset is the one
+    # moment we know for certain someone other than the account's usual owner
+    # may have been in control of it (that's why they're resetting the
+    # password) -- so every token issued before this moment, including one
+    # held by whoever locked the real owner out, stops working right away
+    # instead of staying valid for the rest of its 30-day life.
     await db.users.update_one(
         {"id": user["id"]},
-        {"$set": {"password_hash": hash_pw(body.new_password), "password_reset_at": now.isoformat()}},
+        {"$set": {"password_hash": hash_pw(body.new_password), "password_reset_at": now.isoformat()},
+         "$inc": {"token_version": 1}},
     )
     await db.password_resets.delete_one({"email": email})
-    _RESET_SENDS.pop(email, None)
+    await clear_sends(db, "reset", email)
     updated = await db.users.find_one({"id": user["id"]})
-    return {"token": make_token(user["id"]), "user": public_user(updated)}
+    return {"token": make_token(user["id"], updated.get("token_version", 0)), "user": public_user(updated)}
 
 # ---- Account deletion (Google Play "Account deletion" requirement) ----
 # Two paths, one shared underlying hard_delete_user() (see account_deletion.py)
@@ -430,13 +436,6 @@ async def reset_password(body: ResetPasswordIn):
 #      pattern as /auth/forgot-password + /auth/reset-password.
 # Both permanently erase the account and every user-linked collection — there
 # is no soft-delete and no recovery window.
-
-
-def _prune_delete_sends(email: str) -> list[datetime]:
-    cutoff = datetime.now(timezone.utc) - _RESET_SEND_WINDOW
-    kept = [t for t in _DELETE_SENDS.get(email, []) if t > cutoff]
-    _DELETE_SENDS[email] = kept
-    return kept
 
 
 async def _finish_deletion(user_id: str) -> None:
@@ -476,11 +475,12 @@ async def request_deletion_otp(body: RequestDeletionOTPIn):
 
     email = body.email.lower().strip()
     now = datetime.now(timezone.utc)
-    sends = _prune_delete_sends(email)
-    if sends and (now - sends[-1]) < _RESET_MIN_GAP:
-        raise HTTPException(429, "Please wait a minute before requesting another code.")
-    if len(sends) >= _RESET_MAX_SENDS:
-        raise HTTPException(429, "Too many requests. Please try again in an hour.")
+    blocked = await check_and_record_send(
+        db, "delete", email,
+        max_sends=_RESET_MAX_SENDS, window=_RESET_SEND_WINDOW, min_gap=_RESET_MIN_GAP,
+    )
+    if blocked:
+        raise HTTPException(429, blocked)
 
     generic = {
         "sent": True,
@@ -489,7 +489,6 @@ async def request_deletion_otp(body: RequestDeletionOTPIn):
     }
 
     user = await db.users.find_one({"email": email})
-    _DELETE_SENDS.setdefault(email, []).append(now)
     if not user:
         return generic
 
@@ -541,9 +540,23 @@ async def verify_deletion_otp(body: VerifyDeletionOTPIn):
 
     user_id = rec["user_id"]
     await db.account_deletion_otps.delete_one({"email": email})
-    _DELETE_SENDS.pop(email, None)
+    await clear_sends(db, "delete", email)
     await _finish_deletion(user_id)
     return {"deleted": True, "message": "Your Dhara account and all associated data have been permanently deleted."}
+
+# B-20: the server previously had no way to end a session it had already
+# issued -- a signed, unexpired JWT kept working for the rest of its 30-day
+# life no matter what. This gives it one: bump the user's token_version, and
+# every token minted before this call (on this phone, any other phone, a
+# stolen copy, anything) fails current_user()'s "tv" check on its very next
+# request. The caller's OWN session ends too -- by design, this is a hard
+# "sign out everywhere", not a "sign out everyone else" -- so the frontend
+# must treat a 200 here exactly like a local logout (clear the stored token).
+@router.post("/auth/logout-everywhere")
+async def logout_everywhere(user: dict = Depends(current_user)):
+    await db.users.update_one({"id": user["id"]}, {"$inc": {"token_version": 1}})
+    return {"ok": True}
+
 
 @router.get("/auth/me")
 async def me(user: dict = Depends(current_user)):
