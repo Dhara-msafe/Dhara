@@ -162,7 +162,25 @@ async def run_pre_retrieval(
         _preserved_active_ref = existing_state.active_statute_ref if existing_state else None
         existing_state = CaseState(session_id=session.get("id", "") if session else "")
         existing_state.active_statute_ref = _preserved_active_ref
-    # CONTINUATION / NEW_SUBQUESTION / NEW_QUERY: keep prior state, use new lq directly
+    elif prior_lq and prior_lq.asking_as_role and not lq.asking_as_role:
+        # CONTINUATION / NEW_SUBQUESTION / NEW_QUERY: keep prior state, use
+        # new lq directly -- EXCEPT asking_as_role (B-98). A short follow-up
+        # ("How do I send that legal notice?") rarely restates the user's
+        # own role, so without this, lq.asking_as_role defaults to None,
+        # Layer B's ACTOR-CONDUCT LOCK can't tell who the user is, and (in
+        # combination with actor_roles still reflecting the earlier turn's
+        # counterparty) the answer can get reframed around the wrong party
+        # -- see the B-98 regression test. The user's own identity doesn't
+        # change turn-to-turn on its own, unlike actor_roles/actions, which
+        # genuinely are specific to each new message and must NOT be
+        # carried over this way.
+        #
+        # Scoped to this branch only (not TOPIC_CHANGE/EXPLICIT_STATUTE_
+        # REFERENCE above): on a real topic change the user's role in the
+        # NEW topic may be entirely different (e.g. "tenant" in a rent
+        # dispute vs "employee" in a later, unrelated employment question),
+        # so carrying it forward there would be its own mismatch bug.
+        lq.asking_as_role = prior_lq.asking_as_role
 
     # ── Layer B: Conduct Classifier ───────────────────────────────────────────
     classify_result = classify(lq)
