@@ -1448,6 +1448,23 @@ _DRAFT_SYS = """You are a legal draft writer for Indian citizens.
 Generate a first-person FIR complaint letter as required for Section 173(1) BNSS filing.
 Be factual. Use exactly the information provided. Output ONLY the letter text, no markdown."""
 
+# B-101: suggested BNS sections in a FIR draft come from suggest_sections()'s
+# lookup against db.legal_sections (existence + dead-law/judicial-flag check
+# only) — a different, separate mechanism from the /advocate/cross-reference
+# endpoint's IPC<->BNS correspondence-approval gate ("Citation Guard"), which
+# guards against a specific translation table audited to contain errors.
+# These suggestions are not run through that gate, so the disclaimer must say
+# so explicitly rather than let a citizen read a printed BNS number as
+# equivalent to a verified citation. Kept as one shared string so the LLM
+# prompt template and the offline fallback template never drift out of sync
+# with each other (previously the fallback omitted any such caveat at all).
+_BNS_SECTION_DISCLAIMER = (
+    "Suggested BNS sections are indicative only, drawn from DHARA's current-law "
+    "database — they have not individually passed DHARA's separate IPC↔BNS "
+    "correspondence-verification review. The investigating officer determines "
+    "final sections."
+)
+
 
 async def generate_draft(
     slots: dict,
@@ -1524,7 +1541,7 @@ End the letter (after both languages if bilingual) with EXACTLY this disclaimer 
 ---
 \u26a0\ufe0f CITIZEN DRAFT \u2014 NOT A REGISTERED FIR
 Present this document at the nearest police station for official registration under Section 173(1) BNSS.
-Suggested BNS sections are indicative only \u2014 the investigating officer determines final sections.
+{_BNS_SECTION_DISCLAIMER}
 FREE LEGAL AID: NALSA 15100 | Women Helpline 181 | Cybercrime 1930 | Police 100"""
 
     try:
@@ -1590,6 +1607,7 @@ Date: {date_str}
 ---
 \u26a0\ufe0f CITIZEN DRAFT \u2014 NOT A REGISTERED FIR
 Present at the police station for registration under Section 173(1) BNSS.
+{_BNS_SECTION_DISCLAIMER}
 FREE LEGAL AID: NALSA 15100 | Women Helpline 181 | Cybercrime 1930 | Police 100"""
 
 
