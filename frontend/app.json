@@ -28,9 +28,10 @@
       ]
     },
     "android": {
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#48627E"
+        "backgroundColor": "#FFFCF8"
       },
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.msafesolutions.legalaid",
@@ -86,6 +87,7 @@
       "expo-image",
       "expo-secure-store",
       "expo-sharing",
+      "expo-document-picker",
       [
         "expo-location",
         {
@@ -98,9 +100,9 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/dhara_logo_full.png",
-          "imageWidth": 280,
+          "imageWidth": 320,
           "resizeMode": "contain",
-          "backgroundColor": "#1A3F74"
+          "backgroundColor": "#FFFCF8"
         }
       ],
       "expo-web-browser",
