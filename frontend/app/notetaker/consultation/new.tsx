@@ -7,10 +7,11 @@ import {
   View, Text, TextInput, Pressable, ScrollView, StyleSheet,
   ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router, Redirect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
+import { ADVOCATE_MODE_ENABLED } from '@/src/advocateMode/flags';
 import { crossAlert } from '@/src/utils/crossAlert';
 import { apiPost, newIdempotencyKey } from '@/src/notetaker/api';
 import { ScreenHeader } from '@/src/notetaker/ui';
@@ -44,6 +45,10 @@ const LANGUAGES = [
 ];
 
 export default function NewConsultationScreen() {
+  // B-87: Advocate Consultation Notetaker is not scoped/hidden for Wave 1 --
+  // same gate as B-97's advocate/lawyer screens.
+  if (!ADVOCATE_MODE_ENABLED) return <Redirect href="/(tabs)/home" />;
+
   const { matterId } = useLocalSearchParams<{ matterId: string }>();
   const { token } = useAuth();
   const insets = useSafeAreaInsets();
