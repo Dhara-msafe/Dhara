@@ -26,7 +26,7 @@ export default function Index() {
   return (
     <View style={styles.c} testID="splash-screen">
       <Image
-        source={require('../assets/images/dhara_logo_full.png')}
+        source={require('../assets/images/dhara_icon.png')}
         style={styles.logo}
         resizeMode="contain"
       />
