@@ -11,6 +11,7 @@ import { INTERESTS, useUserProfile, type ProfileInterest } from '@/src/userProfi
 import { getPhotoViewToken } from '@/src/trustedCircle/api';
 import { useFamilyJourneyEnabled } from '@/src/familyJourney/store';
 import { FJ_SEND_ENABLED } from '@/src/familyJourney/flags';
+import { ADVOCATE_MODE_ENABLED } from '@/src/advocateMode/flags';
 import { API_BASE } from '@/src/apiBase';
 
 const c = theme.colors;
@@ -42,7 +43,8 @@ export default function Me() {
     { icon: 'location-outline', key: 'me.state', value: user?.state_name || 'Add your state', route: '/state' },
     { icon: 'chatbubbles-outline', key: 'me.history', route: '/(tabs)/history' },
     { icon: 'bookmark-outline', key: 'me.saved', route: '/(tabs)/saved' },
-    { icon: 'briefcase-outline', key: 'me.advocate', route: '/(tabs)/advocate' },
+    // B-97: advocate/lawyer features are hidden for Wave 1 per D-14.
+    ...(ADVOCATE_MODE_ENABLED ? [{ icon: 'briefcase-outline' as any, key: 'me.advocate', route: '/(tabs)/advocate' }] : []),
     { icon: 'settings-outline', key: 'me.settings', route: '/(tabs)/settings' },
   ];
 
