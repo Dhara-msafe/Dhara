@@ -1,6 +1,6 @@
 /** Explicit age, terms and core-data consent. Optional purposes default to off. */
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, Switch, ActivityIndicator, Image } from 'react-native';
+import { View, Text, ScrollView, Pressable, Switch, ActivityIndicator, Image, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -167,6 +167,16 @@ export default function ConsentScreen() {
               <Ionicons name="chevron-forward" size={18} color={colors.primary} />
             </Pressable>
             <Text testID="consent-notice-version" style={styles.note}>Privacy notice · {CONSENT_NOTICE_VERSION}</Text>
+            <Pressable
+              testID="consent-read-full-privacy"
+              accessibilityRole="link"
+              accessibilityLabel={strings.read_full}
+              onPress={() => Linking.openURL('https://dhara.msafesolutions.com/privacy.html')}
+              style={(s) => [styles.termsLink, focusRingStyle(s)]}>
+              <Ionicons name="open-outline" size={20} color={colors.primary} />
+              <Text style={styles.linkText}>{strings.read_full}</Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+            </Pressable>
             <Text testID="consent-collect-heading" style={styles.sectionHeading}>{strings.collect_heading}</Text>
             {strings.collect_items.map((item, i) => (
               <View key={item} style={styles.bulletRow}>
