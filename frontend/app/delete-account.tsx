@@ -61,7 +61,7 @@ function errorText(res: Response, data: any, fallback: string): string {
 export default function DeleteAccount() {
   const [step, setStep] = useState<'request' | 'verify' | 'done'>('request');
   const params = useLocalSearchParams<{ email?: string }>();
-  const { token, logout } = useAuth();
+  const { token, logout, clearSessionExpired } = useAuth();
   const [email, setEmail] = useState(typeof params.email === 'string' ? params.email : '');
   const [code, setCode] = useState('');
   const [confirmChecked, setConfirmChecked] = useState(false);
@@ -85,7 +85,7 @@ export default function DeleteAccount() {
       setNotice(data?.message || 'Check your email for a 6-digit code.');
       setStep('verify');
     } catch (e: any) {
-      setError(e?.message || 'Network error. Please try again.');
+      setError(e?.message || NETWORK_MSG);
     } finally {
       setLoading(false);
     }
@@ -109,9 +109,17 @@ export default function DeleteAccount() {
         return;
       }
       setStep('done');
-      if (token) logout().catch(() => {});
+      // B-91: this screen stays open after deletion (no redirect to /login),
+      // but if the user does navigate there afterwards, any other screen's
+      // in-flight call on this now-invalid token can race in a 401 and flag
+      // sessionExpired, showing "Your session has expired" -- misleading,
+      // since the user chose to delete their account. Clear it here too.
+      if (token) {
+        await logout().catch(() => {});
+        clearSessionExpired();
+      }
     } catch (e: any) {
-      setError(e?.message || 'Network error. Please try again.');
+      setError(e?.message || NETWORK_MSG);
     } finally {
       setLoading(false);
     }

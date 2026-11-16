@@ -56,6 +56,7 @@ export default function FamilyJourneyHub() {
           </View>
           <Switch
             testID="fj-master-toggle"
+            accessibilityLabel="Family Journey"
             value={enabled}
             onValueChange={setEnabled}
             trackColor={{ true: c.navy, false: c.borderStrong }}

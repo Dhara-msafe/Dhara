@@ -6,6 +6,7 @@ State RTI Rules, excise/prohibition, rent control).
 `code` values are the official 2-letter ISO 3166-2:IN subdivision codes, so they
 are stable and safe to store on the user document forever.
 """
+from typing import Optional
 
 STATES = [
     # ---- 28 States ----
@@ -49,6 +50,43 @@ STATES = [
 ]
 
 STATE_BY_CODE = {s["code"]: s for s in STATES}
+STATE_NAME_TO_CODE = {s["name"].upper(): s["code"] for s in STATES}
+
+# B-78: major cities mapped to their state/UT code. This exists because the
+# session-level jurisdiction value (engine.models.Jurisdiction.state, set by
+# the LLM query parser from the user's own wording) is free text, not
+# constrained to a code -- a query that names a city ("Bengaluru") rather
+# than a state ("Karnataka") previously reached state_name() unresolved,
+# producing a notice with a blank state name even though the question did
+# name a real place. Covers state/UT capitals and other major metros; it is
+# intentionally not exhaustive (no tier-3 towns) -- anything not listed here
+# still falls through to "please confirm your state" rather than guessing.
+CITY_TO_STATE_CODE = {
+    "BENGALURU": "KA", "BANGALORE": "KA", "MYSURU": "KA", "MYSORE": "KA",
+    "MUMBAI": "MH", "PUNE": "MH", "NAGPUR": "MH", "THANE": "MH",
+    "CHENNAI": "TN", "COIMBATORE": "TN", "MADURAI": "TN",
+    "HYDERABAD": "TG", "WARANGAL": "TG",
+    "KOLKATA": "WB", "HOWRAH": "WB",
+    "AHMEDABAD": "GJ", "SURAT": "GJ", "VADODARA": "GJ", "GANDHINAGAR": "GJ",
+    "JAIPUR": "RJ", "JODHPUR": "RJ", "UDAIPUR": "RJ",
+    "LUCKNOW": "UP", "KANPUR": "UP", "NOIDA": "UP", "AGRA": "UP", "VARANASI": "UP", "GHAZIABAD": "UP",
+    "PATNA": "BR", "GAYA": "BR",
+    "BHOPAL": "MP", "INDORE": "MP", "JABALPUR": "MP", "GWALIOR": "MP",
+    "CHANDIGARH": "CH",
+    "GURUGRAM": "HR", "GURGAON": "HR", "FARIDABAD": "HR",
+    "THIRUVANANTHAPURAM": "KL", "KOCHI": "KL", "COCHIN": "KL", "KOZHIKODE": "KL",
+    "BHUBANESWAR": "OD", "CUTTACK": "OD",
+    "RAIPUR": "CG",
+    "RANCHI": "JH", "JAMSHEDPUR": "JH",
+    "DEHRADUN": "UK",
+    "SHIMLA": "HP",
+    "AMARAVATI": "AP", "VISAKHAPATNAM": "AP", "VIJAYAWADA": "AP",
+    "GUWAHATI": "AS",
+    "PANAJI": "GA", "PANJIM": "GA",
+    "AMRITSAR": "PB", "LUDHIANA": "PB",
+    "PUDUCHERRY": "PY", "PONDICHERRY": "PY",
+    "NEW DELHI": "DL", "DELHI": "DL",
+}
 
 
 def state_name(code: str) -> str:
@@ -58,3 +96,21 @@ def state_name(code: str) -> str:
 
 def is_valid_state(code: str) -> bool:
     return (code or "").upper() in STATE_BY_CODE
+
+
+def normalize_state_value(raw: Optional[str]) -> Optional[str]:
+    """B-78: turn free text (a code, a full state name, or a known city
+    name) into a valid 2-letter state/UT code, or None if it doesn't
+    resolve to one. Never raises and never guesses past this list --
+    anything unresolved returns None so callers fall back to the
+    "please confirm your state" path instead of a blank-name notice."""
+    if not raw:
+        return None
+    v = raw.strip().upper()
+    if v in STATE_BY_CODE:
+        return v
+    if v in STATE_NAME_TO_CODE:
+        return STATE_NAME_TO_CODE[v]
+    if v in CITY_TO_STATE_CODE:
+        return CITY_TO_STATE_CODE[v]
+    return None

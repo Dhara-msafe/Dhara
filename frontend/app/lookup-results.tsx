@@ -123,6 +123,11 @@ export default function LookupResults() {
   const [loading, setLoading]   = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // B-88: distinguishes "nothing to retry" (no search term was ever given)
+  // from a real fetch failure, so the error action can say "Go Back"
+  // instead of "Try Again" — retrying an empty search would just repeat
+  // the same dead end.
+  const [noSearchTerm, setNoSearchTerm] = useState(false);
   const [caseDetail, setCaseDetail] = useState<CaseRow | null>(null);
   const [results, setResults]   = useState<CaseRow[]>([]);
   const [page, setPage]         = useState(1);
@@ -133,6 +138,7 @@ export default function LookupResults() {
   const fetchCnr = useCallback(async (cnr: string) => {
     setLoading(true);
     setErrorMsg(null);
+    setNoSearchTerm(false);
     try {
       const r = await fetch(`${API_BASE}/api/cases/cnr/${encodeURIComponent(cnr)}`, { headers: authHeaders });
       if (r.status === 401) { await forceLogout(); return; }
@@ -151,7 +157,7 @@ export default function LookupResults() {
   }, [token]);
 
   const fetchParty = useCallback(async (name: string, pageNum: number, append: boolean) => {
-    if (append) setLoadingMore(true); else { setLoading(true); setErrorMsg(null); }
+    if (append) setLoadingMore(true); else { setLoading(true); setErrorMsg(null); setNoSearchTerm(false); }
     try {
       const r = await fetch(
         `${API_BASE}/api/cases/search?name=${encodeURIComponent(name)}&page=${pageNum}`,
@@ -187,9 +193,25 @@ export default function LookupResults() {
     if (!token) { router.replace('/login' as any); return; }
     if (mode === 'cnr' && cnrParam) fetchCnr(cnrParam);
     else if (mode === 'party' && nameParam) fetchParty(nameParam, 1, false);
+    else {
+      // B-88: this screen used to default `loading` to true and only ever
+      // flip it to false inside fetchCnr()/fetchParty()'s `finally` block.
+      // Opened directly with no search term (a direct URL hit, a refresh
+      // that dropped the query params, or a stale link) meant neither
+      // fetch ever ran, so `loading` stayed true and the spinner never
+      // resolved. Surface an explicit empty-state/error instead.
+      setLoading(false);
+      setNoSearchTerm(true);
+      setErrorMsg(
+        mode === 'cnr'
+          ? 'No CNR number was provided. Please go back and enter a CNR to search.'
+          : 'No name was provided. Please go back and enter a name to search.'
+      );
+    }
   }, [mode, cnrParam, nameParam, authLoading, token]);
 
   const handleRetry = () => {
+    if (noSearchTerm) { router.back(); return; }
     if (mode === 'cnr') fetchCnr(cnrParam);
     else fetchParty(nameParam, 1, false);
   };
@@ -229,12 +251,12 @@ export default function LookupResults() {
       )}
 
       {!loading && errorMsg && (
-        <View style={styles.center}>
-          <Ionicons name="alert-circle-outline" size={40} color="#DC2626" />
+        <View style={styles.center} testID="lookup-results-error">
+          <Ionicons name={noSearchTerm ? 'search-outline' : 'alert-circle-outline'} size={40} color={noSearchTerm ? HINT : '#DC2626'} />
           <Text style={styles.errorText}>{errorMsg}</Text>
-          <Pressable style={styles.retryBtn} onPress={handleRetry}>
-            <Ionicons name="refresh" size={16} color="#fff" />
-            <Text style={styles.retryBtnText}>Try Again</Text>
+          <Pressable style={styles.retryBtn} onPress={handleRetry} testID="lookup-results-retry">
+            <Ionicons name={noSearchTerm ? 'arrow-back' : 'refresh'} size={16} color="#fff" />
+            <Text style={styles.retryBtnText}>{noSearchTerm ? 'Go Back' : 'Try Again'}</Text>
           </Pressable>
         </View>
       )}

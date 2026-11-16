@@ -119,3 +119,21 @@ export function decryptBytes(cipherBytes: Uint8Array, key: Uint8Array, ivHex: st
   const decipher = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(fromHex(ivHex)));
   return decipher.decrypt(cipherBytes);
 }
+
+// ── B-93 (D-27): text (not just file-bytes) at-rest encryption ───────────────
+// Thin wrappers around encryptBytes/decryptBytes for small JSON payloads kept
+// directly in AsyncStorage (legal notice drafts, GPS coordinates on an
+// evidence manifest entry) rather than as a File on disk. Ciphertext is
+// hex-encoded (via aes-js's own utf8/hex helpers, already a dependency here)
+// so it round-trips safely through JSON.stringify/AsyncStorage as plain text.
+export type EncryptTextResult = { cipherHex: string; iv: string };
+
+export async function encryptText(plainText: string, key: Uint8Array): Promise<EncryptTextResult> {
+  const { cipherBytes, iv } = await encryptBytes(aesjs.utils.utf8.toBytes(plainText), key);
+  return { cipherHex: toHex(cipherBytes), iv };
+}
+
+export function decryptText(cipherHex: string, key: Uint8Array, ivHex: string): string {
+  const plainBytes = decryptBytes(fromHex(cipherHex), key, ivHex);
+  return aesjs.utils.utf8.fromBytes(plainBytes);
+}

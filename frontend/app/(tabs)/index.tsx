@@ -2110,13 +2110,14 @@ export default function ChatScreen() {
                           {speechRate === 1.0 ? '1x' : speechRate === 1.5 ? '1.5x' : '2x'}
                         </Text>
                       </Pressable>
+                      {/* B-95: speaker/listen icon had no accessible label. Label reflects state. */}
                       <Pressable
                         testID={`speak-${m.id}`}
                         onPress={() => speak(m.id, m.content)}
                         hitSlop={UI_REVISION_V1 ? 12 : 10}
                         style={(s) => [focusRingStyle(s)]}
                         accessibilityRole="button"
-                        accessibilityLabel={speakingId === m.id ? 'Stop reading aloud' : 'Read answer aloud'}
+                        accessibilityLabel={speakingId === m.id ? 'Stop reading answer aloud' : 'Listen to this answer'}
                       >
                         {ttsLoadingId === m.id ? (
                           <ActivityIndicator size="small" color={theme.colors.brand} />

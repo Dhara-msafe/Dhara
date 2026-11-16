@@ -8,6 +8,7 @@ import * as Clipboard from 'expo-clipboard';
 import { theme } from '@/src/theme';
 import { draftByType } from '@/src/drafts';
 import { DraftHistoryItem, loadHistory, removeFromHistory } from '@/src/draftHistory';
+import { formatDateDMY } from '@/src/dateFormat';
 
 import { shareExternal } from '@/src/outbound';
 // NF-UI-REV-10 (Group I, DHARA UI Revision v2.2.1): presentation-only
@@ -83,7 +84,8 @@ export default function DraftHistoryScreen() {
             const open = openId === item.id;
             const spec = draftByType(item.type);
             const toggle = () => setOpenId(open ? null : item.id);
-            const dateStr = `${new Date(item.created_at).toLocaleDateString()} · ${new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+            // B-100: day-first date (14/11/2026), not the browser's month-first default.
+            const dateStr = `${formatDateDMY(item.created_at)} · ${new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
             return (
               <View testID={`draft-history-${item.id}`} style={styles.card}>
                 <View style={styles.cardHead}>

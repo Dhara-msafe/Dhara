@@ -201,6 +201,12 @@ _STATIC_TRANS: dict[str, dict[str, str]] = {
         "mr": "नाही, मजकूर वर्णन वापरा",
         "ta": "இல்லை, உரை விவரத்தை பயன்படுத்துக",
     },
+    "gps_text_noted": {
+        "en": "Got it, I've noted that as your location detail: “{text}”",
+        "hi": "ठीक है, मैंने इसे आपकी जगह के विवरण के रूप में नोट कर लिया है: “{text}”",
+        "mr": "ठीक आहे, मी हे तुमचे ठिकाणाचे तपशील म्हणून नोंदवले आहे: “{text}”",
+        "ta": "சரி, இதை உங்கள் இட விவரமாக குறித்துக்கொண்டேன்: “{text}”",
+    },
     "place_off_topic": {
         "en": "I've noted your question and will come back to it.\n\nFor the complaint, I need the **location** of the incident.\n{suffix}",
         "hi": "मैंने आपका सवाल नोट कर लिया है और बाद में उस पर वापस आऊंगा।\n\nशिकायत के लिए, मुझे घटना की **जगह** चाहिए।\n{suffix}",
@@ -422,6 +428,14 @@ _PROBE_MSG_TRANS: dict[str, dict[str, str]] = {
         "mr": "फोन चोरी झाला का? IMEI नंबर माहीत आहे का? (*#06# डायल करा)",
         "ta": "தொலைபேசி திருடப்பட்டதா? IMEI எண் தெரியுமா? (*#06# அழையுங்கள்)",
     },
+    # B-75: used instead of probe_stolen_phone_imei when the citizen's
+    # theft-items answer already named a phone -- doesn't re-ask "Was a
+    # phone stolen?", just asks for the IMEI directly.
+    "probe_stolen_phone_imei_confirmed": {
+        "hi": "आपने बताया कि फोन चोरी हुआ — IMEI नंबर पता है? (*#06# डायल करें)",
+        "mr": "तुम्ही सांगितले की फोन चोरी झाला — IMEI नंबर माहीत आहे का? (*#06# डायल करा)",
+        "ta": "தொலைபேசி திருடப்பட்டது எனக் குறிப்பிட்டீர்கள் — IMEI எண் தெரியுமா? (*#06# அழையுங்கள்)",
+    },
     "probe_sim_blocked": {
         "hi": "क्या SIM ब्लॉक किया? (Airtel 121 / Jio 198 / BSNL 1500 पर कॉल करें)",
         "mr": "SIM ब्लॉक केले का? (Airtel 121 / Jio 198 / BSNL 1500 वर कॉल करा)",
@@ -600,7 +614,33 @@ _NON_PLACE_PATTERNS = [
 
 
 def _is_valid_place_response(text: str) -> bool:
-    """Return True if text looks like a place description."""
+    """Return True if text looks like a place description.
+
+    B-111: a real Indian address ("Hassan Parthi, Warangal, Telangana,
+    506371" was the exact 13 Nov Preview repro) was being misclassified as
+    off-topic and parked, with the bot re-asking the same question and the
+    final summary's "Where" field falling back to showing the bot's own
+    meta-text instead of the address. Root cause: this function only ever
+    accepted a longer answer if it happened to contain one of ~70 hardcoded
+    generic descriptor words (road/street/nagar/...) or one of 15 major
+    city names -- it had no notion of a state name, a district, a PIN code,
+    or the comma-separated "locality, city, state[, PIN]" shape a real
+    Indian address is overwhelmingly likely to take, so anything in that
+    shape using a smaller city/town or no descriptor word at all (five
+    tokens here, over the old 4-word allowance) fell through to the final
+    "no keyword match = off-topic" catch-all.
+
+    Fix: keep rejecting the same clear question/request/denial patterns
+    (those are genuinely not place answers), but widen what counts as a
+    place answer to also include (a) any PIN code / digit run, since a real
+    address very often ends in one and the keyword list can never cover
+    every India place name, and (b) any comma-separated, multi-segment
+    answer, since that shape itself is strong evidence of an address even
+    with zero keyword matches. Only a single-segment, keyword-less,
+    digit-less, longer sentence that doesn't already match a question
+    pattern is still treated as ambiguous and parked -- that's the
+    genuinely-unclear case this function exists to catch.
+    """
     if not text or len(text.strip()) < 3:
         return True  # accept very short answers (abbreviations etc.)
     t = text.lower().strip()
@@ -611,10 +651,23 @@ def _is_valid_place_response(text: str) -> bool:
     # Accept if it contains any place keyword
     if any(kw in t for kw in _PLACE_KW):
         return True
+    # Accept if it contains a PIN code or any other digit run -- real
+    # addresses routinely include one (house/flat number, PIN code) and no
+    # fixed keyword list can cover every district/city/state name in India.
+    if re.search(r"\d", t):
+        return True
     # Accept short answers (could be neighbourhood name, place abbreviation)
     if len(t.split()) <= 4:
         return True
-    # Long sentence with no location keywords = likely off-topic
+    # Accept comma-separated, multi-segment text -- "locality, city, state"
+    # is the standard shape of a real Indian address and is itself strong
+    # evidence of a place answer, independent of any keyword match.
+    if len([seg for seg in t.split(",") if seg.strip()]) >= 2:
+        return True
+    # Long, single-segment sentence with no location keywords, no digits,
+    # and not matching a clear question/denial pattern either = genuinely
+    # ambiguous; treat conservatively as off-topic so a clearly unrelated
+    # ramble doesn't get stored as the incident location.
     return False
 
 
@@ -622,6 +675,15 @@ _WITNESS_KW = ["witness", "saw", "they were", "my friend", "present", "there"]
 _VAGUE_WITNESS = ["yes", "yeah", "yep", "sure", "there were", "yes there",
                   "they were witnesses", "they are witnesses", "they were present",
                   "my friends were", "few people"]
+
+# B-112: a user saying there were NO witnesses must never be treated as a
+# "vague" (affirmative-but-unspecific) witness answer -- those two are
+# opposites. Checked before anything else in _is_vague_witness_response.
+_NO_WITNESS_PATTERNS = [
+    r"^no\b", r"^none\b", r"^nobody\b", r"^no\s*one\b", r"^not\s*any\b",
+    r"^nil\b", r"^n/?a\b", r"^no\s*witness", r"^not\s*that\s*i\s*(know|saw|am aware)",
+    r"^don'?t\s*(know|think)\s*(of\s*)?any", r"^didn'?t\s*see\s*any",
+]
 
 # Common sentence-starter or generic words that are capitalised but are NOT person names
 _COMMON_CAPS: set[str] = {
@@ -648,10 +710,22 @@ def _is_vague_witness_response(text: str) -> bool:
     - at least one digit run that looks like a phone number, OR
     - at least one capitalized word that is NOT a common English word
       (i.e., a real person name such as 'Ramesh', 'Priya', 'Suresh')
+
+    B-112: a "no witnesses" answer is the OPPOSITE of a vague-but-affirmative
+    one, and must never be treated as vague here. Before this fix, "No" (or
+    "None", "Nobody", etc.) matched none of _VAGUE_WITNESS's affirmative
+    prefixes, had no digit, and had no capitalised non-common word long
+    enough to match the person-name regex -- so it fell through to this
+    function's own "no phone number, no person name -> vague" default,
+    triggering probe_witnesses_detail's "You mentioned witnesses were
+    present..." follow-up even though the user said the opposite. Checked
+    first, before anything else, so a negative answer short-circuits clean.
     """
     if not text:
         return True
     t = text.lower().strip()
+    if any(re.match(pat, t) for pat in _NO_WITNESS_PATTERNS):
+        return False
     # Very short or just "yes / yeah / sure"
     if len(t) < 30 and any(t.startswith(v) for v in _VAGUE_WITNESS):
         return True
@@ -1003,6 +1077,34 @@ def _is_negative(text: str) -> bool:
     return bool(tokens) and tokens[0] in _NO_WORDS
 
 
+# B-75: probe_stolen_phone_imei used to unconditionally re-ask "Was a phone
+# stolen?" for every theft case, even though the citizen had just listed the
+# stolen items in probe_theft_items a question earlier — redundant whenever
+# that list didn't mention a phone at all (e.g. "wallet with cash, laptop").
+_PHONE_MENTION_RE = re.compile(r"\b(phone|mobile|iphone|smartphone|handset|cell\s*phone)s?\b", re.IGNORECASE)
+
+
+def _mentions_phone(text: Optional[str]) -> bool:
+    return bool(text) and bool(_PHONE_MENTION_RE.search(text))
+
+
+# B-75: the "Q X/Y" counter's total was recomputed fresh every turn from
+# done_count + current + len(remaining). Several probes get conditionally
+# dropped mid-flow once an earlier answer makes them irrelevant (e.g.
+# probe_assault_mlc dropped after "no injury", or the phone/SIM probes
+# dropped above after a non-phone theft-items answer) -- each drop shrank
+# the live total, so a citizen could see "Q 9/12" then "Q 9/11" a turn
+# later, which reads as the bot losing track rather than narrowing down
+# real follow-ups. Track the highest total ever shown for this session and
+# never report lower than that, so the counter only ever grows or holds.
+async def _progress_total(db, sid: str, prior_max: int, done_count: int, remaining_len: int) -> int:
+    computed = done_count + 1 + remaining_len
+    total = max(computed, prior_max)
+    if total != prior_max:
+        await db.fir_sessions.update_one({"session_id": sid}, {"$set": {"probe_max_total": total}})
+    return total
+
+
 # ─── Probe question definitions ───────────────────────────────────────────────
 PROBE_Q: dict[str, dict] = {
     "probe_date": {
@@ -1025,7 +1127,7 @@ PROBE_Q: dict[str, dict] = {
     # ── Incident-specific ─────────────────────────────────────────────────────
     "probe_theft_items": {
         "message": "What exactly was stolen? List each item with approximate value.\nE.g., \"iPhone 14 — ₹80,000, wallet with ₹3,000 cash\"",
-        "slot": "theft_items", "input_type": INPUT_TEXT, "skip_label": "Skip",
+        "slot": "theft_items", "input_type": INPUT_VOICE_TEXT, "skip_label": "Skip",
     },
     "probe_injury": {
         "message": "Was anyone physically injured? Did anyone need medical attention?",
@@ -1034,11 +1136,11 @@ PROBE_Q: dict[str, dict] = {
     },
     "probe_assault_mlc": {
         "message": "Did you go to a hospital or doctor? Do you have a Medico-Legal Certificate (MLC)?",
-        "slot": "assault_mlc", "input_type": INPUT_TEXT, "skip_label": "Skip",
+        "slot": "assault_mlc", "input_type": INPUT_VOICE_TEXT, "skip_label": "Skip",
     },
     "probe_cyber_amount": {
         "message": "How much money was lost? (₹ amount)\nWhat platform was used? (UPI / bank transfer / website / app)",
-        "slot": "cyber_amount", "input_type": INPUT_TEXT, "skip_label": "Skip",
+        "slot": "cyber_amount", "input_type": INPUT_VOICE_TEXT, "skip_label": "Skip",
     },
     "probe_harassment_online": {
         "message": "Did this harassment happen online, in person, or both?",
@@ -1048,7 +1150,7 @@ PROBE_Q: dict[str, dict] = {
     # ── Common optional slots ─────────────────────────────────────────────────
     "probe_accused": {
         "message": "Do you know who did this?\nName, age, appearance, or relationship — or say \"Not known\".",
-        "slot": "accused", "input_type": INPUT_TEXT, "skip_label": "Not known",
+        "slot": "accused", "input_type": INPUT_VOICE_TEXT, "skip_label": "Not known",
     },
     "probe_witnesses": {
         "message": "Were there any witnesses?\nNames and contact numbers if available.",
@@ -1092,6 +1194,16 @@ PROBE_Q: dict[str, dict] = {
         "slot": "stolen_phone_imei", "input_type": INPUT_TEXT,
         "skip_label": "No phone stolen / Don't know IMEI",
     },
+    # B-75: shown instead of the above when the theft-items answer already
+    # named a phone -- the citizen already told us a phone was stolen, so
+    # this only asks the one new thing (IMEI) instead of re-asking "was a
+    # phone stolen?" with a skip label that would otherwise contradict what
+    # they just said.
+    "probe_stolen_phone_imei_confirmed": {
+        "message": "You mentioned a phone was stolen — do you know its IMEI number?\n(Dial *#06# or check Settings → About. Helps police trace and block the device)",
+        "slot": "stolen_phone_imei", "input_type": INPUT_TEXT,
+        "skip_label": "Don't know IMEI",
+    },
     "probe_sim_blocked": {
         "message": "If a SIM card was stolen with the phone, have you blocked it yet?\n(Call your telecom operator's helpline to block: Airtel 121 / Jio 198 / BSNL 1500)",
         "slot": "sim_blocked", "input_type": INPUT_QUICK_REPLY,
@@ -1099,7 +1211,7 @@ PROBE_Q: dict[str, dict] = {
     },
     "probe_incident_place_detail": {
         "message": "Any additional location details?\n(e.g., bus number/route, train compartment, exact seat, vehicle registration)",
-        "slot": "incident_place_detail", "input_type": INPUT_TEXT,
+        "slot": "incident_place_detail", "input_type": INPUT_VOICE_TEXT,
         "skip_label": "No additional details",
     },
     "probe_transaction_ids": {
@@ -1115,7 +1227,7 @@ PROBE_Q: dict[str, dict] = {
     # ── Domestic Violence specific ─────────────────────────────────────────────
     "probe_dv_duration": {
         "message": "How long has this been happening?\n(e.g., 3 months, 2 years)",
-        "slot": "dv_duration", "input_type": INPUT_TEXT, "skip_label": "Skip",
+        "slot": "dv_duration", "input_type": INPUT_VOICE_TEXT, "skip_label": "Skip",
     },
     "probe_dv_children": {
         "message": "Are there children (under 18) in the household affected by this?\n(You don't need to share their names — this helps the magistrate under the DV Act)",
@@ -1125,11 +1237,11 @@ PROBE_Q: dict[str, dict] = {
     # ── POSH / Workplace Harassment specific ─────────────────────────────────
     "probe_posh_employer": {
         "message": "What is the name of your employer/company and your workplace address?",
-        "slot": "posh_employer", "input_type": INPUT_TEXT, "skip_label": "Skip",
+        "slot": "posh_employer", "input_type": INPUT_VOICE_TEXT, "skip_label": "Skip",
     },
     "probe_posh_role": {
         "message": "What is your role at the company, and what is the harasser's designation or role?",
-        "slot": "posh_role", "input_type": INPUT_TEXT, "skip_label": "Skip",
+        "slot": "posh_role", "input_type": INPUT_VOICE_TEXT, "skip_label": "Skip",
     },
     "probe_posh_icc": {
         "message": "Has this already been reported to your company's Internal Complaints Committee (ICC) under the POSH Act, 2013?",
@@ -1139,7 +1251,7 @@ PROBE_Q: dict[str, dict] = {
     # ── Consumer / Banking Fraud specific ────────────────────────────────────
     "probe_consumer_company": {
         "message": "What is the name of the company or platform involved?\n(e.g., Amazon, Flipkart, HDFC Bank, Paytm, local shop)",
-        "slot": "consumer_company", "input_type": INPUT_TEXT, "skip_label": "Skip",
+        "slot": "consumer_company", "input_type": INPUT_VOICE_TEXT, "skip_label": "Skip",
     },
     "probe_consumer_order_id": {
         "message": "Do you have an order ID, transaction reference, or complaint number from the company?",
@@ -1448,6 +1560,23 @@ _DRAFT_SYS = """You are a legal draft writer for Indian citizens.
 Generate a first-person FIR complaint letter as required for Section 173(1) BNSS filing.
 Be factual. Use exactly the information provided. Output ONLY the letter text, no markdown."""
 
+# B-101: suggested BNS sections in a FIR draft come from suggest_sections()'s
+# lookup against db.legal_sections (existence + dead-law/judicial-flag check
+# only) — a different, separate mechanism from the /advocate/cross-reference
+# endpoint's IPC<->BNS correspondence-approval gate ("Citation Guard"), which
+# guards against a specific translation table audited to contain errors.
+# These suggestions are not run through that gate, so the disclaimer must say
+# so explicitly rather than let a citizen read a printed BNS number as
+# equivalent to a verified citation. Kept as one shared string so the LLM
+# prompt template and the offline fallback template never drift out of sync
+# with each other (previously the fallback omitted any such caveat at all).
+_BNS_SECTION_DISCLAIMER = (
+    "Suggested BNS sections are indicative only, drawn from DHARA's current-law "
+    "database — they have not individually passed DHARA's separate IPC↔BNS "
+    "correspondence-verification review. The investigating officer determines "
+    "final sections."
+)
+
 
 async def generate_draft(
     slots: dict,
@@ -1524,8 +1653,8 @@ End the letter (after both languages if bilingual) with EXACTLY this disclaimer 
 ---
 \u26a0\ufe0f CITIZEN DRAFT \u2014 NOT A REGISTERED FIR
 Present this document at the nearest police station for official registration under Section 173(1) BNSS.
-Suggested BNS sections are indicative only \u2014 the investigating officer determines final sections.
-FREE LEGAL AID: NALSA 15100 | Women Helpline 181 | Cybercrime 1930 | Police 100"""
+{_BNS_SECTION_DISCLAIMER}
+FREE LEGAL AID: NALSA 15100 | Women Helpline 181 | Cybercrime 1930 | Police 112"""
 
     try:
         chat = (
@@ -1590,7 +1719,8 @@ Date: {date_str}
 ---
 \u26a0\ufe0f CITIZEN DRAFT \u2014 NOT A REGISTERED FIR
 Present at the police station for registration under Section 173(1) BNSS.
-FREE LEGAL AID: NALSA 15100 | Women Helpline 181 | Cybercrime 1930 | Police 100"""
+{_BNS_SECTION_DISCLAIMER}
+FREE LEGAL AID: NALSA 15100 | Women Helpline 181 | Cybercrime 1930 | Police 112"""
 
 
 # ─── Summary builder ──────────────────────────────────────────────────────────
@@ -1617,6 +1747,13 @@ def _build_summary(slots: dict, sections: list[dict], incident_types: list[str])
         lines.append(f"\u2696\ufe0f Type: {', '.join(t.replace('_', ' ').title() for t in shown_types)}")
     if slots.get("accused"):
         lines.append(f"\U0001f464 Accused: {str(slots.get('accused', ''))[:100]}")
+    # B-75: the summary used to omit what was actually stolen entirely — it
+    # showed Injury/Accused but never theft_items, so a citizen scanning the
+    # summary before the draft had no way to check the stolen-items list
+    # the bot had recorded.
+    theft_items = slots.get("theft_items")
+    if theft_items and not str(theft_items).upper().startswith("N/A"):
+        lines.append(f"\U0001f9f3 Stolen items: {str(theft_items)[:150]}")
     if slots.get("injury"):
         lines.append(f"\U0001f3e5 Injury: {slots.get('injury')}")
     if slots.get("informant_name"):
@@ -1676,6 +1813,7 @@ async def create_session(
         "stage": STAGE_SAFETY_GATE,
         "pending_probes": [],
         "current_probe": None,
+        "probe_max_total": 0,  # B-75: highest "Q X/Y" total ever shown this session
         "session_location_start": session_location_start,
         "session_location_end": None,
         "incident_types": pre_seeded_types,
@@ -1757,9 +1895,28 @@ async def process_turn(
     current_probe: Optional[str] = session.get("current_probe")
     incident_types: list[str] = list(session.get("incident_types", []))
 
-    # Log user turn to conversation history
-    if user_message or gps or action:
-        msg_log = user_message or (f"[GPS:{gps}]" if gps else f"[{action}]")
+    # Log user turn to conversation history.
+    # B-108 fix: 'continue_safe', 'not_safe' and 'resume' are internal
+    # continuation signals the client posts automatically (emergency-overlay
+    # "Continue"/"Exit" taps and the silent re-ask on app reopen) -- the live
+    # chat UI (sendTurn() in fir-draft/index.tsx) never shows a user bubble
+    # for any of them either. Logging them as raw "[continue_safe]" /
+    # "[not_safe]" / "[resume]" tokens had no effect live, but leaked into
+    # view the moment a session was resumed and its narrative_turns were
+    # replayed verbatim as chat bubbles. 'skip' DOES show a bubble live (the
+    # current probe's own skip_label, e.g. "No witnesses"), so log that same
+    # friendly text here instead of the raw "[skip]" token, so a resumed
+    # session's history matches what the citizen actually saw.
+    _SILENT_ACTIONS = {"continue_safe", "not_safe", "resume"}
+    if user_message or gps or (action and action not in _SILENT_ACTIONS):
+        if user_message:
+            msg_log = user_message
+        elif gps:
+            msg_log = "📍 Shared GPS location"
+        elif action == "skip":
+            msg_log = PROBE_Q.get(current_probe, {}).get("skip_label") or "Skip"
+        else:
+            msg_log = action
         await db.fir_sessions.update_one(
             {"session_id": session_id},
             {"$push": {"narrative_turns": {"role": "user", "message": msg_log, "timestamp": now}},
@@ -1993,7 +2150,9 @@ async def _dispatch(
                 bot_msg = _tm("welcome_back", language, suffix=_tp(cp, language))
             # v3.4: Probe progress for "Q X/Y" UI counter
             done_count = len(session.get("probe_history", []))
-            total_probes = done_count + 1 + len(pending_probes)
+            total_probes = await _progress_total(
+                db, sid, session.get("probe_max_total", 0), done_count, len(pending_probes)
+            )
             return {
                 "session_id": sid, "stage": STAGE_PROBE, "probe_key": cp,
                 "bot_message": bot_msg,
@@ -2022,14 +2181,36 @@ async def _dispatch(
                     "quick_replies": [_tm("gps_yes", language), _tm("gps_no", language)],
                     "confirmed_address": addr, "completed": False,
                 }
-            else:
+            elif action == "skip" or not (user_message or "").strip():
                 # ── v3.3: GPS declined/skipped — record source ───────────────
                 slots["incident_gps"] = {"source": "skipped"}
                 await db.fir_sessions.update_one(
                     {"session_id": sid},
                     {"$set": {"slots": slots, "updated_at": now}},
                 )
-            return await _advance_probe(db, corpus_db, sid, slots, pending_probes, incident_types, now, completed_probe=cp, language=language)
+                return await _advance_probe(db, corpus_db, sid, slots, pending_probes, incident_types, now, completed_probe=cp, language=language)
+            else:
+                # ── B-113: a free-typed answer here (e.g. the web "GPS
+                # unavailable" fallback box, which shows a plain text input
+                # for this exact probe, or a citizen typing "yes" instead of
+                # tapping the Get GPS Location button) used to fall into the
+                # branch above and be silently treated as an explicit skip
+                # -- no gps payload, no 'skip' action, nothing recorded, no
+                # acknowledgment, flow just jumped to the next question as
+                # if nothing had been typed at all. Store it as a manual
+                # location note and say so, instead of discarding it.
+                text = user_message.strip()
+                slots["incident_gps"] = {"source": "manual_text", "text": text}
+                slots["incident_gps_address"] = text
+                await db.fir_sessions.update_one(
+                    {"session_id": sid},
+                    {"$set": {"slots": slots, "updated_at": now}},
+                )
+                return await _advance_probe(
+                    db, corpus_db, sid, slots, pending_probes, incident_types, now,
+                    completed_probe=cp, language=language,
+                    ack_message=_tm("gps_text_noted", language, text=text),
+                )
 
         elif cp == "probe_evidence":
             if action in ("skip", "upload_done"):
@@ -2245,7 +2426,7 @@ async def _dispatch(
                         pending_probes = new_pending
                         incident_types = new_types
 
-                elif cp == "probe_stolen_phone_imei":
+                elif cp in ("probe_stolen_phone_imei", "probe_stolen_phone_imei_confirmed"):
                     slots["stolen_phone_imei"] = user_message
                     await db.fir_sessions.update_one(
                         {"session_id": sid}, {"$set": {"slots": slots, "updated_at": now}}
@@ -2259,6 +2440,34 @@ async def _dispatch(
                     slots["incident_place_detail"] = user_message
                     await db.fir_sessions.update_one(
                         {"session_id": sid}, {"$set": {"slots": slots, "updated_at": now}}
+                    )
+                # ── B-75: theft-items answer decides whether the phone/SIM
+                # probes are still relevant, instead of always asking them ──
+                elif cp == "probe_theft_items":
+                    slots["theft_items"] = user_message
+                    if _mentions_phone(user_message):
+                        # Already know a phone was stolen -- swap in the
+                        # variant that skips straight to asking for the
+                        # IMEI instead of re-asking "was a phone stolen?".
+                        pending_probes = [
+                            "probe_stolen_phone_imei_confirmed" if p == "probe_stolen_phone_imei" else p
+                            for p in pending_probes
+                        ]
+                    else:
+                        # Nothing stolen sounds like a phone — asking "Was a
+                        # phone stolen?" right after would just repeat a
+                        # question the citizen already answered. Mark both
+                        # phone-specific slots as not applicable and drop
+                        # them from the queue instead of asking them.
+                        slots["stolen_phone_imei"] = "N/A — no phone reported stolen"
+                        slots["sim_blocked"] = "N/A — no phone reported stolen"
+                        pending_probes = [
+                            p for p in pending_probes
+                            if p not in ("probe_stolen_phone_imei", "probe_sim_blocked")
+                        ]
+                    await db.fir_sessions.update_one(
+                        {"session_id": sid},
+                        {"$set": {"slots": slots, "pending_probes": pending_probes, "updated_at": now}}
                     )
                 elif cp == "probe_transaction_ids":
                     slots["transaction_ids"] = user_message
@@ -2442,6 +2651,35 @@ async def _dispatch(
             "quick_replies": [], "completed": True,
         }
 
+    # ── B-110: self-heal a session wedged mid-generation ───────────────────────
+    # STAGE_READ_BACK writes stage=STAGE_DRAFT *before* awaiting generate_draft(),
+    # then writes STAGE_COMPLETED only after it returns. generate_draft() itself
+    # always returns (its own try/except falls back to a deterministic template
+    # on any LLM error), so this used to be safe — but the request itself can
+    # still be cut off mid-await by a slow LLM call colliding with the host's
+    # own sleep/restart behavior (the B-80/B-105/B-107 family), which leaves the
+    # session parked at stage="draft" forever: every later message (including
+    # "resume"/"draft"/"next") fell through every branch above with no match
+    # and got "Unknown stage: draft" back, with no way to recover.
+    # Fix: treat landing back here with stage=STAGE_DRAFT as "retry generation"
+    # instead of an error, using the same slots/sections already on the session.
+    elif stage == STAGE_DRAFT:
+        sections = session.get("suggested_sections", [])
+        evidence_files = list(session.get("evidence_files", []))
+        draft_text = await generate_draft(
+            slots, sections, evidence_files, language, language_name, llm_key
+        )
+        await db.fir_sessions.update_one(
+            {"session_id": sid},
+            {"$set": {"draft": draft_text, "stage": STAGE_COMPLETED, "status": "completed", "updated_at": now}},
+        )
+        return {
+            "session_id": sid, "stage": STAGE_COMPLETED,
+            "bot_message": _tm("draft_ready", language),
+            "input_type": INPUT_DONE, "quick_replies": [],
+            "draft": draft_text, "completed": True,
+        }
+
     return {"error": f"Unknown stage: {stage}", "session_id": sid}
 
 
@@ -2450,8 +2688,16 @@ async def _advance_probe(
     pending_probes: list[str], incident_types: list[str], now: str,
     completed_probe: Optional[str] = None,
     language: str = "en",
+    ack_message: Optional[str] = None,
 ) -> dict:
-    """Advance to next probe in queue, or enter section_suggest if none left."""
+    """Advance to next probe in queue, or enter section_suggest if none left.
+
+    B-113: ack_message, when given, is prepended to whatever bot_message
+    this call would otherwise return (the next probe's question, or the
+    section_suggest summary). Used so a probe that accepted an unusual but
+    valid answer (e.g. typed text answering the GPS probe) can say so,
+    instead of silently moving on with no visible acknowledgment at all.
+    """
     # ── v3.3: Track answered probe for back navigation ──────────────────────
     if completed_probe and completed_probe in PROBE_Q:
         pdef_done = PROBE_Q[completed_probe]
@@ -2471,15 +2717,21 @@ async def _advance_probe(
         )
         pdef = PROBE_Q[next_probe]
         # Dynamic message for probe_date_confirm; also fetch probe_history for progress counter
-        session_fresh = await db.fir_sessions.find_one({"session_id": sid}, {"relative_date_display": 1, "probe_history": 1})
+        session_fresh = await db.fir_sessions.find_one(
+            {"session_id": sid}, {"relative_date_display": 1, "probe_history": 1, "probe_max_total": 1}
+        )
         rdd = session_fresh.get("relative_date_display") if session_fresh else None
         if next_probe == "probe_date_confirm" and rdd:
             bot_msg = f"I calculated the incident happened on **{rdd}**.\nIs that correct?"
         else:
             bot_msg = _tp(next_probe, language)
+        if ack_message:
+            bot_msg = f"{ack_message}\n\n{bot_msg}"
         # v3.4: Compute probe progress for "Q X/Y" frontend counter
         done_count = len((session_fresh or {}).get("probe_history", []))
-        total_probes = done_count + 1 + len(remaining)
+        total_probes = await _progress_total(
+            db, sid, (session_fresh or {}).get("probe_max_total", 0), done_count, len(remaining)
+        )
         return {
             "session_id": sid, "stage": STAGE_PROBE, "probe_key": next_probe,
             "bot_message": bot_msg,
@@ -2489,7 +2741,10 @@ async def _advance_probe(
             "probe_progress_done": done_count,
             "probe_progress_total": total_probes,
         }
-    return await _enter_section_suggest(db, corpus_db, sid, slots, incident_types, now, language)
+    result = await _enter_section_suggest(db, corpus_db, sid, slots, incident_types, now, language)
+    if ack_message:
+        result["bot_message"] = f"{ack_message}\n\n{result.get('bot_message', '')}"
+    return result
 
 
 async def _enter_section_suggest(

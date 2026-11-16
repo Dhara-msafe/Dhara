@@ -4,10 +4,20 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { API_BASE as API } from './apiBase';
+// B-25: the sign-in token is a bearer credential (anyone holding it can act as
+// the user) and used to be written with a plain AsyncStorage.setItem(), which
+// on Android/iOS is an unencrypted file on disk -- readable by anything with
+// filesystem access to the app's sandbox (a rooted/jailbroken device, a backup
+// extraction tool, another app via a misconfigured content provider). The
+// `storage` helper already exists for exactly this (secureGet/secureSet/
+// secureRemove -> Keychain on iOS, EncryptedSharedPreferences on Android; falls
+// back to AsyncStorage on web, which has no OS keychain anyway) but auth.tsx
+// wasn't using it for the token. See storage/index.ts's own "AUTH TOKENS" note.
+import { storage } from '@/src/utils/storage';
 // B002 fix: keep cover state clean across sign-in / sign-out transitions
 import { deactivateCover } from './women/coverState';
 import { useHeadOutWizard } from './women/headOutWizardStore';
-import { CONSENT_ANON_KEY } from './consentStorage';
+import { CONSENT_ANON_KEY, migrateAnonConsentToUser } from './consentStorage';
 import { useLocationUploadQueue } from './safety/locationUploadQueue';
 
 // Required for iOS to properly complete the auth session
@@ -22,7 +32,7 @@ const AUTO_SPEAK_KEY = 'dhara_auto_speak';
 const TTS_VOLUME_KEY = 'dhara_tts_volume';
 const TTS_VOICE_KEY  = 'dhara_tts_voice';
 
-export type User = { id: string; email: string; name: string; phone?: string; language: string; state?: string | null; state_name?: string; is_grandfathered?: boolean; is_pro?: boolean; pro_since?: string | null; pro_samples_used?: number; pro_samples_limit?: number; pro_samples_remaining?: number; drafts_used?: number; drafts_free_limit?: number; drafts_remaining?: number; daily_queries_cap?: number | null; daily_queries_left?: number | null; daily_questions_cap?: number | null; daily_questions_left?: number | null; daily_voice_cap?: number | null; daily_voice_left?: number | null; terms_accepted?: boolean; terms_version?: string; terms_accepted_at?: string; is_guest?: boolean; guest_question_count?: number; guest_question_limit?: number; guest_expires_at?: string; photo_url?: string | null; has_password?: boolean };
+export type User = { id: string; email: string; name: string; phone?: string; language: string; state?: string | null; state_name?: string; is_grandfathered?: boolean; is_pro?: boolean; pro_since?: string | null; pro_samples_used?: number; pro_samples_limit?: number; pro_samples_remaining?: number; drafts_used?: number; drafts_free_limit?: number; drafts_remaining?: number; daily_queries_cap?: number | null; daily_queries_left?: number | null; daily_questions_cap?: number | null; daily_questions_left?: number | null; daily_voice_cap?: number | null; daily_voice_left?: number | null; terms_accepted?: boolean; terms_version?: string; terms_accepted_at?: string; is_guest?: boolean; guest_question_count?: number; guest_question_limit?: number; guest_expires_at?: string; photo_url?: string | null; has_password?: boolean; consent_purposes?: { core?: boolean; analytics?: boolean; updates?: boolean } };
 export type Language = { code: string; name: string; native: string; tts: string };
 export type ModelChoice = { label: string; recommended?: boolean };
 
@@ -120,7 +130,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      const [t, u, l, a, v, vm] = await Promise.all([
+      const [secureT, legacyT, u, l, a, v, vm] = await Promise.all([
+        storage.secureGet<string | null>(TOKEN_KEY, null),
+        // B-25: before this fix, the token was written as a raw (non-JSON)
+        // string straight into AsyncStorage. Check for it once so an app
+        // already installed on someone's phone doesn't get silently signed
+        // out the moment this ships -- migrate it into the secure store and
+        // remove the plaintext copy, rather than forcing a fresh login.
         AsyncStorage.getItem(TOKEN_KEY),
         AsyncStorage.getItem(USER_KEY),
         AsyncStorage.getItem(LANG_KEY),
@@ -128,6 +144,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         AsyncStorage.getItem(TTS_VOLUME_KEY),
         AsyncStorage.getItem(TTS_VOICE_KEY),
       ]);
+      let t = secureT;
+      if (!t && legacyT) {
+        t = legacyT;
+        try {
+          await storage.secureSet(TOKEN_KEY, legacyT);
+          await AsyncStorage.removeItem(TOKEN_KEY);
+        } catch { /* best-effort migration; keep using the legacy token this session */ }
+      }
       if (t) setToken(t);
       let hydratedUser: User | null = null;
       if (u) { hydratedUser = JSON.parse(u); setUser(hydratedUser); }
@@ -177,8 +201,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // AsyncStorage I/O — see its own doc comment for why this ordering
     // matters (atomic capture for any concurrent on-device-storage read).
     _setActiveUserIdCache(u);
-    await AsyncStorage.setItem(TOKEN_KEY, t);
+    // B-25: the token is a bearer credential -- store it in the Keychain /
+    // EncryptedSharedPreferences, not a plain AsyncStorage file.
+    await storage.secureSet(TOKEN_KEY, t);
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(u));
+    // B-90: copy the anonymous (pre-login) local consent flag onto this
+    // user's own key BEFORE setUser() below triggers ConsentGuard's
+    // immediate re-check. Pure on-device AsyncStorage, so this is already
+    // done by the time setUser() runs -- it can't lose a race against the
+    // network-bound /api/consent/link call further down, which is what
+    // caused consent to be re-asked right after guest-start/sign-up.
+    if (u.id) await migrateAnonConsentToUser(u.id);
     setToken(t);
     setUser(u);
     // W1-J01 / B-67: the consent given before sign-in was logged under an
@@ -346,8 +379,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     //  - unsent issue reports (they would be filed under the next account);
     //  - the pointer to an in-progress FIR draft and its module/language.
     try { useLocationUploadQueue.getState().clearAll(); } catch { /* non-blocking */ }
+    // B-25: the token lives in the secure store now, not AsyncStorage.
+    await storage.secureRemove(TOKEN_KEY);
+    // Also clear any pre-migration plaintext copy, in case this device never
+    // ran the hydration migration above (e.g. signed out before its next launch).
+    await AsyncStorage.removeItem(TOKEN_KEY);
     await AsyncStorage.multiRemove([
-      TOKEN_KEY, USER_KEY, 'fir_draft_state', 'gk_fir_session',
+      USER_KEY, 'fir_draft_state', 'gk_fir_session',
       'ws_head_out_session', 'dhara_head_out_recents_v1', 'dhara_head_out_wizard_draft',
       'dhara_loc_queue', 'issue_reports_pending_v1',
       'fir_active_session_v3', 'fir_selected_module_v1', 'fir_draft_lang_v3',

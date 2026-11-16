@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
-import { loadVisitorSession, VisitorSession } from '@/src/visitor/session';
+import { useVisitorSessionOrRedirect } from '@/src/visitor/session';
 import { LOST_PASSPORT_STEPS, EMBASSY_CONTACTS, WorkflowStep } from '@/src/visitor/content';
 import { useAuth } from '@/src/auth';
 import { speakLangFor, phraseIn, playPhrase } from '@/src/visitor/speakForMe';
@@ -18,7 +18,9 @@ const EMBASSY_KEY_STORAGE = 'dhara_visitor_embassy_key';
 
 export default function VisitorLostPassport() {
   const { token } = useAuth();
-  const [session, setSession] = useState<VisitorSession | null>(null);
+  // B-86: redirects to /visitor if this screen is opened directly (URL hit
+  // or refresh) with no session ever saved, instead of spinning forever.
+  const session = useVisitorSessionOrRedirect();
   const [speaking, setSpeaking] = useState<string | null>(null);
   // DHARA-B020: never infer embassy from interface language alone — a
   // visitor can speak English without being British. Require an explicit
@@ -26,7 +28,6 @@ export default function VisitorLostPassport() {
   const [confirmedEmbassyKey, setConfirmedEmbassyKey] = useState<string | null>(null);
 
   useEffect(() => {
-    loadVisitorSession().then(s => setSession(s));
     AsyncStorage.getItem(EMBASSY_KEY_STORAGE).then(v => { if (v) setConfirmedEmbassyKey(v); });
   }, []);
 
@@ -109,7 +110,12 @@ export default function VisitorLostPassport() {
             </Text>
             <Pressable style={s.nationalityConfirmBtn} onPress={() => confirmEmbassy(lc)}>
               <Ionicons name="checkmark-circle" size={18} color="#fff" />
-              <Text style={s.actionBtnText}>Yes, I&apos;m a citizen of {suggestedEmb.name.replace(/^(The |Embassy of |Embassy |High Commission)/i, '')}</Text>
+              {/* B-86: countryAdjective (e.g. "the United Kingdom") replaces
+                  the old regex-stripped institution name, which produced
+                  "Yes, I'm a citizen of British High Commission" for English
+                  speakers since "British High Commission" doesn't start with
+                  any of the stripped prefixes. */}
+              <Text style={s.actionBtnText}>Yes, I&apos;m a citizen of {suggestedEmb.countryAdjective}</Text>
             </Pressable>
             <Text style={s.nationalitySub}>Or choose your actual country:</Text>
             <View style={s.nationalityList}>

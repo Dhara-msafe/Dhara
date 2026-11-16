@@ -10,12 +10,13 @@ import { theme } from '@/src/theme';
 import { SOSButton } from '@/src/components/SOSButton';
 import { getPushPermissionState, enablePushNotifications, PushPermissionState } from '@/src/push';
 import { t } from '@/src/i18n';
+import { formatDateDMY } from '@/src/dateFormat';
 
 // Batch FREE-V1-001: Pro upgrade / Stripe / Razorpay payment UI gated off for v1.
 const PRO_UPGRADE_ENABLED = process.env.EXPO_PUBLIC_PRO_UPGRADE_ENABLED === 'true';
 
 export default function Settings() {
-  const { user, token, logout, language, setLanguage, autoSpeak, setAutoSpeak, ttsVolume, setTtsVolume, ttsVoiceMode, setTtsVoiceMode, refreshUser, forceLogout } = useAuth();
+  const { user, token, logout, language, setLanguage, autoSpeak, setAutoSpeak, ttsVolume, setTtsVolume, ttsVoiceMode, setTtsVoiceMode, refreshUser, forceLogout, clearSessionExpired } = useAuth();
   const router = useRouter();
   const [langs, setLangs] = useState<Language[]>([]);
   const [showLang, setShowLang] = useState(false);
@@ -126,6 +127,12 @@ export default function Settings() {
     setShowDeleteModal(true);
   };
 
+  // B-29: this used to call fetch() directly with no timeout, so a dropped
+  // connection surfaced the raw thrown error (e.g. "Network request failed" /
+  // "TypeError: Failed to fetch") straight to the user instead of a readable
+  // message. Now aborts after 20s and always shows a friendly message, same
+  // pattern as auth.tsx's _fetchAuth / forgot-password.tsx's postJson.
+  const DELETE_NETWORK_MSG = 'Could not reach DHARA. Check your internet connection and try again.';
   const submitDeleteAccount = async () => {
     if (user?.has_password === false && !user?.is_guest) {
       setShowDeleteModal(false);
@@ -138,12 +145,22 @@ export default function Settings() {
     }
     setDeleteError(null);
     setDeleteLoading(true);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000);
     try {
-      const res = await fetch(`${API_BASE}/api/account/delete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ password: deletePassword }),
-      });
+      let res: Response;
+      try {
+        res = await fetch(`${API_BASE}/api/account/delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ password: deletePassword }),
+          signal: ctrl.signal,
+        });
+      } catch {
+        setDeleteError(DELETE_NETWORK_MSG);
+        setDeleteLoading(false);
+        return;
+      }
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         // W1-J10 (12 Nov 2026): the server can answer with an object, e.g.
@@ -173,10 +190,20 @@ export default function Settings() {
       }
       setShowDeleteModal(false);
       await logout();
-      router.replace('/login');
-    } catch {
-      setDeleteError('Could not reach DHARA. Check your internet connection and try again.');
+      // B-91: deleting the account invalidates this session's token, and any
+      // other screen's in-flight call with that same token can race in with
+      // a 401 right around now and flag sessionExpired — which then shows
+      // "Your session has expired" on the login screen, even though nothing
+      // expired: the user chose to delete their account. That is a different,
+      // expected outcome, not an auth error, so clear the flag and tell the
+      // login screen why we're here via the query param instead.
+      clearSessionExpired();
+      router.replace({ pathname: '/login', params: { accountDeleted: '1' } } as any);
+    } catch (e: any) {
+      setDeleteError(e?.message || DELETE_NETWORK_MSG);
       setDeleteLoading(false);
+    } finally {
+      clearTimeout(timer);
     }
   };
 
@@ -185,6 +212,41 @@ export default function Settings() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign out', style: 'destructive', onPress: () => logout() },
     ]);
+  };
+
+  // B-20: the server previously had no way to end a session it had already
+  // issued, so a signed-in token kept working on a lost or stolen phone for
+  // the rest of its 30-day life no matter what. This calls the new
+  // /auth/logout-everywhere endpoint, which invalidates every token ever
+  // issued for this account (including this device's own) the moment it
+  // runs -- so the request is followed by the SAME local logout() as the
+  // ordinary sign-out button, never a bare "done" with the old session
+  // left looking active on this phone.
+  const [logoutAllBusy, setLogoutAllBusy] = useState(false);
+  const signOutEverywhere = async () => {
+    setLogoutAllBusy(true);
+    try {
+      await fetch(`${API_BASE}/api/auth/logout-everywhere`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {
+      // Best-effort: even if the request fails to reach the server, still log
+      // this device out locally so the user isn't left believing it worked.
+    } finally {
+      await logout();
+      router.replace('/login');
+    }
+  };
+  const confirmLogoutAll = () => {
+    crossAlert(
+      'Sign out of all devices?',
+      'This ends every signed-in session for your account, including this one. You will need to sign in again everywhere.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign out everywhere', style: 'destructive', onPress: () => signOutEverywhere() },
+      ],
+    );
   };
 
   return (
@@ -260,6 +322,7 @@ export default function Settings() {
           </View>
           <Switch
             testID="auto-speak-switch"
+            accessibilityLabel="Answers spoken aloud automatically"
             value={autoSpeak}
             onValueChange={setAutoSpeak}
             trackColor={{ true: theme.colors.brandSecondary, false: theme.colors.borderStrong }}
@@ -283,6 +346,7 @@ export default function Settings() {
             </View>
             <Switch
               testID="push-notifications-switch"
+              accessibilityLabel="Push notifications"
               value={pushState === 'granted'}
               onValueChange={onTogglePush}
               trackColor={{ true: theme.colors.brandSecondary, false: theme.colors.borderStrong }}
@@ -478,7 +542,7 @@ export default function Settings() {
           <Ionicons name="document-text-outline" size={22} color={theme.colors.brand} />
           <View style={{ flex: 1, marginLeft: theme.spacing.md }}>
             <Text style={styles.rowTitle}>Terms & Conditions</Text>
-            <Text style={styles.rowValue}>Accepted v{user?.terms_version || '1.0'}{user?.terms_accepted_at ? ' · ' + new Date(user.terms_accepted_at).toLocaleDateString() : ''}</Text>
+            <Text style={styles.rowValue}>Accepted v{user?.terms_version || '1.0'}{user?.terms_accepted_at ? ' · ' + formatDateDMY(user.terms_accepted_at) : ''}</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={theme.colors.onSurfaceTertiary} />
         </Pressable>
@@ -531,6 +595,21 @@ export default function Settings() {
           <Ionicons name="log-out-outline" size={20} color={theme.colors.error} />
           <Text style={styles.logoutText}>Sign out</Text>
         </Pressable>
+
+        {!user?.is_guest && (
+          <Pressable
+            testID="logout-everywhere-button"
+            style={styles.logoutBtn}
+            onPress={confirmLogoutAll}
+            disabled={logoutAllBusy}
+            accessibilityLabel="Sign out of all devices"
+          >
+            {logoutAllBusy
+              ? <ActivityIndicator color={theme.colors.error} size={20} />
+              : <Ionicons name="phone-portrait-outline" size={20} color={theme.colors.error} />}
+            <Text style={styles.logoutText}>Sign out of all devices</Text>
+          </Pressable>
+        )}
 
         <Text style={styles.section}>Danger Zone</Text>
         <Pressable testID="delete-account-button" style={styles.deleteBtn} onPress={openDeleteModal}>

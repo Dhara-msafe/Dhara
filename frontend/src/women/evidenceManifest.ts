@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import * as aesjs from 'aes-js';
+import { getOrCreateKey, encryptText, decryptText } from './evidenceCrypto';
 
 /**
  * S-B5: Tamper-evident hash chain for the Evidence Locker.
@@ -37,12 +38,52 @@ export async function sha256Hex(bytes: Uint8Array): Promise<string> {
   return toHex(new Uint8Array(digest));
 }
 
+// B-93 (D-27): `gps` is the one field on a manifest entry that is itself
+// personal data (precise location of recorded evidence) rather than a hash
+// or timestamp, so it's encrypted at rest here -- transparently, at the
+// read/write boundary only. Every exported function above still takes and
+// returns a plain ManifestEntry with a plain `gps: GpsPoint | null`; nothing
+// about the public API changes. Reuses the same per-scope AES key already
+// used for this scope's evidence files (evidenceCrypto.ts), so no new key
+// material. An entry written before this change has no `gpsEnc` envelope and
+// is passed through unchanged (legacy plaintext `gps`, if any, still reads
+// back fine) -- it is simply encrypted the next time it's written.
+type StoredManifestEntry = Omit<ManifestEntry, 'gps'> & {
+  gps?: GpsPoint | null;
+  gpsEnc?: { iv: string; cipher: string } | null;
+};
+
 async function readManifest(scope: string): Promise<ManifestEntry[]> {
   const raw = await AsyncStorage.getItem(`${MANIFEST_KEY_PREFIX}${scope}`);
-  return raw ? JSON.parse(raw) : [];
+  const stored: StoredManifestEntry[] = raw ? JSON.parse(raw) : [];
+  if (!stored.some(e => e.gpsEnc)) return stored as ManifestEntry[]; // nothing to decrypt
+  const key = await getOrCreateKey(scope);
+  return stored.map(e => {
+    if (!e.gpsEnc) return e as ManifestEntry;
+    const { gpsEnc, ...rest } = e;
+    try {
+      const gps = JSON.parse(decryptText(gpsEnc.cipher, key, gpsEnc.iv)) as GpsPoint;
+      return { ...rest, gps } as ManifestEntry;
+    } catch {
+      // Fail safe, never crash the locker over an undecryptable GPS point —
+      // the chain hash itself does not depend on gps, so nothing else breaks.
+      return { ...rest, gps: null } as ManifestEntry;
+    }
+  });
 }
 async function writeManifest(scope: string, entries: ManifestEntry[]): Promise<void> {
-  await AsyncStorage.setItem(`${MANIFEST_KEY_PREFIX}${scope}`, JSON.stringify(entries));
+  const needsKey = entries.some(e => e.gps);
+  const key = needsKey ? await getOrCreateKey(scope) : null;
+  const stored: StoredManifestEntry[] = await Promise.all(entries.map(async e => {
+    if (!e.gps) {
+      const { gps, ...rest } = e;
+      return { ...rest, gps: null };
+    }
+    const { gps, ...rest } = e;
+    const { cipherHex, iv } = await encryptText(JSON.stringify(gps), key!);
+    return { ...rest, gpsEnc: { iv, cipher: cipherHex } };
+  }));
+  await AsyncStorage.setItem(`${MANIFEST_KEY_PREFIX}${scope}`, JSON.stringify(stored));
 }
 
 export async function getManifestEntry(scope: string, id: string): Promise<ManifestEntry | null> {

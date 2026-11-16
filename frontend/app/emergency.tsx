@@ -72,7 +72,7 @@ export default function Emergency() {
             claims a call was placed. */}
         {!!callStatus && (
           <Text
-            testID="call-112-status"
+            testID="emergency-call-status"
             accessibilityLiveRegion="polite"
             accessibilityRole="alert"
             style={styles.callStatus}

@@ -30,6 +30,12 @@ import * as Sharing from 'expo-sharing';
 // export/fetch/delete logic changes.
 import { UI_REVISION_V1 } from '@/src/designRevision';
 import { focusRingStyle } from '@/src/a11yFocus';
+// B-70: this screen used to hardcode its own "grievance@calviltech.com" --
+// a THIRD value, different from both the consent screen's operatorIdentity.ts
+// (Varuna Moses, varuna@calviltech.com) and /grievance's own hardcoded
+// string. operatorIdentity.ts is already documented as the single source of
+// truth "across the app"; this screen just wasn't reading it yet.
+import { grievanceOfficerName, grievanceContactEmail, isGrievanceContactPlaceholder } from '@/src/operatorIdentity';
 
 interface MyDataSummary {
   profile: Record<string, any>;
@@ -273,7 +279,7 @@ export default function MyDataScreen() {
         <Text style={styles.legalNote}>
           Under the Digital Personal Data Protection Act, 2023 (India) and PIPEDA (Canada),
           you have the right to access, correct, and request deletion of your personal data.
-          For queries: grievance@calviltech.com
+          {!isGrievanceContactPlaceholder() && ` For queries: ${grievanceOfficerName}, ${grievanceContactEmail}`}
         </Text>
       </ScrollView>
     </SafeAreaView>

@@ -3,14 +3,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { theme } from '@/src/theme';
+import { ADVOCATE_MODE_ENABLED } from '@/src/advocateMode/flags';
 
 const colors = theme.colors;
-const tools = [
+const allTools = [
   { id: 'vote', title: 'Vote & voter roll', description: 'Voter registration, roll checks and election forms', icon: 'checkbox-outline', route: '/(tabs)/voter-roll' },
   { id: 'sections', title: 'BNS section search', description: 'Find legal sections and IPC–BNS cross-references', icon: 'library-outline', route: '/ipc-bns-lookup' },
   { id: 'cases', title: 'Case-law lookup', description: 'Search court cases by CNR or party name', icon: 'search-outline', route: '/(tabs)/lookup' },
   { id: 'advocate', title: 'Find an advocate', description: 'Connect with legal help near you', icon: 'briefcase-outline', route: '/(tabs)/advocate' },
 ] as const;
+// B-97: advocate/lawyer features are hidden for Wave 1 per D-14.
+const tools = allTools.filter(t => t.id !== 'advocate' || ADVOCATE_MODE_ENABLED);
 
 export default function LookupHub() {
   const router = useRouter();

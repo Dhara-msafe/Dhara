@@ -49,7 +49,9 @@ export default function OfficerCard() {
 
   const speakVerdict = () => {
     if (silent || !card) return;
-    void speech.listen(card.verdict);
+    // B-94/B-79: fixed, canned safety content -- never metered, so this
+    // works even for a user with 0 free legal questions left today.
+    void speech.listen(card.verdict, 'fixed_screen');
   };
 
   return (

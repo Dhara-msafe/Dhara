@@ -2,13 +2,13 @@
  * Visitor Mode — V2: Intent Router
  * Selects between Emergency and Lost Passport workflows.
  */
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
-import { loadVisitorSession, VisitorSession, getStateLocalLang, HINDI_LANG } from '@/src/visitor/session';
+import { useVisitorSessionOrRedirect, getStateLocalLang, HINDI_LANG } from '@/src/visitor/session';
 
 import { openExternal } from '@/src/outbound';
 const C = theme.colors;
@@ -72,11 +72,9 @@ const WORKFLOWS = [
 
 export default function VisitorIntent() {
   const router = useRouter();
-  const [session, setSession] = useState<VisitorSession | null>(null);
-
-  useEffect(() => {
-    loadVisitorSession().then(s => setSession(s));
-  }, []);
+  // B-86: redirects to /visitor if this screen is opened directly (URL hit
+  // or refresh) with no session ever saved, instead of spinning forever.
+  const session = useVisitorSessionOrRedirect();
 
   const lc = session?.touristLang.code || 'en';
   const t = (map: Record<string, string>) => map[lc] || map['en'] || '';

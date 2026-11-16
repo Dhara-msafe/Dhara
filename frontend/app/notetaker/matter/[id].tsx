@@ -4,10 +4,11 @@
  */
 import React, { useCallback, useState } from 'react';
 import { View, Text, Pressable, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
-import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, router, Redirect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
+import { ADVOCATE_MODE_ENABLED } from '@/src/advocateMode/flags';
 import { apiGet } from '@/src/notetaker/api';
 import { ScreenHeader, StatusPill } from '@/src/notetaker/ui';
 import type { Consultation } from '@/src/notetaker/api';
@@ -17,6 +18,10 @@ const c = theme.colors;
 interface Matter { id: string; title: string; client_ref: string | null; consultation_count: number; }
 
 export default function MatterDetailScreen() {
+  // B-87: Advocate Consultation Notetaker is not scoped/hidden for Wave 1 --
+  // same gate as B-97's advocate/lawyer screens.
+  if (!ADVOCATE_MODE_ENABLED) return <Redirect href="/(tabs)/home" />;
+
   const { id } = useLocalSearchParams<{ id: string }>();
   const matterId = String(id);
   const { token } = useAuth();
