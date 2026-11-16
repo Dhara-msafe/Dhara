@@ -600,7 +600,33 @@ _NON_PLACE_PATTERNS = [
 
 
 def _is_valid_place_response(text: str) -> bool:
-    """Return True if text looks like a place description."""
+    """Return True if text looks like a place description.
+
+    B-111: a real Indian address ("Hassan Parthi, Warangal, Telangana,
+    506371" was the exact 13 Nov Preview repro) was being misclassified as
+    off-topic and parked, with the bot re-asking the same question and the
+    final summary's "Where" field falling back to showing the bot's own
+    meta-text instead of the address. Root cause: this function only ever
+    accepted a longer answer if it happened to contain one of ~70 hardcoded
+    generic descriptor words (road/street/nagar/...) or one of 15 major
+    city names -- it had no notion of a state name, a district, a PIN code,
+    or the comma-separated "locality, city, state[, PIN]" shape a real
+    Indian address is overwhelmingly likely to take, so anything in that
+    shape using a smaller city/town or no descriptor word at all (five
+    tokens here, over the old 4-word allowance) fell through to the final
+    "no keyword match = off-topic" catch-all.
+
+    Fix: keep rejecting the same clear question/request/denial patterns
+    (those are genuinely not place answers), but widen what counts as a
+    place answer to also include (a) any PIN code / digit run, since a real
+    address very often ends in one and the keyword list can never cover
+    every India place name, and (b) any comma-separated, multi-segment
+    answer, since that shape itself is strong evidence of an address even
+    with zero keyword matches. Only a single-segment, keyword-less,
+    digit-less, longer sentence that doesn't already match a question
+    pattern is still treated as ambiguous and parked -- that's the
+    genuinely-unclear case this function exists to catch.
+    """
     if not text or len(text.strip()) < 3:
         return True  # accept very short answers (abbreviations etc.)
     t = text.lower().strip()
@@ -611,10 +637,23 @@ def _is_valid_place_response(text: str) -> bool:
     # Accept if it contains any place keyword
     if any(kw in t for kw in _PLACE_KW):
         return True
+    # Accept if it contains a PIN code or any other digit run -- real
+    # addresses routinely include one (house/flat number, PIN code) and no
+    # fixed keyword list can cover every district/city/state name in India.
+    if re.search(r"\d", t):
+        return True
     # Accept short answers (could be neighbourhood name, place abbreviation)
     if len(t.split()) <= 4:
         return True
-    # Long sentence with no location keywords = likely off-topic
+    # Accept comma-separated, multi-segment text -- "locality, city, state"
+    # is the standard shape of a real Indian address and is itself strong
+    # evidence of a place answer, independent of any keyword match.
+    if len([seg for seg in t.split(",") if seg.strip()]) >= 2:
+        return True
+    # Long, single-segment sentence with no location keywords, no digits,
+    # and not matching a clear question/denial pattern either = genuinely
+    # ambiguous; treat conservatively as off-topic so a clearly unrelated
+    # ramble doesn't get stored as the incident location.
     return False
 
 
