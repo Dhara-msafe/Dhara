@@ -32,7 +32,8 @@ export default function PanicLesson() {
   const listenToLesson = () => {
     if (!lesson) return;
     const full = [lesson.intro, ...lesson.steps.map((s, i) => `${i + 1}. ${s.title}. ${s.body}`), lesson.note].join(' ');
-    void speech.listen(full);
+    // B-94/B-79: fixed, canned safety content -- never metered.
+    void speech.listen(full, 'fixed_screen');
   };
 
   return (
