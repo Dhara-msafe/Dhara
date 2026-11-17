@@ -4,7 +4,7 @@ Backend tests for DHARA Pro UPI Payment Page (Phase 1) — api/upi_billing_route
 Covers:
   - GET /api/billing/upi/config        (public)
   - GET /api/billing/upi/qrcode.png    (public)
-  - POST /api/billing/upi/submit       (public) — success / unregistered email / short UTR
+  - POST /api/billing/upi/submit       (sign-in required, V-07) — success / no sign-in / short UTR
   - GET /api/billing/upi/submissions   (admin, X-Admin-Key)
   - POST /api/billing/upi/submissions/{id}/confirm  (admin) -> flips user.is_pro=True
   - POST /api/billing/upi/submissions/{id}/reject   (admin) -> leaves is_pro untouched
@@ -47,6 +47,19 @@ def mongo_db():
     return client[DB_NAME]
 
 
+@pytest.fixture(scope="module")
+def auth_headers(mongo_db):
+    """V-07 (17 Nov 2026): submit needs the signed-in account's token. Minted
+    with the backend's own make_token() and JWT secret for TEST_EMAIL."""
+    import sys
+    for k, v in _be_env.items():
+        os.environ.setdefault(k, v or "")
+    sys.path.insert(0, "/app/backend")
+    from dependencies import make_token
+    user = mongo_db.users.find_one({"email": TEST_EMAIL})
+    return {"Authorization": f"Bearer {make_token(user['id'], user.get('token_version', 0))}"}
+
+
 @pytest.fixture(scope="module", autouse=True)
 def cleanup_after_module(mongo_db):
     """Delete any TEST submissions created for TEST_EMAIL during this run and
@@ -78,9 +91,9 @@ class TestUpiConfig:
 
 
 class TestUpiSubmit:
-    def test_submit_success_registered_email(self, api_client, mongo_db):
-        payload = {"email": TEST_EMAIL, "utr": "PYTESTUTR000001"}
-        resp = api_client.post(f"{BASE_URL}/api/billing/upi/submit", json=payload)
+    def test_submit_success_registered_email(self, api_client, mongo_db, auth_headers):
+        payload = {"utr": "PYTESTUTR000001"}
+        resp = api_client.post(f"{BASE_URL}/api/billing/upi/submit", json=payload, headers=auth_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert data["ok"] is True
@@ -91,15 +104,16 @@ class TestUpiSubmit:
         assert sub["email"] == TEST_EMAIL
         assert sub["status"] == "pending"
 
-    def test_submit_unregistered_email(self, api_client):
+    def test_submit_requires_sign_in(self, api_client):
+        # V-07: no token -> 401, and the reply never says whether an email has an account
         payload = {"email": "TEST_no_such_upi_user_zzz@example.com", "utr": "PYTESTUTR000002"}
         resp = api_client.post(f"{BASE_URL}/api/billing/upi/submit", json=payload)
-        assert resp.status_code == 404
-        assert "no dhara account" in resp.json()["detail"].lower()
+        assert resp.status_code == 401
+        assert "no dhara account" not in resp.text.lower()
 
-    def test_submit_utr_too_short(self, api_client):
-        payload = {"email": TEST_EMAIL, "utr": "abc"}
-        resp = api_client.post(f"{BASE_URL}/api/billing/upi/submit", json=payload)
+    def test_submit_utr_too_short(self, api_client, auth_headers):
+        payload = {"utr": "abc"}
+        resp = api_client.post(f"{BASE_URL}/api/billing/upi/submit", json=payload, headers=auth_headers)
         assert resp.status_code == 400
 
 
@@ -122,10 +136,10 @@ class TestUpiAdmin:
         assert "submissions" in data and isinstance(data["submissions"], list)
 
     @pytest.mark.skipif(not ADMIN_KEY, reason="ADMIN_KEY not available in backend/.env")
-    def test_confirm_sets_is_pro_true(self, api_client, mongo_db):
+    def test_confirm_sets_is_pro_true(self, api_client, mongo_db, auth_headers):
         # create a fresh submission to confirm
-        payload = {"email": TEST_EMAIL, "utr": "PYTESTUTR000003"}
-        create_resp = api_client.post(f"{BASE_URL}/api/billing/upi/submit", json=payload)
+        payload = {"utr": "PYTESTUTR000003"}
+        create_resp = api_client.post(f"{BASE_URL}/api/billing/upi/submit", json=payload, headers=auth_headers)
         sub_id = create_resp.json()["submission_id"]
 
         confirm_resp = api_client.post(
@@ -143,12 +157,12 @@ class TestUpiAdmin:
         assert user["pro_provider"] == "upi"
 
     @pytest.mark.skipif(not ADMIN_KEY, reason="ADMIN_KEY not available in backend/.env")
-    def test_reject_does_not_touch_is_pro(self, api_client, mongo_db):
+    def test_reject_does_not_touch_is_pro(self, api_client, mongo_db, auth_headers):
         # reset is_pro to False first to isolate this test's assertion
         mongo_db.users.update_one({"email": TEST_EMAIL}, {"$set": {"is_pro": False}})
 
-        payload = {"email": TEST_EMAIL, "utr": "PYTESTUTR000004"}
-        create_resp = api_client.post(f"{BASE_URL}/api/billing/upi/submit", json=payload)
+        payload = {"utr": "PYTESTUTR000004"}
+        create_resp = api_client.post(f"{BASE_URL}/api/billing/upi/submit", json=payload, headers=auth_headers)
         sub_id = create_resp.json()["submission_id"]
 
         reject_resp = api_client.post(

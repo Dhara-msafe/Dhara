@@ -3,8 +3,9 @@
 This router backs a standalone web page (app/pay-upi.tsx on the frontend)
 that is NOT linked from anywhere inside the shipped mobile app. A user who
 receives the link outside the app (chat, SMS, email, a website) can pay via
-any UPI app, then submit their payment reference (UTR) + account email here
-for manual confirmation. Confirming a submission flips the account to Pro
+any UPI app, then sign in and submit their payment reference (UTR) here for manual
+confirmation (V-07: sign-in required; the payment is filed under the
+signed-in account). Confirming a submission flips the account to Pro
 using the same "is_pro" mechanism Stripe/Razorpay already use — no change
 to what Pro unlocks.
 
@@ -24,11 +25,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header
 from fastapi.responses import Response
 from pydantic import BaseModel, EmailStr
 
-from dependencies import db, logger, check_admin_key
+from dependencies import db, logger, check_admin_key, current_user
 
 router = APIRouter()
 
@@ -79,21 +80,26 @@ async def upi_qrcode():
 
 
 class UPISubmitIn(BaseModel):
-    email: EmailStr
+    # V-07 (D-17, 17 Nov 2026): the account is now the signed-in user. An
+    # "email" sent by an older copy of the page is accepted and IGNORED, so
+    # it can neither choose the account nor probe which emails exist.
+    email: Optional[EmailStr] = None
     utr: str
     note: Optional[str] = None
 
 
 @router.post("/billing/upi/submit")
-async def submit_upi_payment(body: UPISubmitIn):
-    email = body.email.lower().strip()
+async def submit_upi_payment(body: UPISubmitIn, user: dict = Depends(current_user)):
+    # V-07 (D-17): sign-in required (401 without a valid token). The payment is
+    # filed under the signed-in account only -- there is no lookup by a typed
+    # email, so the reply never says whether some other address has an
+    # account -- and nothing here logs the email.
+    if user.get("is_guest"):
+        raise HTTPException(403, "Please create a DHARA account (or sign in) before upgrading to Pro. Guest sessions can't be upgraded.")
+    email = (user.get("email") or "").lower().strip()
     utr = body.utr.strip()
     if len(utr) < 6 or len(utr) > 40:
         raise HTTPException(400, "That doesn't look like a valid UPI reference number (UTR). Check your UPI app's payment history and try again.")
-
-    user = await db.users.find_one({"email": email})
-    if not user:
-        raise HTTPException(404, "No DHARA account found with that email. Please sign up in the app first with this email, then submit again.")
 
     submission = {
         "id": str(uuid.uuid4()),

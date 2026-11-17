@@ -12,7 +12,8 @@ import {
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { API_BASE } from '@/src/auth';
+import { useRouter } from 'expo-router';
+import { API_BASE, useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { openExternal } from '@/src/outbound';
 
@@ -25,7 +26,7 @@ import { openExternal } from '@/src/outbound';
  * store-compliance requirement (see Batch FREE-V1-001).
  *
  * Flow: show price + UPI QR/link -> user pays in their own UPI app -> user
- * submits their UTR + account email here -> an operator checks it against
+ * signs in and submits their UTR here (V-07: sign-in required) -> an operator checks it against
  * their own UPI history and confirms -> account flips to Pro (same is_pro
  * mechanism Stripe/Razorpay already use).
  */
@@ -39,10 +40,15 @@ type Config = {
 };
 
 export default function PayUpi() {
+  // V-07 (D-17, 17 Nov 2026): submitting a payment needs the person to be
+  // signed in; the payment is added to that account (no typed email).
+  const { token, user, loading: authLoading, forceLogout } = useAuth();
+  const router = useRouter();
+  const signedIn = !!token && !!user && !user.is_guest;
+  const goSignIn = () => router.push({ pathname: '/login', params: { returnTo: '/pay-upi' } } as any);
   const [config, setConfig] = useState<Config | null>(null);
   const [configLoading, setConfigLoading] = useState(true);
 
-  const [email, setEmail] = useState('');
   const [utr, setUtr] = useState('');
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -72,18 +78,26 @@ export default function PayUpi() {
 
   const submit = async () => {
     setError(null);
-    if (!email.trim()) { setError('Please enter the email on your DHARA account.'); return; }
+    if (!signedIn) { goSignIn(); return; }
     if (!utr.trim()) { setError('Please enter your UPI payment reference number (UTR).'); return; }
     setSubmitting(true);
     try {
       const res = await fetch(`${API_BASE}/api/billing/upi/submit`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), utr: utr.trim(), note: note.trim() || undefined }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ utr: utr.trim(), note: note.trim() || undefined }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        // Expired or revoked sign-in: sign out, then sign in again to submit.
+        setError('Your sign-in has expired. Please sign in again to submit your payment.');
+        await forceLogout();
+        return;
+      }
       if (!res.ok) {
-        setError(data?.detail || 'Could not submit. Please check your details and try again.');
+        setError(typeof data?.detail === 'string' && data.detail ? data.detail
+          : res.status >= 500 ? `DHARA's server had a problem (error ${res.status}). Please try again in a moment.`
+          : 'Could not submit. Please check your details and try again.');
         return;
       }
       setDone(true);
@@ -142,7 +156,7 @@ export default function PayUpi() {
             </View>
             <Text style={styles.heading}>Submitted — we&apos;ll confirm shortly</Text>
             <Text style={styles.sub}>
-              We&apos;ve received your payment reference for {email.trim().toLowerCase()}. Once it&apos;s
+              We&apos;ve received your payment reference for {user?.email}. Once it&apos;s
               checked against our UPI payment history, your DHARA account will show as Pro the
               next time you open the app. You can close this page now.
             </Text>
@@ -176,23 +190,27 @@ export default function PayUpi() {
 
             <View style={styles.card} testID="pay-upi-form-card">
               <Text style={styles.heading}>After you&apos;ve paid</Text>
+              {authLoading ? (
+                <ActivityIndicator color={theme.colors.brand} />
+              ) : !signedIn ? (
+                <>
+                  <Text style={styles.sub} testID="pay-upi-signin-needed">
+                    {user?.is_guest
+                      ? 'Guest sessions can\'t be upgraded. Create a DHARA account or sign in, then come back here to submit your payment reference (UTR).'
+                      : 'Sign in to your DHARA account to submit your payment reference (UTR). Your payment is added to the account you sign in with.'}
+                  </Text>
+                  {error && <Text style={styles.error} testID="pay-upi-error">{error}</Text>}
+                  <Pressable testID="pay-upi-signin-button" style={styles.btn} onPress={goSignIn}>
+                    <Text style={styles.btnText}>Sign in to continue</Text>
+                  </Pressable>
+                </>
+              ) : (
+              <>
               <Text style={styles.sub}>
                 Open your UPI app&apos;s payment history, copy the reference number (UTR), and enter it
-                below with the email on your DHARA account.
+                below.
               </Text>
-
-              <Text style={styles.label}>Your DHARA account email</Text>
-              <TextInput
-                testID="pay-upi-email-input"
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="you@example.com"
-                placeholderTextColor={theme.colors.onSurfaceTertiary}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-              />
+              <Text style={styles.label} testID="pay-upi-account">Adding Pro to: {user?.email}</Text>
 
               <Text style={styles.label}>UPI payment reference (UTR)</Text>
               <TextInput
@@ -233,6 +251,8 @@ export default function PayUpi() {
                   <Text style={styles.btnText}>Submit for confirmation</Text>
                 )}
               </Pressable>
+              </>
+              )}
             </View>
           </>
         )}
