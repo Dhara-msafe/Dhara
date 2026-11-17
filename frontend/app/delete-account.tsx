@@ -62,7 +62,7 @@ function errorText(res: Response, data: any, fallback: string): string {
 export default function DeleteAccount() {
   const [step, setStep] = useState<'request' | 'verify' | 'done'>('request');
   const params = useLocalSearchParams<{ email?: string }>();
-  const { token, user, logout, clearSessionExpired } = useAuth();
+  const { token, user, logoutAfterAccountDeletion, clearSessionExpired } = useAuth();
   const [email, setEmail] = useState(typeof params.email === 'string' ? params.email : '');
   const [code, setCode] = useState('');
   const [confirmChecked, setConfirmChecked] = useState(false);
@@ -121,7 +121,7 @@ export default function DeleteAccount() {
         if (user && user.email?.toLowerCase() === email.trim().toLowerCase()) {
           await clearAccountLocalData(user.id);
         }
-        await logout().catch(() => {});
+        await logoutAfterAccountDeletion().catch(() => {});
         clearSessionExpired();
       }
     } catch (e: any) {

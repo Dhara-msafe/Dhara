@@ -17,7 +17,7 @@ import { formatDateDMY } from '@/src/dateFormat';
 const PRO_UPGRADE_ENABLED = process.env.EXPO_PUBLIC_PRO_UPGRADE_ENABLED === 'true';
 
 export default function Settings() {
-  const { user, token, logout, language, setLanguage, autoSpeak, setAutoSpeak, ttsVolume, setTtsVolume, ttsVoiceMode, setTtsVoiceMode, refreshUser, forceLogout, clearSessionExpired } = useAuth();
+  const { user, token, logout, language, setLanguage, autoSpeak, setAutoSpeak, ttsVolume, setTtsVolume, ttsVoiceMode, setTtsVoiceMode, refreshUser, forceLogout, clearSessionExpired, logoutAfterAccountDeletion } = useAuth();
   const router = useRouter();
   const [langs, setLangs] = useState<Language[]>([]);
   const [showLang, setShowLang] = useState(false);
@@ -193,7 +193,7 @@ export default function Settings() {
       // D-09 / B-17: the account is gone, so remove its copies on this phone
       // too (saved answers, draft history, fraud checklist, interests).
       await clearAccountLocalData(user?.id);
-      await logout();
+      await logoutAfterAccountDeletion();
       // B-91: deleting the account invalidates this session's token, and any
       // other screen's in-flight call with that same token can race in with
       // a 401 right around now and flag sessionExpired — which then shows

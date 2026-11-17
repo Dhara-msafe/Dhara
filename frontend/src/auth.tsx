@@ -66,6 +66,10 @@ type AuthCtx = {
   sessionExpired: boolean;
   clearSessionExpired: () => void;
   forceLogout: () => Promise<void>;
+  // B-91: true right after this phone's signed-in account was deleted, so the
+  // login screen says "Your account has been deleted" however it is reached.
+  accountDeletedNotice: boolean;
+  logoutAfterAccountDeletion: () => Promise<void>;
 };
 
 export type TtsVoiceMode = 'cloud' | 'device-female' | 'device-male';
@@ -88,6 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ttsVolume, setTtsVolumeState] = useState<number>(1.0);
   const [ttsVoiceMode, setTtsVoiceModeState] = useState<TtsVoiceMode>('cloud');
   const [sessionExpired, setSessionExpired] = useState<boolean>(false);
+  const [accountDeletedNotice, setAccountDeletedNotice] = useState<boolean>(false);
   // W1-J04: a failed Google sign-in on the web (the page returns from Google)
   // used to fail silently; the login screen now shows why.
   const [googleError, setGoogleError] = useState<{ message: string; minor: boolean } | null>(null);
@@ -197,6 +202,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const persist = async (t: string, u: User) => {
+    // B-91: a new sign-in ends the "account deleted" notice.
+    setAccountDeletedNotice(false);
     // B002 fix: clear the *previous* session's cover flag before switching
     // identity. Handles guest→auth, auth→guest, and auth-A→auth-B transitions.
     // Uses _activeUserIdCache (synchronous, always current) to avoid any
@@ -432,6 +439,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const clearSessionExpired = useCallback(() => setSessionExpired(false), []);
 
+  // B-91 (17 Nov): signing out after a deletion wakes the tabs layout's own
+  // "no token -> /login" redirect, which can win over the caller's
+  // /login?accountDeleted=1, and a late 401 on the deleted token then flags
+  // sessionExpired. Keep the reason in auth state instead of only in the URL.
+  const logoutAfterAccountDeletion = useCallback(async () => {
+    setAccountDeletedNotice(true);
+    setSessionExpired(false);
+    await logout();
+    setSessionExpired(false);
+  }, []);
+
   const setLanguage = useCallback(async (l: Language) => {
     setLanguageState(l);
     await AsyncStorage.setItem(LANG_KEY, JSON.stringify(l));
@@ -528,7 +546,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token, forceLogout]);
 
   return (
-    <Ctx.Provider value={{ token, user, loading, language, setLanguage, autoSpeak, setAutoSpeak, ttsVolume, setTtsVolume, ttsVoiceMode, setTtsVoiceMode, setUserState, login, register, continueAsGuest, loginWithGoogle, logout, refreshUser, hydrateSession: persist, sessionExpired, clearSessionExpired, forceLogout, googleError, clearGoogleError: () => setGoogleError(null) }}>
+    <Ctx.Provider value={{ token, user, loading, language, setLanguage, autoSpeak, setAutoSpeak, ttsVolume, setTtsVolume, ttsVoiceMode, setTtsVoiceMode, setUserState, login, register, continueAsGuest, loginWithGoogle, logout, refreshUser, hydrateSession: persist, sessionExpired, clearSessionExpired, forceLogout, accountDeletedNotice, logoutAfterAccountDeletion, googleError, clearGoogleError: () => setGoogleError(null) }}>
       {children}
     </Ctx.Provider>
   );

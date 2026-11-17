@@ -13,7 +13,7 @@ import { UI_REVISION_V1 } from '@/src/designRevision';
 import { focusRingStyle } from '@/src/a11yFocus';
 
 export default function Login() {
-  const { login, loginWithGoogle, continueAsGuest, sessionExpired, clearSessionExpired, googleError, clearGoogleError } = useAuth();
+  const { login, loginWithGoogle, continueAsGuest, sessionExpired, clearSessionExpired, accountDeletedNotice, googleError, clearGoogleError } = useAuth();
   const router = useRouter();
   // returnTo: deep-link callers (e.g. GuardianScreen) pass the screen the user
   // should land on after signing in.  router.replace() removes the login screen
@@ -43,9 +43,12 @@ export default function Login() {
   // mount as a second guard (settings.tsx already clears it before
   // navigating here) so the deliberate-deletion notice below is always what
   // shows, never the session-expired one.
+  // B-91 (17 Nov): the link flag can be lost when another redirect reaches
+  // /login first, so the auth-state notice counts too.
+  const showAccountDeleted = accountDeleted === '1' || accountDeletedNotice;
   useEffect(() => {
-    if (accountDeleted === '1') clearSessionExpired();
-  }, [accountDeleted, clearSessionExpired]);
+    if (showAccountDeleted) clearSessionExpired();
+  }, [showAccountDeleted, sessionExpired, clearSessionExpired]);
 
   const onSubmit = async () => {
     setError(null);
@@ -115,7 +118,7 @@ export default function Login() {
             <Text style={styles.heading}>Welcome back</Text>
             <Text style={styles.sub}>Sign in to continue</Text>
 
-            {accountDeleted === '1' ? (
+            {showAccountDeleted ? (
               <View style={styles.accountDeletedBanner} testID="account-deleted-banner">
                 <Ionicons name="checkmark-circle-outline" size={18} color={theme.colors.brand} />
                 <Text style={styles.accountDeletedText}>

@@ -44,7 +44,7 @@ test('B-29: delete-account.tsx OTP requests go through a timeout-guarded postJso
 });
 
 test('B-91: settings.tsx clears sessionExpired and tells /login this was a deliberate deletion', () => {
-  assert.match(settingsSrc, /clearSessionExpired\s*\}\s*=\s*useAuth\(\)/);
+  assert.match(settingsSrc, /clearSessionExpired[^}]*\}\s*=\s*useAuth\(\)/);
   assert.match(settingsSrc, /clearSessionExpired\(\);\s*\n\s*router\.replace\(\{ pathname: '\/login', params: \{ accountDeleted: '1' \} \}/);
 });
 
@@ -57,7 +57,20 @@ test('B-91: login.tsx shows an accurate "account deleted" notice instead of "ses
   assert.match(loginSrc, /account-deleted-banner/);
   assert.match(loginSrc, /Your account has been deleted\./);
   // Must clear the flag on mount too, as a second guard against the race.
-  assert.match(loginSrc, /if \(accountDeleted === '1'\) clearSessionExpired\(\);/);
+  assert.match(loginSrc, /const showAccountDeleted = accountDeleted === '1' \|\| accountDeletedNotice;/);
+  assert.match(loginSrc, /if \(showAccountDeleted\) clearSessionExpired\(\);/);
   // The two banners must be mutually exclusive (ternary), not both renderable.
-  assert.match(loginSrc, /accountDeleted === '1' \? \(/);
+  assert.match(loginSrc, /showAccountDeleted \? \(/);
+});
+
+
+// B-91 follow-up (17 Nov 2026): the ?accountDeleted=1 link was lost because
+// sign-out wakes the tabs layout's own redirect to /login first. The reason now
+// lives in auth state, set by logoutAfterAccountDeletion().
+test('B-91: deletion signs out through logoutAfterAccountDeletion (auth-state notice)', () => {
+  const authSrc = readFileSync(path.join(root, 'src', 'auth.tsx'), 'utf8');
+  assert.match(authSrc, /const logoutAfterAccountDeletion = useCallback\(async \(\) => \{\s*setAccountDeletedNotice\(true\);/);
+  assert.match(authSrc, /setAccountDeletedNotice\(false\);/); // cleared on the next sign-in
+  assert.match(settingsSrc, /await logoutAfterAccountDeletion\(\);/);
+  assert.match(deleteAccountSrc, /await logoutAfterAccountDeletion\(\)/);
 });
