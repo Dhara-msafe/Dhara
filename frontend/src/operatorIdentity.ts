@@ -6,11 +6,17 @@
  * this update. If either is ever reset to a placeholder in the future,
  * isGrievanceContactPlaceholder() below will fail-closed and the consumer
  * UI (app/consent.tsx) will hide the grievance officer line automatically.
+ *
+ * privacyContactEmail is the general privacy / data-controller inbox used
+ * in Data & Privacy screens and the Terms & Conditions CONTACT clause.
+ * It is intentionally distinct from grievanceContactEmail (the statutory
+ * DPDP grievance officer role handled by Varuna Moses).
  */
 export const operatorName = 'MSafe Solutions Inc.';
 export const indiaEntity = 'Calviltech Digital Solutions Pvt Ltd';
 export const grievanceOfficerName = 'Varuna Moses';
 export const grievanceContactEmail = 'varuna@calviltech.com';
+export const privacyContactEmail = 'callistus@askdhara.in';
 
 /**
  * True when the grievance officer name and/or email is still an

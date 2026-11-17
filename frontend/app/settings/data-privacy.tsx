@@ -32,12 +32,14 @@ import { focusRingStyle } from '@/src/a11yFocus';
 // (operatorIdentity.ts's Varuna Moses / varuna@calviltech.com), my-data.tsx
 // and /grievance's hardcoded "grievance@calviltech.com". Now reads the same
 // single source of truth as every other screen.
-import { grievanceOfficerName as GRIEVANCE_OFFICER_NAME, grievanceContactEmail as GRIEVANCE_EMAIL, isGrievanceContactPlaceholder } from '@/src/operatorIdentity';
+import { grievanceOfficerName as GRIEVANCE_OFFICER_NAME, grievanceContactEmail as GRIEVANCE_EMAIL, isGrievanceContactPlaceholder, privacyContactEmail } from '@/src/operatorIdentity';
 // ── Contact constants ─────────────────────────────────────────────────────────
-// SUPPORT_EMAIL is the separate, general MSafe Solutions support address
-// (matches backend/legal.py's CONTACT section) -- not a grievance-officer
-// value, so it isn't part of the B-70 consolidation above.
-const SUPPORT_EMAIL          = 'support@calviltech.com';
+// SUPPORT_EMAIL is the general privacy / data-controller inbox (Callistus,
+// callistus@askdhara.in). It is imported from operatorIdentity.ts so there
+// is one place to update it. It is intentionally distinct from
+// GRIEVANCE_EMAIL (the statutory DPDP grievance officer, Varuna Moses /
+// varuna@calviltech.com) and is not part of the B-70 grievance consolidation.
+const SUPPORT_EMAIL          = privacyContactEmail;
 
 // ── Accent colours (spec) ─────────────────────────────────────────────────────
 const PRIMARY     = theme.colors.primary;

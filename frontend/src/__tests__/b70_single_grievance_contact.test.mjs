@@ -61,7 +61,10 @@ for (const [label, file] of Object.entries(screens)) {
 
 test('B-70: data-privacy.tsx keeps SUPPORT_EMAIL separate -- it is a different, general contact, not part of this consolidation', () => {
   const src = readFileSync(screens['data-privacy.tsx'], 'utf8');
-  assert.match(src, /SUPPORT_EMAIL\s*=\s*'support@calviltech\.com'/);
+  // SUPPORT_EMAIL is now imported from operatorIdentity.ts (privacyContactEmail)
+  // so it is no longer a string literal here — verify the import wiring instead.
+  assert.match(src, /privacyContactEmail/);
+  assert.match(src, /SUPPORT_EMAIL\s*=\s*privacyContactEmail/);
   // Merged 16 Nov with W6-J05: the grievance row now opens the in-app
   // /grievance screen (no mailto at all), and the officer footer is still
   // hidden while the contact is an unconfirmed placeholder.

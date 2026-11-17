@@ -186,12 +186,12 @@ Calviltech Digital Solutions Private Limited, Bengaluru, Karnataka, India
 21. CONTACT
 MSafe Solutions Inc.
 Toronto, Ontario, Canada
-Email: support@calviltech.com
+Email: callistus@askdhara.in
 
 For users in India — payments and services provided within India:
 Calviltech Digital Solutions Private Limited
 Bengaluru, Karnataka, India
-Grievance Officer: The Grievance Officer, Calvil Technologies — grievance@calviltech.com
+Grievance Officer: Varuna Moses — varuna@calviltech.com
 
 © 2026 MSafe Solutions Inc. DHARA and MSafe Legal Aid are products of MSafe Solutions Inc. All rights reserved.
 """
