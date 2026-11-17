@@ -24,7 +24,7 @@ export const consentStrings: Record<string, ConsentLang> = {
     "intro": "Dhara helps you understand your legal rights and prepare a police complaint draft. To do this, we need some information from you. Here is what we collect and why.",
     "collect_heading": "What we collect and why",
     "collect_items": [
-      "Your phone number and name - to log you in and keep your account safe.",
+      "Your name, email address and phone number - to create your account, sign you in and keep your account safe.",
       "Your questions and voice recordings - to understand and answer your legal questions. Voice is turned into text and the recording is not kept.",
       "Complaint details you give us - names, dates, places and what happened - only to prepare your FIR draft.",
       "Payment details - handled by our payment partner. We do not store your card or UPI details."
@@ -56,7 +56,7 @@ export const consentStrings: Record<string, ConsentLang> = {
     "intro": "धारा आपको अपने कानूनी अधिकार समझने और पुलिस शिकायत का मसौदा तैयार करने में मदद करता है। इसके लिए हमें आपसे कुछ जानकारी चाहिए। हम क्या लेते हैं और क्यों, यह नीचे बताया गया है।",
     "collect_heading": "हम क्या जानकारी लेते हैं और क्यों",
     "collect_items": [
-      "आपका फ़ोन नंबर और नाम - आपको लॉग इन कराने और आपका खाता सुरक्षित रखने के लिए।",
+      "आपका नाम, ईमेल पता और फ़ोन नंबर - आपका खाता बनाने, आपको साइन इन कराने और आपका खाता सुरक्षित रखने के लिए।",
       "आपके सवाल और आवाज़ - आपके कानूनी सवाल समझने और उनका जवाब देने के लिए। आवाज़ को लिखित शब्दों में बदला जाता है और रिकॉर्डिंग रखी नहीं जाती।",
       "शिकायत की जानकारी - नाम, तारीख, जगह और घटना - सिर्फ़ आपकी FIR का मसौदा बनाने के लिए।",
       "भुगतान की जानकारी - हमारा भुगतान साझेदार संभालता है। हम आपके कार्ड या UPI की जानकारी नहीं रखते।"
@@ -88,7 +88,7 @@ export const consentStrings: Record<string, ConsentLang> = {
     "intro": "धारा तुम्हाला तुमचे कायदेशीर हक्क समजून घेण्यास आणि पोलीस तक्रारीचा मसुदा तयार करण्यास मदत करते. त्यासाठी आम्हाला तुमच्याकडून काही माहिती लागते. आम्ही काय घेतो आणि का, ते खाली दिले आहे.",
     "collect_heading": "आम्ही कोणती माहिती घेतो आणि का",
     "collect_items": [
-      "तुमचा फोन नंबर आणि नाव - तुम्हाला लॉग इन करण्यासाठी आणि तुमचे खाते सुरक्षित ठेवण्यासाठी.",
+      "तुमचे नाव, ईमेल पत्ता आणि फोन नंबर - तुमचे खाते तयार करण्यासाठी, तुम्हाला साइन इन करण्यासाठी आणि तुमचे खाते सुरक्षित ठेवण्यासाठी.",
       "तुमचे प्रश्न आणि आवाज - तुमचे कायदेशीर प्रश्न समजून उत्तर देण्यासाठी. आवाजाचे लिखित मजकुरात रूपांतर केले जाते आणि रेकॉर्डिंग ठेवले जात नाही.",
       "तक्रारीची माहिती - नावे, तारखा, ठिकाणे आणि घटना - फक्त तुमच्या FIR चा मसुदा तयार करण्यासाठी.",
       "पेमेंटची माहिती - आमचा पेमेंट भागीदार हाताळतो. आम्ही तुमच्या कार्ड किंवा UPI ची माहिती ठेवत नाही."
