@@ -99,8 +99,9 @@ test('saveAnswer() in the chat screen calls addBookmark with the session token',
   assert.ok(/await addBookmark\(API_BASE as string, token, \{/.test(chatSrc));
 });
 test('bookmarks.ts is local-first (AsyncStorage) and only pushes to the server when a token exists', () => {
-  assert.ok(bookmarksSrc.includes("await AsyncStorage.setItem(KEY"));
-  assert.ok(/if \(token\) \{\s*\n\s*push\(apiBase, token, item\)\.catch/.test(bookmarksSrc));
+  // D-09 / B-17 (17 Nov): writes and pushes now use this account's own key.
+  assert.ok(bookmarksSrc.includes("await AsyncStorage.setItem(key"));
+  assert.ok(/if \(token\) \{\s*\n\s*push\(apiBase, token, key, item\)\.catch/.test(bookmarksSrc));
 });
 test('the server push (PUT /bookmarks) sends the auth token', () => {
   const idx = bookmarksSrc.indexOf('async function push(');

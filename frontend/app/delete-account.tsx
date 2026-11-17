@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { API_BASE, useAuth } from '@/src/auth';
+import { clearAccountLocalData } from '@/src/accountStorage';
 import { theme } from '@/src/theme';
 
 /**
@@ -61,7 +62,7 @@ function errorText(res: Response, data: any, fallback: string): string {
 export default function DeleteAccount() {
   const [step, setStep] = useState<'request' | 'verify' | 'done'>('request');
   const params = useLocalSearchParams<{ email?: string }>();
-  const { token, logout, clearSessionExpired } = useAuth();
+  const { token, user, logout, clearSessionExpired } = useAuth();
   const [email, setEmail] = useState(typeof params.email === 'string' ? params.email : '');
   const [code, setCode] = useState('');
   const [confirmChecked, setConfirmChecked] = useState(false);
@@ -115,6 +116,11 @@ export default function DeleteAccount() {
       // sessionExpired, showing "Your session has expired" -- misleading,
       // since the user chose to delete their account. Clear it here too.
       if (token) {
+        // D-09 / B-17: if the account just deleted is the one signed in on this
+        // phone, remove its on-device copies too.
+        if (user && user.email?.toLowerCase() === email.trim().toLowerCase()) {
+          await clearAccountLocalData(user.id);
+        }
         await logout().catch(() => {});
         clearSessionExpired();
       }

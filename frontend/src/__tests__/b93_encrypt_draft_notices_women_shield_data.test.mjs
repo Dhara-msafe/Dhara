@@ -106,7 +106,8 @@ test('draftHistory.ts no longer writes plaintext JSON directly to AsyncStorage',
   assert.match(DRAFT_HISTORY_TS, /getOrCreateKey\(/);
   // The one remaining AsyncStorage.setItem call must write the encrypted
   // envelope, not the raw items array.
-  assert.match(DRAFT_HISTORY_TS, /AsyncStorage\.setItem\(KEY,\s*JSON\.stringify\(envelope\)\)/);
+  // D-09 / B-17 (17 Nov): the key is now this account's own storage key.
+  assert.match(DRAFT_HISTORY_TS, /AsyncStorage\.setItem\(storageKey,\s*JSON\.stringify\(envelope\)\)/);
 });
 
 test('draftHistory.ts still reads back legacy plaintext history (no data loss / forced migration)', () => {

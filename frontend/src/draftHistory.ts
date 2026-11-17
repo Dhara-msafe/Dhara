@@ -18,9 +18,15 @@
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getOrCreateKey, encryptText, decryptText } from './women/evidenceCrypto';
+import { accountKey } from './accountStorage';
 
-const KEY = 'dhara_draft_history_v1';
+// D-09 / B-17 (17 Nov 2026): stored per account (src/accountStorage.ts), and
+// each account's history is encrypted with that account's own key scope, so
+// one account's notices are neither listed nor decryptable for another.
+// The pre-D-09 shared copy is parked unread (see accountStorage.ts).
+const STORE = 'dhara_draft_history_v1';
 const KEY_SCOPE = 'draft_history';
+const scopeFor = (storageKey: string) => `${KEY_SCOPE}_${storageKey.slice(STORE.length + 1)}`;
 const MAX = 25;
 
 export type DraftHistoryItem = {
@@ -40,13 +46,18 @@ function isEnvelope(v: unknown): v is StoredEnvelope {
 }
 
 export async function loadHistory(): Promise<DraftHistoryItem[]> {
+  return loadFor(await accountKey(STORE));
+}
+
+async function loadFor(storageKey: string | null): Promise<DraftHistoryItem[]> {
+  if (!storageKey) return [];
   try {
-    const raw = await AsyncStorage.getItem(KEY);
+    const raw = await AsyncStorage.getItem(storageKey);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) return parsed; // legacy plaintext — unchanged, no data loss
     if (isEnvelope(parsed)) {
-      const key = await getOrCreateKey(KEY_SCOPE);
+      const key = await getOrCreateKey(scopeFor(storageKey));
       const plainText = decryptText(parsed.cipher, key, parsed.iv);
       return JSON.parse(plainText);
     }
@@ -56,28 +67,33 @@ export async function loadHistory(): Promise<DraftHistoryItem[]> {
   }
 }
 
-async function persist(items: DraftHistoryItem[]): Promise<void> {
-  const key = await getOrCreateKey(KEY_SCOPE);
+async function persist(storageKey: string | null, items: DraftHistoryItem[]): Promise<void> {
+  if (!storageKey) return; // nobody signed in: never write a shared copy
+  const key = await getOrCreateKey(scopeFor(storageKey));
   const { cipherHex, iv } = await encryptText(JSON.stringify(items), key);
   const envelope: StoredEnvelope = { v: 2, iv, cipher: cipherHex };
-  await AsyncStorage.setItem(KEY, JSON.stringify(envelope));
+  await AsyncStorage.setItem(storageKey, JSON.stringify(envelope));
 }
 
 export async function addToHistory(
   item: Omit<DraftHistoryItem, 'id' | 'created_at'>,
 ): Promise<DraftHistoryItem[]> {
-  const items = await loadHistory();
+  const storageKey = await accountKey(STORE);
+  if (!storageKey) return [];
+  const items = await loadFor(storageKey);
   const next = [
     { ...item, id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, created_at: new Date().toISOString() },
     ...items,
   ].slice(0, MAX);
-  await persist(next);
+  await persist(storageKey, next);
   return next;
 }
 
 export async function removeFromHistory(id: string): Promise<DraftHistoryItem[]> {
-  const items = (await loadHistory()).filter((i) => i.id !== id);
-  await persist(items);
+  const storageKey = await accountKey(STORE);
+  if (!storageKey) return [];
+  const items = (await loadFor(storageKey)).filter((i) => i.id !== id);
+  await persist(storageKey, items);
   return items;
 }
 

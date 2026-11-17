@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '@/src/theme';
+import { accountKey } from '@/src/accountStorage';
 
 import { openExternal } from '@/src/outbound';
 /**
@@ -17,7 +18,8 @@ import { openExternal } from '@/src/outbound';
  * Progress and the start time are kept in AsyncStorage so the countdown
  * survives the app being closed mid-panic.
  */
-const KEY = 'dhara_fraud_checklist_v1';
+// D-09 / B-17: progress is stored per account (src/accountStorage.ts).
+const STORE = 'dhara_fraud_checklist_v1';
 
 type Step = {
   id: string;
@@ -102,7 +104,8 @@ export default function FraudChecklist() {
   useEffect(() => {
     (async () => {
       try {
-        const raw = await AsyncStorage.getItem(KEY);
+        const key = await accountKey(STORE);
+        const raw = key ? await AsyncStorage.getItem(key) : null;
         if (raw) {
           const parsed = JSON.parse(raw);
           const savedDone: Record<string, boolean> = parsed.done || {};
@@ -121,7 +124,7 @@ export default function FraudChecklist() {
                   {
                     text: 'Start Fresh',
                     style: 'destructive',
-                    onPress: () => { setDone({}); setStartedAt(null); AsyncStorage.setItem(KEY, JSON.stringify({ done: {}, startedAt: null })).catch(() => {}); },
+                    onPress: () => { setDone({}); setStartedAt(null); if (key) AsyncStorage.setItem(key, JSON.stringify({ done: {}, startedAt: null })).catch(() => {}); },
                   },
                   { text: 'Continue', onPress: () => { setDone(savedDone); setStartedAt(savedStart); } },
                 ],
@@ -145,7 +148,8 @@ export default function FraudChecklist() {
 
   const persist = useCallback(async (nextDone: Record<string, boolean>, started: number | null) => {
     try {
-      await AsyncStorage.setItem(KEY, JSON.stringify({ done: nextDone, startedAt: started }));
+      const key = await accountKey(STORE);
+      if (key) await AsyncStorage.setItem(key, JSON.stringify({ done: nextDone, startedAt: started }));
     } catch {}
   }, []);
 

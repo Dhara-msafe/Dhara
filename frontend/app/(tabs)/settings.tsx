@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth, API_BASE, Language, TtsVoiceMode } from '@/src/auth';
+import { clearAccountLocalData } from '@/src/accountStorage';
 import { theme } from '@/src/theme';
 import { SOSButton } from '@/src/components/SOSButton';
 import { getPushPermissionState, enablePushNotifications, PushPermissionState } from '@/src/push';
@@ -189,6 +190,9 @@ export default function Settings() {
         return;
       }
       setShowDeleteModal(false);
+      // D-09 / B-17: the account is gone, so remove its copies on this phone
+      // too (saved answers, draft history, fraud checklist, interests).
+      await clearAccountLocalData(user?.id);
       await logout();
       // B-91: deleting the account invalidates this session's token, and any
       // other screen's in-flight call with that same token can race in with

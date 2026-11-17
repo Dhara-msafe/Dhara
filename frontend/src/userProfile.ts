@@ -1,7 +1,8 @@
 /**
  * User-profile / interest system for DHARA.
  *
- * Stores up to 3 interests in AsyncStorage (key: dhara_user_interests_v1).
+ * Stores up to 3 interests in AsyncStorage (key: dhara_user_interests_v1_<accountId>;
+ * D-09 / B-17: per account, reloaded whenever the signed-in account changes).
  * Each interest drives:
  *  - Home "Try saying" chips
  *  - "For you" horizontal card
@@ -11,6 +12,8 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { storage } from '@/src/utils/storage';
+import { useAuth } from '@/src/auth';
+import { accountKey } from '@/src/accountStorage';
 
 const PROFILE_KEY = 'dhara_user_interests_v1';
 export const MAX_INTERESTS = 3;
@@ -299,20 +302,30 @@ export const INTERESTS: InterestMeta[] = [
 ];
 
 export function useUserProfile() {
+  const { user } = useAuth();
+  const uid = user?.id ?? null;
   const [interests, setInterests] = useState<ProfileInterest[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    storage.getItem(PROFILE_KEY, null).then((val) => {
+    let alive = true;
+    setInterests([]);
+    setLoaded(false);
+    (async () => {
+      const key = await accountKey(PROFILE_KEY);
+      const val = key ? await storage.getItem(key, null) : null;
+      if (!alive) return;
       if (Array.isArray(val)) setInterests(val as ProfileInterest[]);
       setLoaded(true);
-    });
-  }, []);
+    })();
+    return () => { alive = false; };
+  }, [uid]);
 
   const saveInterests = useCallback(async (next: ProfileInterest[]) => {
     const limited = next.slice(0, MAX_INTERESTS);
     setInterests(limited);
-    await storage.setItem(PROFILE_KEY, limited as any);
+    const key = await accountKey(PROFILE_KEY);
+    if (key) await storage.setItem(key, limited as any);
   }, []);
 
   const primaryInterest = interests.length > 0

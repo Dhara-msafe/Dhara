@@ -12,8 +12,14 @@
  * never creates duplicates.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { accountKey } from './accountStorage';
 
-const KEY = 'dhara_bookmarks_v1';
+// D-09 / B-17: stored per account (see src/accountStorage.ts). Every exported
+// function resolves this account's key ONCE at the start and passes it down,
+// so a sync still running when the account changes can never read or write
+// the next account's list (or push one account's answers into another's
+// server copy).
+const STORE = 'dhara_bookmarks_v1';
 
 export type SavedCitation = {
   key: string;
@@ -38,27 +44,23 @@ export type Bookmark = {
   pending_delete?: boolean;
 };
 
-async function write(items: Bookmark[]) {
-  await AsyncStorage.setItem(KEY, JSON.stringify(items));
+async function write(key: string | null, items: Bookmark[]) {
+  if (!key) return; // nobody signed in: never write a shared copy
+  await AsyncStorage.setItem(key, JSON.stringify(items));
 }
 
-export async function loadLocal(): Promise<Bookmark[]> {
+async function loadRaw(key: string | null): Promise<Bookmark[]> {
+  if (!key) return [];
   try {
-    const raw = await AsyncStorage.getItem(KEY);
-    const items: Bookmark[] = raw ? JSON.parse(raw) : [];
-    return items.filter((i) => !i.pending_delete);
-  } catch {
-    return [];
-  }
-}
-
-async function loadRaw(): Promise<Bookmark[]> {
-  try {
-    const raw = await AsyncStorage.getItem(KEY);
+    const raw = await AsyncStorage.getItem(key);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
+}
+
+export async function loadLocal(): Promise<Bookmark[]> {
+  return (await loadRaw(await accountKey(STORE))).filter((i) => !i.pending_delete);
 }
 
 export async function isSaved(question: string, answer: string): Promise<boolean> {
@@ -71,7 +73,9 @@ export async function addBookmark(
   token: string | null,
   b: Omit<Bookmark, 'client_id' | 'created_at' | 'synced'>,
 ): Promise<Bookmark[]> {
-  const items = await loadRaw();
+  const key = await accountKey(STORE);
+  if (!key) return [];
+  const items = await loadRaw(key);
   const item: Bookmark = {
     ...b,
     client_id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -79,11 +83,11 @@ export async function addBookmark(
     synced: false,
   };
   const next = [item, ...items];
-  await write(next);
+  await write(key, next);
   // Fire-and-forget push; if it fails the item stays unsynced and the next
   // sync() attempt picks it up.
   if (token) {
-    push(apiBase, token, item).catch(() => {});
+    push(apiBase, token, key, item).catch(() => {});
   }
   return next.filter((i) => !i.pending_delete);
 }
@@ -93,7 +97,9 @@ export async function removeBookmark(
   token: string | null,
   clientId: string,
 ): Promise<Bookmark[]> {
-  const items = await loadRaw();
+  const key = await accountKey(STORE);
+  if (!key) return [];
+  const items = await loadRaw(key);
   let next = items.map((i) =>
     i.client_id === clientId ? { ...i, pending_delete: true } : i,
   );
@@ -110,11 +116,11 @@ export async function removeBookmark(
   } else {
     next = next.filter((i) => i.client_id !== clientId);
   }
-  await write(next);
+  await write(key, next);
   return next.filter((i) => !i.pending_delete);
 }
 
-async function push(apiBase: string, token: string, item: Bookmark) {
+async function push(apiBase: string, token: string, key: string, item: Bookmark) {
   const res = await fetch(`${apiBase}/api/bookmarks`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -128,8 +134,8 @@ async function push(apiBase: string, token: string, item: Bookmark) {
     }),
   });
   if (!res.ok) throw new Error('push failed');
-  const items = await loadRaw();
-  await write(items.map((i) => (i.client_id === item.client_id ? { ...i, synced: true } : i)));
+  const items = await loadRaw(key);
+  await write(key, items.map((i) => (i.client_id === item.client_id ? { ...i, synced: true } : i)));
 }
 
 /**
@@ -139,7 +145,9 @@ async function push(apiBase: string, token: string, item: Bookmark) {
  */
 export async function syncBookmarks(apiBase: string, token: string | null): Promise<Bookmark[]> {
   if (!token) return loadLocal();
-  let items = await loadRaw();
+  const key = await accountKey(STORE);
+  if (!key) return [];
+  let items = await loadRaw(key);
   // 1. deletions first so a tombstoned item is not resurrected by the pull
   for (const t of items.filter((i) => i.pending_delete)) {
     try {
@@ -152,13 +160,13 @@ export async function syncBookmarks(apiBase: string, token: string | null): Prom
       return items.filter((i) => !i.pending_delete);
     }
   }
-  await write(items);
+  await write(key, items);
   // 2. push unsynced additions
   for (const u of items.filter((i) => !i.synced)) {
     try {
-      await push(apiBase, token, u);
+      await push(apiBase, token, key, u);
     } catch {
-      return (await loadRaw()).filter((i) => !i.pending_delete);
+      return (await loadRaw(key)).filter((i) => !i.pending_delete);
     }
   }
   // 3. pull and merge
@@ -168,7 +176,7 @@ export async function syncBookmarks(apiBase: string, token: string | null): Prom
     });
     if (!res.ok) throw new Error('pull failed');
     const remote: any[] = await res.json();
-    const local = await loadRaw();
+    const local = await loadRaw(key);
     const known = new Set(local.map((i) => i.client_id));
     const added: Bookmark[] = remote
       .filter((r) => r.client_id && !known.has(r.client_id))
@@ -184,9 +192,9 @@ export async function syncBookmarks(apiBase: string, token: string | null): Prom
     const merged = [...local, ...added]
       .filter((i) => !i.pending_delete)
       .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
-    await write(merged);
+    await write(key, merged);
     return merged;
   } catch {
-    return (await loadRaw()).filter((i) => !i.pending_delete);
+    return (await loadRaw(key)).filter((i) => !i.pending_delete);
   }
 }
