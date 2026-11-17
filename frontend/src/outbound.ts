@@ -177,6 +177,28 @@ export async function composeSms(recipients: string[], body: string): Promise<Sm
   return 'composer';
 }
 
+/**
+ * Open a static HTTPS page (privacy policy, terms, support docs) in the
+ * device browser. Unlike openExternal, this is never blocked by the
+ * outbound-mode guard — static pages are not a dialler/SMS/share channel.
+ * All Linking.openURL calls are centralised here per the outbound-guard
+ * static test (src/__tests__/outboundGuard.test.mjs).
+ * Shows a cross-platform alert if the device cannot open the URL.
+ */
+export async function openStaticPage(url: string): Promise<void> {
+  try {
+    await Linking.openURL(url);
+  } catch {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+        window.alert(`Cannot open link. Please visit:\n${url}`);
+      }
+    } else {
+      Alert.alert('Cannot open link', `Please visit this page in your browser:\n${url}`);
+    }
+  }
+}
+
 /** Drop-in replacement for Share.share. */
 export async function shareExternal(content: ShareContent, options?: Parameters<typeof Share.share>[1]) {
   if (!shouldDispatch('external_share')) {

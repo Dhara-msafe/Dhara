@@ -7,7 +7,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   Image,
-  Linking,
   Platform,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -15,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { openExternal } from '@/src/outbound';
 
 /**
  * DHARA Pro — UPI Payment Page (Phase 1, outside the app).
@@ -65,7 +65,7 @@ export default function PayUpi() {
 
   const payWithUpiApp = () => {
     if (!config?.upi_uri) return;
-    Linking.openURL(config.upi_uri).catch(() => {
+    openExternal(config.upi_uri).catch(() => {
       setError('Could not open a UPI app. Please scan the QR code with any UPI app instead.');
     });
   };

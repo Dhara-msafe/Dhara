@@ -1,6 +1,6 @@
 /** Explicit age, terms and core-data consent. Optional purposes default to off. */
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, Switch, ActivityIndicator, Image, Linking } from 'react-native';
+import { View, Text, ScrollView, Pressable, Switch, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +14,7 @@ import { ConsentPublicHelp } from '@/src/components/ConsentPublicHelp';
 import { API_BASE, useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { updateConsentCache } from '@/src/analytics';
+import { openStaticPage } from '@/src/outbound';
 import { consentStyles as styles } from '@/src/consentStyles';
 import { grievanceOfficerName, grievanceContactEmail, isGrievanceContactPlaceholder } from '@/src/operatorIdentity';
 // NF-UI-REV-12 (Group J, DHARA UI Revision v2.2.1): visible keyboard-focus
@@ -171,7 +172,7 @@ export default function ConsentScreen() {
               testID="consent-read-full-privacy"
               accessibilityRole="link"
               accessibilityLabel={strings.read_full}
-              onPress={() => Linking.openURL('https://dhara.msafesolutions.com/privacy.html')}
+              onPress={() => openStaticPage('https://dhara.msafesolutions.com/privacy.html')}
               style={(s) => [styles.termsLink, focusRingStyle(s)]}>
               <Ionicons name="open-outline" size={20} color={colors.primary} />
               <Text style={styles.linkText}>{strings.read_full}</Text>

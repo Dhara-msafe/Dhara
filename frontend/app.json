@@ -33,7 +33,6 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FFFCF8"
       },
-      "allowBackup": false,
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.msafesolutions.legalaid",
       "googleServicesFile": "./google-services.json",

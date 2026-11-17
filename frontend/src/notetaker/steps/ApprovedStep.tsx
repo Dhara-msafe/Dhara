@@ -3,11 +3,12 @@
  * finalised, read-only note plus export (share/copy) and task-draft actions.
  */
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ActivityIndicator, Platform, Clipboard, Share } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ActivityIndicator, Platform, Clipboard } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { theme } from '@/src/theme';
 import { crossAlert } from '@/src/utils/crossAlert';
+import { shareExternal } from '@/src/outbound';
 import { apiPost, fetchExportText, newIdempotencyKey, reviseNote } from '../api';
 import type { Consultation, NoteSections } from '../api';
 import ConfirmModal from '../ConfirmModal';
@@ -44,8 +45,7 @@ export default function ApprovedStep({
         Clipboard.setString(text);
         crossAlert('Copied', 'The note was copied to your clipboard.');
       } else if (Platform.OS === 'web') {
-        await Share.share({ message: text });
-      } else {
+        await shareExternal({ message: text });
         const dir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
         const fileUri = `${dir}consultation-${consultation.id.slice(0, 8)}.txt`;
         await FileSystem.writeAsStringAsync(fileUri, text, { encoding: FileSystem.EncodingType.UTF8 });
@@ -53,7 +53,7 @@ export default function ApprovedStep({
         if (canShare) {
           await Sharing.shareAsync(fileUri, { mimeType: 'text/plain', dialogTitle: 'Share consultation note' });
         } else {
-          await Share.share({ message: text });
+          await shareExternal({ message: text });
         }
       }
     } catch (e: any) {
