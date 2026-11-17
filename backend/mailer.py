@@ -187,3 +187,20 @@ def account_deletion_otp_email(*, name: str, code: str, minutes: int) -> tuple[s
         "email — your account will not be deleted without it.</td></tr>"
     )
     return subject, _shell(inner)
+
+
+def upi_status_email(*, name: str, status: str, message: str) -> tuple[str, str]:
+    """B-124: (subject, html) telling the person the result of their UPI
+    payment check. Fixed template; `message` is fixed server text."""
+    subject = {
+        "confirmed": "Your Dhara Pro payment is confirmed",
+        "rejected": "We could not confirm your Dhara Pro payment",
+    }.get(status, "Update on your Dhara Pro payment")
+    inner = (
+        '<tr><td style="font-size:22px;font-weight:700;padding-bottom:8px">Dhara</td></tr>'
+        f'<tr><td style="font-size:15px;line-height:22px">Hi {escape(name or "there")},</td></tr>'
+        f'<tr><td style="font-size:15px;line-height:22px;padding-top:12px">{escape(message)}</td></tr>'
+        '<tr><td style="font-size:14px;line-height:21px;color:#4A5568;padding-top:12px">'
+        "Open the Dhara app to see your account.</td></tr>"
+    )
+    return subject, _shell(inner)

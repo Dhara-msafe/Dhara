@@ -39,6 +39,23 @@ type Config = {
   upi_uri: string | null;
 };
 
+// B-124: the signed-in person's latest submission, with a plain message.
+type MySubmission = {
+  id: string;
+  status: 'pending' | 'confirmed' | 'rejected' | 'expired';
+  utr: string;
+  created_at: string;
+  expires_at: string | null;
+  message: string;
+};
+
+const STATUS_TITLE: Record<MySubmission['status'], string> = {
+  pending: 'Waiting for confirmation',
+  confirmed: 'Payment confirmed — you are Pro',
+  rejected: 'We could not confirm your payment',
+  expired: 'We could not confirm your payment in time',
+};
+
 export default function PayUpi() {
   // V-07 (D-17, 17 Nov 2026): submitting a payment needs the person to be
   // signed in; the payment is added to that account (no typed email).
@@ -54,6 +71,24 @@ export default function PayUpi() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [mine, setMine] = useState<MySubmission | null>(null);
+
+  // B-124: show the result of the last submission (pending / confirmed /
+  // rejected / expired) so the person is never left guessing.
+  const loadMine = async () => {
+    if (!signedIn) { setMine(null); return; }
+    try {
+      const res = await fetch(`${API_BASE}/api/billing/upi/my-submission`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setMine(data?.submission ?? null);
+    } catch {
+      // Status is a convenience; the form still works without it.
+    }
+  };
+  useEffect(() => { loadMine(); }, [signedIn, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     (async () => {
@@ -101,6 +136,9 @@ export default function PayUpi() {
         return;
       }
       setDone(true);
+      setUtr('');
+      setNote('');
+      loadMine();
     } catch {
       setError('Network error. Please check your connection and try again.');
     } finally {
@@ -154,15 +192,34 @@ export default function PayUpi() {
             <View style={styles.doneIcon}>
               <Ionicons name="checkmark-circle" size={44} color={theme.colors.brand} />
             </View>
-            <Text style={styles.heading}>Submitted — we&apos;ll confirm shortly</Text>
+            <Text style={styles.heading}>Submitted — waiting for confirmation</Text>
             <Text style={styles.sub}>
-              We&apos;ve received your payment reference for {user?.email}. Once it&apos;s
-              checked against our UPI payment history, your DHARA account will show as Pro the
-              next time you open the app. You can close this page now.
+              We&apos;ve received your payment reference for {user?.email}. Payments are checked
+              by hand against our UPI payment history, so this is not instant. Once it&apos;s
+              confirmed, your DHARA account shows as Pro the next time you open the app, and we
+              email you the result. Come back to this page any time to see the status.
             </Text>
           </View>
         ) : (
           <>
+            {signedIn && mine && (
+              <View style={styles.card} testID={`pay-upi-status-${mine.status}`}>
+                <Ionicons
+                  name={mine.status === 'confirmed' ? 'checkmark-circle' : mine.status === 'pending' ? 'time-outline' : 'alert-circle-outline'}
+                  size={32}
+                  color={mine.status === 'rejected' || mine.status === 'expired' ? theme.colors.error : theme.colors.brand}
+                />
+                <Text style={styles.heading}>{STATUS_TITLE[mine.status]}</Text>
+                <Text style={styles.sub}>{mine.message}</Text>
+                <Text style={styles.qrHint}>
+                  Reference {mine.utr} · sent {new Date(mine.created_at).toLocaleDateString()}
+                  {mine.status === 'pending' && mine.expires_at
+                    ? ` · answer due by ${new Date(mine.expires_at).toLocaleDateString()}`
+                    : ''}
+                </Text>
+              </View>
+            )}
+            {mine?.status !== 'confirmed' && (<>
             <View style={styles.card} testID="pay-upi-pay-card">
               <Text style={styles.heading}>DHARA Pro — {config.amount_label}</Text>
               <Text style={styles.sub}>One-time payment · lifetime Pro access</Text>
@@ -254,6 +311,7 @@ export default function PayUpi() {
               </>
               )}
             </View>
+            </>)}
           </>
         )}
 

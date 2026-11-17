@@ -51,7 +51,7 @@ type Submission = {
   user_id: string;
   utr: string;
   note: string | null;
-  status: 'pending' | 'confirmed' | 'rejected';
+  status: 'pending' | 'confirmed' | 'rejected' | 'expired';
   created_at: string;
   reviewed_at: string | null;
 };
@@ -91,7 +91,11 @@ export default function AdminUpiReview() {
         method: 'POST',
         headers: { 'X-Admin-Key': adminKey },
       });
-      if (!res.ok) { setError(`Could not ${action} this submission.`); return; }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(typeof data?.detail === 'string' && data.detail ? data.detail : `Could not ${action} this submission.`);
+        return;
+      }
       setSubmissions((prev) => prev.map((s) => (s.id === id ? { ...s, status: action === 'confirm' ? 'confirmed' : 'rejected' } : s)));
     } catch {
       setError('Network error. Please try again.');
@@ -175,11 +179,13 @@ export default function AdminUpiReview() {
                     {!!s.note && <Text style={styles.rowNote}>{s.note}</Text>}
                     <Text style={styles.rowDate}>{new Date(s.created_at).toLocaleString()}</Text>
                   </View>
-                  {s.status === 'pending' ? (
+                  {/* B-124: an expired submission can still be checked and confirmed or rejected. */}
+                  {s.status === 'pending' || s.status === 'expired' ? (
                     actingOn === s.id ? (
                       <ActivityIndicator color={theme.colors.brand} />
                     ) : (
                       <View style={styles.actions}>
+                        {s.status === 'expired' && <Text style={styles.rowDate}>expired</Text>}
                         <Pressable testID={`confirm-${s.id}`} style={styles.confirmBtn} onPress={() => act(s.id, 'confirm')}>
                           <Text style={styles.confirmText}>Confirm</Text>
                         </Pressable>
