@@ -302,6 +302,7 @@ export default function WomenShield() {
               </View>
             ))}
           </View>
+          <Text style={styles.hlNote} accessibilityRole="text">Tap-to-call is not yet active. Note the number and dial manually.</Text>
         </View>
 
         {/* Safety plan */}
@@ -394,6 +395,7 @@ const styles = StyleSheet.create({
   hlGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
   hlCard: { width: '31%', backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.lines, paddingVertical: 16, alignItems: 'center', position: 'relative' },
   hlVerified: { position: 'absolute', top: 8, right: 8 },
+  hlNote: { marginTop: 10, fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18 },
   lessonRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.goldMuted, borderRadius: 14, padding: 14, marginTop: 14 },
   lessonTxt: { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.ink },
   hlNum: { fontFamily: theme.fonts.displayBold, fontSize: 22, color: c.navy },

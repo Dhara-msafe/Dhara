@@ -147,6 +147,8 @@ export const UI: Record<string, L> = {
 
   // ── Emergency ────────────────────────────────────────────────────
   'em.danger':       { en: 'YOU MAY BE IN DANGER', hi: 'आप खतरे में हो सकते हैं', mr: 'तुम्ही धोक्यात असू शकता', ta: 'நீங்கள் ஆபத்தில் இருக்கலாம்' },
+  // v2.2 design spec subtitle: "Pick one. Each button does one thing."
+  'em.subtitle':     { en: 'Pick one. Each button does one thing.', hi: 'एक चुनें। हर बटन एक काम करता है।', mr: 'एक निवडा. प्रत्येक बटण एक काम करते.', ta: 'ஒன்றைத் தேர்ந்தெடுங்கள். ஒவ்வொரு பொத்தானும் ஒரு செயலைச் செய்கிறது.' },
   'em.quickexit':    { en: 'Quick exit', hi: 'तुरंत बाहर', mr: 'त्वरित बाहेर', ta: 'விரைவு வெளியேறு' },
   'em.tapcall':      { en: 'Tap to open dialler', hi: 'डायलर खोलने के लिए टैप करें', mr: 'डायलर उघडण्यासाठी टॅप करा', ta: 'டயலரைத் திறக்க தட்டவும்' },
   'em.oneNumber':    { en: 'Police · ambulance · women\u2019s help — one number', hi: 'पुलिस · एम्बुलेंस · महिला मदद — एक नंबर' },
@@ -158,7 +160,7 @@ export const UI: Record<string, L> = {
   'em.officer.sub':  { en: 'Show my rights', hi: 'मेरे अधिकार दिखाएं' },
   'em.nearest':      { en: 'Nearest help', hi: 'नज़दीकी मदद' },
   'em.nearest.sub':  { en: 'Find services in Maps', hi: 'मैप में मदद खोजें', mr: 'नकाशात मदत शोधा', ta: 'வரைபடத்தில் உதவியைத் தேடவும்' },
-  'em.powerTip':     { en: 'In immediate danger, use your phone to call 112. Emergency SOS button shortcuts vary by phone; check your device settings. DHARA does not monitor emergencies.', hi: 'तुरंत खतरे में अपने फोन से 112 कॉल करें। इमरजेंसी SOS शॉर्टकट फोन के अनुसार बदलते हैं; सेटिंग देखें। DHARA आपात स्थिति की निगरानी नहीं करता।', mr: 'तातडीचा धोका असल्यास फोनवरून 112 वर कॉल करा. SOS शॉर्टकट फोननुसार बदलतात; सेटिंग्ज तपासा. DHARA आपत्कालीन परिस्थितीवर लक्ष ठेवत नाही.', ta: 'உடனடி ஆபத்தில் தொலைபேசியில் 112 அழைக்கவும். SOS குறுக்குவழிகள் சாதனத்திற்கேற்ப மாறும்; அமைப்புகளைப் பார்க்கவும். DHARA அவசரநிலைகளை கண்காணிப்பதில்லை.' },
+  'em.powerTip':     { en: 'DHARA does not monitor emergencies and cannot send help for you. You make every call and press every send. Emergency SOS shortcuts vary by phone — check your device settings.', hi: 'तुरंत खतरे में अपने फोन से 112 कॉल करें। इमरजेंसी SOS शॉर्टकट फोन के अनुसार बदलते हैं; सेटिंग देखें। DHARA आपात स्थिति की निगरानी नहीं करता।', mr: 'तातडीचा धोका असल्यास फोनवरून 112 वर कॉल करा. SOS शॉर्टकट फोननुसार बदलतात; सेटिंग्ज तपासा. DHARA आपत्कालीन परिस्थितीवर लक्ष ठेवत नाही.', ta: 'உடனடி ஆபத்தில் தொலைபேசியில் 112 அழைக்கவும். SOS குறுக்குவழிகள் சாதனத்திற்கேற்ப மாறும்; அமைப்புகளைப் பார்க்கவும். DHARA அவசரநிலைகளை கண்காணிப்பதில்லை.' },
   'em.safe':         { en: 'I\u2019m safe now', hi: 'अब मैं सुरक्षित हूँ', mr: 'आता मी सुरक्षित आहे', ta: 'இப்போது நான் பாதுகாப்பாக இருக்கிறேன்' },
 
   // ── Listening ────────────────────────────────────────────────────

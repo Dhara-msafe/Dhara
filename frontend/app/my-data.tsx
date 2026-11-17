@@ -195,11 +195,12 @@ export default function MyDataScreen() {
         </SectionCard>
 
         {/* ── Consent ── */}
-        <SectionCard title="Your Consent Record" icon="shield-checkmark-outline">
-          <DataRow label="T&C Version"  value={`v${consent.version || '1.0'}`} />
-          <DataRow label="Accepted on"  value={consent.accepted_at ? new Date(consent.accepted_at).toLocaleDateString('en-IN') : '—'} />
-          <DataRow label="Analytics"    value={consent.purposes?.analytics ? 'Yes' : 'No'} />
-          <DataRow label="Updates"      value={consent.purposes?.updates   ? 'Yes' : 'No'} />
+        <SectionCard title="Consent choices" icon="shield-checkmark-outline">
+          <DataRow label="Terms version"  value={`v${consent.version || '1.0'}`} />
+          <DataRow label="Agreed on"      value={consent.accepted_at ? new Date(consent.accepted_at).toLocaleDateString('en-IN') : '—'} />
+          <DataRow label="Analytics"      value={consent.purposes?.analytics ? 'Yes' : 'No'} />
+          <DataRow label="Updates"        value={consent.purposes?.updates   ? 'Yes' : 'No'} />
+          {/* v2.2: withdraw UI requires backend consent-history endpoint — not yet implemented */}
           <DataRow label="Retained"     value="Indefinitely (legal proof)"  last />
         </SectionCard>
 

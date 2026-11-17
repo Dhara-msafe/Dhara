@@ -135,7 +135,20 @@ export default function ConsentScreen() {
       }).then(response => { if (response.ok && token) void refreshUser(); }).catch(() => {});
       // A known forward destination also works for direct links and updates.
       // Going back could return to another copy of the consent screen.
-      router.replace(token ? '/(tabs)/home' : '/login');
+      // Web-preview fallback: after a route change the React AuthContext may
+      // reset to null before re-hydrating from AsyncStorage (the in-memory
+      // `token` state starts as null on every fresh mount on web).
+      // Reading AsyncStorage directly here is safe — no data is modified.
+      // On native `token` is always set by this point (AsyncStorage is sync-
+      // hydrated on the native bridge), so the branch never fires there.
+      let resolvedToken = token;
+      if (!resolvedToken) {
+        try {
+          const raw = await AsyncStorage.getItem('gk_token');
+          if (raw) resolvedToken = JSON.parse(raw) as string;
+        } catch { /* storage unavailable; will redirect to login */ }
+      }
+      router.replace(resolvedToken ? '/(tabs)/home' : '/login');
     } catch {
       setSaveError(true);
     } finally {
@@ -157,6 +170,7 @@ export default function ConsentScreen() {
           </View>
         ) : (
           <>
+            <Text style={styles.stepEyebrow}>STEP 3 OF 4</Text>
             <View style={styles.titleRow}>
               <Image source={require('../assets/images/dhara_icon.png')} style={styles.logoBox} resizeMode="contain" />
               <Text testID="consent-title" style={styles.title}>{strings.title}</Text>
@@ -199,6 +213,8 @@ export default function ConsentScreen() {
               <View style={styles.infoBox}><Text testID="consent-grievance-notice" style={styles.infoText}>{fillPlaceholders(strings.grievance)}</Text></View>
             )}
 
+            <View style={styles.divider} />
+            <Text style={styles.sectionLabel}>REQUIRED TO USE DHARA</Text>
             <Text testID="consent-age-heading" style={styles.sectionHeading}>{copy.ageHeading}</Text>
             <View style={styles.radioGroup}>
               {(['18+', 'under18'] as const).map(value => (
@@ -255,6 +271,28 @@ export default function ConsentScreen() {
             trackColor={{ false: colors.border, true: colors.primary }} thumbColor={colors.onBrandPrimary} />
         </View>
         {!isUpdateMode && <Text testID="consent-disclaimer" style={styles.note}>{strings.disclaimer}</Text>}
+        {/* ── Design v2.2: "You get a record" card + DPDP/PIPEDA note ── */}
+        {!isUpdateMode && (
+          <>
+            <View style={styles.recordCard}>
+              <Text style={styles.recordCardText}>
+                <Text style={styles.recordCardBold}>Your choices are logged. </Text>
+                DHARA logs the terms version, timestamp, and each consent choice on the server for all users.
+                {'\n\n'}
+                <Text style={styles.recordCardBold}>Signed-in users</Text>
+                {' '}can review and change their choices any time in Profile → My Data.{' '}
+                <Text style={styles.recordCardBold}>Guest users</Text>
+                {' '}cannot retrieve the log without signing in first.
+              </Text>
+            </View>
+            <View style={styles.pendingNote}>
+              <Text style={styles.pendingNoteText}>
+                <Text style={styles.pendingNoteBold}>Pending legal and implementation review. </Text>
+                This flow is intended to support rights under India's DPDP Act 2023. It is not a certification and has not been confirmed as sufficient.
+              </Text>
+            </View>
+          </>
+        )}
       </ScrollView>
 
       {isUpdateMode ? (
@@ -273,13 +311,19 @@ export default function ConsentScreen() {
         <View testID="consent-footer" style={styles.footer}>
           <Text testID="consent-continue-guidance" accessibilityLiveRegion="polite" style={styles.guidance}>{guidance}</Text>
           {saveError && <Text testID="consent-save-error" accessibilityRole="alert" style={styles.error}>{copy.saveError}</Text>}
-          <Pressable testID="consent-continue-button" accessibilityRole="button" accessibilityLabel={strings.continue_button}
+          <Pressable testID="consent-continue-button" accessibilityRole="button"
+            accessibilityLabel={canContinue ? 'Agree and continue' : 'Make the required choices above'}
             aria-disabled={!canContinue || saving} aria-busy={saving}
             accessibilityState={{ disabled: !canContinue || saving, busy: saving }} disabled={!canContinue || saving}
             style={(state) => [styles.continueBtn, !canContinue && styles.continueDisabled, state.pressed && styles.pressed, focusRingStyle(state)]} onPress={handleContinue}>
             {saving ? <ActivityIndicator testID="consent-saving" color={colors.onBrandPrimary} />
-              : <Text testID="consent-continue-label" style={[styles.continueText, !canContinue && styles.disabledText]}>{strings.continue_button}</Text>}
+              : <Text testID="consent-continue-label" style={[styles.continueText, !canContinue && styles.disabledText]}>
+                  {canContinue ? 'Agree and continue' : 'Make the required choices above'}
+                </Text>}
           </Pressable>
+          {!canContinue && (
+            <Text style={styles.nothingSavedNote}>Nothing is saved until you press the button.</Text>
+          )}
         </View>
       )}
       <ConsentTermsModal visible={showTerms} onClose={() => setShowTerms(false)} copy={copy} />

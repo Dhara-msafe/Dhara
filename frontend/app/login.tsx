@@ -108,7 +108,7 @@ export default function Login() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
-        <Image source={require('../assets/images/dhara_icon.png')} style={styles.logo} resizeMode="contain" />
+        <Image source={require('../assets/images/dhara_mark.png')} style={styles.logo} resizeMode="contain" />
         <Text style={styles.tag}>Know your rights. Speak them.</Text>
 
           <View style={styles.card}>
@@ -273,7 +273,7 @@ export default function Login() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.dhara.navy },
   scroll: { flexGrow: 1, padding: theme.spacing.xl, justifyContent: 'center' },
-  // DHARA icon mark — 512×512 transparent PNG, renders well on the navy background
+  // DHARA icon mark — 1024×1024 transparent RGBA PNG; renders directly on navy background
   logo: { width: 160, height: 160, alignSelf: 'center', marginBottom: 8 },
   brand: { fontFamily: theme.fonts.display, fontSize: 44, color: theme.colors.onBrandPrimary, textAlign: 'center', fontWeight: '700' },
   // Tagline: gold-on-navy — 6.29:1 ✅ WCAG AA

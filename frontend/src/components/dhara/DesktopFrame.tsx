@@ -171,13 +171,13 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
 
         <View style={[styles.railCard, { backgroundColor: c.navy }]}>
           <Text style={styles.getApp}>Get the app</Text>
-          <Text style={styles.getAppSub}>Scan to install DHARA on your phone — works offline.</Text>
+          <Text style={styles.getAppSub}>Scan to install DHARA on your phone — available on Android and iOS.</Text>
           <View style={styles.qr}><Ionicons name="qr-code-outline" size={84} color={c.navy} /></View>
         </View>
 
         <View style={styles.verified}>
-          <Ionicons name="checkmark-circle" size={18} color={c.verifiedGreen} />
-          <Text style={styles.verifiedTxt}>Every answer is checked against current Indian law before you see it.</Text>
+          <Ionicons name="information-circle-outline" size={18} color={c.muted} />
+          <Text style={styles.verifiedTxt}>Answers draw on the Indian legal corpus (BNS 2023, BNSS, Constitution). Not legal advice.</Text>
         </View>
 
         {!user && (
