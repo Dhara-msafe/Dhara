@@ -103,7 +103,7 @@ export default function Home() {
           <View style={styles.headerRow}>
             <View style={styles.brandRow}>
               <View style={styles.logo}>
-                <Image source={require('../../assets/images/dhara_icon.png')} style={styles.logoImg} resizeMode="cover" />
+                <Image source={require('../../assets/images/dhara_mark.png')} style={styles.logoImg} resizeMode="contain" />
               </View>
               <View>
                 <Text style={styles.brand}>DHARA</Text>
@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
   header: { backgroundColor: c.navy, paddingHorizontal: 20, paddingBottom: 54, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logo: { width: 44, height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: c.gold, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: '#fff' },
+  logo: { width: 44, height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: c.gold, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   logoImg: { width: '100%', height: '100%' },
   brand: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 24, letterSpacing: 1 },
   tagline: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 11 },

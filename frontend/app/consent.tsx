@@ -165,14 +165,14 @@ export default function ConsentScreen() {
           // optional choices. No age/terms/required-data re-confirmation;
           // just show the CURRENT state of the two optional toggles. ──────
           <View style={styles.titleRow}>
-            <Image source={require('../assets/images/dhara_icon.png')} style={styles.logoBox} resizeMode="contain" />
+            <Image source={require('../assets/images/dhara_mark.png')} style={styles.logoBox} resizeMode="contain" />
             <Text testID="consent-title" style={styles.title}>{copy.updateHeading}</Text>
           </View>
         ) : (
           <>
             <Text style={styles.stepEyebrow}>STEP 3 OF 4</Text>
             <View style={styles.titleRow}>
-              <Image source={require('../assets/images/dhara_icon.png')} style={styles.logoBox} resizeMode="contain" />
+              <Image source={require('../assets/images/dhara_mark.png')} style={styles.logoBox} resizeMode="contain" />
               <Text testID="consent-title" style={styles.title}>{strings.title}</Text>
             </View>
             <Text testID="consent-intro" style={styles.intro}>{strings.intro}</Text>

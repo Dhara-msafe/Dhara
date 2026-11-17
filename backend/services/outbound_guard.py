@@ -40,7 +40,7 @@ from datetime import datetime, timezone
 logger = logging.getLogger("dhara.outbound_guard")
 
 VALID_MODES = ("live", "simulate")
-VALID_PROFILES = ("internal_qa", "closed_testing", "production")
+VALID_PROFILES = ("internal_qa", "closed_testing", "sms_only", "production")
 VALID_DEPLOYMENT_ENVS = ("preview", "production")
 
 # ── Channels ─────────────────────────────────────────────────────────────────
@@ -73,6 +73,12 @@ _POLICY = {
     },
     "closed_testing": {
         DIALLER: LIVE, SMS: LIVE, RESET_EMAIL: LIVE, EMAIL: LIVE,
+        EXTERNAL_SHARE: LIVE, OPS_ALERT: LIVE,
+        PUSH: DISABLED, REMINDER: DISABLED, GUARDIAN: DISABLED,
+    },
+    # sms_only: real SMS/email/share; calls stay simulated (NF-SAFETY-02).
+    "sms_only": {
+        DIALLER: SIMULATE, SMS: LIVE, RESET_EMAIL: LIVE, EMAIL: LIVE,
         EXTERNAL_SHARE: LIVE, OPS_ALERT: LIVE,
         PUSH: DISABLED, REMINDER: DISABLED, GUARDIAN: DISABLED,
     },
