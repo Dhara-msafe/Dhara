@@ -46,6 +46,7 @@ export default function ApprovedStep({
         crossAlert('Copied', 'The note was copied to your clipboard.');
       } else if (Platform.OS === 'web') {
         await shareExternal({ message: text });
+      } else {
         const dir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
         const fileUri = `${dir}consultation-${consultation.id.slice(0, 8)}.txt`;
         await FileSystem.writeAsStringAsync(fileUri, text, { encoding: FileSystem.EncodingType.UTF8 });
