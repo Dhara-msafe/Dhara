@@ -151,7 +151,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         t = legacyT;
         try {
           await storage.secureSet(TOKEN_KEY, legacyT);
-          await AsyncStorage.removeItem(TOKEN_KEY);
+          // B-25 web fix (17 Nov 2026): on web the "secure" store is this same
+          // AsyncStorage slot (browsers have no Keychain; see
+          // src/utils/storage/index.web.ts), so secureSet above has already
+          // replaced the plaintext value in place. Removing the key here
+          // deleted the token it had just migrated and signed every pre-B-25
+          // web session out on its next reload. On phones the secure store is
+          // separate, so the plaintext copy is still removed there.
+          if (Platform.OS !== 'web') await AsyncStorage.removeItem(TOKEN_KEY);
         } catch { /* best-effort migration; keep using the legacy token this session */ }
       }
       if (t) setToken(t);

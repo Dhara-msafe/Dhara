@@ -70,3 +70,10 @@ test('B-25: USER_KEY (non-secret profile data) still goes through plain AsyncSto
   assert.match(authSrc, /AsyncStorage\.setItem\(USER_KEY/);
   assert.match(authSrc, /AsyncStorage\.getItem\(USER_KEY\)/);
 });
+
+// 17 Nov 2026: on web the secure store and the plaintext slot are the same
+// AsyncStorage key, so the migration must not remove the key it just wrote
+// (that signed every pre-B-25 web session out on its next reload).
+test('B-25: the legacy-token migration only removes the plaintext copy off web', () => {
+  assert.match(authSrc, /if \(Platform\.OS !== 'web'\) await AsyncStorage\.removeItem\(TOKEN_KEY\)/);
+});
