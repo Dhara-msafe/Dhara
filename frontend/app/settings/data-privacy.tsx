@@ -76,7 +76,7 @@ const COLLECTED = [
 const USES = [
   'Your inputs are sent to AI providers in anonymised form only — your name, phone, and account details are never included in AI queries.',
   'DHARA does not use your data to train AI models.',
-  'Your FIR drafts are stored encrypted and are never shared with police, courts, or any third party — DHARA only shows them to you.',
+  'Your FIR drafts are stored on DHARA\'s servers (encrypted at rest) and are never shared with police, courts, or any third party — DHARA only shows them to you.',
   'We do not sell your data.',
 ];
 

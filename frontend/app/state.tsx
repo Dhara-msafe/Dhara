@@ -106,7 +106,7 @@ export default function StateSelect() {
           value={query}
           onChangeText={setQuery}
           placeholder="Search state or UT"
-          placeholderTextColor={theme.colors.onSurfaceTertiary}
+          placeholderTextColor={theme.colors.onSurfaceSecondary}
           style={styles.search}
         />
       </View>

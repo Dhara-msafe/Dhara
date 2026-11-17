@@ -48,7 +48,7 @@ const FEATURES: {
   {
     icon: 'shield-checkmark-outline', iconBg: '#D4DEF0', iconColor: c.brand,
     title: 'Know your rights',
-    body: 'Every answer is checked against current Indian law (BNS 2023, BNSS, Constitution) before you see it.',
+    body: 'Answers draw on current Indian law (BNS 2023, BNSS, Constitution). DHARA is not a substitute for legal advice.',
   },
   {
     icon: 'flash-outline', iconBg: '#FFE8C6', iconColor: c.darkGold,
