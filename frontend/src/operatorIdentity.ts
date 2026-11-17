@@ -10,7 +10,8 @@
 export const operatorName = 'MSafe Solutions Inc.';
 export const indiaEntity = 'Calviltech Digital Solutions Pvt Ltd';
 export const grievanceOfficerName = 'Varuna Moses';
-export const grievanceContactEmail = 'varuna@calviltech.com';
+// B-70 (17 Nov 2026): owner-confirmed grievance mailbox (was varuna@calviltech.com).
+export const grievanceContactEmail = 'grievances@askdhara.in';
 
 /**
  * True when the grievance officer name and/or email is still an
