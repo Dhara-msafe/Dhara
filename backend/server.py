@@ -2217,6 +2217,31 @@ async def list_grievances(user: dict = Depends(current_user)):
     return {"tickets": tickets, "count": len(tickets)}
 
 
+# ── ID-47 / Screen 55: Consent history ledger ──────────────────────────────
+@app.get("/api/user/consent-history")
+async def get_consent_history(
+    limit: int = 10,
+    user: dict = Depends(current_user),
+):
+    """Return the user's consent-change log, newest first.
+
+    - limit=10  → last 10 entries (compact view default)
+    - limit=0   → all entries ('View all history' expansion)
+
+    Entry fields: timestamp, event, purposes, notice_version, language
+    """
+    uid = user["id"]
+    cursor = db.consent_log.find(
+        {"user_id": uid},
+        {"_id": 0, "user_id": 0, "anon_id": 0, "age_confirmed_18": 0},
+    ).sort("timestamp", -1)
+    if limit and limit > 0:
+        cursor = cursor.limit(limit)
+    entries = await cursor.to_list(None)
+    total = await db.consent_log.count_documents({"user_id": uid})
+    return {"entries": entries, "total": total}
+
+
 # ─── SPA catch-all (must stay LAST) ──────────────────────────────────────────
 from fastapi.staticfiles import StaticFiles as _StaticFiles
 from fastapi.responses import FileResponse as _FileResponse
@@ -2393,7 +2418,6 @@ async def update_privacy_choices(
         "event":            "privacy_choices_update",
     })
     return {"ok": True, "consent_purposes": new_purposes}
-
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

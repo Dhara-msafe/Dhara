@@ -102,224 +102,122 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Building AI bot 'Dhara' (MSafe Legal Aid) - Indian legal aid app with BNS/Constitution/IPC corpus, bilingual support, voice capabilities, WhatsApp-style mic interaction."
+user_problem_statement: "DHARA v2.2 redesign continuation: Fix consent management UI (ID-47 consent toggles missing from JSX, add consent record screen-54, consent history ledger screen-55). Verify EL-055 (feature flag block) and EL-054 (orphaned temp file cleanup). Check external privacy policy URL. Update regression CSV and produce final 57-screen reconciliation report."
 
 backend:
-  - task: "Chat streaming SSE endpoint"
+  - task: "GET /api/user/consent-history endpoint (Screen 55)"
     implemented: true
     working: true
     file: "backend/server.py"
     stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: true
-          agent: "main"
-          comment: "SSE streaming chat works on web and native"
-        - working: true
-          agent: "testing"
-          comment: "✅ TESTED: POST /api/chat/stream returns 200, SSE stream working correctly. Received 7 chunks with proper delta events (type='delta', content field). Response streaming successfully with legal content about IPC Section 420. Test credentials: protest@gandhikar.in"
-
-  - task: "Cloud TTS via /api/voice/tts"
-    implemented: true
-    working: true
-    file: "backend/server.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: true
-          agent: "main"
-          comment: "TTS endpoint returns MP3 audio"
-        - working: true
-          agent: "testing"
-          comment: "✅ TESTED: POST /api/voice/tts returns 200, audio/mpeg content-type, ~20KB MP3 audio data received successfully. Tested with 'Hello, this is a test.' text input."
-
-  - task: "Cloud STT via /api/voice/transcribe (Whisper)"
-    implemented: true
-    working: true
-    file: "backend/server.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: true
-          agent: "main"
-          comment: "Whisper transcription endpoint works"
-        - working: true
-          agent: "testing"
-          comment: "⚠️ NOT TESTED: Endpoint requires actual audio file upload. Cannot test without audio sample. Endpoint is available and configured correctly based on code review."
-
-frontend:
-  - task: "Help actions and redesigned-screen voice entry/playback"
-    implemented: true
-    working: true
-    file: "frontend/app/emergency.tsx; frontend/app/women; frontend/app/(tabs)/index.tsx; frontend/app/action-plan.tsx; frontend/src/hooks/useScreenSpeech.ts"
-    stuck_count: 1
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: false
-        agent: "user"
-        comment: "112, silent alert, record now, officer card and nearest help not responding. Also fix earlier voice issue."
-      - working: "NA"
-        agent: "main"
-        comment: "Connected empty Help tile handlers; added dialler status, SMS preparation with opt-in location (no automatic delivery), local audio recording/storage/playback/deletion, Maps search without invented distances. Corrected device SOS advice. Mic entry params now start existing chat recorder once in hands-free mode, with blur cleanup. Added shared native-to-cloud TTS hook and translated card content, silent/stop/error/retry states. No backend/src/voice changes. Focused verification needed; no real emergency calls/SMS. Existing test credentials unchanged. Changed source typechecks; unrelated 12 legacy diagnostics remain."
-      - working: true
-        agent: "main"
-        comment: "Iteration24 duplicate silent-alert stack fixed with dismissTo; manual phone-preview verification passed return/contact cleanup, SMS composition, Maps URLs, offline audio save/play/reload/delete, denied mic/location, actual officer card/source/refusal/Silent and 503 Retry, Home/Ask autostart/cancel/blur and All-help denial. hi/mr/ta fallback payloads verified for both screens with simulated audio responses; blocked playback retry reuses audio. Actual device dialler/SMS and paid TTS/STT quality NOT certified. Details memory/help_voice_verification.md. Only test report changed by tester; no source edits."
-  - task: "Android APK startup stability (V18 candidate)"
-    implemented: true
-    working: "NA"
-    file: "frontend/package.json; frontend/app/_layout.tsx; frontend/app.json"
-    stuck_count: 1
     priority: "high"
     needs_retesting: true
     status_history:
-      - working: false
-        agent: "user"
-        comment: "User reported the v1.0.84 APK crashes immediately on launch."
-      - working: "NA"
-        agent: "main"
-        comment: "P0 remediation: SDK-incompatible expo-crypto 57.0.3 repinned to ~15.0.9 and root error boundary added. Google services file was unavailable, so no invalid android.googleServicesFile reference was added. Clean web export and web preview passed; fresh Android build/device launch is required before marking working."
-  - task: "26 September mockup: five tabs, compact Home, full-height chat, missing photos/GPS"
+        - working: true
+          agent: "main"
+          comment: "Added GET /api/user/consent-history?limit=10 before SPA catch-all (around line 2211). Returns entries+total. Confirmed working via curl: returns 10 of 53 entries for voicetest2026@example.com. Auth: Bearer token from POST /api/auth/login (field 'token' not 'access_token')."
+
+  - task: "PATCH /api/user/privacy-choices (consent toggle persistence)"
     implemented: true
     working: true
-    file: "frontend/app/(tabs)/home.tsx; frontend/app/(tabs)/discover.tsx; frontend/src/components/AppTabBar.tsx; frontend/app/missing; backend/missing_media.py"
+    file: "backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
-      - working: "NA"
-        agent: "main"
-        comment: "Latest user mockup supersedes prior Profile placement: five tabs Home/Rights/Ask AI/Complaints/Lookup, compact Pro header, only one active home complaint, Home question handoff, reports removed from chat. Lookup links Vote/sections/cases/advocates. Added optional private object-storage photos (3x5MB, owner-only reads/detach), opt-in GPS/manual coordinates with last-seen confirmation and map link, PDF images/coordinates, account-local draft persistence. No release/export. Initial screenshot loads; old Metro cached manifest lacked current config.extra; generated Metro cache rebuilt. Use existing voicetest credentials. Need targeted nav, small-phone, photo/GPS/PDF and ownership verification. No paid LLM, voice or payment calls needed. Existing unrelated TS errors remain. Existing eCourts provider/search bugs out of scope."
-      - working: true
-        agent: "main"
-        comment: "Iteration22 found cross-owner DELETE falsely returning success though no data was removed; now missing owner/file returns404. Existing regression rerun:12 passed, test_reports/pytest/iteration_22_retest.xml. Testing agent could not complete frontend gates; manual real UI flow afterwards passed sign-in/consent, five tabs and Home question handoff, 390/320 width no overflow; reading/composer boxes disjoint. Real photo chooser upload + simulated browser GPS19.076,72.8777 required explicit confirmation;18-question interview completed; printable PDF HTML has embedded image + confirmed coordinates/maps URL; reopened attachments restore both. Screenshots automation_output/20260926_142659. No production/API mocks or paid AI calls. Native device camera/GPS/PDF share not certified. User requested no further test runs due credit spend; stop testing here."
-  - task: "Screenshot-matched Home and app-wide navy, white and gold palette"
+        - working: true
+          agent: "main"
+          comment: "Existing endpoint. Saves consent_purposes to users collection AND inserts audit entry into consent_log. event='privacy_choices_update'. Body: {analytics: bool, updates: bool}."
+
+  - task: "EL-055: Evidence locker blocked when flag disabled"
     implemented: true
-    working: true
-    file: "frontend/app/(tabs)/home.tsx; frontend/src/home; frontend/src/components/AppTabBar.tsx; frontend/src/theme.ts; frontend/app/complaints.tsx"
+    working: "NA"
+    file: "backend/api/evidence_vault_router.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         - working: "NA"
           agent: "main"
-          comment: "Built screenshot-shaped Home with navy header/greeting, quick-help cards, real active/completed complaint previews, See all screen, Pro entry; five tabs Home/Rights/Ask AI/Locate/Profile and saved/lookup/history shortcuts in Profile. App-wide brand overrides migrated to shared navy/gold tokens. Manual screenshot confirms Home and chat render. Testing caught backend draft retrieval reading draft_text instead of engine's draft; corrected fallback, curl verifies real owner draft 4271 chars and preserved anon401/other403. Need final UI navigation regression and small-screen check. No paid AI/voice/payment calls needed."
-        - working: true
-          agent: "main"
-          comment: "Final manual verification after iteration21: paused resume auto-restores actual chat from Home AND See all (fir-text-input visible); Back correct. Completed draft renders 4271chars. Pro/Settings terms render without unexpected-text-node errors. Home 390x844 screenshot matches navy/white/gold direction. 320x568 has no horizontal overflow and all five tabs >=44pt within viewport. Final console errors []. Screenshots/console automation_output/20260923_213430. Report only modified by testing agent; no source changes. New source has no TS diagnostics, 11 unrelated pre-existing remain. No paid service calls or emergency calls."
-  - task: "Consent Continue blockage and readable Terms & Conditions"
-    implemented: true
-    working: true
-    file: "frontend/app/consent.tsx; frontend/app/_layout.tsx; frontend/src/consentStrings.ts; frontend/src/consentStorage.ts; frontend/src/consentCopy.ts; frontend/src/consentStyles.ts; frontend/src/components/ConsentTermsModal.tsx; frontend/src/components/ConsentPublicHelp.tsx"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: false
-          agent: "user"
-          comment: "Video: consent screen doesn't proceed; terms and condition should be visible. Approved focus on Continue and readable terms, with optional consent optional."
-        - working: true
-          agent: "main"
-          comment: "Manual verification only. Reproduced blank age and Continue labels; fixed source-key mismatch, undefined consent storage-key import and stale-version/back-navigation loop. Added full terms modal, persistent Continue, explicit requirements/errors, accessible checked states, account-scoped local receipts, public under-18 help. At 390x844 real anonymous and authenticated consent API returned 200, optional purposes false, login/app/Settings reached. 320x568 no consent overflow or clipped Continue. Under-18 and missing required consent remain blocked. Terms-fetch and local-save failure simulations show recoverable errors; retries pass and selections retained. Screenshots/console: automation_output/20260923_210249 and 20260923_210350. Changed-file lint clean, consent-related type diagnostics zero. Physical-device confirmation pending. No testing agent used; no production API mocked. Existing offline consent logging remains best-effort."
-  - task: "Bottom navigation clipping and browser voice permission recovery"
-    implemented: true
-    working: true
-    file: "frontend/app/(tabs)/_layout.tsx; frontend/app/(tabs)/index.tsx; frontend/app/fir-draft/index.tsx; frontend/src/voice/tts.ts; frontend/src/voice/browserPlayer.ts"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: false
-          agent: "user"
-          comment: "Icons/labels cropped on iPhone; many Safari testers get an uncaught permission error in FIR draft. Requested checking other screens."
-        - working: true
-          agent: "main"
-          comment: "Fixed tab content height, hidden History spacing, safe-area ownership, and phone header layout. Web audio now handles the play promise locally, offers direct-tap retry on NotAllowedError, and cleans up pending playback safely. FIR microphone denial is visible; early release is guarded. Five local regression tests pass; 320/390pt checks across six tabs plus history/drafts/FIR pass. Browser-simulated audio/mic denial has zero unhandled rejections. Free-narrative save/resume microphone retested successfully. Physical iPhone confirmation still pending; paid voice providers not called in these checks. Details: memory/ui_voice_verification.md."
-  - task: "WhatsApp-style mic UI (hold-to-record, slide-to-cancel, release-to-send)"
-    implemented: true
-    working: true
-    file: "frontend/app/(tabs)/index.tsx"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: "NA"
-          agent: "main"
-          comment: "Implemented WhatsApp-style mic with PanResponder gesture. Features: hold-to-record, slide-left-to-cancel (threshold -80px), release-to-send, pulsing animation, recording bar with timer, slide-to-cancel indicator. Mic button kept always-mounted for gesture continuity across recording state transitions."
-        - working: true
-          agent: "testing"
-          comment: "✅ TESTED: WhatsApp-style mic UI visual elements working perfectly. Mic button visible with correct styling (terracotta/orange color rgb(198, 93, 59), 52x52px circular button). Mic/send button toggle works correctly: mic button visible when input empty, send button (dark with arrow-up icon) appears when text typed. Actual recording NOT tested (requires native build as expected). Visual UI implementation is correct and matches WhatsApp-style design."
+          comment: "Implemented in previous session. Backend guard returns 403 when evidence_locker_enabled=False. Test by setting flag false in env, calling /api/evidence/vault, expecting 403."
 
-  - task: "Text chat input and send"
+  - task: "EL-054: Orphaned temp file cleanup"
     implemented: true
-    working: true
-    file: "frontend/app/(tabs)/index.tsx"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: true
-          agent: "main"
-          comment: "Verified: typing text shows send button, clicking send dispatches message, response received"
-        - working: true
-          agent: "testing"
-          comment: "✅ TESTED: Text chat flow working perfectly. Typed 'What is the RTI application fee?', send button appeared, message sent successfully, user message appeared in chat, assistant streaming response received with proper content. Chat input clears after sending. All functionality working as expected."
-
-  - task: "TTS speaker button on messages"
-    implemented: true
-    working: true
-    file: "frontend/app/(tabs)/index.tsx"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: true
-          agent: "main"
-          comment: "Speaker icon visible on assistant messages with speed control chip"
-        - working: true
-          agent: "testing"
-          comment: "✅ TESTED: Speaker icon (testID='speak-{messageId}') visible on assistant messages. Speed control chip (testID='speed-{messageId}') also visible showing playback speed (1x/1.5x/2x). Both UI elements present and accessible."
-
-  - task: "Web version compatibility"
-    implemented: true
-    working: true
-    file: "frontend/app/(tabs)/index.tsx"
+    working: "NA"
+    file: "frontend/src/women/evidenceStore.ts"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         - working: "NA"
           agent: "main"
-          comment: "Web version loads and chat works. Mic PanResponder should work with mouse events on web. Audio recording may not work on web (expected - requires native build)."
-        - working: true
+          comment: "sweepOrphanedEvidenceTempFiles() implemented in evidenceStore.ts. Called on evidence-locker.tsx mount. Test: verify function exists and is called on mount."
+
+frontend:
+  - task: "Consent preferences toggles (ID-47 / analytics + updates) in data-privacy.tsx"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/settings/data-privacy.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: false
+          agent: "main"
+          comment: "Previous session added state/handlers but forgot to render JSX."
+        - working: false
           agent: "testing"
-          comment: "✅ TESTED: Web version fully functional. All UI elements render correctly on mobile viewport (390x844). Login flow works (language selector → login → chat). Chat screen loads with all elements: header, SOS button, New Chat button, mode toggle, upgrade banner, suggestion cards, input bar, tabs. Text chat works perfectly. Tab navigation (Ask, Rights, History, Settings) works. New Chat functionality works. Pro mode toggle works. Suggestion cards clickable and send messages. All text-based interactions working on web. Audio recording not tested (requires native build as expected)."
+          comment: "CRITICAL: fetched /api/user/me (404). Toggles always OFF, record card showed dashes."
+        - working: "NA"
+          agent: "main"
+          comment: "Fixed: changed /api/user/me to /api/auth/me. /api/auth/me confirmed returns terms_version, consent_purposes, terms_accepted_at correctly for voicetest2026@example.com."
+
+  - task: "Consent record card (Screen 54) in data-privacy.tsx"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/settings/data-privacy.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: false
+          agent: "testing"
+          comment: "CRITICAL: fetched /api/user/me (404). Record card showed dashes."
+        - working: "NA"
+          agent: "main"
+          comment: "Fixed: same root cause as toggles. /api/auth/me now used."
+
+  - task: "Consent history ledger (Screen 55) in data-privacy.tsx"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/settings/data-privacy.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Added collapsible 'Consent history' accordion (testID='consent-history-accordion'). Auto-loads last 10 entries from /api/user/consent-history when expanded. 'View all N entries' button (testID='consent-history-view-all') loads all with limit=0. Each entry: event label, formatted timestamp, purpose chips, notice version. Timeline with dot+line visual."
 
 metadata:
   created_by: "main_agent"
-  version: "1.0"
-  test_sequence: 4
+  version: "2.0"
+  test_sequence: 1
   run_ui: true
 
 test_plan:
   current_focus:
-    - "GO1A backend tests (test_safety_go1a.py) — all 23 should pass"
-    - "Help button overlap fix — button at insets.bottom+140, not overlapping Code phrase row"
-    - "Evidence Locker confirm-delete — red danger styling + cancel button + error reset"
-    - "Rights card fallback — shows matched scenario name in gold box when card is null"
+    - "GET /api/user/consent-history returns entries for authenticated user (backend)"
+    - "PATCH /api/user/privacy-choices saves and audit-logs consent change (backend)"
+    - "Consent preferences toggles render, load, and persist (frontend)"
+    - "Consent record card shows version + timestamp + purposes (frontend)"
+    - "Consent history accordion loads 10 entries, View all expands to full log (frontend)"
+    - "EL-055 backend guard returns 403 when evidence_locker_enabled=False (backend)"
+    - "EL-054 sweepOrphanedEvidenceTempFiles exists in evidenceStore.ts (code review)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
     - agent: "main"
-      message: "SPRINT COMPLETE: S2/S1/S5/S4/AQF-Phase1b implemented. All features behind feature flags defaulting to false. (1) S2: New screen /women/head-out with destination input, duration chips (30m/1h/2h/4h), countdown timer, 'I'm home safely' + expired alert flow. Accessed from Women's Shield when EXPO_PUBLIC_SAFETY_SESSION_V1=true. (2) S1: Trusted Circle extended with optional email field (shown when EXPO_PUBLIC_TRUSTED_CIRCLE_V2=true). Contact type updated. (3) S5: Evidence Locker gets per-item notes (TextInput editor) + 'Start FIR draft from this recording' button navigating to /fir-draft with evidence params. Both visible when EXPO_PUBLIC_EVIDENCE_ACTIONS=true. (4) S4: Campus safety section added to Women's Shield (Anti-Ragging 1800-180-5522, POSH/ICC, campus security). Visible when EXPO_PUBLIC_CAMPUS_LAYER=true. (5) AQF Phase 1b: resolve_jurisdiction_state wired in chat_router.py behind FEATURE_MATTER_CONTEXT_V2=false flag. Test credentials: voicetest2026@example.com / TestPass123!"
-    - agent: "testing"
-      message: "✅ BACKEND TESTING COMPLETE - All backend APIs tested and working: (1) POST /api/auth/login - ✅ PASSED, (2) GET /api/auth/me - ✅ PASSED, (3) POST /api/chat/stream (SSE) - ✅ PASSED with proper streaming, (4) POST /api/voice/tts - ✅ PASSED with audio output. STT endpoint not tested (requires audio file). Created /app/backend_test.py for automated testing. Frontend tasks (WhatsApp-style mic UI, text chat, TTS speaker button, web compatibility) are marked needs_retesting=true but NOT TESTED per instructions (frontend testing not in scope). Main agent should verify frontend functionality or request user testing."
-    - agent: "testing"
-      message: "✅ FRONTEND TESTING COMPLETE - All frontend features tested and working perfectly on web (mobile viewport 390x844). Test results: (1) Login flow: ✅ Language selector → Login → Chat screen navigation works. (2) Chat UI: ✅ All elements present (header, SOS, New Chat, mode toggle, upgrade banner, suggestions, input bar, tabs). (3) WhatsApp-style mic UI: ✅ Visual implementation correct (terracotta/orange circular button 52x52px), mic/send toggle works perfectly. (4) Text chat: ✅ Type, send, streaming response, speaker icons all working. (5) Tab navigation: ✅ All 4 tabs (Ask, Rights, History, Settings) accessible. (6) New Chat: ✅ Clears messages, shows suggestions. (7) Pro mode toggle: ✅ Works correctly. (8) Suggestions: ✅ Clickable and send messages. Audio recording NOT tested (requires native build, as expected). All text-based interactions fully functional. No critical issues found."
-    - agent: "main"
-      message: "GO1A COMPLETE + P1 FIXES. (1) GO1A backend: Rewrote test_safety_go1a.py to use requests against live backend (not ASGI fixture), added phone+terms_accepted to _register_and_login, fixed Pydantic v2 ValidationError JSON serialization in server.py _validation_error_handler (ctx.error was not JSON-serializable). All 23 tests PASS. (2) Help button: Reduced bottom offset from insets.bottom+180 to insets.bottom+140 in GlobalHelpButton.tsx — clears tab bar + DisclaimerBanner without overlapping the Code phrase row on women-shield.tsx. (3) Evidence Locker confirm-delete: Added red danger styling (controlDanger) + changed 'Keep' to 'Cancel', improved text to '⚠️ Confirm delete — this is permanent', also fixed catch block to call setDeleting(null) on error. (4) Rights card fallback: Added SCENARIO_TITLES map in officer-card.tsx; shows gold scenario name box + improved copy when card=null. Test credentials: voicetest2026@example.com / TestPass123!"
+      message: "CONSENT UI COMPLETE (Screen 54 + 55 + ID-47 toggles). Three additions to /app/frontend/app/settings/data-privacy.tsx: (1) Section 3b 'Consent preferences' — Analytics + Updates Switch cards (testID=consent-analytics-toggle, consent-updates-toggle) with live PATCH save. (2) 'My consent record' card (testID=consent-record-card) showing notice version, last updated, purpose chips. (3) Collapsible 'Consent history' accordion (testID=consent-history-accordion) — last 10 entries by default from GET /api/user/consent-history, 'View all' (testID=consent-history-view-all) expands to full log. Backend endpoint added BEFORE SPA catch-all. IMPORTANT: Login uses field 'token' (not 'access_token') in response. Credentials: voicetest2026@example.com / TestPass123! | IMPORTANT: Navigate to Settings tab -> scroll to 'Legal' section or 'Data & Privacy' link to find the screen. Test BOTH backend endpoints (consent-history GET, privacy-choices PATCH) AND frontend UI elements."

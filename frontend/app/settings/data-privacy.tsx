@@ -11,7 +11,7 @@
  * └──────────────────────────────────────┘
  *
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator, Alert, Switch, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,7 +32,7 @@ import { focusRingStyle } from '@/src/a11yFocus';
 // (operatorIdentity.ts's Varuna Moses / varuna@calviltech.com), my-data.tsx
 // and /grievance's hardcoded "grievance@calviltech.com". Now reads the same
 // single source of truth as every other screen.
-import { grievanceOfficerName as GRIEVANCE_OFFICER_NAME, grievanceContactEmail as GRIEVANCE_EMAIL, isGrievanceContactPlaceholder, privacyContactEmail } from '@/src/operatorIdentity';
+import { grievanceOfficerName as GRIEVANCE_OFFICER_NAME, isGrievanceContactPlaceholder, privacyContactEmail } from '@/src/operatorIdentity';
 // ── Contact constants ─────────────────────────────────────────────────────────
 // SUPPORT_EMAIL is the general privacy / data-controller inbox (Callistus,
 // callistus@askdhara.in). It is imported from operatorIdentity.ts so there
@@ -90,6 +90,131 @@ export default function DataPrivacyScreen() {
 
   const [exportLoading, setExportLoading]   = useState(false);
   const [exportSuccess, setExportSuccess]   = useState(false);
+
+  // ── ID-47: Per-purpose consent toggles (analytics, updates) ──────────────
+  const [purposesLoading, setPurposesLoading] = useState(true);
+  const [purposesSaving,  setPurposesSaving]  = useState(false);
+  const [analytics, setAnalyticsState] = useState(false);
+  const [updates,   setUpdatesState]   = useState(false);
+  // Current consent record (Screen 54)
+  const [consentRecord, setConsentRecord] = useState<{
+    version: string; accepted_at: string; purposes: Record<string, boolean>;
+  } | null>(null);
+
+  // Load current purposes + consent record on mount
+  React.useEffect(() => {
+    if (!token) return;
+    fetch(`${API_BASE}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        const p = data.consent_purposes || {};
+        setAnalyticsState(!!p.analytics);
+        setUpdatesState(!!p.updates);
+        // Build consent record from user object
+        setConsentRecord({
+          version:     data.terms_version   || '',
+          accepted_at: data.terms_accepted_at || '',
+          purposes:    p,
+        });
+      })
+      .catch(() => {/* non-fatal */})
+      .finally(() => setPurposesLoading(false));
+  }, [token]);
+
+  // ── Screen 55: Consent history ledger ────────────────────────────────────
+  type HistoryEntry = {
+    timestamp: string; event?: string;
+    purposes: { core?: boolean; analytics?: boolean; updates?: boolean };
+    notice_version?: string; language?: string;
+  };
+  const [historyEntries,  setHistoryEntries]  = useState<HistoryEntry[]>([]);
+  const [historyTotal,    setHistoryTotal]    = useState(0);
+  const [historyLoading,  setHistoryLoading]  = useState(false);
+  const [historyOpen,     setHistoryOpen]     = useState(false);
+  const [historyShowAll,  setHistoryShowAll]  = useState(false);
+
+  const loadHistory = useCallback(async (all: boolean) => {
+    if (!token) return;
+    setHistoryLoading(true);
+    try {
+      const limit = all ? 0 : 10;
+      const res = await fetch(`${API_BASE}/api/user/consent-history?limit=${limit}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('failed');
+      const data = await res.json();
+      setHistoryEntries(data.entries || []);
+      setHistoryTotal(data.total || 0);
+      if (all) setHistoryShowAll(true);
+    } catch {/* non-fatal */}
+    finally { setHistoryLoading(false); }
+  }, [token]);
+
+  // Auto-load last 10 when accordion opens
+  useEffect(() => {
+    if (historyOpen && historyEntries.length === 0 && !historyLoading) {
+      loadHistory(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyOpen]);
+
+  const handlePurposeToggle = useCallback(
+    async (field: 'analytics' | 'updates', value: boolean) => {
+      if (!token || purposesSaving) return;
+      const next = field === 'analytics'
+        ? { analytics: value, updates }
+        : { analytics, updates: value };
+      if (field === 'analytics') setAnalyticsState(value);
+      else setUpdatesState(value);
+      setPurposesSaving(true);
+      try {
+        const res = await fetch(`${API_BASE}/api/user/privacy-choices`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(next),
+        });
+        if (!res.ok) throw new Error('save failed');
+        // Update the displayed consent record timestamp
+        setConsentRecord(prev => prev ? {
+          ...prev,
+          purposes: { ...prev.purposes, ...next },
+          accepted_at: new Date().toISOString(),
+        } : null);
+        // Refresh history if already loaded
+        if (historyEntries.length > 0) {
+          loadHistory(historyShowAll);
+        }
+      } catch {
+        // Revert on failure
+        if (field === 'analytics') setAnalyticsState(!value);
+        else setUpdatesState(!value);
+        Alert.alert('Could not save', 'Please try again.');
+      } finally {
+        setPurposesSaving(false);
+      }
+    },
+    [token, purposesSaving, analytics, updates, historyEntries.length, historyShowAll, loadHistory],
+  );
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  const fmtDate = (iso: string) => {
+    if (!iso) return '—';
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString('en-IN', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      });
+    } catch { return iso.slice(0, 16).replace('T', ' '); }
+  };
+
+  const eventLabel = (event?: string) => {
+    if (!event || event === 'initial_consent') return 'Initial consent';
+    if (event === 'privacy_choices_update') return 'Preferences updated';
+    if (event === 'withdrawal') return 'Consent withdrawn';
+    return event.replace(/_/g, ' ');
+  };
 
   // B-83: this used to POST to a stub endpoint that only logged the request
   // and showed a canned "we'll email your data export within 24 hours"
@@ -346,6 +471,239 @@ export default function DataPrivacyScreen() {
           </View>
           <Ionicons name="chevron-forward" size={18} color={theme.colors.onSurfaceTertiary} />
         </Pressable>
+
+        {/* ══════════════════════════════════════════════════════════
+            SECTION 3b — Consent preferences  (ID-47 / Screen 46 partial)
+            Per-purpose toggles for optional processing.
+            ══════════════════════════════════════════════════════════ */}
+        <Text style={[styles.sectionHeader, { marginTop: theme.spacing.xl }]}>Consent preferences</Text>
+
+        {purposesLoading ? (
+          <ActivityIndicator style={{ marginVertical: 16 }} color={PRIMARY} />
+        ) : (
+          <>
+            {/* Analytics toggle */}
+            <View style={styles.actionCard} testID="consent-analytics-card">
+              <View style={styles.actionIconWrap}>
+                <Ionicons name="bar-chart-outline" size={20} color={PRIMARY} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.actionTitle}>Analytics</Text>
+                <Text style={styles.actionSub}>Help improve DHARA using anonymised usage data</Text>
+              </View>
+              {purposesSaving
+                ? <ActivityIndicator size="small" color={PRIMARY} />
+                : (
+                  <Switch
+                    testID="consent-analytics-toggle"
+                    accessibilityLabel="Allow anonymised analytics"
+                    value={analytics}
+                    onValueChange={v => handlePurposeToggle('analytics', v)}
+                    trackColor={{ true: PRIMARY, false: theme.colors.borderStrong }}
+                    thumbColor="#fff"
+                  />
+                )
+              }
+            </View>
+
+            {/* Updates toggle */}
+            <View style={styles.actionCard} testID="consent-updates-card">
+              <View style={styles.actionIconWrap}>
+                <Ionicons name="notifications-outline" size={20} color={PRIMARY} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.actionTitle}>Service updates</Text>
+                <Text style={styles.actionSub}>Receive important updates about DHARA features</Text>
+              </View>
+              {purposesSaving
+                ? <ActivityIndicator size="small" color={PRIMARY} />
+                : (
+                  <Switch
+                    testID="consent-updates-toggle"
+                    accessibilityLabel="Allow service update messages"
+                    value={updates}
+                    onValueChange={v => handlePurposeToggle('updates', v)}
+                    trackColor={{ true: PRIMARY, false: theme.colors.borderStrong }}
+                    thumbColor="#fff"
+                  />
+                )
+              }
+            </View>
+          </>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════
+            SECTION 3c — Consent record  (Screen 54 — current snapshot)
+            ══════════════════════════════════════════════════════════ */}
+        <Text style={[styles.sectionHeader, { marginTop: theme.spacing.xl }]}>My consent record</Text>
+
+        <View style={[styles.actionCard, styles.consentRecordCard]} testID="consent-record-card">
+          <View style={styles.crRow}>
+            <Ionicons name="shield-checkmark-outline" size={18} color={PRIMARY} style={{ marginTop: 1 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.crLabel}>Notice version</Text>
+              <Text style={styles.crValue}>{consentRecord?.version || '—'}</Text>
+            </View>
+          </View>
+          <View style={[styles.crRow, { marginTop: 10 }]}>
+            <Ionicons name="time-outline" size={18} color={PRIMARY} style={{ marginTop: 1 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.crLabel}>Last updated</Text>
+              <Text style={styles.crValue}>
+                {consentRecord?.accepted_at ? fmtDate(consentRecord.accepted_at) : '—'}
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.crRow, { marginTop: 10 }]}>
+            <Ionicons name="checkmark-circle-outline" size={18} color={PRIMARY} style={{ marginTop: 1 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.crLabel}>Active purposes</Text>
+              <View style={styles.purposeChips}>
+                <View style={[styles.chip, { backgroundColor: '#EEF2FF' }]}>
+                  <Text style={[styles.chipText, { color: '#3730A3' }]}>Core ✓</Text>
+                </View>
+                <View style={[styles.chip,
+                  consentRecord?.purposes?.analytics
+                    ? { backgroundColor: '#F0FDF4' }
+                    : { backgroundColor: '#FEF2F2' }
+                ]}>
+                  <Text style={[styles.chipText,
+                    consentRecord?.purposes?.analytics
+                      ? { color: '#166534' }
+                      : { color: '#991B1B' }
+                  ]}>
+                    Analytics {consentRecord?.purposes?.analytics ? '✓' : '✗'}
+                  </Text>
+                </View>
+                <View style={[styles.chip,
+                  consentRecord?.purposes?.updates
+                    ? { backgroundColor: '#F0FDF4' }
+                    : { backgroundColor: '#FEF2F2' }
+                ]}>
+                  <Text style={[styles.chipText,
+                    consentRecord?.purposes?.updates
+                      ? { color: '#166534' }
+                      : { color: '#991B1B' }
+                  ]}>
+                    Updates {consentRecord?.purposes?.updates ? '✓' : '✗'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* ══════════════════════════════════════════════════════════
+            SECTION 3d — Consent history  (Screen 55 — ledger)
+            Last 10 by default; "View all" shows complete log.
+            ══════════════════════════════════════════════════════════ */}
+        <Pressable
+          testID="consent-history-accordion"
+          style={(s) => [styles.accordionHeader, { marginTop: theme.spacing.xl }, focusRingStyle(s)]}
+          onPress={() => setHistoryOpen(v => !v)}
+          accessibilityRole="button"
+          accessibilityLabel="Consent history"
+          accessibilityState={{ expanded: historyOpen }}
+        >
+          <Text style={styles.accordionTitle}>Consent history</Text>
+          <Ionicons
+            name={historyOpen ? 'chevron-up' : 'chevron-down'}
+            size={18}
+            color={historyOpen ? ACCENT : theme.colors.onSurfaceTertiary}
+          />
+        </Pressable>
+
+        {historyOpen && (
+          <View style={styles.accordionBody}>
+            {historyLoading && historyEntries.length === 0 ? (
+              <ActivityIndicator style={{ marginVertical: 16 }} color={PRIMARY} />
+            ) : historyEntries.length === 0 ? (
+              <Text style={[styles.collectRetention, { paddingVertical: 12 }]}>
+                No consent history yet.
+              </Text>
+            ) : (
+              <>
+                {historyEntries.map((entry, i) => (
+                  <View
+                    key={`${entry.timestamp}-${i}`}
+                    style={[
+                      styles.historyRow,
+                      i < historyEntries.length - 1 && styles.collectRowBorder,
+                    ]}
+                  >
+                    <View style={styles.historyDotWrap}>
+                      <View style={styles.historyDot} />
+                      {i < historyEntries.length - 1 && <View style={styles.historyLine} />}
+                    </View>
+                    <View style={{ flex: 1, paddingBottom: 12 }}>
+                      <Text style={styles.historyEvent}>{eventLabel(entry.event)}</Text>
+                      <Text style={styles.historyTime}>{fmtDate(entry.timestamp)}</Text>
+                      <View style={[styles.purposeChips, { marginTop: 5 }]}>
+                        {entry.purposes?.core !== false && (
+                          <View style={[styles.chip, { backgroundColor: '#EEF2FF' }]}>
+                            <Text style={[styles.chipText, { color: '#3730A3' }]}>Core ✓</Text>
+                          </View>
+                        )}
+                        <View style={[styles.chip,
+                          entry.purposes?.analytics
+                            ? { backgroundColor: '#F0FDF4' }
+                            : { backgroundColor: '#F3F4F6' }
+                        ]}>
+                          <Text style={[styles.chipText,
+                            entry.purposes?.analytics
+                              ? { color: '#166534' }
+                              : { color: '#6B7280' }
+                          ]}>
+                            Analytics {entry.purposes?.analytics ? '✓' : '✗'}
+                          </Text>
+                        </View>
+                        <View style={[styles.chip,
+                          entry.purposes?.updates
+                            ? { backgroundColor: '#F0FDF4' }
+                            : { backgroundColor: '#F3F4F6' }
+                        ]}>
+                          <Text style={[styles.chipText,
+                            entry.purposes?.updates
+                              ? { color: '#166534' }
+                              : { color: '#6B7280' }
+                          ]}>
+                            Updates {entry.purposes?.updates ? '✓' : '✗'}
+                          </Text>
+                        </View>
+                      </View>
+                      {entry.notice_version ? (
+                        <Text style={styles.historyVersion}>Notice v{entry.notice_version}</Text>
+                      ) : null}
+                    </View>
+                  </View>
+                ))}
+
+                {/* View all / showing all indicator */}
+                {!historyShowAll && historyTotal > historyEntries.length && (
+                  <Pressable
+                    testID="consent-history-view-all"
+                    style={(s) => [styles.viewAllBtn, focusRingStyle(s)]}
+                    onPress={() => loadHistory(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View all ${historyTotal} consent history entries`}
+                  >
+                    {historyLoading
+                      ? <ActivityIndicator size="small" color={PRIMARY} />
+                      : <Text style={styles.viewAllText}>
+                          View all {historyTotal} entries
+                        </Text>
+                    }
+                  </Pressable>
+                )}
+                {historyShowAll && (
+                  <Text style={[styles.collectRetention, { paddingVertical: 8, textAlign: 'center' }]}>
+                    Showing all {historyTotal} entries
+                  </Text>
+                )}
+              </>
+            )}
+          </View>
+        )}
 
         {/* ══════════════════════════════════════════════════════════
             Family Journey — app-wide switch (Phase 1: preview only)
@@ -609,5 +967,97 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.onSurfaceSecondary,
     lineHeight: 18,
+  },
+
+  // ── Consent record card (Screen 54) ───────────────────────────────────────
+  consentRecordCard: {
+    flexDirection: 'column',
+    gap: 0,
+    paddingVertical: theme.spacing.md,
+  },
+  crRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  crLabel: {
+    fontSize: 11,
+    color: theme.colors.onSurfaceTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 2,
+  },
+  crValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.onSurface,
+  },
+  purposeChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  chip: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  chipText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+
+  // ── Consent history ledger (Screen 55) ───────────────────────────────────
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingTop: 12,
+  },
+  historyDotWrap: {
+    width: 16,
+    alignItems: 'center',
+    paddingTop: 4,
+  },
+  historyDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: PRIMARY,
+  },
+  historyLine: {
+    flex: 1,
+    width: 1,
+    backgroundColor: theme.colors.divider,
+    marginTop: 4,
+  },
+  historyEvent: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.onSurface,
+  },
+  historyTime: {
+    fontSize: 11,
+    color: theme.colors.onSurfaceTertiary,
+    marginTop: 2,
+  },
+  historyVersion: {
+    fontSize: 10,
+    color: theme.colors.onSurfaceTertiary,
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  viewAllBtn: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.divider,
+  },
+  viewAllText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: PRIMARY,
   },
 });

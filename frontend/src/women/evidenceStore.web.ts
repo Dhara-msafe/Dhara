@@ -164,6 +164,13 @@ export function releaseDecryptedTempUri(uri: string, _wasDecrypted: boolean) {
   URL.revokeObjectURL(uri);
 }
 
+/** EL-054 stub — web stores evidence as IndexedDB blob: URLs which are
+ * revoked in-memory on page unload.  No plaintext files are written to disk,
+ * so no sweep is needed. */
+export async function sweepOrphanedEvidenceTempFiles(_scope: string): Promise<void> {
+  // no-op on web
+}
+
 /** S-B5: Returns the item's raw stored bytes — ciphertext for AES-encrypted
  * items, exactly as persisted — WITHOUT decrypting. This is the web
  * counterpart of evidenceStore.ts's native readEncryptedBytes(): both give

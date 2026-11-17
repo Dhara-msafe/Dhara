@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { File, Paths } from 'expo-file-system';
 import { Zip, ZipPassThrough } from 'fflate';
 import { getOrCreateKey, encryptBytes, decryptBytes } from './evidenceCrypto';
+import { listPendingTemps } from './evidencePendingTemp';
 
 export type EvidenceType = 'audio' | 'photo' | 'video';
 // `iv` present → file on disk is AES-256-CTR ciphertext (S-B5). Items saved
@@ -220,4 +221,41 @@ export async function getSegmentedShareZipUri(scope: string, item: RecordingItem
 export function releaseDecryptedTempUri(uri: string, wasDecrypted: boolean) {
   if (!wasDecrypted) return; // legacy plaintext item — uri IS the real file, never delete it
   try { const file = new File(uri); if (file.exists) file.delete(); } catch {}
+}
+
+/**
+ * EL-054: Sweep `Paths.cache` for orphaned decrypted-plaintext temp files
+ * that survived an unexpected session termination (app kill, OS crash, force
+ * close during playback or sharing).
+ *
+ * Safe to call at any time — it only deletes files matching the
+ * `dhara-evidence-tmp-*` prefix; never touches the user's saved evidence.
+ *
+ * Skips any URI that is currently listed in the pending-temp set (recordings
+ * that have been captured but not yet encrypted and committed — these are
+ * recovery targets, NOT cleanup targets).
+ *
+ * Device-specific notes
+ * ─────────────────────
+ * • Native (Android / iOS): files in `Paths.cache` are transient OS storage.
+ *   The OS CAN reclaim them under storage pressure even without this sweep,
+ *   but that is not guaranteed.  This function provides a deterministic wipe.
+ * • Web: not applicable — the web version uses in-memory `blob:` URLs which
+ *   are automatically revoked on page unload.  This function is a no-op stub
+ *   in `evidenceStore.web.ts`.
+ */
+export async function sweepOrphanedEvidenceTempFiles(scope: string): Promise<void> {
+  try {
+    const pending = await listPendingTemps(AsyncStorage, scope);
+    const pendingSet = new Set(pending.map(p => p.uri));
+    const entries = Paths.cache.list();
+    for (const entry of entries) {
+      const name = entry.uri.split('/').pop() ?? '';
+      if (!name.startsWith('dhara-evidence-tmp-')) continue;
+      if (pendingSet.has(entry.uri)) continue; // unsealed recorder output — keep for recovery
+      try { new File(entry.uri).delete(); } catch { /* non-fatal */ }
+    }
+  } catch {
+    // Best-effort; log nothing — the caller should not surface this to the user.
+  }
 }

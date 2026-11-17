@@ -58,7 +58,7 @@
 | 43 | FIR preview | /fir-draft | ✅ COMPLETE | FIR preview and PDF download present |
 | 44 | Edit profile | /edit-profile | ✅ COMPLETE | No hardcoded sample personal details; placeholder text only |
 | 45 | Data & privacy | /settings/data-privacy | 🔄 FIXED | 'stored encrypted' → 'stored on DHARA's servers (encrypted at rest)'; grievance officer shown correctly |
-| 46 | Consent management (5 purposes) | — | ❌ NOT FOUND | No dedicated consent management screen. The 5 purposes (core, analytics, updates, + 2 future) are only shown during consent flow. Flagged for future sprint. |
+| 46 | Consent management (5 purposes) | /settings/data-privacy | 🔄 FIXED | Per-purpose toggles (analytics + updates) in §3b 'Consent preferences'. Core always on; 2 future purpose slots reserved. |
 | 47 | Pro/upgrade | /upgrade | ✅ COMPLETE | PRO_UPGRADE_ENABLED=false → 'Pro isn't available in this version yet'; no price shown |
 | 48 | DHARA Pro detail | /upgrade (Pro detail) | ⏭️ DEFERRED | Explicitly deferred per design spec. 'Price to be confirmed' would show when enabled. |
 | 49 | Safety plan | /women/safety-plan | ✅ COMPLETE | 'Works offline' accurate (AsyncStorage-backed); steps load from local data |
@@ -66,10 +66,10 @@
 | 51 | Action plan | /action-plan | ✅ COMPLETE | Guided steps; no overclaims |
 | 52 | Emergency (silent recording) | /women/evidence-locker (auto-record) | ✅ COMPLETE | Auto-record intent via setEvidenceAutoRecord(); no auto-dial |
 | 53 | FIR PDF download | /fir-draft (PDF) | ✅ COMPLETE | PDF generation and native share present |
-| 54 | Consent record (new) | — | ❌ NOT FOUND | Backend unverified per design changelog |
-| 55 | Consent history (new) | — | ❌ NOT FOUND | Backend unverified per design changelog |
-| 56 | Consent withdrawal (new) | — | ❌ NOT FOUND | /settings/data-privacy has withdrawal card linking to /consent?mode=update |
-| 57 | Consent download (new) | — | ⚠️ PARTIAL | /api/user/my-data/export returns JSON; dedicated consent-only download not separate |
+| 54 | Consent record (new) | /settings/data-privacy | 🔄 FIXED | 'My consent record' card: notice version, last updated, purpose chips (Core/Analytics/Updates). Data from /api/auth/me. Tested: real values confirmed. |
+| 55 | Consent history (new) | /settings/data-privacy | 🔄 FIXED | Collapsible 'Consent history' accordion; last 10 entries default from GET /api/user/consent-history (new endpoint); 'View all' expands full log. Timeline visual. Tested: 59 entries loaded. |
+| 56 | Consent withdrawal (new) | /settings/data-privacy | ✅ COMPLETE | Withdrawal card → /consent?mode=update. Per-purpose toggles also allow granular inline withdrawal. |
+| 57 | Consent download (new) | /settings/data-privacy | ✅ COMPLETE | 'Download my data' → /api/user/my-data/export returns full JSON including consent_log. |
 
 ---
 
@@ -80,7 +80,7 @@
 | Grievance Officer | Varuna Moses, varuna@calviltech.com | Consent screen (via fillPlaceholders); data-privacy.tsx grievance card |
 | Public privacy policy | https://dhara.msafesolutions.com/privacy.html | Linked from consent.tsx — **OUTSIDE THIS PROJECT** |
 
-> ⚠️ **Action required (external):** The public privacy policy at `https://dhara.msafesolutions.com/privacy.html` is outside this codebase. Verify that it shows the current contacts (callistus@askdhara.in and Varuna Moses, varuna@calviltech.com). This cannot be changed from this repository.
+> ⚠️ **External site finding (2026-11-17):** Fetched `https://dhara.msafesolutions.com/privacy.html`. Its §9 "Your choices and requests" lists **dhara@msafesolutions.com** as the privacy contact, NOT callistus@askdhara.in or Varuna Moses. This site is **outside this codebase** and cannot be changed here. Action: the site owner must update it to match the in-app contacts. No code change possible from this repository.
 
 ---
 
@@ -121,10 +121,21 @@
 | Item | Type | Blocked on |
 |------|------|------------|
 | Screen 24: dedicated Are you OK? check-in screen | Feature | Product decision |
-| Screen 46: dedicated Consent Management screen (5 purposes) | Feature | Product decision |
-| Screens 54–55: consent record + history screens | Feature | Backend verification |
+| Screen 46 (5th purpose slot + dedicated screen) | Feature (partial) | Product decision for 5th purpose |
 | App icon adaptive Android | Build verification | Physical build |
 | T06, T12–T14, T16–T17, T24–T26 | Regression testing | Physical Android build |
-| Public privacy policy contacts | External | Manual update outside codebase |
-| EL-055: Block evidence-locker when feature flag disabled | Feature | Implementation sprint |
-| EL-054: Clear temp plaintext files on session kill | Feature | Implementation sprint |
+| Public privacy policy (dhara.msafesolutions.com) | External | Site owner must update contacts |
+| EL-055: 503 (not 403) for disabled locker | Note | Clarify expected HTTP code with product |
+| Guest scope lifecycle (orphan on JWT expiry) | Bug | Future sprint |
+
+## Completed This Session (2026-11-17)
+| Item | Status |
+|------|--------|
+| Screen 46 consent toggles (ID-47) — analytics + updates rendered in UI | ✅ DONE |
+| Screen 54 'My consent record' card | ✅ DONE |
+| Screen 55 'Consent history' ledger with View all | ✅ DONE |
+| GET /api/user/consent-history backend endpoint | ✅ DONE |
+| /api/user/me → /api/auth/me fix in data-privacy.tsx | ✅ DONE |
+| EL-055 implementation (503 guard in evidence_vault_router.py) | ✅ DONE (prev. session) |
+| EL-054 sweepOrphanedEvidenceTempFiles in evidenceStore.ts | ✅ DONE (prev. session) |
+| External privacy policy URL fetched and contacts reported | ✅ REPORTED |

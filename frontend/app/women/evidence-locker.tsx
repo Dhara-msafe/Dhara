@@ -8,7 +8,9 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import * as Location from 'expo-location';
-import { Paths, File as EfsFile } from 'expo-file-system/next';
+// EL-054: Paths / EfsFile were previously imported here for the inline cache
+// sweep; that logic now lives in sweepOrphanedEvidenceTempFiles() (evidenceStore.ts).
+// The import is no longer needed in this file.
 import { crossAlert } from '@/src/utils/crossAlert';
 import { consumeEvidenceAutoRecord } from '@/src/women/evidenceAutoRecord';
 import { theme } from '@/src/theme';
@@ -17,7 +19,7 @@ import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { useEvidenceRecorder } from '@/src/women/EvidenceRecorderProvider';
 import {
   saveRecording, savePhoto, saveVideo, deleteRecording, releaseRecordings,
-  discardTemporaryRecording, getDecryptedTempUri, getSegmentedShareZipUri, releaseDecryptedTempUri, type RecordingItem,
+  discardTemporaryRecording, getDecryptedTempUri, getSegmentedShareZipUri, releaseDecryptedTempUri, sweepOrphanedEvidenceTempFiles, type RecordingItem,
   saveSegment, createSegmentedParent, loadSegments, loadVisibleRecordings,
 } from '@/src/women/evidenceStore';
 import { hasPin, setPin, verifyPin, getLockoutRemainingMs, changePin } from '@/src/women/evidenceLock';
@@ -250,11 +252,18 @@ export default function EvidenceLocker() {
   const [anchoring, setAnchoring] = useState<string | null>(null);
   const [backingUp, setBackingUp] = useState<Record<string, number>>({});
   // E1: Anchor/Backup buttons only render when evidence_vault_enabled is on.
+  // EL-055: Whole locker renders blocked when evidence_locker_enabled is off.
   const [vaultEnabled, setVaultEnabled] = useState(false);
+  const [lockerEnabled, setLockerEnabled] = useState<boolean | null>(null); // null = loading
   useEffect(() => {
     let alive = true;
-    fetchFlags().then(f => { if (alive) setVaultEnabled(!!(f as any)?.evidence_vault_enabled); })
-      .catch(() => { if (alive) setVaultEnabled(false); });
+    fetchFlags()
+      .then(f => {
+        if (!alive) return;
+        setLockerEnabled(!!(f as any)?.evidence_locker_enabled);
+        setVaultEnabled(!!(f as any)?.evidence_vault_enabled);
+      })
+      .catch(() => { if (alive) { setLockerEnabled(false); setVaultEnabled(false); } });
     return () => { alive = false; };
   }, []);
   // S5 — load saved notes for this user scope
@@ -262,27 +271,12 @@ export default function EvidenceLocker() {
     if (!unlocked) return;
     AsyncStorage.getItem(`evidence_notes_${scope}`).then(v => { if (v) setNotesMap(JSON.parse(v)); }).catch(() => {});
   }, [scope, unlocked]);
-  // B2 (Phase 0.5 — corrected): sweep cache dir for leftover decrypted temp
-  // files at every launch (component mount or scope change), NOT on unlock.
-  // The cleanup only reads file names; it never reads file contents or uses
-  // the encryption key, so the PIN gate does not need to have resolved first.
-  // Pending URIs (not yet sealed) are skipped regardless.
+  // EL-054 (Phase 0.5): sweep cache dir for leftover decrypted temp files at
+  // every launch (component mount or scope change), NOT on unlock.  Delegates
+  // to the exported sweepOrphanedEvidenceTempFiles() so the same logic can be
+  // called from other entry points (e.g. app startup) without duplicating it.
   useEffect(() => {
-    void (async () => {
-      try {
-        const pending = await listPendingTemps(AsyncStorage, scope);
-        const pendingSet = new Set(pending.map(p => p.uri));
-        const entries = Paths.cache.list();
-        for (const entry of entries) {
-          const name = entry.uri.split('/').pop() ?? '';
-          if (!name.startsWith('dhara-evidence-tmp-')) continue;
-          if (pendingSet.has(entry.uri)) continue; // never remove unsealed pending
-          try { new EfsFile(entry.uri).delete(); } catch {}
-        }
-      } catch {
-        // non-fatal: stale temp cleanup is best-effort
-      }
-    })();
+    void sweepOrphanedEvidenceTempFiles(scope);
   }, [scope]); // runs at mount and on scope change — does NOT wait for unlock
   const player = useRef<TtsPlayer | null>(null);
   const epoch = useRef(0);
@@ -1054,6 +1048,35 @@ export default function EvidenceLocker() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  // EL-055: Check locker feature flag before PIN gate.
+  // lockerEnabled === null  → still loading → show spinner
+  // lockerEnabled === false → disabled by operator → show blocked state
+  // lockerEnabled === true  → proceed to PIN gate as normal
+  if (lockerEnabled === null) {
+    return (
+      <View style={styles.root}>
+        <ScreenHeader title="Evidence Locker" />
+        <View style={styles.disabledBlock}>
+          <ActivityIndicator color={c.brand} />
+        </View>
+      </View>
+    );
+  }
+  if (lockerEnabled === false) {
+    return (
+      <View style={styles.root}>
+        <ScreenHeader title="Evidence Locker" />
+        <View style={styles.disabledBlock} testID="locker-disabled">
+          <Text style={styles.disabledTitle}>Evidence Locker is not available</Text>
+          <Text style={styles.disabledBody}>
+            This feature has not been enabled for your version of DHARA.
+            Your existing evidence files are safe and have not been changed.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   if (!unlocked) return <PinGate onUnlock={() => setUnlocked(true)} />;
 
   // B5 (Phase 0.5): Change-PIN handler — requires the current PIN.
@@ -1366,6 +1389,9 @@ export default function EvidenceLocker() {
 }
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background }, content: { padding: 20, gap: 18 },
+  disabledBlock: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 },
+  disabledTitle: { fontFamily: theme.fonts.displayBold, fontSize: 20, color: c.ink, textAlign: 'center' },
+  disabledBody: { fontFamily: theme.fonts.body, fontSize: 15, lineHeight: 23, color: c.muted, textAlign: 'center' },
   note: { fontFamily: theme.fonts.body, fontSize: 15, lineHeight: 23, color: c.muted },
   timer: { fontFamily: theme.fonts.bodyBold, fontSize: 22, color: c.emergencyRed },
   heading: { fontFamily: theme.fonts.displayBold, fontSize: 23, color: c.ink, marginTop: 10 },
