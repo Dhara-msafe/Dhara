@@ -1,0 +1,57 @@
+{
+  "summary": "DHARA v2.2 consent guard changes tested. All 7 items verified: 15/15 backend unit tests pass, all frontend checks pass via UI + code review.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_consent_guard_v2_2.py",
+    "/app/test_reports/pytest/consent_guard_v2_2.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_consent_guard_v2_2.py"
+  ],
+  "success_rate": {
+    "backend": "100% (15/15 tests passed)",
+    "frontend": "100% (all 4 UI checks passed)"
+  },
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "DHARA v2.2.1 consent guard fully verified. is_awareness_updates_consented() is correct (fail-closed, all edge cases pass). B-CONSENT-GUARD doc comments present in both deadline_worker.py and trusted_circle_router.py. Family Journey header = 'Support a family member'. Language screen 'Selected' label visible. ConsentGuard correctly exempts /language, /consent, /emergency and redirects unauthenticated users from protected routes.",
+  "test_results_detail": {
+    "backend_unit_tests": {
+      "is_awareness_updates_consented_true": "PASS — returns True when consent_purposes.updates=True",
+      "is_awareness_updates_consented_false": "PASS — returns False when updates=False",
+      "is_awareness_updates_consented_missing_key": "PASS — returns False when 'updates' key absent",
+      "is_awareness_updates_consented_no_purposes": "PASS — returns False when consent_purposes missing",
+      "is_awareness_updates_consented_purposes_none": "PASS — returns False when consent_purposes=None",
+      "is_awareness_updates_consented_user_none": "PASS — returns False when user=None (fail-closed)",
+      "is_awareness_updates_consented_empty_dict": "PASS — returns False for empty user dict",
+      "is_awareness_updates_consented_zero": "PASS — returns False for falsy 0",
+      "is_awareness_updates_consented_truthy_string": "PASS — returns True for truthy value",
+      "is_awareness_updates_consented_other_purposes_ignored": "PASS — only 'updates' key matters",
+      "is_awareness_updates_consented_true_with_other": "PASS — True when updates=True with other keys",
+      "deadline_worker_b_consent_guard_doc": "PASS — B-CONSENT-GUARD present in module docstring",
+      "deadline_worker_safety_path_exemption": "PASS — safety path exemption documented",
+      "trusted_circle_b_consent_guard_doc": "PASS — B-CONSENT-GUARD present in module docstring",
+      "trusted_circle_transactional_exemption": "PASS — transactional path exemption documented"
+    },
+    "frontend_ui_checks": {
+      "language_selected_label": "PASS — 'Selected' label visible next to English (default selection), aria-checked=true",
+      "family_journey_header": "PASS — family-journey/index.tsx line 44: title='Support a family member' (code verified)",
+      "consent_guard_redirects_unauthenticated": "PASS — /family-journey redirects to /consent when unauthenticated",
+      "emergency_exempt": "PASS — /emergency loads without consent redirect (shows 112 emergency screen)",
+      "language_exempt": "PASS — /language loads without consent redirect",
+      "consent_exempt": "PASS — /consent loads directly"
+    }
+  }
+}

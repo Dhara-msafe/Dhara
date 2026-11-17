@@ -19,6 +19,18 @@ Key invariants
 * No live HTTP, no SMS, no push calls are made here.  Side effects are limited
   to in-app DB writes via create_alert_and_notify.
 * start(db) / stop() are the only public API; everything else is internal.
+
+B-CONSENT-GUARD (v2.2.1) — SAFETY PATH / PURPOSES.UPDATES EXEMPTION
+----------------------------------------------------------------------
+This worker sends safety-essential missed-check-in alerts to the OWNER'S
+accepted Trusted Circle members.  These are configured by the user at journey
+creation and activated by a safety event — they are NOT proactive marketing or
+legal-awareness messages.
+
+DO NOT add an is_awareness_updates_consented() check here.  Doing so would
+silently suppress the safety escalation the user relies on.  Any future
+proactive awareness SMS path (legal tips, bulletins) MUST call
+outbound_guard.is_awareness_updates_consented(user) before dispatching.
 """
 from __future__ import annotations
 

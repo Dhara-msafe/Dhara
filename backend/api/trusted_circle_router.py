@@ -18,6 +18,16 @@ Collection: trusted_circle_links
   status: pending | accepted | declined | revoked | left
   muted: bool
   created_at, responded_at
+
+B-CONSENT-GUARD (v2.2.1) — TRANSACTIONAL PATH / PURPOSES.UPDATES EXEMPTION
+-----------------------------------------------------------------------------
+Push notifications sent from this router (invitation, acceptance, decline) are
+transactional safety messages the user expects as a direct result of their own
+action.  They are NOT proactive marketing or legal-awareness messages.
+
+DO NOT add an is_awareness_updates_consented() check here.  Any future
+proactive awareness SMS path (legal tips, bulletins) MUST call
+outbound_guard.is_awareness_updates_consented(user) before dispatching.
 """
 from __future__ import annotations
 

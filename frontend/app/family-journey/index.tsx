@@ -41,7 +41,7 @@ export default function FamilyJourneyHub() {
 
   return (
     <View style={fjStyles.root} testID="family-journey-hub">
-      <JourneyHeader title="Family Journey" subtitle="Plan a trip · decide who could be told" />
+      <JourneyHeader title="Support a family member" subtitle="Plan a trip · decide who could be told" />
       <ScrollView contentContainerStyle={fjStyles.body} showsVerticalScrollIndicator={false}>
         <View style={[fjStyles.card, styles.toggleCard]}>
           <View style={{ flex: 1 }}>
