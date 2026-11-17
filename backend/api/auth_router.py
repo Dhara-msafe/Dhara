@@ -392,7 +392,7 @@ async def forgot_password(body: ForgotPasswordIn):
 
 
 @router.post("/auth/reset-password", response_model=AuthOut)
-async def reset_password(body: ResetPasswordIn):
+async def reset_password(body: ResetPasswordIn, request: Request):
     """Step 2 — verify the emailed code, set the new password, sign the user in."""
     if _password_problem(body.new_password):
         raise HTTPException(422, PASSWORD_RULE_MSG)   # checked first: a weak password never uses up a code attempt
@@ -433,6 +433,12 @@ async def reset_password(body: ResetPasswordIn):
     )
     await db.password_resets.delete_one({"email": email})
     await clear_sends(db, "reset", email)
+    # B-34 / D-12 (17 Nov 2026): a lock refuses everyone, even the correct
+    # password, until it expires -- but a successful reset proves the person
+    # owns the email, so it clears the lock and the failure counts (account,
+    # and this network's slow-down counter) instead of leaving them locked out
+    # of the password they just set.
+    await clear_attempts(db, normalize_email(email), client_ip(request))
     updated = await db.users.find_one({"id": user["id"]})
     return {"token": make_token(user["id"], updated.get("token_version", 0)), "user": public_user(updated)}
 
