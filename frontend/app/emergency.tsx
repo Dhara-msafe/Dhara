@@ -10,8 +10,20 @@ import { QuickExit } from '@/src/components/dhara/SosPill';
 import { openPhone } from '@/src/women/helpActions';
 import { setEvidenceAutoRecord } from '@/src/women/evidenceAutoRecord';
 import { focusRingStyle } from '@/src/a11yFocus';
+import { OUTBOUND_PROFILE } from '@/src/outbound';
 
 const c = theme.colors;
+
+// B-82 (D-02): Decision Log's D-02 asks whether Silent Alert should be
+// hidden from the closed-test build specifically ("Testers must not see
+// unfinished safety tools"), recommendation Yes. D-02 itself is still
+// formally Open/unanswered as of 17 Nov, but we're building to the team's
+// own recommendation now rather than waiting (same call as B-89) — scoped
+// so it ONLY affects OUTBOUND_PROFILE === 'closed_testing' builds; every
+// other profile (internal_qa, production, unset/dev) is completely
+// unaffected and still shows the tile exactly as before. If D-02 comes
+// back "No", this filter is a one-line revert.
+const HIDE_SILENT_ALERT_FOR_CLOSED_TEST = OUTBOUND_PROFILE === 'closed_testing';
 
 export default function Emergency() {
   const insets = useSafeAreaInsets();
@@ -29,7 +41,7 @@ export default function Emergency() {
     { id: 'record-now', icon: 'mic-outline', title: tr('em.record', lang), sub: tr('em.record.sub', lang), route: '/women/evidence-locker', beforeNav: () => setEvidenceAutoRecord() },
     { id: 'officer-card', icon: 'shield-outline', title: tr('em.officer', lang), sub: tr('em.officer.sub', lang), route: '/women/officer-card?scenario=police_wont_file', beforeNav: undefined },
     { id: 'nearest-help', icon: 'location-outline', title: tr('em.nearest', lang), sub: tr('em.nearest.sub', lang), route: '/women/nearest-help', beforeNav: undefined },
-  ];
+  ].filter((t) => !(t.id === 'silent-alert' && HIDE_SILENT_ALERT_FOR_CLOSED_TEST));
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}>
