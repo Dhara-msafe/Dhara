@@ -142,3 +142,39 @@ export async function backupItem(
   await saveBackupInfo(scope, item.id, backup);
   return { ...manifestEntry, backup };
 }
+
+/**
+ * N-09: deleting an item from the locker must also delete its cloud backup
+ * (the AES-encrypted object in storage), not just the local file — leaving
+ * the ciphertext sitting in cloud storage indefinitely after the user
+ * explicitly deleted "this recording" is the bug. The backend endpoint
+ * already existed (DELETE /api/evidence/backups/{item_id}, owner-checked,
+ * removes both the object and its db.evidence_backups row) — this was a
+ * frontend wiring gap: remove() in evidence-locker.tsx never called it.
+ *
+ * Returns a tri-state result rather than throwing, because a failure here
+ * must never block the LOCAL delete the user actually asked for (the caller
+ * still has to remove the on-device file even with no network):
+ *   'deleted'    — the cloud copy existed and was removed.
+ *   'none'       — nothing to do: this item was never backed up (404).
+ *   'failed'     — a real error (offline, 5xx, etc.) — the cloud copy may
+ *                  still exist; the caller should tell the user plainly
+ *                  rather than imply it is gone.
+ */
+export async function deleteBackupCloud(
+  scope: string,
+  itemId: string,
+  token: string | null,
+): Promise<'deleted' | 'none' | 'failed'> {
+  try {
+    const res = await fetch(`${base}/backups/${itemId}?scope=${encodeURIComponent(scope)}`, {
+      method: 'DELETE',
+      headers: { ...authHeader(token) },
+    });
+    if (res.status === 404) return 'none'; // never backed up — nothing to delete
+    if (!res.ok) return 'failed';
+    return 'deleted';
+  } catch {
+    return 'failed'; // offline / network error — local delete must still proceed
+  }
+}
