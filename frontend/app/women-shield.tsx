@@ -61,15 +61,12 @@ export default function WomenShield() {
   const [helplines, setHelplines] = useState<Helpline[]>([]);
   const [circleCount, setCircleCount] = useState(0);
   const [lockerCount, setLockerCount] = useState(0);
-  const [lockerEnabled, setLockerEnabled] = useState(true); // EL-055: default true; set from flags on mount
 
   useEffect(() => {
     (async () => {
       const [f, h, ci] = await Promise.all([fetchFlags(), fetchHelplines(), getCheckin()]);
-      // EL-055: hide the Evidence Locker tool-row when the flag is off
-      if (f && typeof (f as any).evidence_locker_enabled === 'boolean') {
-        setLockerEnabled(!!(f as any).evidence_locker_enabled);
-      }
+      // EL-055 flag gate removed (Jun 2026): evidence_locker_enabled no longer
+      // gates the UI entry point. Backend still exposes the flag for admin use.
       if (h.length) setHelplines(h);
       setCheckin(ci);
     })();
@@ -255,9 +252,8 @@ export default function WomenShield() {
               <Switch testID="ws-checkin-switch" accessibilityLabel={tr('ws.checkin', lang)} value={checkin} onValueChange={onCheckin} trackColor={{ true: c.navy, false: c.surfaceTertiary }} thumbColor="#fff" />
             </View>
             <Divider />
-            {lockerEnabled && (
-              <ToolRow icon="lock-closed-outline" title={tr('ws.locker', lang)} sub={tr('ws.locker.sub.count', lang).replace('{n}', String(lockerCount))} action={tr('ws.open', lang)} onPress={() => router.push('/women/evidence-locker')} />
-            )}
+            {/* Evidence Locker — always visible (flag gate removed per user instruction Jun 2026, "don't block it") */}
+            <ToolRow icon="lock-closed-outline" title={tr('ws.locker', lang)} sub={tr('ws.locker.sub.count', lang).replace('{n}', String(lockerCount))} action={tr('ws.open', lang)} onPress={() => router.push('/women/evidence-locker')} />
             <Divider />
             <ToolRow icon="mic-outline" title={tr('ws.code', lang)} sub={tr('ws.code.sub', lang)} action={tr('ws.setup', lang)} onPress={() => router.push('/women/code-phrase')} />
             {HEAD_OUT_ENABLED && <>

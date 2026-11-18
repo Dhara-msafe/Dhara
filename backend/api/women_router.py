@@ -50,7 +50,7 @@ DEFAULT_FLAGS = {
     "women_cards_min_release_state": "LEGAL_REVIEWED",
     "discreet_mode_enabled": False,
     "trusted_circle_enabled": False,
-    "evidence_locker_enabled": False,
+    "evidence_locker_enabled": True,   # unblocked: entry point must always be visible (user instruction, Jun 2026)
     "evidence_vault_enabled": False,  # E1: gates the 5 cloud anchor/backup routes only
 }
 

@@ -2003,6 +2003,20 @@ async def _startup():
     except Exception as e:
         logger.warning(f"[startup] women shield index creation warning: {e}")
 
+    # Evidence Locker flag — force-ON on every startup so the entry point is
+    # never invisible in production due to a missing or stale DB document.
+    # Admin can still override via PATCH /api/women/flags if needed.
+    try:
+        from api.women_router import FLAGS_ID as _FLAGS_ID
+        await db.settings.update_one(
+            {"_id": _FLAGS_ID},
+            {"$set": {"evidence_locker_enabled": True}},
+            upsert=True,
+        )
+        logger.info("[startup] evidence_locker_enabled forced ON in DB")
+    except Exception as e:
+        logger.warning(f"[startup] evidence_locker_enabled flag upsert warning: {e}")
+
     # Evidence Vault (Sprint B5 cloud anchor/backup) — ensure indexes exist (idempotent)
     try:
         await db.evidence_anchors.create_index("receipt_id", unique=True)
