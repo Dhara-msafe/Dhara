@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { ADVOCATE_MODE_ENABLED } from '@/src/advocateMode/flags';
+import { useAdvocateProfile } from '@/src/advocateMode/useAdvocateProfile';
 import { crossAlert } from '@/src/utils/crossAlert';
 import { apiPost, newIdempotencyKey } from '@/src/notetaker/api';
 import { ScreenHeader } from '@/src/notetaker/ui';
@@ -51,6 +52,8 @@ export default function NewConsultationScreen() {
 
   const { matterId } = useLocalSearchParams<{ matterId: string }>();
   const { token } = useAuth();
+  // B-121: same gate as the other advocate/Notetaker screens.
+  const advocateGate = useAdvocateProfile();
   const insets = useSafeAreaInsets();
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(todayStr());
@@ -89,6 +92,9 @@ export default function NewConsultationScreen() {
     }
     setSaving(false);
   };
+
+  if (advocateGate.status === 'none') return <Redirect href="/(tabs)/home" />;
+  if (advocateGate.status === 'loading') return null;
 
   return (
     <KeyboardAvoidingView

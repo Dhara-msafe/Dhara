@@ -129,6 +129,17 @@ export async function saveBackupInfo(scope: string, id: string, backup: BackupIn
   await writeManifest(scope, entries.map(e => (e.id === id ? { ...e, backup } : e)));
 }
 
+/** N-09: clears the backup record once the actual cloud object has been
+ * deleted (evidenceBackup.ts's deleteBackupCloud()) — so the "☁️ Backed up"
+ * badge and the delete dialog's "stays in the cloud" note stop showing for
+ * an item whose cloud copy no longer exists. Only the backup field is
+ * touched; the anchor (chain-of-custody timestamp receipt) is untouched,
+ * since that is a hash/receipt, not a copy of the content. */
+export async function clearBackupInfo(scope: string, id: string): Promise<void> {
+  const entries = await readManifest(scope);
+  await writeManifest(scope, entries.map(e => (e.id === id ? { ...e, backup: null } : e)));
+}
+
 /** The item's local copy has been deleted. The chain LINK itself must stay —
  * removing a link would break hash verification for every entry saved after
  * it — so the entry is tombstoned instead: it stops being listed in the

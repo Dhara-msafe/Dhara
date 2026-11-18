@@ -104,7 +104,7 @@ export default function AdvocateRegister() {
         <View style={s.disclaimerCard}>
           <Ionicons name="time-outline" size={16} color="#92400E" />
           <Text style={s.disclaimerText}>
-            Your Bar Council enrolment number will be verified within 24–48 hours. You can access Lawyer Mode immediately and receive a &ldquo;Reviewed&rdquo; badge once approved.
+            Your Bar Council enrolment number will be reviewed within 24–48 hours. You can access Lawyer Mode immediately; your profile will show &ldquo;Registered but unreviewed&rdquo; until the team verifies your enrolment.
           </Text>
         </View>
 

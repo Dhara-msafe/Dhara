@@ -163,7 +163,7 @@ module.exports = ({ config, platform }) => {
     // ── Android: inject com.google.android.geo.API_KEY ───────────────────────
     android: {
       ...config.android,
-      package: "com.msafesolutions.legalaid",
+      package: "in.askdhara.app",
       googleServicesFile: "./google-services.json",
       ...(!isPlaceholder(androidKey) && {
         config: {

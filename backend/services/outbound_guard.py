@@ -40,7 +40,7 @@ from datetime import datetime, timezone
 logger = logging.getLogger("dhara.outbound_guard")
 
 VALID_MODES = ("live", "simulate")
-VALID_PROFILES = ("internal_qa", "closed_testing", "production")
+VALID_PROFILES = ("internal_qa", "closed_testing", "sms_only", "production")
 VALID_DEPLOYMENT_ENVS = ("preview", "production")
 
 # ── Channels ─────────────────────────────────────────────────────────────────
@@ -73,6 +73,12 @@ _POLICY = {
     },
     "closed_testing": {
         DIALLER: LIVE, SMS: LIVE, RESET_EMAIL: LIVE, EMAIL: LIVE,
+        EXTERNAL_SHARE: LIVE, OPS_ALERT: LIVE,
+        PUSH: DISABLED, REMINDER: DISABLED, GUARDIAN: DISABLED,
+    },
+    # sms_only: real SMS/email/share; calls stay simulated (NF-SAFETY-02).
+    "sms_only": {
+        DIALLER: SIMULATE, SMS: LIVE, RESET_EMAIL: LIVE, EMAIL: LIVE,
         EXTERNAL_SHARE: LIVE, OPS_ALERT: LIVE,
         PUSH: DISABLED, REMINDER: DISABLED, GUARDIAN: DISABLED,
     },
@@ -187,6 +193,33 @@ def validate_outbound_config() -> str:
         "[outbound_guard] OUTBOUND_MODE=%s profile=%s", raw, outbound_profile()
     )
     return raw
+
+
+def is_awareness_updates_consented(user: dict) -> bool:
+    """Return True only when this user has explicitly opted in to receiving
+    legal-awareness and update messages (consent_purposes.updates == True).
+
+    B-CONSENT-GUARD (v2.2.1): Call this BEFORE dispatching any proactive
+    awareness or marketing SMS/WhatsApp message to this user.  A channel being
+    live at the deployment level (see should_send) does NOT imply the user
+    wants awareness messages — they must opt in separately via the
+    'updates' consent purpose.
+
+    EXEMPT — do NOT call this guard for:
+      • Safety notifications (missed check-in, journey alerts, emergency) —
+        these are user-initiated, safety-essential features, not marketing.
+      • Transactional messages (invitation push, password reset, verification) —
+        these are operational messages the user expects as part of normal use.
+
+    REQUIRED for:
+      • Any proactive legal tip, awareness bulletin, or update SMS/WhatsApp
+        message sent without the user's explicit, real-time initiation.
+
+    Returns False (deny) when the user record is None, the purposes field is
+    absent, or the 'updates' key is explicitly False or not set.  Fails closed.
+    """
+    purposes = (user or {}).get("consent_purposes") or {}
+    return bool(purposes.get("updates"))
 
 
 async def record_simulated(kind: str, target: str, payload: dict) -> str:

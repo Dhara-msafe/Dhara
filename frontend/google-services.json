@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "1030010972587",
-    "project_id": "msafelegalaid",
-    "storage_bucket": "msafelegalaid.firebasestorage.app"
+    "project_number": "231407960408",
+    "project_id": "askdhara-9e0d1",
+    "storage_bucket": "askdhara-9e0d1.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1030010972587:android:09fbdb4a36a458061a4aee",
+        "mobilesdk_app_id": "1:231407960408:android:b851b0b4b65a41f919a52d",
         "android_client_info": {
-          "package_name": "com.msafesolutions.legalaid"
+          "package_name": "in.askdhara.app"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDSEehZRnKiljlaudTPHsx380d6at-45dw"
+          "current_key": "AIzaSyAEy2-zu_b_W6hS57glJUIIQgG8bYJaq24"
         }
       ],
       "services": {

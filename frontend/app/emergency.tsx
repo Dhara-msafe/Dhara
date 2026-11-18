@@ -41,6 +41,8 @@ export default function Emergency() {
           </View>
           <QuickExit />
         </View>
+        {/* v2.2 design spec: "Pick one. Each button does one thing." */}
+        <Text style={styles.emergencySubtitle}>{tr('em.subtitle', lang)}</Text>
 
         {/* v2.2.1 Stage 2 (screen 25): this used to be a plain <View> with no
             onPress at all — accessibilityLabel literally said "Calling not
@@ -118,6 +120,7 @@ const styles = StyleSheet.create({
     color: '#fff', fontFamily: theme.fonts.body, fontSize: 14, lineHeight: 20,
     textAlign: 'center', marginTop: 14, paddingHorizontal: 12,
   },
+  emergencySubtitle: { color: 'rgba(255,255,255,0.75)', fontFamily: theme.fonts.body, fontSize: 16, lineHeight: 22, marginBottom: 10 },
   oneNumber: { color: '#fff', fontFamily: theme.fonts.body, fontSize: 17, textAlign: 'center', marginTop: 26 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 14, marginTop: 24 },
   tile: { width: '47%', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 16, padding: 18, minHeight: 120, justifyContent: 'center', gap: 8 },

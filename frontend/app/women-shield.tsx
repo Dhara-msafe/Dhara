@@ -13,7 +13,7 @@ import { loadVisibleRecordings, releaseRecordings } from '@/src/women/evidenceSt
 import { enterWomensShield, leaveWomensShield } from '@/src/voice/speechGate';
 import { activateCover } from '@/src/women/coverState';
 
-import { openExternal } from '@/src/outbound';
+// openPhone is reserved for when tap-to-call is activated on helpline rows
 // NF-UI-REV-09 (Group H, DHARA UI Revision v2.2.1): visible keyboard-focus
 // ring only — no contrast/touch-target gaps found on this screen. No logic
 // changes.
@@ -61,11 +61,15 @@ export default function WomenShield() {
   const [helplines, setHelplines] = useState<Helpline[]>([]);
   const [circleCount, setCircleCount] = useState(0);
   const [lockerCount, setLockerCount] = useState(0);
+  const [lockerEnabled, setLockerEnabled] = useState(true); // EL-055: default true; set from flags on mount
 
   useEffect(() => {
     (async () => {
       const [f, h, ci] = await Promise.all([fetchFlags(), fetchHelplines(), getCheckin()]);
-      void f; // flags loaded for future feature gates
+      // EL-055: hide the Evidence Locker tool-row when the flag is off
+      if (f && typeof (f as any).evidence_locker_enabled === 'boolean') {
+        setLockerEnabled(!!(f as any).evidence_locker_enabled);
+      }
       if (h.length) setHelplines(h);
       setCheckin(ci);
     })();
@@ -251,7 +255,9 @@ export default function WomenShield() {
               <Switch testID="ws-checkin-switch" accessibilityLabel={tr('ws.checkin', lang)} value={checkin} onValueChange={onCheckin} trackColor={{ true: c.navy, false: c.surfaceTertiary }} thumbColor="#fff" />
             </View>
             <Divider />
-            <ToolRow icon="lock-closed-outline" title={tr('ws.locker', lang)} sub={tr('ws.locker.sub.count', lang).replace('{n}', String(lockerCount))} action={tr('ws.open', lang)} onPress={() => router.push('/women/evidence-locker')} />
+            {lockerEnabled && (
+              <ToolRow icon="lock-closed-outline" title={tr('ws.locker', lang)} sub={tr('ws.locker.sub.count', lang).replace('{n}', String(lockerCount))} action={tr('ws.open', lang)} onPress={() => router.push('/women/evidence-locker')} />
+            )}
             <Divider />
             <ToolRow icon="mic-outline" title={tr('ws.code', lang)} sub={tr('ws.code.sub', lang)} action={tr('ws.setup', lang)} onPress={() => router.push('/women/code-phrase')} />
             {HEAD_OUT_ENABLED && <>
@@ -302,6 +308,7 @@ export default function WomenShield() {
               </View>
             ))}
           </View>
+          <Text style={styles.hlNote} accessibilityRole="text">Tap-to-call is not yet active. Note the number and dial manually.</Text>
         </View>
 
         {/* Safety plan */}
@@ -394,6 +401,7 @@ const styles = StyleSheet.create({
   hlGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
   hlCard: { width: '31%', backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.lines, paddingVertical: 16, alignItems: 'center', position: 'relative' },
   hlVerified: { position: 'absolute', top: 8, right: 8 },
+  hlNote: { marginTop: 10, fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18 },
   lessonRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.goldMuted, borderRadius: 14, padding: 14, marginTop: 14 },
   lessonTxt: { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.ink },
   hlNum: { fontFamily: theme.fonts.displayBold, fontSize: 22, color: c.navy },

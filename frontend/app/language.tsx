@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, FlatList } from 'react-native';
+import { View, Text, Pressable, StyleSheet, FlatList, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -41,6 +41,18 @@ export default function LanguageSelect() {
   const router = useRouter();
   const { from } = useLocalSearchParams<{ from?: string }>();
   const [selected, setSelected] = useState<Language>(language);
+  const [query,    setQuery]    = useState('');
+
+  const normalise = (s: string) => s.toLowerCase().normalize('NFC');
+  const q = normalise(query.trim());
+  const filtered = q.length === 0
+    ? LANGUAGES
+    : LANGUAGES.filter(
+        l =>
+          normalise(l.name).includes(q) ||
+          normalise(l.native).includes(q) ||
+          normalise(l.code).includes(q),
+      );
 
   const onContinue = async () => {
     if (selected.code !== language.code) {
@@ -55,15 +67,66 @@ export default function LanguageSelect() {
 
   return (
     <SafeAreaView style={styles.safe} testID="language-screen">
-      <View style={styles.header}>
-        <Text style={styles.brand}>Dhara</Text>
-        <Text style={styles.title}>Choose your language</Text>
-        <Text style={styles.sub}>अपनी भाषा चुनें · আপনার ভাষা নির্বাচন করুন · உங்கள் மொழியைத் தேர்ந்தெடுக்கவும்</Text>
+      {/* ── Top bar: shows back button when reached from home ── */}
+      <View style={styles.topbar}>
+        {from === 'home' ? (
+          <Pressable
+            onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/home')}
+            style={(s) => [styles.iconBtn, focusRingStyle(s)]}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+            testID="language-back"
+          >
+            <Ionicons name="arrow-back" size={20} color={theme.colors.navy} />
+          </Pressable>
+        ) : <View style={styles.iconBtnPlaceholder} />}
+        <Text style={styles.topbarTitle} numberOfLines={1}>Choose language</Text>
+        <View style={styles.iconBtnPlaceholder} />
       </View>
+      {/* ── Step + heading + subtitle ── */}
+      <View style={styles.header}>
+        <Text style={styles.eyebrow}>STEP 1 OF 4</Text>
+        <Text style={styles.title}>Choose your language</Text>
+        <Text style={styles.sub}>
+          DHARA speaks in the language you prefer. Which features work in each language is shown after you choose.
+        </Text>
+      </View>
+      {/* ── Search field ── */}
+      <View style={styles.searchWrap}>
+        <Ionicons name="search-outline" size={18} color={theme.colors.muted} style={styles.searchIcon} />
+        <TextInput
+          testID="language-search"
+          style={styles.searchInput}
+          placeholder="Search language…"
+          placeholderTextColor={theme.colors.muted}
+          value={query}
+          onChangeText={setQuery}
+          autoCorrect={false}
+          autoCapitalize="none"
+          returnKeyType="search"
+          accessibilityLabel="Search languages"
+        />
+        {query.length > 0 && (
+          <Pressable
+            onPress={() => setQuery('')}
+            hitSlop={8}
+            accessibilityLabel="Clear search"
+          >
+            <Ionicons name="close-circle" size={18} color={theme.colors.muted} />
+          </Pressable>
+        )}
+      </View>
+
       <FlatList
-        data={LANGUAGES}
+        data={filtered}
         keyExtractor={(l) => l.code}
         contentContainerStyle={styles.list}
+        keyboardShouldPersistTaps="handled"
+        ListEmptyComponent={
+          <View style={styles.emptyWrap} testID="language-no-results">
+            <Text style={styles.emptyText}>{`No results for "${query}"`}</Text>
+          </View>
+        }
         renderItem={({ item }) => {
           const active = item.code === selected.code;
           return (
@@ -73,13 +136,16 @@ export default function LanguageSelect() {
               onPress={() => setSelected(item)}
               accessibilityRole="radio"
               accessibilityLabel={`${item.native}, ${item.name}`}
-              accessibilityState={{ selected: active }}
+              accessibilityState={{ checked: active }}
+              // aria-checked is explicit because React Native Web does not
+              // forward accessibilityState.checked to aria-checked on Pressable.
+              aria-checked={active}
             >
               <View style={{ flex: 1 }}>
                 <Text style={[styles.native, active && styles.nativeActive]}>{item.native}</Text>
                 <Text style={styles.name}>{item.name}</Text>
               </View>
-              {active && <Ionicons name="checkmark-circle" size={24} color={theme.colors.brandSecondary} />}
+              {active && <Text style={styles.selectedLabel}>Selected</Text>}
             </Pressable>
           );
         }}
@@ -100,31 +166,128 @@ export default function LanguageSelect() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: theme.dhara.navy },
-  header: { paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.lg, paddingBottom: theme.spacing.md },
-  brand: { fontFamily: theme.fonts.display, fontSize: 34, color: theme.colors.onBrandPrimary, fontWeight: '700', textAlign: 'center' },
-  title: { color: theme.colors.onBrandPrimary, fontSize: 18, fontWeight: '700', textAlign: 'center', marginTop: theme.spacing.md },
-  // Sub-header: gold-on-navy — 6.29:1 ✅  — brandSecondary (#9A6E00) on navy was 2.50:1 ❌
-  sub: { color: theme.dhara.gold, fontSize: 12, textAlign: 'center', marginTop: 6 },
-  list: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg, gap: theme.spacing.sm },
-  row: {
+  safe: { flex: 1, backgroundColor: theme.colors.cream },
+
+  // ── Top bar ──────────────────────────────────────────────────────────────
+  topbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    backgroundColor: theme.colors.surface,
+    borderBottomWidth: 1.5,
+    borderBottomColor: theme.colors.lines,
+  },
+  topbarTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontFamily: theme.fonts.display,
+    fontSize: 18,
+    color: theme.colors.navy,
+  },
+  iconBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1.5,
+    borderColor: theme.colors.lines,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconBtnPlaceholder: { width: 48, height: 48 },
+
+  // ── Header (step + heading + subtitle) ───────────────────────────────────
+  header: {
+    paddingHorizontal: theme.spacing.xl,
+    paddingTop: theme.spacing.lg,
+    paddingBottom: theme.spacing.md,
+    backgroundColor: theme.colors.cream,
+  },
+  eyebrow: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: theme.colors.muted,
+    marginBottom: 8,
+  },
+  title: {
+    fontFamily: theme.fonts.display,
+    fontSize: 28,
+    color: theme.colors.navy,
+    marginBottom: 10,
+  },
+  // Descriptive subtitle replacing the multilingual hint
+  sub: { color: theme.colors.muted, fontSize: 15, lineHeight: 22 },
+
+  // ── Search field ─────────────────────────────────────────────────────────
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1.5,
+    borderColor: theme.colors.lines,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: theme.spacing.md,
+    minHeight: 44,
+    gap: 8,
+  },
+  searchIcon: { opacity: 0.7 },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: theme.colors.navy,
+    paddingVertical: theme.spacing.sm,
+    // No hardcoded height — flex fills available space naturally
+  },
+
+  // ── Empty state ───────────────────────────────────────────────────────────
+  emptyWrap: {
+    paddingVertical: theme.spacing.xxxl,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 15,
+    color: theme.colors.muted,
+    textAlign: 'center',
+  },
+
+  // ── Language list items ───────────────────────────────────────────────────
+  list: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg, gap: theme.spacing.sm },  row: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.md,
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
-    minHeight: 56,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    minHeight: 60,
+    borderWidth: 1.5,
+    borderColor: theme.colors.lines,
   },
-  rowActive: { borderColor: theme.colors.brandSecondary },
-  // Unselected card: native script uses brand navy (textPrimary) for brand alignment
-  native: { color: theme.dhara.textPrimary, fontSize: 17, fontWeight: '700' },
-  nativeActive: { color: theme.colors.brand },
+  // Selected: gold border (#8A6A1E) + warm tinted background — matches design token
+  rowActive: { borderWidth: 2.5, borderColor: '#8A6A1E', backgroundColor: '#FFF8E7' },
+  native: { color: theme.dhara.textPrimary, fontSize: 18, fontWeight: '600' },
+  nativeActive: { color: theme.colors.navy },
   // English translation: textSecondary on surface — 6.81:1 ✅; weight 500 for Indic script legibility
-  name: { color: theme.dhara.textSecondary, fontSize: 12, marginTop: 2, fontWeight: '500' },
-  footer: { padding: theme.spacing.lg, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)' },
-  btn: { backgroundColor: theme.colors.brandSecondary, padding: theme.spacing.lg, borderRadius: theme.radius.md, alignItems: 'center', minHeight: 52 },
-  btnText: { color: theme.colors.onBrandSecondary, fontWeight: '700', fontSize: 16 },
+  name: { color: theme.dhara.textSecondary, fontSize: 13, marginTop: 2, fontWeight: '500' },
+  selectedLabel: {
+    fontFamily: theme.fonts.bodyBold,
+    fontSize: 13,
+    color: '#6B4F10',
+  },
+
+  // ── Sticky footer ─────────────────────────────────────────────────────────
+  footer: { padding: theme.spacing.lg, borderTopWidth: 1.5, borderTopColor: theme.colors.lines, backgroundColor: theme.colors.cream },
+  btn: {
+    backgroundColor: theme.colors.navy,
+    padding: theme.spacing.lg,
+    borderRadius: theme.radius.md,
+    alignItems: 'center',
+    minHeight: 52,
+    justifyContent: 'center',
+  },
+  btnText: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 16 },
 });

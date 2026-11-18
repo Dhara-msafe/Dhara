@@ -126,7 +126,7 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
       {/* ── Sidebar ── */}
       <View style={styles.sidebar}>
         <Pressable accessibilityRole="button" accessibilityLabel="DHARA home" style={styles.brand} onPress={() => router.push('/(tabs)/home')}>
-          <View style={styles.logo}><Image source={require('../../../assets/images/dhara_icon.png')} style={styles.logoImg} resizeMode="cover" /></View>
+          <View style={styles.logo}><Image source={require('../../../assets/images/dhara_mark.png')} style={styles.logoImg} resizeMode="contain" /></View>
           <View>
             <Text style={styles.brandTxt}>DHARA</Text>
             <Text style={styles.brandSub}>{tr('shell.tagline', lang)}</Text>
@@ -171,13 +171,13 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
 
         <View style={[styles.railCard, { backgroundColor: c.navy }]}>
           <Text style={styles.getApp}>Get the app</Text>
-          <Text style={styles.getAppSub}>Scan to install DHARA on your phone — works offline.</Text>
+          <Text style={styles.getAppSub}>Scan to install DHARA on your phone — available on Android and iOS.</Text>
           <View style={styles.qr}><Ionicons name="qr-code-outline" size={84} color={c.navy} /></View>
         </View>
 
         <View style={styles.verified}>
-          <Ionicons name="checkmark-circle" size={18} color={c.verifiedGreen} />
-          <Text style={styles.verifiedTxt}>Every answer is checked against current Indian law before you see it.</Text>
+          <Ionicons name="information-circle-outline" size={18} color={c.muted} />
+          <Text style={styles.verifiedTxt}>Answers draw on the Indian legal corpus (BNS 2023, BNSS, Constitution). Not legal advice.</Text>
         </View>
 
         {!user && (
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   row: { flex: 1, flexDirection: 'row', backgroundColor: c.deepNavy },
   sidebar: { width: 264, backgroundColor: c.navy, paddingHorizontal: 16, paddingTop: 24, paddingBottom: 16 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 22, paddingHorizontal: 6 },
-  logo: { width: 42, height: 42, borderRadius: 11, borderWidth: 1.5, borderColor: c.gold, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: '#fff' },
+  logo: { width: 42, height: 42, borderRadius: 11, borderWidth: 1.5, borderColor: c.gold, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   logoImg: { width: '100%', height: '100%' },
   brandTxt: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 20, letterSpacing: 1 },
   brandSub: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 11 },

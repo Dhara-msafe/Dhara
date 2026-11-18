@@ -1,4 +1,5 @@
 import { getOrCreateKey, encryptBytes, decryptBytes } from './evidenceCrypto';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type EvidenceType = 'audio' | 'photo' | 'video';
 // `iv` present → `blob` in IndexedDB is AES-256-CTR ciphertext (S-B5).
@@ -13,6 +14,7 @@ export type RecordingItem = {
   is_segment?: boolean;
   segment_count?: number;
   total_duration_ms?: number;
+  auth_format?: 'ctr-hmac-v1';
 };
 type Stored = { id: string; scope: string; blob: Blob; createdAt: string; type: EvidenceType; iv?: string; ext?: string; is_segment?: boolean; session_id?: string; recording_format_version?: number; segment_count?: number; total_duration_ms?: number };
 
@@ -163,6 +165,70 @@ export async function getDecryptedTempUri(scope: string, item: RecordingItem): P
 export function releaseDecryptedTempUri(uri: string, _wasDecrypted: boolean) {
   URL.revokeObjectURL(uri);
 }
+
+/**
+ * Guest scope lifecycle cleanup stub — web.
+ * Removes all IndexedDB rows for the scope and clears the same AsyncStorage
+ * keys that the native path clears.
+ */
+export async function deleteEvidenceScope(scope: string): Promise<void> {
+  // Delete IndexedDB rows for this scope
+  try {
+    const db = await database();
+    const all = await new Promise<Stored[]>((resolve, reject) => {
+      const tx = db.transaction('recordings', 'readonly');
+      const req = tx.objectStore('recordings').getAll();
+      req.onsuccess = () => resolve(req.result as Stored[]);
+      req.onerror   = () => reject(req.error);
+    });
+    const toDelete = all.filter(r => r.scope === scope).map(r => r.id);
+    if (toDelete.length > 0) {
+      await new Promise<void>((resolve, reject) => {
+        const tx2 = db.transaction('recordings', 'readwrite');
+        const store = tx2.objectStore('recordings');
+        for (const id of toDelete) store.delete(id);
+        tx2.oncomplete = () => resolve();
+        tx2.onerror    = () => reject(tx2.error);
+      });
+    }
+    db.close();
+  } catch { /* best-effort */ }
+
+  // Clear AsyncStorage manifest keys
+  await AsyncStorage.multiRemove([
+    `dhara_local_recordings_${scope}`,
+    `dhara_evidence_manifest_v1_${scope}`,
+    `evidence_pending_temp_${scope}`,
+    `dhara_evidence_sessions_v1_${scope}`,
+    `dhara_locker_flag_v1_${scope}`,
+    `dhara_vault_flag_v1_${scope}`,
+    `ws_discreet_active_v1_${scope}`,
+    `evidence_notes_${scope}`,
+  ]).catch(() => {});
+}
+
+/** EL-054 stub — web stores evidence as IndexedDB blob: URLs which are
+ * revoked in-memory on page unload.  No plaintext files are written to disk,
+ * so no sweep is needed. */
+export async function sweepOrphanedEvidenceTempFiles(_scope: string): Promise<void> {
+  // no-op on web
+}
+
+/**
+ * EL-054 web: blob: URLs are session-scoped and always gone after a page
+ * reload.  Any pending-temp entry that survived a reload is unrecoverable —
+ * return false so the caller clears the stale entry rather than retrying.
+ */
+export function pendingTempFileExists(_uri: string): boolean {
+  return false; // blob: URLs do not survive page unloads
+}
+
+/**
+ * Shared with native for type parity.  Web's IDB blobs have no path-based
+ * size limit, but we export the constant so callers import without platform
+ * guards.
+ */
+export const MAX_INLINE_BYTES = 24 * 1024 * 1024; // 24 MB
 
 /** S-B5: Returns the item's raw stored bytes — ciphertext for AES-encrypted
  * items, exactly as persisted — WITHOUT decrypting. This is the web

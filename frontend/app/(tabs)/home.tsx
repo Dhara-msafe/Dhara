@@ -103,7 +103,7 @@ export default function Home() {
           <View style={styles.headerRow}>
             <View style={styles.brandRow}>
               <View style={styles.logo}>
-                <Image source={require('../../assets/images/dhara_icon.png')} style={styles.logoImg} resizeMode="cover" />
+                <Image source={require('../../assets/images/dhara_mark.png')} style={styles.logoImg} resizeMode="contain" />
               </View>
               <View>
                 <Text style={styles.brand}>DHARA</Text>
@@ -145,7 +145,7 @@ export default function Home() {
           <Text style={styles.askTitle}>{tr('home.askTitle', lang)}</Text>
           <Text style={styles.askSub}>{tr('home.askSub', lang)}</Text>
           <Pressable style={(state) => [styles.micBtn, focusRingStyle(state)]} onPress={() => router.push({ pathname: '/(tabs)', params: { autostartMic: Date.now().toString() } })} testID="home-mic" accessibilityRole="button" accessibilityLabel="Ask DHARA a question by voice">
-            <Ionicons name="mic" size={40} color={c.navy} />
+            <Ionicons name="mic" size={40} color="#fff" />
           </Pressable>
           <Text style={styles.holdTxt}>{tr('home.holdToSpeak', lang)}</Text>
           <View style={styles.askActions}>
@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
   header: { backgroundColor: c.navy, paddingHorizontal: 20, paddingBottom: 54, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logo: { width: 44, height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: c.gold, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: '#fff' },
+  logo: { width: 44, height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: c.gold, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   logoImg: { width: '100%', height: '100%' },
   brand: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 24, letterSpacing: 1 },
   tagline: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 11 },
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
   askCard: { backgroundColor: c.surface, marginHorizontal: 16, marginTop: -36, borderRadius: 24, padding: 22, alignItems: 'center', shadowColor: c.shadow, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 1, shadowRadius: 16, elevation: 4 },
   askTitle: { fontFamily: theme.fonts.displayBold, fontSize: 24, color: c.ink, textAlign: 'center' },
   askSub: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, textAlign: 'center', marginTop: 4 },
-  micBtn: { width: 110, height: 110, borderRadius: 55, backgroundColor: c.gold, alignItems: 'center', justifyContent: 'center', marginVertical: 20, shadowColor: c.darkGold, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 6 },
+  micBtn: { width: 110, height: 110, borderRadius: 55, backgroundColor: c.navy, alignItems: 'center', justifyContent: 'center', marginVertical: 20, shadowColor: c.navy, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 6 },
   holdTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.ink },
   askActions: { flexDirection: 'row', gap: 12, marginTop: 18, width: '100%' },
   askAction: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: c.lines, borderRadius: 14, paddingVertical: 14 },

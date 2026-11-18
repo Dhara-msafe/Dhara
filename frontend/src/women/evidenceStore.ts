@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { File, Paths } from 'expo-file-system';
 import { Zip, ZipPassThrough } from 'fflate';
 import { getOrCreateKey, encryptBytes, decryptBytes } from './evidenceCrypto';
+import { listPendingTemps } from './evidencePendingTemp';
+import { encryptFileChunked, decryptFileChunked } from './evidenceChunkedCrypto';
 
 export type EvidenceType = 'audio' | 'photo' | 'video';
 // `iv` present → file on disk is AES-256-CTR ciphertext (S-B5). Items saved
@@ -21,8 +23,42 @@ export type RecordingItem = {
   segment_count?: number;
   /** Total approximate duration in ms for a v2 parent item */
   total_duration_ms?: number;
+  /**
+   * 'ctr-hmac-v1' → item was encrypted with the chunked AES-256-CTR-HMAC path
+   *   (evidenceChunkedCrypto.ts). Decrypt via `decryptFileChunked`.
+   * Absent/undefined → legacy format, in-memory AES-256-CTR only. Decrypt via
+   *   the existing `decryptBytes` path.
+   */
+  auth_format?: 'ctr-hmac-v1';
 };
 const storageKey = (scope: string) => `dhara_local_recordings_${scope}`;
+
+/**
+ * Maximum file size (bytes) the in-memory encryption path can safely buffer
+ * without risking an OOM crash on a 128 MB-heap Android device.
+ *
+ * Derivation (conservative floor):
+ *   128 MB minimum Android heap
+ *   −  50 MB JS runtime + React Native bridge + UI state headroom
+ *   =  78 MB available for one operation.
+ *   An encrypt or decrypt cycle holds TWO equal-sized Uint8Arrays at peak
+ *   (plain + cipher), so the safe per-file limit is 78 / 2 = 39 MB.
+ *   We use 24 MB — 38 % below that floor — to leave headroom for GC jitter
+ *   and concurrent bridge allocations.
+ *
+ * Normal DHARA evidence items never approach this limit:
+ *   • Audio segments: 5 s × 128 kbps AAC ≈ 78 KB each
+ *   • Photos:         JPEG, typically 2–15 MB
+ *   • Video clips:    ~14 MB per 30 s at 4 Mbps H.264 (safe)
+ *                     ~29 MB per 60 s at 4 Mbps H.264 (safe)
+ *                     ~36 MB per 30 s at 10 Mbps H.264 → first clip that
+ *                       would trip this guard
+ *
+ * Future: a FileHandle-based chunked encryption/decryption path will remove
+ * this ceiling entirely. Design tracked in
+ * /app/memory/dhara_evidence/EVIDENCE_OOM_DESIGN.md
+ */
+export const MAX_INLINE_BYTES = 24 * 1024 * 1024; // 24 MB
 
 export async function loadRecordings(scope: string): Promise<RecordingItem[]> {
   const rows: any[] = JSON.parse(await AsyncStorage.getItem(storageKey(scope)) || '[]');
@@ -33,7 +69,28 @@ export async function loadRecordings(scope: string): Promise<RecordingItem[]> {
 async function saveItem(scope: string, uri: string, type: EvidenceType, ext: string): Promise<RecordingItem> {
   const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const file = new File(Paths.document, `dhara-evidence-${id}.enc`);
-  const plainBytes = await new File(uri).bytes();
+  const sourceFile = new File(uri);
+  const fileSize = (sourceFile as any).size as number ?? 0;
+
+  // Route large files to the authenticated chunked path (AES-256-CTR-HMAC).
+  // MAX_INLINE_BYTES is the branch point, NOT a hard ceiling.
+  if (fileSize > MAX_INLINE_BYTES) {
+    const iv = await encryptFileChunked(scope, uri, file);
+    const item: RecordingItem = {
+      id, uri: file.uri, createdAt: new Date().toISOString(),
+      type, iv, ext, auth_format: 'ctr-hmac-v1',
+    };
+    try {
+      await AsyncStorage.setItem(storageKey(scope), JSON.stringify([item, ...await loadRecordings(scope)]));
+    } catch (error) {
+      try { if (file.exists) file.delete(); } catch { /* best-effort */ }
+      throw error;
+    }
+    return item;
+  }
+
+  // In-memory path: existing AES-256-CTR only (files ≤ MAX_INLINE_BYTES).
+  const plainBytes = await sourceFile.bytes();
   const aesKey = await getOrCreateKey(scope);
   const { cipherBytes, iv } = await encryptBytes(plainBytes, aesKey);
   try {
@@ -85,7 +142,26 @@ export async function saveSegment(
 ): Promise<RecordingItem> {
   const id = `seg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const file = new File(Paths.document, `dhara-evidence-${id}.enc`);
-  const plainBytes = await new File(uri).bytes();
+  const segFile = new File(uri);
+  const segSize = (segFile as any).size as number ?? 0;
+
+  // Route large segments to the chunked path (defensive — segments are ~78 KB each).
+  if (segSize > MAX_INLINE_BYTES) {
+    const iv = await encryptFileChunked(scope, uri, file);
+    const item: RecordingItem = {
+      id, uri: file.uri, createdAt: new Date().toISOString(), type: 'audio',
+      iv, ext: 'm4a', is_segment: true, session_id: sessionId, auth_format: 'ctr-hmac-v1',
+    };
+    try {
+      await AsyncStorage.setItem(storageKey(scope), JSON.stringify([...await loadRecordings(scope), item]));
+    } catch (error) {
+      try { if (file.exists) file.delete(); } catch { /* best-effort */ }
+      throw error;
+    }
+    return item;
+  }
+
+  const plainBytes = await segFile.bytes();
   const aesKey = await getOrCreateKey(scope);
   const { cipherBytes, iv } = await encryptBytes(plainBytes, aesKey);
   try { file.write(cipherBytes); }
@@ -154,8 +230,32 @@ export function discardTemporaryRecording(uri: string | null) {
  */
 export async function getDecryptedTempUri(scope: string, item: RecordingItem): Promise<string> {
   if (!item.iv) return item.uri; // legacy plaintext — pass through unchanged
+
+  // ctr-hmac-v1: authenticated chunked decrypt — rejects corruption, truncation,
+  // reordering and substitution before writing any plaintext.
+  if (item.auth_format === 'ctr-hmac-v1') {
+    const tempFile = new File(
+      Paths.cache,
+      `dhara-evidence-tmp-${item.id}-${Date.now()}.${item.ext || 'bin'}`,
+    );
+    await decryptFileChunked(scope, item.uri, tempFile);
+    return tempFile.uri;
+  }
+
+  // Legacy in-memory path: AES-256-CTR only (no HMAC), files ≤ MAX_INLINE_BYTES.
   const aesKey = await getOrCreateKey(scope);
-  const cipherBytes = await new File(item.uri).bytes();
+  const encFile = new File(item.uri);
+  const encSize = (encFile as any).size as number ?? 0;
+  if (encSize > MAX_INLINE_BYTES) {
+    // Guard against old-format items somehow exceeding the in-memory limit.
+    // This should never happen (old items were capped at save time), but we
+    // reject clearly rather than OOM-crashing.
+    throw new Error(
+      `Legacy-format recording is too large to preview (${Math.round(encSize / (1024 * 1024))} MB). ` +
+      `Expected auth_format 'ctr-hmac-v1' for files above ${Math.round(MAX_INLINE_BYTES / (1024 * 1024))} MB.`,
+    );
+  }
+  const cipherBytes = await encFile.bytes();
   const plainBytes = decryptBytes(cipherBytes, aesKey, item.iv);
   const tempFile = new File(Paths.cache, `dhara-evidence-tmp-${item.id}-${Date.now()}.${item.ext || 'bin'}`);
   tempFile.write(plainBytes);
@@ -220,4 +320,92 @@ export async function getSegmentedShareZipUri(scope: string, item: RecordingItem
 export function releaseDecryptedTempUri(uri: string, wasDecrypted: boolean) {
   if (!wasDecrypted) return; // legacy plaintext item — uri IS the real file, never delete it
   try { const file = new File(uri); if (file.exists) file.delete(); } catch {}
+}
+
+/**
+ * EL-054: Sweep `Paths.cache` for orphaned decrypted-plaintext temp files
+ * that survived an unexpected session termination (app kill, OS crash, force
+ * close during playback or sharing).
+ *
+ * Safe to call at any time — it only deletes files matching the
+ * `dhara-evidence-tmp-*` prefix; never touches the user's saved evidence.
+ *
+ * Skips any URI that is currently listed in the pending-temp set (recordings
+ * that have been captured but not yet encrypted and committed — these are
+ * recovery targets, NOT cleanup targets).
+ *
+ * Device-specific notes
+ * ─────────────────────
+ * • Native (Android / iOS): files in `Paths.cache` are transient OS storage.
+ *   The OS CAN reclaim them under storage pressure even without this sweep,
+ *   but that is not guaranteed.  This function provides a deterministic wipe.
+ * • Web: not applicable — the web version uses in-memory `blob:` URLs which
+ *   are automatically revoked on page unload.  This function is a no-op stub
+ *   in `evidenceStore.web.ts`.
+ */
+export async function sweepOrphanedEvidenceTempFiles(scope: string): Promise<void> {
+  try {
+    const pending = await listPendingTemps(AsyncStorage, scope);
+    const pendingSet = new Set(pending.map(p => p.uri));
+    const entries = Paths.cache.list();
+    for (const entry of entries) {
+      const name = entry.uri.split('/').pop() ?? '';
+      if (!name.startsWith('dhara-evidence-tmp-')) continue;
+      if (pendingSet.has(entry.uri)) continue; // unsealed recorder output — keep for recovery
+      try { new File(entry.uri).delete(); } catch { /* non-fatal */ }
+    }
+  } catch {
+    // Best-effort; log nothing — the caller should not surface this to the user.
+  }
+}
+
+/**
+ * EL-054: Returns true if the pending-temp source file at `uri` still exists
+ * on disk.  Used in the restart recovery loop so stale entries (source file
+ * purged by the OS between sessions) are cleared rather than retried on every
+ * cold start.
+ *
+ * Returns false on any error (treat as "gone — clean it up").
+ */
+export function pendingTempFileExists(uri: string): boolean {
+  try { return new File(uri).exists; } catch { return false; }
+}
+
+/**
+ * Guest scope lifecycle — removes all evidence data for a scope.
+ *
+ * Deletion order:
+ *   1. .enc files referenced in the recording manifest (encryption payload)
+ *   2. AsyncStorage manifest keys (all 7 scope-namespaced keys)
+ *
+ * The AES key is NOT deleted here — it must be removed by the caller
+ * (`evidenceCrypto.deleteEvidenceKey`) AFTER this function returns, so a
+ * mid-cleanup crash leaves unreadable but inert bytes rather than readable
+ * but orphaned data.
+ *
+ * Best-effort: per-file and per-key failures are caught individually so a
+ * single stubborn file does not block the remaining cleanup.
+ */
+export async function deleteEvidenceScope(scope: string): Promise<void> {
+  // 1. Delete all .enc files for this scope
+  try {
+    const all = await loadRecordings(scope);
+    for (const item of all) {
+      if (!item.uri) continue;
+      try { const f = new File(item.uri); if (f.exists) f.delete(); } catch { /* best-effort */ }
+    }
+  } catch { /* manifest unreadable — skip file deletion */ }
+
+  // 2. Remove all AsyncStorage keys for this scope
+  const keysToRemove = [
+    `dhara_local_recordings_${scope}`,         // main recording manifest (storageKey)
+    `dhara_evidence_manifest_v1_${scope}`,      // legacy manifest prefix
+    `evidence_pending_temp_${scope}`,           // pending temp entries
+    `dhara_evidence_sessions_v1_${scope}`,      // session manifest
+    `dhara_locker_flag_v1_${scope}`,            // EL-055 cached locker flag
+    `dhara_vault_flag_v1_${scope}`,             // EL-055 cached vault flag
+    `ws_discreet_active_v1_${scope}`,           // cover state
+    `evidence_notes_${scope}`,                  // inline notes
+  ];
+  await AsyncStorage.multiRemove(keysToRemove).catch(() => {});
 }

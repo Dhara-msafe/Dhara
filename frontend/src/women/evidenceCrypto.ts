@@ -95,6 +95,34 @@ async function storeSet(key: string, value: string): Promise<void> {
 function toHex(bytes: Uint8Array): string { return aesjs.utils.hex.fromBytes(bytes); }
 function fromHex(hex: string): Uint8Array { return aesjs.utils.hex.toBytes(hex); }
 
+/**
+ * Permanently removes the AES-256 key for a scope from storage.
+ * MUST be called AFTER `evidenceStore.deleteEvidenceScope()` so that any
+ * .enc files are cleaned up before the key is gone (once the key is deleted
+ * the ciphertext on disk is unreadable but inert).
+ *
+ * No-op if the key does not exist.  Best-effort — never throws.
+ */
+export async function deleteEvidenceKey(scope: string): Promise<void> {
+  const storageKey = `${KEY_STORE_PREFIX}${scope}`;
+  if (!isWeb) {
+    await SecureStore.deleteItemAsync(storageKey).catch(() => {});
+    return;
+  }
+  // Web: remove from IndexedDB (new key store)
+  try {
+    const db = await _idbOpen();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE_NAME, 'readwrite');
+      tx.objectStore(IDB_STORE_NAME).delete(storageKey);
+      tx.oncomplete = () => resolve();
+      tx.onerror   = () => reject(tx.error);
+    });
+  } catch { /* best-effort */ }
+  // Also clear any legacy AsyncStorage / localStorage copy
+  await AsyncStorage.removeItem(storageKey).catch(() => {});
+}
+
 /** Returns this scope's AES-256 key, generating + persisting one on first use. */
 export async function getOrCreateKey(scope: string): Promise<Uint8Array> {
   const storageKey = `${KEY_STORE_PREFIX}${scope}`;

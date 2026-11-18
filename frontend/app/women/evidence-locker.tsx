@@ -8,7 +8,9 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import * as Location from 'expo-location';
-import { Paths, File as EfsFile } from 'expo-file-system/next';
+// EL-054: Paths / EfsFile were previously imported here for the inline cache
+// sweep; that logic now lives in sweepOrphanedEvidenceTempFiles() (evidenceStore.ts).
+// The import is no longer needed in this file.
 import { crossAlert } from '@/src/utils/crossAlert';
 import { consumeEvidenceAutoRecord } from '@/src/women/evidenceAutoRecord';
 import { theme } from '@/src/theme';
@@ -17,12 +19,13 @@ import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { useEvidenceRecorder } from '@/src/women/EvidenceRecorderProvider';
 import {
   saveRecording, savePhoto, saveVideo, deleteRecording, releaseRecordings,
-  discardTemporaryRecording, getDecryptedTempUri, getSegmentedShareZipUri, releaseDecryptedTempUri, type RecordingItem,
+  discardTemporaryRecording, getDecryptedTempUri, getSegmentedShareZipUri, releaseDecryptedTempUri, sweepOrphanedEvidenceTempFiles, type RecordingItem,
   saveSegment, createSegmentedParent, loadSegments, loadVisibleRecordings,
+  pendingTempFileExists,
 } from '@/src/women/evidenceStore';
 import { hasPin, setPin, verifyPin, getLockoutRemainingMs, changePin } from '@/src/women/evidenceLock';
-import { getManifestEntry, markManifestDeleted, type ManifestEntry, type GpsPoint } from '@/src/women/evidenceManifest';
-import { anchorItem, backupItem } from '@/src/women/evidenceBackup';
+import { getManifestEntry, markManifestDeleted, clearBackupInfo, type ManifestEntry, type GpsPoint } from '@/src/women/evidenceManifest';
+import { anchorItem, backupItem, deleteBackupCloud } from '@/src/women/evidenceBackup';
 import { fetchFlags } from '@/src/women/api';
 import { markPendingTemp, clearPendingTemp, listPendingTemps } from '@/src/women/evidencePendingTemp';
 import { exportCertificate } from '@/src/women/evidenceCertificate';
@@ -250,39 +253,60 @@ export default function EvidenceLocker() {
   const [anchoring, setAnchoring] = useState<string | null>(null);
   const [backingUp, setBackingUp] = useState<Record<string, number>>({});
   // E1: Anchor/Backup buttons only render when evidence_vault_enabled is on.
+  // EL-055: Whole locker renders blocked when evidence_locker_enabled is off.
   const [vaultEnabled, setVaultEnabled] = useState(false);
+  const [lockerEnabled, setLockerEnabled] = useState<boolean | null>(null); // null = loading
   useEffect(() => {
     let alive = true;
-    fetchFlags().then(f => { if (alive) setVaultEnabled(!!(f as any)?.evidence_vault_enabled); })
-      .catch(() => { if (alive) setVaultEnabled(false); });
+    // EL-055: Per-scope AsyncStorage cache for the last server-confirmed flag
+    // values.  On a network or server error we distinguish:
+    //   cached null  → never connected before → allow (first-ever offline run)
+    //   cached true  → server previously enabled → allow (offline access)
+    //   cached false → server explicitly disabled → block (authorization denial)
+    const lockerFlagKey = `dhara_locker_flag_v1_${scope}`;
+    const vaultFlagKey  = `dhara_vault_flag_v1_${scope}`;
+    const run = async () => {
+      try {
+        const f = await fetchFlags();
+        if (!alive) return;
+        const locker = !!(f as any)?.evidence_locker_enabled;
+        const vault  = !!(f as any)?.evidence_vault_enabled;
+        setLockerEnabled(locker);
+        setVaultEnabled(vault);
+        // Cache the authoritative values for future offline sessions.
+        AsyncStorage.multiSet([
+          [lockerFlagKey, JSON.stringify(locker)],
+          [vaultFlagKey,  JSON.stringify(vault)],
+        ]).catch(() => {}); // best-effort; never blocks render
+      } catch {
+        if (!alive) return;
+        // Network / server error: read the last-known cached values so we can
+        // distinguish offline access from a genuine authorization denial.
+        try {
+          const [[, lRaw], [, vRaw]] = await AsyncStorage.multiGet([lockerFlagKey, vaultFlagKey]);
+          const cachedLocker = lRaw !== null ? (JSON.parse(lRaw) as boolean) : true;
+          const cachedVault  = vRaw !== null ? (JSON.parse(vRaw) as boolean) : false;
+          if (alive) { setLockerEnabled(cachedLocker); setVaultEnabled(cachedVault); }
+        } catch {
+          // Cache read also failed — allow access; do not lock users out for infra issues.
+          if (alive) { setLockerEnabled(true); setVaultEnabled(false); }
+        }
+      }
+    };
+    run();
     return () => { alive = false; };
-  }, []);
+  }, [scope]);
   // S5 — load saved notes for this user scope
   useEffect(() => {
     if (!unlocked) return;
     AsyncStorage.getItem(`evidence_notes_${scope}`).then(v => { if (v) setNotesMap(JSON.parse(v)); }).catch(() => {});
   }, [scope, unlocked]);
-  // B2 (Phase 0.5 — corrected): sweep cache dir for leftover decrypted temp
-  // files at every launch (component mount or scope change), NOT on unlock.
-  // The cleanup only reads file names; it never reads file contents or uses
-  // the encryption key, so the PIN gate does not need to have resolved first.
-  // Pending URIs (not yet sealed) are skipped regardless.
+  // EL-054 (Phase 0.5): sweep cache dir for leftover decrypted temp files at
+  // every launch (component mount or scope change), NOT on unlock.  Delegates
+  // to the exported sweepOrphanedEvidenceTempFiles() so the same logic can be
+  // called from other entry points (e.g. app startup) without duplicating it.
   useEffect(() => {
-    void (async () => {
-      try {
-        const pending = await listPendingTemps(AsyncStorage, scope);
-        const pendingSet = new Set(pending.map(p => p.uri));
-        const entries = Paths.cache.list();
-        for (const entry of entries) {
-          const name = entry.uri.split('/').pop() ?? '';
-          if (!name.startsWith('dhara-evidence-tmp-')) continue;
-          if (pendingSet.has(entry.uri)) continue; // never remove unsealed pending
-          try { new EfsFile(entry.uri).delete(); } catch {}
-        }
-      } catch {
-        // non-fatal: stale temp cleanup is best-effort
-      }
-    })();
+    void sweepOrphanedEvidenceTempFiles(scope);
   }, [scope]); // runs at mount and on scope change — does NOT wait for unlock
   const player = useRef<TtsPlayer | null>(null);
   const epoch = useRef(0);
@@ -410,11 +434,18 @@ export default function EvidenceLocker() {
         if (!alive || pending.length === 0 || active.current) return;
         let recovered = 0;
         for (const entry of pending) {
+          // EL-054: If the OS purged the temp file between sessions the entry
+          // is stale.  Clearing it now prevents it accumulating and retrying
+          // on every subsequent cold start.  The recording cannot be recovered.
+          if (!pendingTempFileExists(entry.uri)) {
+            await clearPendingTemp(AsyncStorage, scope, entry.uri).catch(() => {});
+            continue;
+          }
           try {
             const item = await saveRecording(scope, entry.uri);
             await persistThenDiscard(item, entry.uri);
             recovered++;
-          } catch { /* keep it pending — try again on the next launch */ }
+          } catch { /* keep it pending — file exists but encryption/write failed; retry on next launch */ }
         }
         if (!alive || recovered === 0) return;
         const visible = await loadVisibleRecordings(scope).catch(() => null);
@@ -800,6 +831,10 @@ export default function EvidenceLocker() {
   const remove = useCallback(async (item: RecordingItem) => {
     setDeleteError('');
     setDeleteBusy(true);
+    // N-09: capture this BEFORE any state mutation below — manifestMap's
+    // entry for this item is deleted further down, so this is the only
+    // chance to know whether a cloud copy exists to also delete.
+    const hadBackup = !!manifestMap[item.id]?.backup;
     try {
       stopPlayer();
       if (videoPreview?.id === item.id) closeVideoPreview();
@@ -811,6 +846,18 @@ export default function EvidenceLocker() {
       }
       // This item's own metadata only — never another item's.
       await markManifestDeleted(scope, item.id).catch(() => {});
+      // N-09: also delete the cloud copy, not just the local file — a
+      // network failure here must NOT block the local delete the user
+      // asked for (they may be offline), so it never throws; it reports
+      // a tri-state result the toast below reflects honestly instead of
+      // claiming "deleted" when the cloud object may still be sitting there.
+      let cloudResult: 'deleted' | 'none' | 'failed' = 'none';
+      if (hadBackup) {
+        cloudResult = await deleteBackupCloud(scope, item.id, token);
+        if (cloudResult === 'deleted' || cloudResult === 'none') {
+          await clearBackupInfo(scope, item.id).catch(() => {});
+        }
+      }
       setManifestMap(prev => { const next = { ...prev }; delete next[item.id]; return next; });
       if (notesMap[item.id] !== undefined) {
         const nextNotes = { ...notesMap };
@@ -821,8 +868,13 @@ export default function EvidenceLocker() {
       owned.current = owned.current.filter(row => row.id !== item.id);
       setItems(owned.current);
       setDeleting(null);
-      setStatus('Recording deleted from this device.');
-      setToast('Recording deleted from this device.');
+      const msg = cloudResult === 'failed'
+        ? 'Deleted from this device. Could not reach the server to delete the cloud copy — it may still be stored; try again when you have signal.'
+        : hadBackup
+          ? 'Recording and its cloud backup have both been deleted.'
+          : 'Recording deleted from this device.';
+      setStatus(msg);
+      setToast(msg);
     } catch (e: any) {
       // Visible failure with a reason class, so a silent failure can't look
       // like a successful delete.
@@ -836,7 +888,7 @@ export default function EvidenceLocker() {
     } finally {
       setDeleteBusy(false);
     }
-  }, [scope, stopPlayer, videoPreview, closeVideoPreview, photoUris, notesMap]);
+  }, [scope, stopPlayer, videoPreview, closeVideoPreview, photoUris, notesMap, manifestMap, token]);
 
   // ── P0-B: Recover an interrupted session ──────────────────────────────────
   const handleRecover = useCallback(async (session: EvidenceSession) => {
@@ -1054,6 +1106,35 @@ export default function EvidenceLocker() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  // EL-055: Check locker feature flag before PIN gate.
+  // lockerEnabled === null  → still loading → show spinner
+  // lockerEnabled === false → disabled by operator → show blocked state
+  // lockerEnabled === true  → proceed to PIN gate as normal
+  if (lockerEnabled === null) {
+    return (
+      <View style={styles.root}>
+        <ScreenHeader title="Evidence Locker" />
+        <View style={styles.disabledBlock}>
+          <ActivityIndicator color={c.brand} />
+        </View>
+      </View>
+    );
+  }
+  if (lockerEnabled === false) {
+    return (
+      <View style={styles.root}>
+        <ScreenHeader title="Evidence Locker" />
+        <View style={styles.disabledBlock} testID="locker-disabled">
+          <Text style={styles.disabledTitle}>Evidence Locker is not available</Text>
+          <Text style={styles.disabledBody}>
+            This feature has not been enabled for your version of DHARA.
+            Your existing evidence files are safe and have not been changed.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   if (!unlocked) return <PinGate onUnlock={() => setUnlocked(true)} />;
 
   // B5 (Phase 0.5): Change-PIN handler — requires the current PIN.
@@ -1067,7 +1148,7 @@ export default function EvidenceLocker() {
         const { verifyPin: vp } = await import('@/src/women/evidenceLock');
         const result = await vp(cpCurrentInput);
         if (!result.ok) {
-          setCpError(result.lockedOut ? `Too many attempts — wait ${Math.ceil((result.remainingMs ?? 0) / 1000)}s.` : 'Incorrect PIN. Try again.');
+          setCpError(result.reason === 'locked_out' ? `Too many attempts — wait ${Math.ceil((result.retryAfterMs ?? 0) / 1000)}s.` : 'Incorrect PIN. Try again.');
           setCpCurrentInput('');
           return;
         }
@@ -1100,7 +1181,7 @@ export default function EvidenceLocker() {
     <View style={styles.root} testID="evidence-locker-screen">
       <ScreenHeader title="Evidence locker" subtitle="Local recordings, photos & video · no network needed" />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
-        <Text testID="evidence-storage-notice" style={styles.note}>Capture only when safe. Everything saved here is encrypted on this device and protected by your PIN; it is not backed up or sent to anyone unless you tap Share, Anchor or Back up. Clearing app data or uninstalling can erase it.</Text>
+        <Text testID="evidence-storage-notice" style={styles.note}>Saved to this phone. Nobody else gets it unless you choose to share it, anchor it, or back it up. Recording in the background is not promised — keep the screen on while recording. Clearing app data or uninstalling can erase it.</Text>
         {/* B5 (Phase 0.5): Change PIN — requires current PIN to proceed */}
         <Pressable
           testID="evidence-change-pin"
@@ -1288,7 +1369,7 @@ export default function EvidenceLocker() {
             </Text>
             {!!deleteTarget && manifestMap[deleteTarget.id]?.backup && (
               <Text style={styles.modalBody} testID="recording-delete-cloud-note">
-                A copy you backed up to secure cloud storage stays in the cloud — this removes the copy on this device only.
+                This item was backed up to secure cloud storage — deleting it also deletes that cloud copy.
               </Text>
             )}
             {!!deleteError && (
@@ -1366,6 +1447,9 @@ export default function EvidenceLocker() {
 }
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background }, content: { padding: 20, gap: 18 },
+  disabledBlock: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 },
+  disabledTitle: { fontFamily: theme.fonts.displayBold, fontSize: 20, color: c.ink, textAlign: 'center' },
+  disabledBody: { fontFamily: theme.fonts.body, fontSize: 15, lineHeight: 23, color: c.muted, textAlign: 'center' },
   note: { fontFamily: theme.fonts.body, fontSize: 15, lineHeight: 23, color: c.muted },
   timer: { fontFamily: theme.fonts.bodyBold, fontSize: 22, color: c.emergencyRed },
   heading: { fontFamily: theme.fonts.displayBold, fontSize: 23, color: c.ink, marginTop: 10 },

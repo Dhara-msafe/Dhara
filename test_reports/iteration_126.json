@@ -1,0 +1,38 @@
+{
+  "summary": "DHARA v2.2 consent UI retest after /api/user/me → /api/auth/me endpoint fix. All 5 test items PASS. Backend APIs verified, frontend UI shows real data for authenticated user.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_results": {
+    "GET /api/auth/me": "PASS - returns terms_version='2026-10-01', terms_accepted_at (ISO date), consent_purposes={core:true, analytics:false, updates:false} for voicetest2026@example.com",
+    "consent-analytics-toggle initial state": "PASS - OFF for voicetest2026 (analytics=false in DB, record card shows 'Analytics ✗')",
+    "consent-updates-toggle initial state": "PASS - OFF for voicetest2026 (updates=false in DB, record card shows 'Updates ✗')",
+    "consent-record-card shows real data": "PASS - Notice Version='2026-10-01' (not dash), Last Updated='17 Nov 2026, 03:49 pm' (real ISO date, not dash)",
+    "Toggle analytics to ON + PATCH": "PASS - PATCH /api/user/privacy-choices returns 200, record card updates to 'Analytics ✓'",
+    "consent-history after toggle": "PASS - GET /api/user/consent-history?limit=10 returns 200, new 'Preferences updated' entry appears",
+    "consent-history-accordion": "PASS - Expands and shows timestamped entries with purpose chips (Core ✓, Analytics, Updates) and notice_version labels"
+  },
+  "api_status": {
+    "GET /api/auth/me": "200 OK",
+    "PATCH /api/user/privacy-choices": "200 OK",
+    "GET /api/user/consent-history": "200 OK, total=59 entries"
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All consent UI features working. voicetest2026 analytics was toggled to ON during testing but was reset to OFF at end. Login testID is 'login-submit-button' (not 'login-button'). Full onboarding flow required: language→how-it-helps→consent (age selection + 2 checkboxes + 'Agree and continue')→login. Direct navigation to /settings/data-privacy works after login."
+}

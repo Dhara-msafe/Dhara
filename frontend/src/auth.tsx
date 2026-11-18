@@ -19,6 +19,7 @@ import { deactivateCover } from './women/coverState';
 import { useHeadOutWizard } from './women/headOutWizardStore';
 import { CONSENT_ANON_KEY, migrateAnonConsentToUser } from './consentStorage';
 import { useLocationUploadQueue } from './safety/locationUploadQueue';
+import { registerGuestScope, touchGuestScope } from './women/guestScopeRegistry';
 
 // Required for iOS to properly complete the auth session
 WebBrowser.maybeCompleteAuthSession();
@@ -337,6 +338,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!r.ok) throw new Error(await _extractError(r, 'Could not start guest session'));
     const data = await r.json();
     await persist(data.token, data.user);
+    // Guest scope lifecycle: register this scope in the deferred-GC registry.
+    // Best-effort — a failure here must not block the guest session from starting.
+    if (data.user?.id) {
+      registerGuestScope(data.user.id).catch(() => {});
+    }
   };
 
   const refreshUser = async () => {
@@ -390,6 +396,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       'dhara_loc_queue', 'issue_reports_pending_v1',
       'fir_active_session_v3', 'fir_selected_module_v1', 'fir_draft_lang_v3',
     ]);
+    // Guest scope lifecycle: touch lastSeenAt so the 30-day GC grace window
+    // runs from the actual logout moment, not from an earlier cold start.
+    // This must run BEFORE setUser(null) while `user` still holds the guest data.
+    if (user?.is_guest && user?.id) {
+      touchGuestScope(user.id).catch(() => {}); // best-effort, non-blocking
+    }
     setToken(null);
     setUser(null);
   };

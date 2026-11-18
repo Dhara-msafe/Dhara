@@ -46,6 +46,8 @@ MAX_TOTAL_CHUNKS = 4000  # generous ceiling for a 2-min video at low quality
 
 async def _flags_or_503() -> None:
     flags = await get_flags()
+    if not flags.get("evidence_locker_enabled"):
+        raise HTTPException(503, "Evidence Locker is not enabled on this server.")
     if not flags.get("evidence_vault_enabled"):
         raise HTTPException(503, "Evidence vault cloud features are not enabled on this server.")
 

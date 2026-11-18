@@ -31,12 +31,12 @@ import * as SMS from 'expo-sms';
 
 export type Channel = 'dialler' | 'sms' | 'external_share';
 export type Decision = 'live' | 'simulate' | 'disabled';
-type Profile = 'internal_qa' | 'closed_testing' | 'production';
+type Profile = 'internal_qa' | 'closed_testing' | 'sms_only' | 'production';
 
 export const OUTBOUND_LIVE = process.env.EXPO_PUBLIC_OUTBOUND_MODE === 'live';
 export const SIMULATED_TEXT = 'Simulated — nothing sent';
 
-const VALID_PROFILES: Profile[] = ['internal_qa', 'closed_testing', 'production'];
+const VALID_PROFILES: Profile[] = ['internal_qa', 'closed_testing', 'sms_only', 'production'];
 const _rawProfile = (process.env.EXPO_PUBLIC_OUTBOUND_PROFILE || '') as Profile;
 export const OUTBOUND_PROFILE: Profile = VALID_PROFILES.includes(_rawProfile)
   ? _rawProfile
@@ -45,6 +45,8 @@ export const OUTBOUND_PROFILE: Profile = VALID_PROFILES.includes(_rawProfile)
 const POLICY: Record<Profile, Record<Channel, Decision>> = {
   internal_qa:    { dialler: 'simulate', sms: 'simulate', external_share: 'simulate' },
   closed_testing: { dialler: 'live',     sms: 'live',     external_share: 'live' },
+  // sms_only: real SMS/share; calls stay simulated (NF-SAFETY-02).
+  sms_only:       { dialler: 'simulate', sms: 'live',     external_share: 'live' },
   production:     { dialler: 'live',     sms: 'live',     external_share: 'live' },
 };
 
@@ -175,6 +177,28 @@ export async function composeSms(recipients: string[], body: string): Promise<Sm
   if (!(await SMS.isAvailableAsync())) return 'unavailable';
   await SMS.sendSMSAsync(recipients, body);
   return 'composer';
+}
+
+/**
+ * Open a static HTTPS page (privacy policy, terms, support docs) in the
+ * device browser. Unlike openExternal, this is never blocked by the
+ * outbound-mode guard — static pages are not a dialler/SMS/share channel.
+ * All Linking.openURL calls are centralised here per the outbound-guard
+ * static test (src/__tests__/outboundGuard.test.mjs).
+ * Shows a cross-platform alert if the device cannot open the URL.
+ */
+export async function openStaticPage(url: string): Promise<void> {
+  try {
+    await Linking.openURL(url);
+  } catch {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+        window.alert(`Cannot open link. Please visit:\n${url}`);
+      }
+    } else {
+      Alert.alert('Cannot open link', `Please visit this page in your browser:\n${url}`);
+    }
+  }
 }
 
 /** Drop-in replacement for Share.share. */

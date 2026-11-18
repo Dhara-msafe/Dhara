@@ -55,6 +55,36 @@ WHISPER_HINT_SET: frozenset[str] = frozenset({
 })
 
 
+# WHISPER PROMPT-BIAS HINTS (V1-B, 2026-11-17, B-106)
+# -----------------------------------------------------
+# B-106: Telugu audio was coming back transcribed as Tamil. Root cause:
+# Telugu's `language` hint is one of the nine codes the Emergent Whisper
+# proxy rejects (see WHISPER_HINT_SET policy above), so every Telugu
+# request already fell straight to full auto-detect with zero language
+# signal — and Whisper has been observed to mislabel Telugu audio as
+# Tamil specifically, the two being acoustically close South Dravidian
+# languages for the model without a hint to disambiguate them.
+#
+# The proxy only validates/rejects the `language` field; `prompt` is a
+# free-text field it does not check against a language allowlist, and
+# Whisper is documented to bias its output toward whichever script the
+# prompt text itself is written in. So for a hint-rejected code with a
+# verified native-script sample, send that sample as `prompt` on the
+# FIRST attempt (never as `language`, which would still 400) — this
+# recovers most of the accuracy a real language hint would have given,
+# without tripping the proxy's validator.
+#
+# Only add a code here once there is a REAL, verified native-script
+# sample for it — a wrong or invented sample would bias Whisper toward
+# the wrong output, which is worse than plain auto-detect. Telugu is the
+# only entry today because it is the one this bug was filed against; the
+# other eight hint-rejected codes (bn, gu, ml, pa, or, as, sa, sd) still
+# get thin auto-detect until someone supplies a verified sample for them.
+WHISPER_PROMPT_HINT: dict[str, str] = {
+    "te": "ఇది తెలుగు భాషలో ఒక వాక్యం.",  # "This is a sentence in the Telugu language."
+}
+
+
 def normalize_language(language: str | None) -> str | None:
     """Strip BCP-47 subtag ('ta-IN' → 'ta') and lower-case.
 
@@ -136,10 +166,20 @@ async def transcribe_with_retry(
         "file": (filename, audio_bytes, content_type),
     }
     lang_hint = lang if (lang and lang in WHISPER_HINT_SET) else None
+    # B-106: only consulted when there's no real `language` hint to send —
+    # a prompt bias is a fallback for the hint-rejected codes, never a
+    # substitute for an actual supported hint.
+    prompt_hint = WHISPER_PROMPT_HINT.get(lang) if (lang and not lang_hint) else None
 
-    # First attempt — with language hint when available.
+    # First attempt — with language hint when available, else a prompt
+    # bias for the specific hint-rejected codes we have a verified sample
+    # for (B-106), else plain auto-detect.
     try:
-        kwargs = {**base_kwargs, **({"language": lang_hint} if lang_hint else {})}
+        kwargs = {**base_kwargs}
+        if lang_hint:
+            kwargs["language"] = lang_hint
+        elif prompt_hint:
+            kwargs["prompt"] = prompt_hint
         result = await openai_client.audio.transcriptions.create(**kwargs)
         return {"text": result.text, **script_check_fn(result.text, lang)}
 
