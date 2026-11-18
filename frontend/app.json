@@ -34,7 +34,7 @@
         "backgroundColor": "#FFFCF8"
       },
       "softwareKeyboardLayoutMode": "resize",
-      "package": "com.msafesolutions.legalaid",
+      "package": "in.askdhara.app",
       "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {
