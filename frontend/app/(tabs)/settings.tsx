@@ -728,24 +728,65 @@ function HelpRow({ label, number }: { label: string; number: string }) {
 }
 
 function PickerModal({ visible, title, onClose, items, selectedId, onSelect, testID }: any) {
+  const [query, setQuery] = React.useState('');
+  const normalise = (s: string) => s.toLowerCase().normalize('NFC');
+  const q = normalise(query.trim());
+  const filtered = q.length === 0
+    ? items
+    : items.filter((it: any) => normalise(it.label).includes(q));
+
+  // Reset search when modal opens/closes
+  React.useEffect(() => {
+    if (!visible) setQuery('');
+  }, [visible]);
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} testID={testID}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={() => {}}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>{title}</Text>
-          <ScrollView style={{ maxHeight: 500 }}>
-            {items.map((it: any) => (
-              <Pressable
-                key={it.id}
-                testID={`opt-${it.id}`}
-                style={[styles.opt, selectedId === it.id && styles.optSel]}
-                onPress={() => onSelect(it)}
-              >
-                <Text style={[styles.optText, selectedId === it.id && styles.optTextSel]}>{it.label}</Text>
-                {selectedId === it.id && <Ionicons name="checkmark-circle" size={22} color={theme.colors.brand} />}
+
+          {/* ── Search field ── */}
+          <View style={styles.pickerSearch}>
+            <Ionicons name="search-outline" size={16} color={theme.colors.muted} />
+            <TextInput
+              testID="lang-modal-search"
+              style={styles.pickerSearchInput}
+              placeholder="Search…"
+              placeholderTextColor={theme.colors.muted}
+              value={query}
+              onChangeText={setQuery}
+              autoCorrect={false}
+              autoCapitalize="none"
+              returnKeyType="search"
+              accessibilityLabel="Search languages"
+            />
+            {query.length > 0 && (
+              <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityLabel="Clear">
+                <Ionicons name="close-circle" size={16} color={theme.colors.muted} />
               </Pressable>
-            ))}
+            )}
+          </View>
+
+          <ScrollView style={{ maxHeight: 420 }} keyboardShouldPersistTaps="handled">
+            {filtered.length === 0 ? (
+              <View style={styles.pickerEmpty} testID="lang-modal-no-results">
+                <Text style={styles.pickerEmptyText}>{`No results for "${query}"`}</Text>
+              </View>
+            ) : (
+              filtered.map((it: any) => (
+                <Pressable
+                  key={it.id}
+                  testID={`opt-${it.id}`}
+                  style={[styles.opt, selectedId === it.id && styles.optSel]}
+                  onPress={() => onSelect(it)}
+                >
+                  <Text style={[styles.optText, selectedId === it.id && styles.optTextSel]}>{it.label}</Text>
+                  {selectedId === it.id && <Ionicons name="checkmark-circle" size={22} color={theme.colors.brand} />}
+                </Pressable>
+              ))
+            )}
           </ScrollView>
         </Pressable>
       </Pressable>
@@ -845,6 +886,33 @@ const styles = StyleSheet.create({
   optSel: { backgroundColor: theme.colors.surfaceSecondary },
   optText: { color: theme.colors.onSurface, fontSize: 15 },
   optTextSel: { color: theme.colors.brand, fontWeight: '700' },
+  pickerSearch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: theme.colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: theme.spacing.md,
+    minHeight: 44,
+    marginBottom: theme.spacing.md,
+  },
+  pickerSearchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: theme.colors.onSurface,
+    paddingVertical: theme.spacing.sm,
+  },
+  pickerEmpty: {
+    paddingVertical: theme.spacing.xxl,
+    alignItems: 'center',
+  },
+  pickerEmptyText: {
+    fontSize: 14,
+    color: theme.colors.onSurfaceSecondary,
+    textAlign: 'center',
+  },
   langToast: {
     position: 'absolute',
     bottom: 40,

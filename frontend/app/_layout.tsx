@@ -24,6 +24,7 @@ import { consentVersionKey, isCurrentConsent } from "@/src/consentStorage";
 // must NOT be called automatically. Guest evidence persists until an explicit
 // user-initiated deletion action is implemented and reviewed.
 // import { runDeferredGuestGC } from "@/src/women/evidenceGC";
+import { GuestRecoveryModal } from "@/src/women/GuestRecoveryModal";
 import { theme } from "@/src/theme";
 import { EvidenceRecorderProvider } from "@/src/women/EvidenceRecorderProvider";
 import { initSpeechGate } from "@/src/voice/speechGate";
@@ -291,6 +292,59 @@ function PrivacyCoverGateInner() {
   );
 }
 
+/**
+ * GuestRecoveryGate — shows the Guest Recovery Modal once per new guest
+ * session if the device holds encrypted recordings from prior guest sessions.
+ *
+ * Trigger: runs whenever user.id changes AND user.is_guest is true.
+ * Shows at most once per mount of this component (tracked via checkedScopeRef).
+ * The modal auto-closes when all prior sessions have been handled.
+ *
+ * NOT triggered by: session expiry, logout, app restart, registered users.
+ */
+function GuestRecoveryGate() {
+  const { user } = useAuth();
+  const [showRecovery, setShowRecovery] = React.useState(false);
+  const checkedScopeRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (!user?.is_guest || !user?.id) return;
+    if (checkedScopeRef.current === user.id) return; // already checked for this session
+    checkedScopeRef.current = user.id;
+
+    // Small delay so the main app screen is visible before the modal appears.
+    const t = setTimeout(async () => {
+      try {
+        const { listAllGuestScopes } = await import('@/src/women/guestScopeRegistry');
+        const { loadVisibleRecordings } = await import('@/src/women/evidenceStore');
+        const all    = await listAllGuestScopes();
+        const prior  = all.filter(e => e.scope !== user.id);
+        for (const e of prior) {
+          try {
+            const recs = await loadVisibleRecordings(e.scope);
+            if (recs.length > 0) {
+              setShowRecovery(true);
+              return; // show modal — it will load full details itself
+            }
+          } catch { /* skip unreadable scope */ }
+        }
+      } catch { /* registry unreadable — skip silently */ }
+    }, 1500);
+
+    return () => clearTimeout(t);
+  }, [user?.id, user?.is_guest]);
+
+  if (!user?.is_guest || !user?.id || !showRecovery) return null;
+
+  return (
+    <GuestRecoveryModal
+      visible={showRecovery}
+      currentScope={user.id}
+      onClose={() => setShowRecovery(false)}
+    />
+  );
+}
+
 export default function RootLayout() {
   const [iconsLoaded, iconError] = useIconFonts();
   const [brandLoaded, brandError] = useAppFonts();
@@ -379,6 +433,7 @@ export default function RootLayout() {
               <NotificationTapBridge />
               <LanguageOnboardModal />
               <QaModeBanner />
+              <GuestRecoveryGate />
               <StatusBar style="dark" />
               {isWideWeb ? (
                 <DesktopFrame>

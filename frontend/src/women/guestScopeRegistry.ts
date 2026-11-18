@@ -74,6 +74,15 @@ export async function listStaleGuestScopes(
 }
 
 /**
+ * Returns ALL registered guest scope entries — including the current active
+ * one.  Used by the Guest Recovery Gate to find prior sessions; callers
+ * should filter out the current user.id before displaying to the user.
+ */
+export async function listAllGuestScopes(): Promise<GuestScopeEntry[]> {
+  return readRegistry();
+}
+
+/**
  * Removes an entry from the registry — called by the GC once a scope's
  * evidence and key have been successfully deleted.
  */

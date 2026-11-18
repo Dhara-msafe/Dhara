@@ -134,14 +134,12 @@ orphaned plaintext.
 
 ## 8. Open questions for review
 
-| # | Question | Current assumption |
+| # | Question | Decision (Jun 2026) |
 |---|---|---|
-| Q1 | Should the recovery prompt show individual recording names / durations? | Show count + date only (no filenames that could expose content). |
-| Q2 | If the user has multiple previous guest scopes (e.g. reinstalled once), should all scopes be presented? | Merge all stale scopes into one count; delete all on "Discard". |
-| Q3 | Should "Keep" silently merge prior scope into the current session scope? | No merge — keep scopes separate; prior recordings accessible from Evidence Locker under their original scope. |
-| Q4 | Is there a maximum number of guest scopes before the registry is considered stale / auto-cleaned? | No automatic cleaning — this requires explicit user approval. |
-
-**Please confirm Q1–Q4 before implementation begins.**
+| Q1 | Should the recovery prompt show individual recording names / durations? | **Full list with filenames, durations, and dates** — implemented. |
+| Q2 | If the user has multiple previous guest scopes, should all scopes be presented? | **Each session shown separately** — implemented. Per-session Keep/Discard. |
+| Q3 | Should "Keep" silently merge prior scope into the current session scope? | **Kept as-is** — data stays under original scope/key. No re-keying. The Evidence Locker shows current-session recordings only; multi-scope Evidence Locker display is a future enhancement. |
+| Q4 | Is there a maximum number of guest scopes before the registry is considered stale / auto-cleaned? | **No automatic cleaning** — confirmed. Registry entries are never deleted automatically. |
 
 ---
 

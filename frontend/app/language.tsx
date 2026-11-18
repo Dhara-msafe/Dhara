@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, FlatList } from 'react-native';
+import { View, Text, Pressable, StyleSheet, FlatList, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -41,6 +41,18 @@ export default function LanguageSelect() {
   const router = useRouter();
   const { from } = useLocalSearchParams<{ from?: string }>();
   const [selected, setSelected] = useState<Language>(language);
+  const [query,    setQuery]    = useState('');
+
+  const normalise = (s: string) => s.toLowerCase().normalize('NFC');
+  const q = normalise(query.trim());
+  const filtered = q.length === 0
+    ? LANGUAGES
+    : LANGUAGES.filter(
+        l =>
+          normalise(l.name).includes(q) ||
+          normalise(l.native).includes(q) ||
+          normalise(l.code).includes(q),
+      );
 
   const onContinue = async () => {
     if (selected.code !== language.code) {
@@ -79,10 +91,42 @@ export default function LanguageSelect() {
           DHARA speaks in the language you prefer. Which features work in each language is shown after you choose.
         </Text>
       </View>
+      {/* ── Search field ── */}
+      <View style={styles.searchWrap}>
+        <Ionicons name="search-outline" size={18} color={theme.colors.muted} style={styles.searchIcon} />
+        <TextInput
+          testID="language-search"
+          style={styles.searchInput}
+          placeholder="Search language…"
+          placeholderTextColor={theme.colors.muted}
+          value={query}
+          onChangeText={setQuery}
+          autoCorrect={false}
+          autoCapitalize="none"
+          returnKeyType="search"
+          accessibilityLabel="Search languages"
+        />
+        {query.length > 0 && (
+          <Pressable
+            onPress={() => setQuery('')}
+            hitSlop={8}
+            accessibilityLabel="Clear search"
+          >
+            <Ionicons name="close-circle" size={18} color={theme.colors.muted} />
+          </Pressable>
+        )}
+      </View>
+
       <FlatList
-        data={LANGUAGES}
+        data={filtered}
         keyExtractor={(l) => l.code}
         contentContainerStyle={styles.list}
+        keyboardShouldPersistTaps="handled"
+        ListEmptyComponent={
+          <View style={styles.emptyWrap} testID="language-no-results">
+            <Text style={styles.emptyText}>{`No results for "${query}"`}</Text>
+          </View>
+        }
         renderItem={({ item }) => {
           const active = item.code === selected.code;
           return (
@@ -177,9 +221,42 @@ const styles = StyleSheet.create({
   // Descriptive subtitle replacing the multilingual hint
   sub: { color: theme.colors.muted, fontSize: 15, lineHeight: 22 },
 
+  // ── Search field ─────────────────────────────────────────────────────────
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1.5,
+    borderColor: theme.colors.lines,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: theme.spacing.md,
+    minHeight: 44,
+    gap: 8,
+  },
+  searchIcon: { opacity: 0.7 },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: theme.colors.navy,
+    paddingVertical: theme.spacing.sm,
+    // No hardcoded height — flex fills available space naturally
+  },
+
+  // ── Empty state ───────────────────────────────────────────────────────────
+  emptyWrap: {
+    paddingVertical: theme.spacing.xxxl,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 15,
+    color: theme.colors.muted,
+    textAlign: 'center',
+  },
+
   // ── Language list items ───────────────────────────────────────────────────
-  list: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg, gap: theme.spacing.sm },
-  row: {
+  list: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg, gap: theme.spacing.sm },  row: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.surface,
