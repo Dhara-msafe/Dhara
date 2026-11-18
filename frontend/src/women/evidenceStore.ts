@@ -3,6 +3,7 @@ import { File, Paths } from 'expo-file-system';
 import { Zip, ZipPassThrough } from 'fflate';
 import { getOrCreateKey, encryptBytes, decryptBytes } from './evidenceCrypto';
 import { listPendingTemps } from './evidencePendingTemp';
+import { encryptFileChunked, decryptFileChunked } from './evidenceChunkedCrypto';
 
 export type EvidenceType = 'audio' | 'photo' | 'video';
 // `iv` present → file on disk is AES-256-CTR ciphertext (S-B5). Items saved
@@ -22,6 +23,13 @@ export type RecordingItem = {
   segment_count?: number;
   /** Total approximate duration in ms for a v2 parent item */
   total_duration_ms?: number;
+  /**
+   * 'ctr-hmac-v1' → item was encrypted with the chunked AES-256-CTR-HMAC path
+   *   (evidenceChunkedCrypto.ts). Decrypt via `decryptFileChunked`.
+   * Absent/undefined → legacy format, in-memory AES-256-CTR only. Decrypt via
+   *   the existing `decryptBytes` path.
+   */
+  auth_format?: 'ctr-hmac-v1';
 };
 const storageKey = (scope: string) => `dhara_local_recordings_${scope}`;
 
@@ -61,18 +69,27 @@ export async function loadRecordings(scope: string): Promise<RecordingItem[]> {
 async function saveItem(scope: string, uri: string, type: EvidenceType, ext: string): Promise<RecordingItem> {
   const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const file = new File(Paths.document, `dhara-evidence-${id}.enc`);
-  // OOM guard: check file size before allocating the buffer. The native
-  // `File.size` getter returns 0 when the file is absent or unreadable, so a
-  // zero result is treated as "unknown" and we proceed (bytes() will throw its
-  // own error if the file really is gone).
   const sourceFile = new File(uri);
   const fileSize = (sourceFile as any).size as number ?? 0;
+
+  // Route large files to the authenticated chunked path (AES-256-CTR-HMAC).
+  // MAX_INLINE_BYTES is the branch point, NOT a hard ceiling.
   if (fileSize > MAX_INLINE_BYTES) {
-    throw new Error(
-      `This ${type} is too large to save (${Math.round(fileSize / (1024 * 1024))} MB). ` +
-      `The maximum supported size is ${Math.round(MAX_INLINE_BYTES / (1024 * 1024))} MB.`
-    );
+    const iv = await encryptFileChunked(scope, uri, file);
+    const item: RecordingItem = {
+      id, uri: file.uri, createdAt: new Date().toISOString(),
+      type, iv, ext, auth_format: 'ctr-hmac-v1',
+    };
+    try {
+      await AsyncStorage.setItem(storageKey(scope), JSON.stringify([item, ...await loadRecordings(scope)]));
+    } catch (error) {
+      try { if (file.exists) file.delete(); } catch { /* best-effort */ }
+      throw error;
+    }
+    return item;
   }
+
+  // In-memory path: existing AES-256-CTR only (files ≤ MAX_INLINE_BYTES).
   const plainBytes = await sourceFile.bytes();
   const aesKey = await getOrCreateKey(scope);
   const { cipherBytes, iv } = await encryptBytes(plainBytes, aesKey);
@@ -125,15 +142,25 @@ export async function saveSegment(
 ): Promise<RecordingItem> {
   const id = `seg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const file = new File(Paths.document, `dhara-evidence-${id}.enc`);
-  // OOM guard — same derivation as saveItem above.
   const segFile = new File(uri);
   const segSize = (segFile as any).size as number ?? 0;
+
+  // Route large segments to the chunked path (defensive — segments are ~78 KB each).
   if (segSize > MAX_INLINE_BYTES) {
-    throw new Error(
-      `Audio segment is too large to commit (${Math.round(segSize / (1024 * 1024))} MB). ` +
-      `Max ${Math.round(MAX_INLINE_BYTES / (1024 * 1024))} MB.`
-    );
+    const iv = await encryptFileChunked(scope, uri, file);
+    const item: RecordingItem = {
+      id, uri: file.uri, createdAt: new Date().toISOString(), type: 'audio',
+      iv, ext: 'm4a', is_segment: true, session_id: sessionId, auth_format: 'ctr-hmac-v1',
+    };
+    try {
+      await AsyncStorage.setItem(storageKey(scope), JSON.stringify([...await loadRecordings(scope), item]));
+    } catch (error) {
+      try { if (file.exists) file.delete(); } catch { /* best-effort */ }
+      throw error;
+    }
+    return item;
   }
+
   const plainBytes = await segFile.bytes();
   const aesKey = await getOrCreateKey(scope);
   const { cipherBytes, iv } = await encryptBytes(plainBytes, aesKey);
@@ -203,15 +230,29 @@ export function discardTemporaryRecording(uri: string | null) {
  */
 export async function getDecryptedTempUri(scope: string, item: RecordingItem): Promise<string> {
   if (!item.iv) return item.uri; // legacy plaintext — pass through unchanged
+
+  // ctr-hmac-v1: authenticated chunked decrypt — rejects corruption, truncation,
+  // reordering and substitution before writing any plaintext.
+  if (item.auth_format === 'ctr-hmac-v1') {
+    const tempFile = new File(
+      Paths.cache,
+      `dhara-evidence-tmp-${item.id}-${Date.now()}.${item.ext || 'bin'}`,
+    );
+    await decryptFileChunked(scope, item.uri, tempFile);
+    return tempFile.uri;
+  }
+
+  // Legacy in-memory path: AES-256-CTR only (no HMAC), files ≤ MAX_INLINE_BYTES.
   const aesKey = await getOrCreateKey(scope);
-  // OOM guard: cipher and plain buffers are both live at peak during decryptBytes().
   const encFile = new File(item.uri);
   const encSize = (encFile as any).size as number ?? 0;
   if (encSize > MAX_INLINE_BYTES) {
+    // Guard against old-format items somehow exceeding the in-memory limit.
+    // This should never happen (old items were capped at save time), but we
+    // reject clearly rather than OOM-crashing.
     throw new Error(
-      `This recording is too large to preview on this device ` +
-      `(${Math.round(encSize / (1024 * 1024))} MB). ` +
-      `Maximum previewable size is ${Math.round(MAX_INLINE_BYTES / (1024 * 1024))} MB.`
+      `Legacy-format recording is too large to preview (${Math.round(encSize / (1024 * 1024))} MB). ` +
+      `Expected auth_format 'ctr-hmac-v1' for files above ${Math.round(MAX_INLINE_BYTES / (1024 * 1024))} MB.`,
     );
   }
   const cipherBytes = await encFile.bytes();
@@ -328,4 +369,43 @@ export async function sweepOrphanedEvidenceTempFiles(scope: string): Promise<voi
  */
 export function pendingTempFileExists(uri: string): boolean {
   try { return new File(uri).exists; } catch { return false; }
+}
+
+/**
+ * Guest scope lifecycle — removes all evidence data for a scope.
+ *
+ * Deletion order:
+ *   1. .enc files referenced in the recording manifest (encryption payload)
+ *   2. AsyncStorage manifest keys (all 7 scope-namespaced keys)
+ *
+ * The AES key is NOT deleted here — it must be removed by the caller
+ * (`evidenceCrypto.deleteEvidenceKey`) AFTER this function returns, so a
+ * mid-cleanup crash leaves unreadable but inert bytes rather than readable
+ * but orphaned data.
+ *
+ * Best-effort: per-file and per-key failures are caught individually so a
+ * single stubborn file does not block the remaining cleanup.
+ */
+export async function deleteEvidenceScope(scope: string): Promise<void> {
+  // 1. Delete all .enc files for this scope
+  try {
+    const all = await loadRecordings(scope);
+    for (const item of all) {
+      if (!item.uri) continue;
+      try { const f = new File(item.uri); if (f.exists) f.delete(); } catch { /* best-effort */ }
+    }
+  } catch { /* manifest unreadable — skip file deletion */ }
+
+  // 2. Remove all AsyncStorage keys for this scope
+  const keysToRemove = [
+    `dhara_local_recordings_${scope}`,         // main recording manifest (storageKey)
+    `dhara_evidence_manifest_v1_${scope}`,      // legacy manifest prefix
+    `evidence_pending_temp_${scope}`,           // pending temp entries
+    `dhara_evidence_sessions_v1_${scope}`,      // session manifest
+    `dhara_locker_flag_v1_${scope}`,            // EL-055 cached locker flag
+    `dhara_vault_flag_v1_${scope}`,             // EL-055 cached vault flag
+    `ws_discreet_active_v1_${scope}`,           // cover state
+    `evidence_notes_${scope}`,                  // inline notes
+  ];
+  await AsyncStorage.multiRemove(keysToRemove).catch(() => {});
 }

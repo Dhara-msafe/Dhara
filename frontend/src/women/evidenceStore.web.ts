@@ -1,4 +1,5 @@
 import { getOrCreateKey, encryptBytes, decryptBytes } from './evidenceCrypto';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type EvidenceType = 'audio' | 'photo' | 'video';
 // `iv` present → `blob` in IndexedDB is AES-256-CTR ciphertext (S-B5).
@@ -13,6 +14,7 @@ export type RecordingItem = {
   is_segment?: boolean;
   segment_count?: number;
   total_duration_ms?: number;
+  auth_format?: 'ctr-hmac-v1';
 };
 type Stored = { id: string; scope: string; blob: Blob; createdAt: string; type: EvidenceType; iv?: string; ext?: string; is_segment?: boolean; session_id?: string; recording_format_version?: number; segment_count?: number; total_duration_ms?: number };
 
@@ -162,6 +164,47 @@ export async function getDecryptedTempUri(scope: string, item: RecordingItem): P
 
 export function releaseDecryptedTempUri(uri: string, _wasDecrypted: boolean) {
   URL.revokeObjectURL(uri);
+}
+
+/**
+ * Guest scope lifecycle cleanup stub — web.
+ * Removes all IndexedDB rows for the scope and clears the same AsyncStorage
+ * keys that the native path clears.
+ */
+export async function deleteEvidenceScope(scope: string): Promise<void> {
+  // Delete IndexedDB rows for this scope
+  try {
+    const db = await database();
+    const all = await new Promise<Stored[]>((resolve, reject) => {
+      const tx = db.transaction('recordings', 'readonly');
+      const req = tx.objectStore('recordings').getAll();
+      req.onsuccess = () => resolve(req.result as Stored[]);
+      req.onerror   = () => reject(req.error);
+    });
+    const toDelete = all.filter(r => r.scope === scope).map(r => r.id);
+    if (toDelete.length > 0) {
+      await new Promise<void>((resolve, reject) => {
+        const tx2 = db.transaction('recordings', 'readwrite');
+        const store = tx2.objectStore('recordings');
+        for (const id of toDelete) store.delete(id);
+        tx2.oncomplete = () => resolve();
+        tx2.onerror    = () => reject(tx2.error);
+      });
+    }
+    db.close();
+  } catch { /* best-effort */ }
+
+  // Clear AsyncStorage manifest keys
+  await AsyncStorage.multiRemove([
+    `dhara_local_recordings_${scope}`,
+    `dhara_evidence_manifest_v1_${scope}`,
+    `evidence_pending_temp_${scope}`,
+    `dhara_evidence_sessions_v1_${scope}`,
+    `dhara_locker_flag_v1_${scope}`,
+    `dhara_vault_flag_v1_${scope}`,
+    `ws_discreet_active_v1_${scope}`,
+    `evidence_notes_${scope}`,
+  ]).catch(() => {});
 }
 
 /** EL-054 stub — web stores evidence as IndexedDB blob: URLs which are

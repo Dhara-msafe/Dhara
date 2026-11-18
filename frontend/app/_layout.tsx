@@ -20,6 +20,7 @@ import { IssueReporterButton } from "@/src/components/IssueReporterButton";
 import { LanguageOnboardModal } from "@/src/components/LanguageOnboardModal";
 import { AuthProvider, useAuth } from "@/src/auth";
 import { consentVersionKey, isCurrentConsent } from "@/src/consentStorage";
+import { runDeferredGuestGC } from "@/src/women/evidenceGC";
 import { theme } from "@/src/theme";
 import { EvidenceRecorderProvider } from "@/src/women/EvidenceRecorderProvider";
 import { initSpeechGate } from "@/src/voice/speechGate";
@@ -324,6 +325,14 @@ export default function RootLayout() {
   // Talk to DHARA — load persisted Quiet + attach lifecycle listeners. Inert
   // (canSpeakNow() returns true) while the voice-companion flag is OFF.
   useEffect(() => { void initSpeechGate(); }, []);
+
+  // Guest scope deferred GC: runs once per cold start, 5 s after the app boots.
+  // Cleans up evidence data for guest scopes that have been inactive for > 30 days.
+  // Non-blocking — any failure is silently swallowed.
+  useEffect(() => {
+    const t = setTimeout(() => { runDeferredGuestGC().catch(() => {}); }, 5000);
+    return () => clearTimeout(t);
+  }, []);
 
   // B002-C Option 3: generate an ephemeral session ID on this cold start.
   // Scopes the guest privacy-cover flag to this specific app launch so that
