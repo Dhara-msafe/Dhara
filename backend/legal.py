@@ -191,7 +191,7 @@ Email: callistus@askdhara.in
 For users in India — payments and services provided within India:
 Calviltech Digital Solutions Private Limited
 Bengaluru, Karnataka, India
-Grievance Officer: Varuna Moses — varuna@calviltech.com
+Grievance Officer: Varuna Moses — grievances@askdhara.in
 
 © 2026 MSafe Solutions Inc. DHARA and MSafe Legal Aid are products of MSafe Solutions Inc. All rights reserved.
 """

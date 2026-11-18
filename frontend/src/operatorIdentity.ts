@@ -15,7 +15,7 @@
 export const operatorName = 'MSafe Solutions Inc.';
 export const indiaEntity = 'Calviltech Digital Solutions Pvt Ltd';
 export const grievanceOfficerName = 'Varuna Moses';
-export const grievanceContactEmail = 'varuna@calviltech.com';
+export const grievanceContactEmail = 'grievances@askdhara.in'; // B-70 owner-confirmed 17 Nov
 export const privacyContactEmail = 'callistus@askdhara.in';
 
 /**

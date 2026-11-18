@@ -78,3 +78,19 @@ test('B-70: operatorIdentity.ts (the single source) is untouched wording-wise --
   assert.match(src, /export const grievanceOfficerName/);
   assert.match(src, /export const grievanceContactEmail/);
 });
+
+// 17 Nov 2026: owner confirmed the grievance mailbox grievances@askdhara.in.
+// The app screens read it from operatorIdentity.ts; the Terms text served by
+// the backend (backend/legal.py, clause 21) must name the same officer and
+// mailbox, and no old address may survive anywhere the user can see it.
+test('B-70: operatorIdentity.ts uses the confirmed grievance mailbox grievances@askdhara.in', () => {
+  const src = readFileSync(path.join(root, 'src', 'operatorIdentity.ts'), 'utf8');
+  assert.match(src, /grievanceContactEmail\s*=\s*'grievances@askdhara\.in'/);
+  assert.match(src, /grievanceOfficerName\s*=\s*'Varuna Moses'/);
+});
+
+test('B-70: the Terms text (backend/legal.py) names the same officer and mailbox', () => {
+  const src = readFileSync(path.join(root, '..', 'backend', 'legal.py'), 'utf8');
+  assert.match(src, /Grievance Officer: Varuna Moses — grievances@askdhara\.in/);
+  assert.doesNotMatch(src, /grievance@calviltech\.com|varuna@calviltech\.com/);
+});

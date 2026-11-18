@@ -7,7 +7,8 @@
  *   2. Visual — Tappable language-chip grid (top 10 Indian languages + "More").
  *
  * Key persisted in AsyncStorage: `lang_onboarded_v1_<userId>` (or `_guest`).
- * Not shown on consent / language / login / register / state-selection screens.
+ * Shown only on the Home tab (B-73); never on consent / language / login /
+ * register / state-selection or any directly opened page.
  *
  * P0 fix (consent-overlay bug): the eligibility check used to be a true
  * one-shot (`checkedRef.current`, set forever on first non-excluded route)
@@ -65,6 +66,17 @@ const TOP_LANGUAGES: Language[] = [
 // to /consent; without this, the modal could open there and persist.
 const EXCLUDED_PATHS = ['/consent', '/language', '/login', '/register', '/welcome', '/state'];
 
+// B-73 (17 Nov 2026): the picker is a first-run prompt, so it only opens on
+// the Home tab (where every sign-in lands). Before, it opened on ANY page —
+// on a fresh install, opening /me, /my-data or /settings/data-privacy
+// directly (link, refresh, notification) put the picker over that page and
+// taps meant for the page selected languages instead. Other pages never open
+// it; the prompt simply waits until the person next lands on Home. ('/' is
+// not listed: app/index.tsx only redirects, and the app passes through it at
+// start-up before restoring the page that was actually opened.)
+const ONBOARD_PATHS = ['/home'];
+const isOnboardPath = (p?: string | null) => !!p && ONBOARD_PATHS.includes(p);
+
 const STORAGE_KEY = (uid: string) => `lang_onboarded_v1_${uid}`;
 
 // TTS prompt — kept very short so it loads in ~1.5 s
@@ -105,7 +117,7 @@ export function LanguageOnboardModal() {
     }
 
     const onExcludedRoute = EXCLUDED_PATHS.some(p => pathname?.startsWith(p));
-    if (onExcludedRoute) {
+    if (onExcludedRoute || !isOnboardPath(pathname)) {
       // Never open here, and close immediately if we land here while open —
       // regardless of any decision made earlier on a different route.
       setVisible(false);
@@ -122,7 +134,12 @@ export function LanguageOnboardModal() {
     Promise.all([AsyncStorage.getItem(key), AsyncStorage.getItem('gk_lang')]).then(([v, deviceLang]) => {
       // Race guard: only honour this async result if, by the time it
       // resolves, we're still on a non-excluded route for this SAME account.
-      if (EXCLUDED_PATHS.some(p => pathnameRef.current?.startsWith(p))) return;
+      if (EXCLUDED_PATHS.some(p => pathnameRef.current?.startsWith(p)) || !isOnboardPath(pathnameRef.current)) {
+        // B-73: left Home before the check finished — decide again on the
+        // next visit to Home instead of never.
+        if (checkedForUidRef.current === uid) checkedForUidRef.current = null;
+        return;
+      }
       if (checkedForUidRef.current !== uid) return;
       if (v) return;
       if (deviceLang) { AsyncStorage.setItem(key, '1').catch(() => {}); return; }
