@@ -33,6 +33,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FFFCF8"
       },
+      "allowBackup": false,
       "softwareKeyboardLayoutMode": "resize",
       "package": "in.askdhara.app",
       "googleServicesFile": "./google-services.json",
