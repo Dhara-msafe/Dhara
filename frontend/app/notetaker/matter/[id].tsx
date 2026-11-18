@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { ADVOCATE_MODE_ENABLED } from '@/src/advocateMode/flags';
+import { useAdvocateProfile } from '@/src/advocateMode/useAdvocateProfile';
 import { apiGet } from '@/src/notetaker/api';
 import { ScreenHeader, StatusPill } from '@/src/notetaker/ui';
 import type { Consultation } from '@/src/notetaker/api';
@@ -25,6 +26,8 @@ export default function MatterDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const matterId = String(id);
   const { token } = useAuth();
+  // B-121: same gate as the other advocate/Notetaker screens.
+  const advocateGate = useAdvocateProfile();
   const insets = useSafeAreaInsets();
   const [matter, setMatter] = useState<Matter | null>(null);
   const [consultations, setConsultations] = useState<Consultation[]>([]);
@@ -48,6 +51,9 @@ export default function MatterDetailScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const goNew = () => router.push({ pathname: '/notetaker/consultation/new', params: { matterId } });
+
+  if (advocateGate.status === 'none') return <Redirect href="/(tabs)/home" />;
+  if (advocateGate.status === 'loading') return null;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>

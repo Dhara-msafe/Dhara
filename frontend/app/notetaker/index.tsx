@@ -13,6 +13,7 @@ import { theme } from '@/src/theme';
 import { crossAlert } from '@/src/utils/crossAlert';
 import { API_BASE, useAuth } from '@/src/auth';
 import { ADVOCATE_MODE_ENABLED } from '@/src/advocateMode/flags';
+import { useAdvocateProfile } from '@/src/advocateMode/useAdvocateProfile';
 
 const c = theme.colors;
 
@@ -31,6 +32,10 @@ export default function MatterListScreen() {
   if (!ADVOCATE_MODE_ENABLED) return <Redirect href="/(tabs)/home" />;
 
   const { token } = useAuth();
+  // B-121: the build flag alone let any signed-in citizen reach this
+  // screen's full UI shell. This resolves whether they actually have an
+  // advocate profile.
+  const advocateGate = useAdvocateProfile();
   const insets = useSafeAreaInsets();
   const [matters, setMatters] = useState<Matter[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,6 +80,10 @@ export default function MatterListScreen() {
     }
     setCreating(false);
   };
+
+  // B-121: resolve the lock before rendering anything advocate-facing.
+  if (advocateGate.status === 'none') return <Redirect href="/(tabs)/home" />;
+  if (advocateGate.status === 'loading') return null;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>

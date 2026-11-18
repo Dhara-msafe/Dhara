@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { ADVOCATE_MODE_ENABLED } from '@/src/advocateMode/flags';
+import { useAdvocateProfile } from '@/src/advocateMode/useAdvocateProfile';
 
 const NAVY = theme.colors.primary;
 const GOLD = theme.colors.gold;
@@ -18,6 +19,10 @@ export default function LawyerHome() {
 
   const { token, user } = useAuth();
   const router = useRouter();
+  // B-121: a citizen account must not see this screen at all, not just
+  // get a verified/pending badge. advocateGate.status === 'none' means no
+  // advocate profile exists for this user; see useAdvocateProfile.ts.
+  const advocateGate = useAdvocateProfile();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -31,6 +36,10 @@ export default function LawyerHome() {
       .catch(() => setProfile(null))
       .finally(() => setLoading(false));
   }, [user?.id, token]);
+
+  // B-121: resolve the lock before rendering anything advocate-facing.
+  if (advocateGate.status === 'none') return <Redirect href="/(tabs)/home" />;
+  if (advocateGate.status === 'loading') return null;
 
   const cards = [
     {

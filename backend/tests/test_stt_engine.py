@@ -25,6 +25,7 @@ from engine.stt_engine import (
     normalize_language,
     _should_retry_without_hint,
     WHISPER_HINT_SET,
+    WHISPER_PROMPT_HINT,
 )
 
 
@@ -534,3 +535,78 @@ class TestBehavioralHintRouting:
         assert client.audio.transcriptions.create.call_count == 1, (
             "no hint was sent, so there is nothing to strip — no retry must fire"
         )
+
+
+# ── B-106: Telugu auto-detect mislabeled as Tamil — prompt-bias fix ──────────
+
+@pytest.mark.asyncio
+class TestWhisperPromptHintB106:
+
+    def test_te_not_in_hint_set(self):
+        # Telugu's `language` field is still rejected by the proxy — the
+        # fix must never try to resurrect it as a real hint.
+        assert "te" not in WHISPER_HINT_SET
+
+    def test_te_has_a_prompt_hint(self):
+        assert "te" in WHISPER_PROMPT_HINT
+        assert WHISPER_PROMPT_HINT["te"].strip() != ""
+
+    def test_other_rejected_codes_have_no_invented_prompt_hint(self):
+        # Only add a code here once there's a REAL verified sample —
+        # these eight must stay absent until someone supplies one.
+        still_thin = {"bn", "gu", "ml", "pa", "or", "as", "sa", "sd"}
+        overlap = still_thin & WHISPER_PROMPT_HINT.keys()
+        assert not overlap, (
+            f"{overlap} have a prompt hint with no verified sample behind it"
+        )
+
+    async def test_te_sends_prompt_not_language(self):
+        client = make_client("తెలుగు వచనం")
+        result = await transcribe_with_retry(AUDIO, FNAME, CTYPE, "te", client)
+        assert result["text"] == "తెలుగు వచనం"
+        call_kwargs = client.audio.transcriptions.create.call_args[1]
+        assert "language" not in call_kwargs, (
+            "te's `language` field is proxy-rejected — must never be sent"
+        )
+        assert call_kwargs.get("prompt") == WHISPER_PROMPT_HINT["te"]
+
+    async def test_te_bcp47_variant_still_gets_prompt(self):
+        client = make_client("ok")
+        await transcribe_with_retry(AUDIO, FNAME, CTYPE, "te-IN", client)
+        call_kwargs = client.audio.transcriptions.create.call_args[1]
+        assert call_kwargs.get("prompt") == WHISPER_PROMPT_HINT["te"]
+
+    async def test_te_single_call_no_retry_needed(self):
+        client = make_client("ok")
+        await transcribe_with_retry(AUDIO, FNAME, CTYPE, "te", client)
+        assert client.audio.transcriptions.create.call_count == 1
+
+    async def test_code_with_no_prompt_hint_sends_neither_language_nor_prompt(self):
+        # "bn" is proxy-rejected AND has no verified prompt sample yet —
+        # must fall through to plain auto-detect, exactly as before.
+        client = make_client("ok")
+        await transcribe_with_retry(AUDIO, FNAME, CTYPE, "bn", client)
+        call_kwargs = client.audio.transcriptions.create.call_args[1]
+        assert "language" not in call_kwargs
+        assert "prompt" not in call_kwargs
+
+    async def test_ta_hint_path_never_sends_a_prompt(self):
+        # Supported-hint languages use the real `language` field and must
+        # never also carry a prompt bias (the two paths are exclusive).
+        client = make_client("ok")
+        await transcribe_with_retry(AUDIO, FNAME, CTYPE, "ta", client)
+        call_kwargs = client.audio.transcriptions.create.call_args[1]
+        assert call_kwargs.get("language") == "ta"
+        assert "prompt" not in call_kwargs
+
+    async def test_script_mismatch_check_still_runs_with_real_selected_language(self):
+        # Regardless of which field (language/prompt/neither) was sent to
+        # Whisper, the mismatch guard must always judge against the user's
+        # actually-selected language, not the hint that was or wasn't sent.
+        seen = {}
+        def fake_script_check(text, lang):
+            seen["lang"] = lang
+            return {"script_mismatch": False, "detected_script": None}
+        client = make_client("some transcript")
+        await transcribe_with_retry(AUDIO, FNAME, CTYPE, "te", client, script_check_fn=fake_script_check)
+        assert seen["lang"] == "te"

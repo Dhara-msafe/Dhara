@@ -24,8 +24,8 @@ import {
   pendingTempFileExists,
 } from '@/src/women/evidenceStore';
 import { hasPin, setPin, verifyPin, getLockoutRemainingMs, changePin } from '@/src/women/evidenceLock';
-import { getManifestEntry, markManifestDeleted, type ManifestEntry, type GpsPoint } from '@/src/women/evidenceManifest';
-import { anchorItem, backupItem } from '@/src/women/evidenceBackup';
+import { getManifestEntry, markManifestDeleted, clearBackupInfo, type ManifestEntry, type GpsPoint } from '@/src/women/evidenceManifest';
+import { anchorItem, backupItem, deleteBackupCloud } from '@/src/women/evidenceBackup';
 import { fetchFlags } from '@/src/women/api';
 import { markPendingTemp, clearPendingTemp, listPendingTemps } from '@/src/women/evidencePendingTemp';
 import { exportCertificate } from '@/src/women/evidenceCertificate';
@@ -831,6 +831,10 @@ export default function EvidenceLocker() {
   const remove = useCallback(async (item: RecordingItem) => {
     setDeleteError('');
     setDeleteBusy(true);
+    // N-09: capture this BEFORE any state mutation below — manifestMap's
+    // entry for this item is deleted further down, so this is the only
+    // chance to know whether a cloud copy exists to also delete.
+    const hadBackup = !!manifestMap[item.id]?.backup;
     try {
       stopPlayer();
       if (videoPreview?.id === item.id) closeVideoPreview();
@@ -842,6 +846,18 @@ export default function EvidenceLocker() {
       }
       // This item's own metadata only — never another item's.
       await markManifestDeleted(scope, item.id).catch(() => {});
+      // N-09: also delete the cloud copy, not just the local file — a
+      // network failure here must NOT block the local delete the user
+      // asked for (they may be offline), so it never throws; it reports
+      // a tri-state result the toast below reflects honestly instead of
+      // claiming "deleted" when the cloud object may still be sitting there.
+      let cloudResult: 'deleted' | 'none' | 'failed' = 'none';
+      if (hadBackup) {
+        cloudResult = await deleteBackupCloud(scope, item.id, token);
+        if (cloudResult === 'deleted' || cloudResult === 'none') {
+          await clearBackupInfo(scope, item.id).catch(() => {});
+        }
+      }
       setManifestMap(prev => { const next = { ...prev }; delete next[item.id]; return next; });
       if (notesMap[item.id] !== undefined) {
         const nextNotes = { ...notesMap };
@@ -852,8 +868,13 @@ export default function EvidenceLocker() {
       owned.current = owned.current.filter(row => row.id !== item.id);
       setItems(owned.current);
       setDeleting(null);
-      setStatus('Recording deleted from this device.');
-      setToast('Recording deleted from this device.');
+      const msg = cloudResult === 'failed'
+        ? 'Deleted from this device. Could not reach the server to delete the cloud copy — it may still be stored; try again when you have signal.'
+        : hadBackup
+          ? 'Recording and its cloud backup have both been deleted.'
+          : 'Recording deleted from this device.';
+      setStatus(msg);
+      setToast(msg);
     } catch (e: any) {
       // Visible failure with a reason class, so a silent failure can't look
       // like a successful delete.
@@ -867,7 +888,7 @@ export default function EvidenceLocker() {
     } finally {
       setDeleteBusy(false);
     }
-  }, [scope, stopPlayer, videoPreview, closeVideoPreview, photoUris, notesMap]);
+  }, [scope, stopPlayer, videoPreview, closeVideoPreview, photoUris, notesMap, manifestMap, token]);
 
   // ── P0-B: Recover an interrupted session ──────────────────────────────────
   const handleRecover = useCallback(async (session: EvidenceSession) => {
@@ -1348,7 +1369,7 @@ export default function EvidenceLocker() {
             </Text>
             {!!deleteTarget && manifestMap[deleteTarget.id]?.backup && (
               <Text style={styles.modalBody} testID="recording-delete-cloud-note">
-                A copy you backed up to secure cloud storage stays in the cloud — this removes the copy on this device only.
+                This item was backed up to secure cloud storage — deleting it also deletes that cloud copy.
               </Text>
             )}
             {!!deleteError && (

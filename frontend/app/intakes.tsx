@@ -9,6 +9,7 @@ import { theme } from '@/src/theme';
 import { goBackOr } from '@/src/goBackOr';
 import { INTAKE_TEMPLATES, IntakeTemplate } from '@/src/intakeTemplates';
 import { ADVOCATE_MODE_ENABLED } from '@/src/advocateMode/flags';
+import { useAdvocateProfile } from '@/src/advocateMode/useAdvocateProfile';
 
 import { shareExternal } from '@/src/outbound';
 const NAVY = theme.colors.primary;
@@ -49,6 +50,10 @@ export default function Intakes() {
 
   const { token, user } = useAuth();
   const router = useRouter();
+  // B-121: this screen only checked the build flag, not whether the
+  // signed-in user actually has an advocate profile -- a citizen account
+  // could reach it directly and see the full Client Intakes UI shell.
+  const advocateGate = useAdvocateProfile();
   const [intakes, setIntakes] = useState<Intake[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -102,6 +107,10 @@ export default function Intakes() {
       alert(`Link copied!\n${intake_url}`);
     }
   };
+
+  // B-121: resolve the lock before rendering anything advocate-facing.
+  if (advocateGate.status === 'none') return <Redirect href="/(tabs)/home" />;
+  if (advocateGate.status === 'loading') return null;
 
   return (
     <SafeAreaView style={s.safe}>
