@@ -1,8 +1,18 @@
 /**
- * Deferred Guest Evidence GC (native)
- * ------------------------------------
- * Runs once per cold start (5 s after boot) and removes evidence data for
- * guest scopes that have been inactive for > 30 days.
+ * Guest Evidence GC — MANUAL INVOCATION ONLY
+ * -------------------------------------------
+ * ⚠️  AUTOMATIC STARTUP CALL DISABLED (Jun 2026, user instruction).
+ *     Do NOT call this function from any scheduled, timed, or lifecycle hook
+ *     without explicit user approval and a completed recovery-flow design review.
+ *
+ * This function is preserved for future use in an explicit, informed,
+ * user-initiated deletion flow only.  Guest evidence (.enc files and AES keys)
+ * must persist indefinitely until the user consciously chooses to discard it.
+ *
+ * When an explicit deletion UI is approved, call this function ONLY after:
+ *   1. The user has been shown what will be deleted and confirmed.
+ *   2. The session that owns the data is unambiguously identified.
+ *   3. No recovery window remains (or the user has dismissed the recovery prompt).
  *
  * Deletion order: .enc files → AsyncStorage manifests → SecureStore AES key
  * (key is always last so a mid-GC crash leaves unreadable but inert bytes).
