@@ -19,12 +19,30 @@ export const grievanceContactEmail = 'varuna@calviltech.com';
 export const privacyContactEmail = 'callistus@askdhara.in';
 
 /**
- * Canonical public privacy-policy URL.
- * Changed from dhara.msafesolutions.com/privacy.html → askdhara.in/privacy.html
- * on 2026-11-17 per owner instruction.  Single source of truth; import this
- * wherever the URL is opened or displayed — never hardcode the string.
+ * Interim app service privacy-policy URL.
+ *
+ * dhara.msafesolutions.com/privacy.html is the document that covers actual
+ * DHARA service data processing (voice, evidence, guardian, AI providers,
+ * retention periods, etc.).  askdhara.in/privacy.html is the marketing-website
+ * notice; it explicitly states it does not cover the application.
+ *
+ * PENDING — before this URL can change to askdhara.in/privacy.html, the
+ * askdhara.in page must be expanded to describe full app data processing.
+ * See V2_2_STATUS_TABLE.md "Privacy Policy" row for the gap checklist.
+ *
+ * Changed from dhara.msafesolutions.com → askdhara.in on 2026-11-17 (error),
+ * reverted to dhara.msafesolutions.com on 2026-11-17 (this change).
+ *
+ * ScalaHosting action still required on dhara.msafesolutions.com/privacy.html:
+ *   §9 contact must be updated to callistus@askdhara.in + Varuna Moses.
  */
-export const privacyPolicyUrl = 'https://askdhara.in/privacy.html';
+export const privacyPolicyUrl = 'https://dhara.msafesolutions.com/privacy.html';
+
+/**
+ * Future canonical URL — set privacyPolicyUrl to this once the full app
+ * service policy is published and verified live at askdhara.in.
+ */
+export const privacyPolicyUrlFuture = 'https://askdhara.in/privacy.html';
 
 /**
  * True when the grievance officer name and/or email is still an
