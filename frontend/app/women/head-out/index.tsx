@@ -302,12 +302,28 @@ export default function HeadOut() {
     return () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
   }, [session]);
 
-  // No session → nothing to do here anymore; send the user into the wizard's
-  // first step instead of rendering an inline form (that form now lives at
-  // app/women/head-out/destination.tsx, as Step 1 of 3).
+  // No session → send user to the wizard's first step.
   useEffect(() => {
     if (!loading && !session) router.replace('/women/head-out/destination');
   }, [loading, session, router]);
+
+  // Stale expired session guard: if the session expired more than 15 minutes
+  // ago (and the user hasn't manually acted on it), clear it automatically and
+  // redirect to the wizard so the user isn't stuck on a stale "Check-in not
+  // received" card with no way to start a new journey.
+  useEffect(() => {
+    if (!expired || !session) return;
+    const expiredAt = session.deadline ? new Date(session.deadline).getTime() : 0;
+    const staleCutoff = 15 * 60 * 1000; // 15 minutes
+    if (expiredAt > 0 && Date.now() - expiredAt > staleCutoff) {
+      // Session has been expired for >15 min — silently clear and redirect
+      void AsyncStorage.removeItem(SESSION_KEY).catch(() => {}).then(() => {
+        setSession(null);
+        setExpired(false);
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expired]);
 
   const endSession = useCallback(async () => {
     // Part B/P4: tell linked recipients this journey completed safely — best-effort
@@ -802,6 +818,31 @@ export default function HeadOut() {
               <Text style={styles.expiredTitle}>Check-in not received</Text>
               <Text style={styles.note}>{"We haven't received your check-in."}</Text>
 
+              {/* ── Destination summary ──────────────────────────────────────
+                  Shows the planned destination even when no map is available.
+                  hasDestCoord = false means the session was created with a
+                  custom text label and no pin on the map.                   */}
+              {!!session?.destination && (
+                <View style={styles.destinationBadge} testID="headout-destination-badge">
+                  <Ionicons name="location-outline" size={16} color={c.navy} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.destinationBadgeLabel}>Planned destination</Text>
+                    <Text style={styles.destinationBadgeValue} numberOfLines={2}>{session.destination}</Text>
+                  </View>
+                </View>
+              )}
+              {!session?.destination && (
+                <View style={styles.destinationBadge} testID="headout-no-destination-badge">
+                  <Ionicons name="location-outline" size={16} color={c.muted} />
+                  <Text style={[styles.destinationBadgeValue, { color: c.muted }]}>No destination was set for this journey</Text>
+                </View>
+              )}
+              {!hasDestCoord && (
+                <Text style={styles.noMapHint} testID="headout-no-map-hint">
+                  Map not available — no pin was placed on the map during setup.
+                </Text>
+              )}
+
               {GO1B_GPS_ENABLED && (
                 <View style={styles.statusCard} testID="headout-phone-status">
                   <Ionicons
@@ -902,6 +943,26 @@ export default function HeadOut() {
               >
                 <Ionicons name="chatbubble-outline" size={18} color={c.emergencyRed} />
                 <Text style={[styles.buttonText, { color: c.emergencyRed }]}>Text my emergency contacts</Text>
+              </Pressable>
+
+              {/* ── Start a new journey ───────────────────────────────────────
+                  Clearly separated from the emergency actions above.
+                  Calls endSession() which clears AsyncStorage and redirects
+                  the user to the destination wizard (Step 1 of 3).           */}
+              <View style={styles.smsDivider}>
+                <View style={styles.smsDividerLine} />
+                <Text style={styles.smsDividerTxt}>no emergency?</Text>
+                <View style={styles.smsDividerLine} />
+              </View>
+              <Pressable
+                testID="headout-start-new-journey"
+                style={(s) => [styles.button, styles.newJourneyBtn, focusRingStyle(s)]}
+                onPress={endSession}
+                accessibilityRole="button"
+                accessibilityLabel="Start a new journey"
+              >
+                <Ionicons name="navigate-outline" size={18} color={c.navy} />
+                <Text style={[styles.buttonText, { color: c.navy }]}>Start a new journey</Text>
               </Pressable>
             </View>
       ) : journeyPhase === 'arrived' ? (
@@ -1023,6 +1084,14 @@ export default function HeadOut() {
                   destLat={session.latitude!} destLng={session.longitude!}
                   radiusMeters={arrivalRadius} routePolyline={routeInfo?.polyline ?? null}
                 />
+              )}
+              {GO1C_LIVE_ROUTE_ENABLED && !hasDestCoord && (
+                <View style={styles.noMapCard} testID="headout-no-map-card">
+                  <Ionicons name="map-outline" size={22} color={c.muted} />
+                  <Text style={styles.noMapCardText}>
+                    Map unavailable — to see your route, pick a destination on the map when setting up your next journey.
+                  </Text>
+                </View>
               )}
               {!!routeInfo && (
                 <Text style={styles.etaTxt} testID="headout-eta">
@@ -1367,6 +1436,21 @@ const styles = StyleSheet.create({
   smsDividerLine: { flex: 1, height: 1, backgroundColor: c.lines },
   smsDividerTxt: { fontFamily: theme.fonts.body, fontSize: 11.5, color: c.muted },
   outlineAlertBtn: { backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.emergencyRed },
+  newJourneyBtn: { backgroundColor: c.navySoft, borderWidth: 1.5, borderColor: c.lines },
+  destinationBadge: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    backgroundColor: c.surfaceSecondary, borderRadius: 10,
+    padding: 12, alignSelf: 'stretch', marginTop: 8,
+  },
+  destinationBadgeLabel: { fontSize: 11, color: c.muted, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 },
+  destinationBadgeValue: { fontSize: 14, color: c.navy, fontWeight: '600', marginTop: 2 },
+  noMapHint: { fontSize: 12, color: c.muted, textAlign: 'center', alignSelf: 'stretch', marginTop: 4, lineHeight: 17 },
+  noMapCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: c.surfaceSecondary, borderRadius: 10,
+    padding: 14, alignSelf: 'stretch', marginVertical: 4,
+  },
+  noMapCardText: { flex: 1, fontSize: 13, color: c.muted, lineHeight: 18 },
   deviatedCard: { borderColor: '#B45309', backgroundColor: '#FFFBEB' },
   areYouOkayTxt: { fontFamily: theme.fonts.bodyBold, color: c.ink, fontSize: 16 },
   etaTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy, marginTop: 2 },

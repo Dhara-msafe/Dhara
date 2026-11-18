@@ -212,7 +212,11 @@ export default function ChooseDestination() {
   const setDraft = useHeadOutWizard(s => s.setDestination);
 
   const [value, setValue] = useState<DestinationValue>(draft);
-  const [tab, setTab] = useState<Tab>('saved');
+  // Default to 'map' tab so users immediately see the map picker and can
+  // drop a pin — this is the most reliable entry method and ensures destination
+  // coordinates are always captured (required for the route map to work).
+  // Users who have saved places or recent destinations can switch to those tabs.
+  const [tab, setTab] = useState<Tab>('map');
   // Bumped only on an explicit "jump" (saved place / recent / address pick)
   // so the map recentres — not on every drag, which should stay in view.
   const [mapRecenterKey, setMapRecenterKey] = useState(0);
@@ -480,10 +484,14 @@ export default function ChooseDestination() {
         )}
 
         {tab === 'map' && (
-          <Text style={styles.mapHint}>Tap or drag the pin on the map below to set your destination.</Text>
+          <Text style={styles.mapHint}>
+            Tap or drag the pin on the map below to set your destination. A pin is required for the route map to appear during your journey.
+          </Text>
         )}
 
-        <Text style={styles.fieldLabel}>Pin location (optional)</Text>
+        <Text style={styles.fieldLabel}>
+          {tab === 'map' ? 'Pin location (required for route map)' : 'Pin location (optional — switch to "On map" tab to set)'}
+        </Text>
         <DestinationMapPicker
           testID="headout-dest-map"
           latitude={value.latitude ?? null}
