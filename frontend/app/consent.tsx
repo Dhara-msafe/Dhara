@@ -16,7 +16,7 @@ import { theme } from '@/src/theme';
 import { updateConsentCache } from '@/src/analytics';
 import { openStaticPage } from '@/src/outbound';
 import { consentStyles as styles } from '@/src/consentStyles';
-import { grievanceOfficerName, grievanceContactEmail, isGrievanceContactPlaceholder } from '@/src/operatorIdentity';
+import { grievanceOfficerName, grievanceContactEmail, isGrievanceContactPlaceholder, privacyPolicyUrl } from '@/src/operatorIdentity';
 // NF-UI-REV-12 (Group J, DHARA UI Revision v2.2.1): visible keyboard-focus
 // ring only. No consent/age/purposes logic changes.
 import { focusRingStyle } from '@/src/a11yFocus';
@@ -186,7 +186,7 @@ export default function ConsentScreen() {
               testID="consent-read-full-privacy"
               accessibilityRole="link"
               accessibilityLabel={strings.read_full}
-              onPress={() => openStaticPage('https://dhara.msafesolutions.com/privacy.html')}
+              onPress={() => openStaticPage(privacyPolicyUrl)}
               style={(s) => [styles.termsLink, focusRingStyle(s)]}>
               <Ionicons name="open-outline" size={20} color={colors.primary} />
               <Text style={styles.linkText}>{strings.read_full}</Text>
