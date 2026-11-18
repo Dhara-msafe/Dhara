@@ -171,6 +171,22 @@ export async function sweepOrphanedEvidenceTempFiles(_scope: string): Promise<vo
   // no-op on web
 }
 
+/**
+ * EL-054 web: blob: URLs are session-scoped and always gone after a page
+ * reload.  Any pending-temp entry that survived a reload is unrecoverable —
+ * return false so the caller clears the stale entry rather than retrying.
+ */
+export function pendingTempFileExists(_uri: string): boolean {
+  return false; // blob: URLs do not survive page unloads
+}
+
+/**
+ * Shared with native for type parity.  Web's IDB blobs have no path-based
+ * size limit, but we export the constant so callers import without platform
+ * guards.
+ */
+export const MAX_INLINE_BYTES = 24 * 1024 * 1024; // 24 MB
+
 /** S-B5: Returns the item's raw stored bytes — ciphertext for AES-encrypted
  * items, exactly as persisted — WITHOUT decrypting. This is the web
  * counterpart of evidenceStore.ts's native readEncryptedBytes(): both give

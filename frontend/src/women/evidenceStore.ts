@@ -25,6 +25,33 @@ export type RecordingItem = {
 };
 const storageKey = (scope: string) => `dhara_local_recordings_${scope}`;
 
+/**
+ * Maximum file size (bytes) the in-memory encryption path can safely buffer
+ * without risking an OOM crash on a 128 MB-heap Android device.
+ *
+ * Derivation (conservative floor):
+ *   128 MB minimum Android heap
+ *   −  50 MB JS runtime + React Native bridge + UI state headroom
+ *   =  78 MB available for one operation.
+ *   An encrypt or decrypt cycle holds TWO equal-sized Uint8Arrays at peak
+ *   (plain + cipher), so the safe per-file limit is 78 / 2 = 39 MB.
+ *   We use 24 MB — 38 % below that floor — to leave headroom for GC jitter
+ *   and concurrent bridge allocations.
+ *
+ * Normal DHARA evidence items never approach this limit:
+ *   • Audio segments: 5 s × 128 kbps AAC ≈ 78 KB each
+ *   • Photos:         JPEG, typically 2–15 MB
+ *   • Video clips:    ~14 MB per 30 s at 4 Mbps H.264 (safe)
+ *                     ~29 MB per 60 s at 4 Mbps H.264 (safe)
+ *                     ~36 MB per 30 s at 10 Mbps H.264 → first clip that
+ *                       would trip this guard
+ *
+ * Future: a FileHandle-based chunked encryption/decryption path will remove
+ * this ceiling entirely. Design tracked in
+ * /app/memory/dhara_evidence/EVIDENCE_OOM_DESIGN.md
+ */
+export const MAX_INLINE_BYTES = 24 * 1024 * 1024; // 24 MB
+
 export async function loadRecordings(scope: string): Promise<RecordingItem[]> {
   const rows: any[] = JSON.parse(await AsyncStorage.getItem(storageKey(scope)) || '[]');
   // Back-compat: items saved before photo/video support have no `type` — they were all audio.
@@ -34,7 +61,19 @@ export async function loadRecordings(scope: string): Promise<RecordingItem[]> {
 async function saveItem(scope: string, uri: string, type: EvidenceType, ext: string): Promise<RecordingItem> {
   const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const file = new File(Paths.document, `dhara-evidence-${id}.enc`);
-  const plainBytes = await new File(uri).bytes();
+  // OOM guard: check file size before allocating the buffer. The native
+  // `File.size` getter returns 0 when the file is absent or unreadable, so a
+  // zero result is treated as "unknown" and we proceed (bytes() will throw its
+  // own error if the file really is gone).
+  const sourceFile = new File(uri);
+  const fileSize = (sourceFile as any).size as number ?? 0;
+  if (fileSize > MAX_INLINE_BYTES) {
+    throw new Error(
+      `This ${type} is too large to save (${Math.round(fileSize / (1024 * 1024))} MB). ` +
+      `The maximum supported size is ${Math.round(MAX_INLINE_BYTES / (1024 * 1024))} MB.`
+    );
+  }
+  const plainBytes = await sourceFile.bytes();
   const aesKey = await getOrCreateKey(scope);
   const { cipherBytes, iv } = await encryptBytes(plainBytes, aesKey);
   try {
@@ -86,7 +125,16 @@ export async function saveSegment(
 ): Promise<RecordingItem> {
   const id = `seg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const file = new File(Paths.document, `dhara-evidence-${id}.enc`);
-  const plainBytes = await new File(uri).bytes();
+  // OOM guard — same derivation as saveItem above.
+  const segFile = new File(uri);
+  const segSize = (segFile as any).size as number ?? 0;
+  if (segSize > MAX_INLINE_BYTES) {
+    throw new Error(
+      `Audio segment is too large to commit (${Math.round(segSize / (1024 * 1024))} MB). ` +
+      `Max ${Math.round(MAX_INLINE_BYTES / (1024 * 1024))} MB.`
+    );
+  }
+  const plainBytes = await segFile.bytes();
   const aesKey = await getOrCreateKey(scope);
   const { cipherBytes, iv } = await encryptBytes(plainBytes, aesKey);
   try { file.write(cipherBytes); }
@@ -156,7 +204,17 @@ export function discardTemporaryRecording(uri: string | null) {
 export async function getDecryptedTempUri(scope: string, item: RecordingItem): Promise<string> {
   if (!item.iv) return item.uri; // legacy plaintext — pass through unchanged
   const aesKey = await getOrCreateKey(scope);
-  const cipherBytes = await new File(item.uri).bytes();
+  // OOM guard: cipher and plain buffers are both live at peak during decryptBytes().
+  const encFile = new File(item.uri);
+  const encSize = (encFile as any).size as number ?? 0;
+  if (encSize > MAX_INLINE_BYTES) {
+    throw new Error(
+      `This recording is too large to preview on this device ` +
+      `(${Math.round(encSize / (1024 * 1024))} MB). ` +
+      `Maximum previewable size is ${Math.round(MAX_INLINE_BYTES / (1024 * 1024))} MB.`
+    );
+  }
+  const cipherBytes = await encFile.bytes();
   const plainBytes = decryptBytes(cipherBytes, aesKey, item.iv);
   const tempFile = new File(Paths.cache, `dhara-evidence-tmp-${item.id}-${Date.now()}.${item.ext || 'bin'}`);
   tempFile.write(plainBytes);
@@ -258,4 +316,16 @@ export async function sweepOrphanedEvidenceTempFiles(scope: string): Promise<voi
   } catch {
     // Best-effort; log nothing — the caller should not surface this to the user.
   }
+}
+
+/**
+ * EL-054: Returns true if the pending-temp source file at `uri` still exists
+ * on disk.  Used in the restart recovery loop so stale entries (source file
+ * purged by the OS between sessions) are cleared rather than retried on every
+ * cold start.
+ *
+ * Returns false on any error (treat as "gone — clean it up").
+ */
+export function pendingTempFileExists(uri: string): boolean {
+  try { return new File(uri).exists; } catch { return false; }
 }

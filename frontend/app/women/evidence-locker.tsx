@@ -21,6 +21,7 @@ import {
   saveRecording, savePhoto, saveVideo, deleteRecording, releaseRecordings,
   discardTemporaryRecording, getDecryptedTempUri, getSegmentedShareZipUri, releaseDecryptedTempUri, sweepOrphanedEvidenceTempFiles, type RecordingItem,
   saveSegment, createSegmentedParent, loadSegments, loadVisibleRecordings,
+  pendingTempFileExists,
 } from '@/src/women/evidenceStore';
 import { hasPin, setPin, verifyPin, getLockoutRemainingMs, changePin } from '@/src/women/evidenceLock';
 import { getManifestEntry, markManifestDeleted, type ManifestEntry, type GpsPoint } from '@/src/women/evidenceManifest';
@@ -257,15 +258,44 @@ export default function EvidenceLocker() {
   const [lockerEnabled, setLockerEnabled] = useState<boolean | null>(null); // null = loading
   useEffect(() => {
     let alive = true;
-    fetchFlags()
-      .then(f => {
+    // EL-055: Per-scope AsyncStorage cache for the last server-confirmed flag
+    // values.  On a network or server error we distinguish:
+    //   cached null  → never connected before → allow (first-ever offline run)
+    //   cached true  → server previously enabled → allow (offline access)
+    //   cached false → server explicitly disabled → block (authorization denial)
+    const lockerFlagKey = `dhara_locker_flag_v1_${scope}`;
+    const vaultFlagKey  = `dhara_vault_flag_v1_${scope}`;
+    const run = async () => {
+      try {
+        const f = await fetchFlags();
         if (!alive) return;
-        setLockerEnabled(!!(f as any)?.evidence_locker_enabled);
-        setVaultEnabled(!!(f as any)?.evidence_vault_enabled);
-      })
-      .catch(() => { if (alive) { setLockerEnabled(false); setVaultEnabled(false); } });
+        const locker = !!(f as any)?.evidence_locker_enabled;
+        const vault  = !!(f as any)?.evidence_vault_enabled;
+        setLockerEnabled(locker);
+        setVaultEnabled(vault);
+        // Cache the authoritative values for future offline sessions.
+        AsyncStorage.multiSet([
+          [lockerFlagKey, JSON.stringify(locker)],
+          [vaultFlagKey,  JSON.stringify(vault)],
+        ]).catch(() => {}); // best-effort; never blocks render
+      } catch {
+        if (!alive) return;
+        // Network / server error: read the last-known cached values so we can
+        // distinguish offline access from a genuine authorization denial.
+        try {
+          const [[, lRaw], [, vRaw]] = await AsyncStorage.multiGet([lockerFlagKey, vaultFlagKey]);
+          const cachedLocker = lRaw !== null ? (JSON.parse(lRaw) as boolean) : true;
+          const cachedVault  = vRaw !== null ? (JSON.parse(vRaw) as boolean) : false;
+          if (alive) { setLockerEnabled(cachedLocker); setVaultEnabled(cachedVault); }
+        } catch {
+          // Cache read also failed — allow access; do not lock users out for infra issues.
+          if (alive) { setLockerEnabled(true); setVaultEnabled(false); }
+        }
+      }
+    };
+    run();
     return () => { alive = false; };
-  }, []);
+  }, [scope]);
   // S5 — load saved notes for this user scope
   useEffect(() => {
     if (!unlocked) return;
@@ -404,11 +434,18 @@ export default function EvidenceLocker() {
         if (!alive || pending.length === 0 || active.current) return;
         let recovered = 0;
         for (const entry of pending) {
+          // EL-054: If the OS purged the temp file between sessions the entry
+          // is stale.  Clearing it now prevents it accumulating and retrying
+          // on every subsequent cold start.  The recording cannot be recovered.
+          if (!pendingTempFileExists(entry.uri)) {
+            await clearPendingTemp(AsyncStorage, scope, entry.uri).catch(() => {});
+            continue;
+          }
           try {
             const item = await saveRecording(scope, entry.uri);
             await persistThenDiscard(item, entry.uri);
             recovered++;
-          } catch { /* keep it pending — try again on the next launch */ }
+          } catch { /* keep it pending — file exists but encryption/write failed; retry on next launch */ }
         }
         if (!alive || recovered === 0) return;
         const visible = await loadVisibleRecordings(scope).catch(() => null);
@@ -1090,7 +1127,7 @@ export default function EvidenceLocker() {
         const { verifyPin: vp } = await import('@/src/women/evidenceLock');
         const result = await vp(cpCurrentInput);
         if (!result.ok) {
-          setCpError(result.lockedOut ? `Too many attempts — wait ${Math.ceil((result.remainingMs ?? 0) / 1000)}s.` : 'Incorrect PIN. Try again.');
+          setCpError(result.reason === 'locked_out' ? `Too many attempts — wait ${Math.ceil((result.retryAfterMs ?? 0) / 1000)}s.` : 'Incorrect PIN. Try again.');
           setCpCurrentInput('');
           return;
         }
