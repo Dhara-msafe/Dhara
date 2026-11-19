@@ -28,7 +28,7 @@ import { GuestRecoveryModal } from "@/src/women/GuestRecoveryModal";
 import { theme } from "@/src/theme";
 import { EvidenceRecorderProvider } from "@/src/women/EvidenceRecorderProvider";
 import { initSpeechGate } from "@/src/voice/speechGate";
-import { usePreventScreenCapture } from "expo-screen-capture";
+// import { usePreventScreenCapture } from "expo-screen-capture"; // DISABLED for testing
 import { useShakeDetector } from "@/src/women/shakeActivation";
 import {
 
@@ -160,21 +160,11 @@ function AnalyticsIdentitySync() {
 
 const TRUSTED_CIRCLE_RECIPIENT = process.env.EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT === 'true';
 
-/** Prevents the OS from capturing a screenshot or showing DHARA content as a
- *  thumbnail in the app-switcher.  Uses FLAG_SECURE on Android and the iOS
- *  secure-display equivalent.  Has no visible effect in Expo Go — requires a
- *  native build to validate.  Safe to call unconditionally on web (no-op). */
-function ScreenCaptureLock() {
-  // expo-screen-capture throws UnavailabilityError on web — only render the
-  // native lock on a native platform.
-  if (Platform.OS === 'web') return null;
-  return <NativeCaptureLock />;
-}
-/** Inner component so the hook runs only when rendered (i.e. on native). */
-function NativeCaptureLock() {
-  usePreventScreenCapture();
-  return null;
-}
+/** DISABLED for testing (user instruction — re-enable before Play Store release).
+ *  To restore: uncomment the NativeCaptureLock component and <ScreenCaptureLock />
+ *  in RootLayout, and remove this stub. */
+function ScreenCaptureLock() { return null; }
+// function NativeCaptureLock() { usePreventScreenCapture(); return null; }
 
 const PRIVACY_COVER_ENABLED = process.env.EXPO_PUBLIC_PRIVACY_COVER_V1 === 'true';
 
