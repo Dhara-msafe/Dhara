@@ -11,10 +11,12 @@ import React, { useCallback, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { useHeadOutWizard } from '@/src/women/headOutWizardStore';
 import { RADIUS_PRESETS, isPreset, CustomRadiusModal } from '@/src/women/DestinationPicker';
+import { DestinationMapPicker } from '@/src/women/DestinationMapPicker';
 // NF-UI-REV-13 (Group G follow-up, DHARA UI Revision v2.2.1): visible
 // keyboard-focus ring only. No radius/wizard logic changes.
 import { focusRingStyle } from '@/src/a11yFocus';
@@ -27,6 +29,9 @@ export default function ArrivalRadius() {
   const draft = useHeadOutWizard((s) => s.destination);
   const setDraft = useHeadOutWizard((s) => s.setDestination);
   const [radiusMeters, setRadiusMeters] = useState(draft.radiusMeters);
+  // Stable no-op for the map — destination pin was set in Step 1 and
+  // cannot be changed from this screen; we show the map for radius preview only.
+  const noopPositionChange = useCallback(() => {}, []);
   const [customVisible, setCustomVisible] = useState(false);
 
   // No destination chosen yet (e.g. this URL was opened directly, or the
@@ -68,6 +73,26 @@ export default function ArrivalRadius() {
           How close to your destination counts as &ldquo;arrived&rdquo;. This is for planning only — it
           does not turn on geofence monitoring.
         </Text>
+
+        {/* Map preview — shows destination pin + arrival radius circle */}
+        <View style={styles.mapSection} testID="headout-radius-map-section">
+          <DestinationMapPicker
+            testID="headout-radius-map"
+            latitude={draft.latitude ?? null}
+            longitude={draft.longitude ?? null}
+            radiusMeters={radiusMeters}
+            onPositionChange={noopPositionChange}
+            mapHeight={240}
+          />
+        </View>
+        <View style={styles.gpsAccuracyRow}>
+          <Ionicons name="locate-outline" size={14} color={c.muted} />
+          <Text style={styles.gpsAccuracyTxt}>GPS accuracy: ~10–25 metres</Text>
+        </View>
+        <Text style={styles.arrivalNote}>
+          We will consider you arrived when you enter this area.
+        </Text>
+
         <View style={styles.chipRow}>
           {RADIUS_PRESETS.map((p) => (
             <Pressable
@@ -94,6 +119,14 @@ export default function ArrivalRadius() {
               {isPreset(radiusMeters) ? 'Custom' : `${radiusMeters} m`}
             </Text>
           </Pressable>
+        </View>
+
+        {/* Disclaimer below the chip row */}
+        <View style={styles.disclaimerRow}>
+          <Ionicons name="information-circle-outline" size={14} color={c.muted} />
+          <Text style={styles.disclaimerTxt}>
+            Arrival zone is not a safety guarantee. You may still check in based on your situation.
+          </Text>
         </View>
       </ScrollView>
 
@@ -123,6 +156,12 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
   content: { padding: 20, gap: 4 },
   destTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.navy, marginBottom: 6 },
+  mapSection: { borderRadius: 14, overflow: 'hidden', marginTop: 12, marginBottom: 4 },
+  gpsAccuracyRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
+  gpsAccuracyTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted },
+  arrivalNote: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy, marginTop: 6, marginBottom: 10, lineHeight: 18 },
+  disclaimerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 14, backgroundColor: c.navySoft, borderRadius: 10, padding: 10 },
+  disclaimerTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.navy, flex: 1, lineHeight: 17 },
   fieldLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.ink, marginBottom: 4, marginTop: 16 },
   note: { fontFamily: theme.fonts.body, fontSize: 12.5, color: c.muted, lineHeight: 18, marginBottom: 10 },
   chipRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
