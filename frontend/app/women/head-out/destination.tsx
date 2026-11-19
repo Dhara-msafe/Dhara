@@ -350,10 +350,23 @@ export default function ChooseDestination() {
   const handleNext = useCallback(async () => {
     const final: DestinationValue = { ...value, label: value.label.trim() };
     if (!final.label) return;
+    // B-126: a typed destination carries no coordinates (typing clears them
+    // so a stale pin can never contradict the words), which left the active
+    // journey unable to draw its route map. Resolve the label through the
+    // free OSM endpoint this screen already uses and attach the top match.
+    // Best-effort: on no match or network failure the journey still starts
+    // text-only, exactly as before.
+    if (final.latitude == null || final.longitude == null) {
+      const hits = await fetchOsmSuggestions(base, final.label);
+      if (hits.length > 0) {
+        final.latitude = hits[0].latitude;
+        final.longitude = hits[0].longitude;
+      }
+    }
     setDraft(final);
     await recordRecentDestination(final);
     router.push('/women/head-out/radius');
-  }, [value, setDraft, router]);
+  }, [value, setDraft, router, base]);
 
   return (
     <View style={styles.root}>
