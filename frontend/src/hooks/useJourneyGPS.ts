@@ -22,6 +22,7 @@ import * as Location from 'expo-location';
 import { useAuth } from '@/src/auth';
 import { API_BASE } from '@/src/apiBase';
 import { cacheLocation } from '@/src/safety/locationCache';
+import { buildLocationUploadBody } from '@/src/safety/locationUploadBody';
 
 const POLL_INTERVAL_MS  = 30_000;   // foreground: update every 30 s
 /** A40: how often a real fix is written to the on-phone store. */
@@ -92,7 +93,7 @@ export function useJourneyGPS(
 
   // ── Send one location update to backend ────────────────────────────────────
   const pushUpdate = useCallback(async (
-    lat: number, lng: number, accuracy: number, area: string,
+    lat: number, lng: number, accuracy: number, area: string, capturedAtMs: number,
   ) => {
     if (!authToken || !journeyToken) return;
     const now = Date.now();
@@ -105,7 +106,9 @@ export function useJourneyGPS(
           'Content-Type': 'application/json',
           Authorization: `Bearer ${authToken}`,
         },
-        body: JSON.stringify({ lat, lng, accuracy, area }),
+        // A06: send how old this fix is and that it is a real device fix, so
+        // the server stores the true capture time instead of the arrival time.
+        body: JSON.stringify(buildLocationUploadBody({ lat, lng, accuracy, area, capturedAtMs })),
       });
     } catch { /* non-fatal — GPS update failure must not break the session */ }
   }, [authToken, journeyToken]);
@@ -119,9 +122,10 @@ export function useJourneyGPS(
     // Written at most once per CACHE_INTERVAL_MS. Cleared when the journey
     // ends and on sign-out. Best-effort: a failed write never breaks tracking.
     const nowMs = Date.now();
+    // The time the phone actually took this fix (used for the cache and, A06, the upload).
+    const fixMs = Number.isFinite(pos.timestamp) && pos.timestamp > 0 ? pos.timestamp : nowMs;
     if (nowMs - lastCached.current >= CACHE_INTERVAL_MS) {
       lastCached.current = nowMs;
-      const fixMs = Number.isFinite(pos.timestamp) && pos.timestamp > 0 ? pos.timestamp : nowMs;
       void cacheLocation(userIdRef.current, {
         lat: latitude,
         lng: longitude,
@@ -132,7 +136,7 @@ export function useJourneyGPS(
     }
     const area = await geocode(latitude, longitude);
     setState(s => ({ ...s, area, accuracy: accuracy ?? null, latitude, longitude, lastFixAt: Date.now(), tracking: true }));
-    await pushUpdate(latitude, longitude, accuracy ?? 0, area);
+    await pushUpdate(latitude, longitude, accuracy ?? 0, area, fixMs);
   }, [geocode, pushUpdate]);
 
   // ── Request permission contextually ───────────────────────────────────────

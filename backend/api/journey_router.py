@@ -254,6 +254,15 @@ class LocationIn(BaseModel):
     lng: float = Field(..., ge=-180, le=180)
     accuracy: float = Field(default=0, ge=0)
     area: str  = Field(default="", max_length=200)   # reverse-geocoded by device
+    # A07: how long ago the device took this fix, measured on the device at the
+    # moment it sent the request. An AGE rather than a clock time, so a wrong
+    # phone clock or time zone cannot distort it: the server subtracts it from
+    # its own clock. Absent on older app builds (the fix is then treated as
+    # taken on arrival, as before). Capped at 24 h, the life of a journey.
+    age_seconds: Optional[float] = Field(default=None, ge=0, le=86_400)
+    # A07: where the fix came from. Only a real device fix ("gps") may be
+    # stored. Absent on older app builds (accepted, recorded as "unknown").
+    source: Optional[str] = Field(default=None, max_length=20, pattern=r"^[a-z_]+$")
 
 
 class ExtendIn(BaseModel):
@@ -559,23 +568,52 @@ async def update_location(token: str, body: LocationIn, user: dict = Depends(cur
     if _sharing_closed(rec):
         return {"ok": True, "skipped": "journey already completed or sharing withdrawn"}
 
+    # A07: only a real fix taken by the device may be stored. A made-up point
+    # (the app's "demo" fallback) or one re-sent from the server's own copy
+    # would put a false or stale place in front of the trusted circle.
+    if body.source is not None and body.source != "gps":
+        return {"ok": True, "skipped": "not_a_device_fix"}
+
     now = datetime.now(timezone.utc)
-    # Server-side throttle — ignore if last update < 25 s ago
+    # Server-side throttle — ignore if the last update ARRIVED < 25 s ago.
+    # (Measured on arrival time; records written before A07 only have updated_at.)
     last = rec.get("last_location")
     if last:
         try:
-            last_ts = datetime.fromisoformat(last["updated_at"])
+            last_ts = datetime.fromisoformat(last.get("received_at") or last["updated_at"])
             if (now - last_ts).total_seconds() < 25:
                 return {"ok": True, "skipped": "throttled"}
         except Exception:
             pass
 
+    # A07: store when the fix was really TAKEN, separately from when it arrived.
+    # Before this, every upload was stamped with its arrival time, so a delayed
+    # or retried fix looked brand new on the trusted person's screen.
+    captured = now - timedelta(seconds=body.age_seconds) if body.age_seconds else now
+
+    # A07: never let an older fix replace a newer one (a delayed upload
+    # arriving after a fresher fix has already been stored).
+    if last:
+        try:
+            last_captured = datetime.fromisoformat(last.get("captured_at") or last["updated_at"])
+            if captured <= last_captured:
+                return {"ok": True, "skipped": "older_than_current"}
+        except Exception:
+            pass
+
     location_doc = {
-        "lat":        body.lat,
-        "lng":        body.lng,
-        "accuracy":   body.accuracy,
-        "area":       body.area.strip() or "Unknown area",
-        "updated_at": now.isoformat(),
+        "lat":         body.lat,
+        "lng":         body.lng,
+        "accuracy":    body.accuracy,
+        "area":        body.area.strip() or "Unknown area",
+        # updated_at is what every reader (guardian view, public page, alert
+        # payloads, age_minutes) already uses as "when was she here". It now
+        # carries the true capture time, so those readers show the real age
+        # without each needing a change.
+        "updated_at":  captured.isoformat(),
+        "captured_at": captured.isoformat(),
+        "received_at": now.isoformat(),
+        "source":      body.source or "unknown",
     }
     # PR-2A atomic closure guard: filter conditions mirror _sharing_closed() so
     # that if safe/revoke completes between the read-time check above and this
@@ -590,7 +628,12 @@ async def update_location(token: str, body: LocationIn, user: dict = Depends(cur
         {"$set":  {"last_location": location_doc},
          "$push": {"location_log": {"$each": [location_doc], "$slice": -20}}},
     )
-    return {"ok": True, "updated_at": location_doc["updated_at"]}
+    return {
+        "ok": True,
+        "updated_at":  location_doc["updated_at"],
+        "captured_at": location_doc["captured_at"],
+        "received_at": location_doc["received_at"],
+    }
 
 
 @router.patch("/journey/status/{token}/extend", status_code=200)

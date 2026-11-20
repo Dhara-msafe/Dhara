@@ -1013,6 +1013,7 @@ export default function HeadOut() {
           cached.lng,
           cached.accuracyM,
           cached.plusCode || 'Unknown area',
+          cached.capturedAt,   // A06: the fix's own capture time, not "now"
         );
       } catch { /* non-fatal */ }
     });

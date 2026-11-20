@@ -76,8 +76,10 @@ test('the store is keyed by the signed-in user', () => {
   assert.match(hookSrc, /cacheLocation\(userIdRef\.current,/);
 });
 
-test('saving does not change the upload sent to the server', () => {
-  assert.match(hookSrc, /body: JSON\.stringify\(\{ lat, lng, accuracy, area \}\)/);
+test('saving does not replace the upload sent to the server', () => {
+  // The upload body itself changed in A06 (it now carries the fix's age and
+  // source); what matters here is that the server upload is still made.
+  assert.match(hookSrc, /await pushUpdate\(latitude, longitude, accuracy \?\? 0, area, fixMs\);/);
 });
 
 console.log('\n── A40 — cleared when the journey ends (head-out/index.tsx) ────');
