@@ -225,6 +225,9 @@ export default function TrustedCircleAndRules() {
               </View>
             )}
 
+            {accepted.length > 0 && (
+              <Text style={styles.fieldLabel}>What will they receive?</Text>
+            )}
             {accepted.map(link => {
               const sel = selectedRecipientIds.includes(link.id);
               const uri = !failedPhotos[link.id] ? photoUri(link.invitee_user_id) : null;

@@ -37,6 +37,7 @@ import { useAuth } from '@/src/auth';
 import { useHeadOutWizard } from '@/src/women/headOutWizardStore';
 import { getRecentDestinations, recordRecentDestination, type RecentDestination } from '@/src/women/headOutRecents';
 import type { DestinationValue } from '@/src/women/DestinationPicker';
+import { useLivePosition } from '@/src/women/useLivePosition';
 
 const c = theme.colors;
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -237,6 +238,18 @@ export default function ChooseDestination() {
   // behavior is correct and intentional. See onChangeText below.
   const coordsFromSelectionRef = useRef(false);
 
+  // ── Live position (foreground display-only, never uploaded) ─────────────────
+  const live = useLivePosition();
+  // Prevents auto-recentering more than once — after the first GPS fix we
+  // only bump mapRecenterKey if the user has NOT yet typed a label or placed
+  // a pin; once fired we never fire again so user edits are respected.
+  const liveAutoRecenteredRef = useRef(false);
+  // 10-second deadline: if no GPS fix arrives in time, stop the spinner and
+  // show a plain "tap to retry" hint. The underlying watch continues so a
+  // late fix is still applied — this is purely a UI state.
+  const [locationTimedOut, setLocationTimedOut] = useState(false);
+  const locationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (!authToken) return;
     setLoadingSaved(true);
@@ -246,6 +259,45 @@ export default function ChooseDestination() {
   useEffect(() => { getRecentDestinations().then(setRecents); }, []);
 
   useEffect(() => () => { if (addressDebounceRef.current) clearTimeout(addressDebounceRef.current); }, []);
+
+  // Auto-request on mount: shows the permission prompt the first time; resumes
+  // silently if already granted. A 10-second deadline hides the spinner and
+  // shows a "tap to retry" hint if no GPS fix arrives in that window.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    setLocationTimedOut(false);
+    locationTimeoutRef.current = setTimeout(() => setLocationTimedOut(true), 10_000);
+    void live.request();
+    return () => {
+      if (locationTimeoutRef.current) clearTimeout(locationTimeoutRef.current);
+    };
+  }, []);
+
+  // As soon as the hook reaches any terminal state (granted / denied / blocked /
+  // unavailable), the spinner race is over — cancel the timeout and clear the
+  // timed-out flag so the correct status message shows immediately.
+  useEffect(() => {
+    if (live.status === 'asking') return;
+    if (locationTimeoutRef.current) {
+      clearTimeout(locationTimeoutRef.current);
+      locationTimeoutRef.current = null;
+    }
+    setLocationTimedOut(false);
+  }, [live.status]);
+
+  // On the first GPS fix, if the user has not yet typed anything or placed a
+  // pin, place the pin at the user's current location AND recenter the map.
+  // coordsFromSelectionRef stays false (pin-drop semantics), so typing a label
+  // afterward keeps the GPS coordinates intact. After this single fire,
+  // liveAutoRecenteredRef prevents any further overrides.
+  useEffect(() => {
+    if (!live.point || liveAutoRecenteredRef.current) return;
+    if (value.label.trim() !== '' || value.latitude != null) return;
+    liveAutoRecenteredRef.current = true;
+    // Place pin at user's location (coordsFromSelectionRef stays false).
+    setValue(v => ({ ...v, latitude: live.point!.latitude, longitude: live.point!.longitude }));
+    setMapRecenterKey(k => k + 1);
+  }, [live.point, value.label, value.latitude]);
 
   const filteredSaved = useMemo(
     () => savedPlaces.filter(p => matches(p.label, value.label)),
@@ -497,6 +549,65 @@ export default function ChooseDestination() {
         )}
 
         <Text style={styles.fieldLabel}>Pin location (optional)</Text>
+
+        {/* ── Use my current location ─────────────────────────────────── */}
+        <Pressable
+          testID="headout-dest-use-my-location"
+          style={(s) => [styles.locationBtn, focusRingStyle(s)]}
+          onPress={() => {
+            setLocationTimedOut(false);
+            if (locationTimeoutRef.current) clearTimeout(locationTimeoutRef.current);
+            locationTimeoutRef.current = setTimeout(() => setLocationTimedOut(true), 10_000);
+            void live.request();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Use my current location"
+        >
+          <Ionicons
+            name={live.status === 'granted' ? 'location' : 'locate-outline'}
+            size={18}
+            color={live.status === 'granted' ? c.navy : c.darkGold}
+          />
+          <Text style={[styles.locationBtnTxt, live.status === 'granted' && styles.locationBtnTxtActive]}>
+            {live.status === 'granted' ? 'Using your location' : 'Use my current location'}
+          </Text>
+          {live.status === 'asking' && !locationTimedOut && (
+            <ActivityIndicator size="small" color={c.muted} style={{ marginLeft: 4 }} />
+          )}
+        </Pressable>
+
+        {/* Status line — only shown when there is something worth telling the user */}
+        {live.status === 'asking' && !locationTimedOut && (
+          <Text style={styles.locationStatus}>Getting your location…</Text>
+        )}
+        {locationTimedOut && (
+          <Text style={styles.locationStatusWarn}>Could not get your location. Tap to retry.</Text>
+        )}
+        {live.status === 'denied' && (
+          <Text style={styles.locationStatusWarn}>
+            Location access denied. Tap the button above to try again.
+          </Text>
+        )}
+        {live.status === 'blocked' && (
+          <View style={styles.locationBlockedRow}>
+            <Text style={styles.locationStatusWarn}>Location access is blocked.</Text>
+            {live.canOpenSettings && (
+              <Pressable
+                testID="headout-dest-open-settings"
+                onPress={() => live.openSettings()}
+                style={styles.openSettingsBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Open settings to allow location access"
+              >
+                <Text style={styles.openSettingsTxt}>Open settings</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+        {live.status === 'unavailable' && (
+          <Text style={styles.locationStatusWarn}>Location is not available on this device.</Text>
+        )}
+
         <DestinationMapPicker
           testID="headout-dest-map"
           latitude={value.latitude ?? null}
@@ -504,6 +615,7 @@ export default function ChooseDestination() {
           radiusMeters={value.radiusMeters}
           onPositionChange={movePin}
           recenterKey={mapRecenterKey}
+          userLocation={live.point}
         />
       </ScrollView>
 
@@ -560,6 +672,20 @@ const styles = StyleSheet.create({
   customRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
   customTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.darkGold },
   mapHint: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, marginTop: 14, fontStyle: 'italic' },
+  // ── Live location button ────────────────────────────────────────────────────
+  locationBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines,
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+    marginTop: 4,
+  },
+  locationBtnTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.darkGold, flex: 1 },
+  locationBtnTxtActive: { color: c.navy },
+  locationStatus: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 6, marginLeft: 4 },
+  locationStatusWarn: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 6, marginLeft: 4 },
+  locationBlockedRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
+  openSettingsBtn: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: c.navySoft },
+  openSettingsTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.navy },
   footer: {
     paddingHorizontal: 20, paddingTop: 12, backgroundColor: c.background,
     borderTopWidth: 1, borderTopColor: c.lines,

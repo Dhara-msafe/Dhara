@@ -39,6 +39,10 @@ const ALERT_SIMULATION_MODE = process.env.EXPO_PUBLIC_ALERT_SIMULATION_MODE !== 
 // geofence/deviation math, so an operator can keep GO1B (location sharing
 // with the circle) on while leaving this heavier/newer layer off.
 const GO1C_LIVE_ROUTE_ENABLED = process.env.EXPO_PUBLIC_GO1C_LIVE_ROUTE === 'true';
+// Demo simulator — QA-only. When false (the default) this flag has zero
+// effect on the production code path: all state/refs it uses are never
+// allocated, all handlers are no-ops, and no JSX is rendered.
+const HEADOUT_DEMO_ENABLED = process.env.EXPO_PUBLIC_HEADOUT_DEMO === 'true';
 const DEFAULT_ARRIVAL_RADIUS_M = 200;
 // Re-fetch the route/ETA at most this often — a live safety map should stay
 // reasonably current, but re-querying Directions on every 30s GPS tick would
@@ -128,6 +132,21 @@ function formatCountdown(secs: number): string {
   if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   return `${m}:${String(s).padStart(2, '0')}`;
 }
+
+// ── Demo simulator coordinates (University of Hyderabad, Gachibowli) ──────────
+// Dead code when EXPO_PUBLIC_HEADOUT_DEMO is absent or false.
+const DEMO_ROUTE_WAYPOINTS = [
+  { lat: 17.4652, lng: 78.3488 }, // Main Gate — departure
+  { lat: 17.4645, lng: 78.3498 },
+  { lat: 17.4635, lng: 78.3510 },
+  { lat: 17.4625, lng: 78.3520 }, // near Hostel, still outside 200 m zone
+];
+const DEMO_OFF_ROUTE_POINTS = [
+  { lat: 17.4680, lng: 78.3450 },
+  { lat: 17.4700, lng: 78.3430 },
+  { lat: 17.4720, lng: 78.3415 },
+  { lat: 17.4740, lng: 78.3400 }, // clearly moving away
+];
 
 export default function HeadOut() {
   const insets = useSafeAreaInsets();
@@ -344,6 +363,18 @@ export default function HeadOut() {
   // double-notified regardless of which path actually fires first.
   const missedReportedRef = useRef(false);
   const [alertRaised, setAlertRaised] = useState(false);
+
+  // ── Demo simulator state (allocated only when HEADOUT_DEMO_ENABLED) ────────
+  // When the flag is off every ref/state here stays at its initial value and
+  // has no observable effect on the production render path.
+  const [demoGpsPoint, setDemoGpsPoint] = useState<{
+    latitude: number; longitude: number; accuracy: number; lastFixAt: number;
+  } | null>(null);
+  const demoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Cleanup on unmount
+  useEffect(() => () => {
+    if (demoIntervalRef.current) clearInterval(demoIntervalRef.current);
+  }, []);
   useEffect(() => {
     if (graceSecsLeft === 0 && authToken && journeyToken && !missedReportedRef.current) {
       missedReportedRef.current = true;
@@ -420,6 +451,59 @@ export default function HeadOut() {
   }, [authToken, journeyToken, session, extending]);
 
   const handleDismissArrived = useCallback(() => setArrivedDismissedAt(Date.now()), []);
+
+  // ── Demo auto-consent: skip the GPS rationale card in demo mode ────────────
+  useEffect(() => { if (HEADOUT_DEMO_ENABLED) setLocationConsentGiven(true); }, []);
+
+  // ── Demo simulator handlers ────────────────────────────────────────────────
+  // Each handler is a no-op when HEADOUT_DEMO_ENABLED is false (the guard at
+  // the top means the entire block is unreachable in production).
+  const handleDemoStartRoute = useCallback(() => {
+    if (!HEADOUT_DEMO_ENABLED) return;
+    if (demoIntervalRef.current) clearInterval(demoIntervalRef.current);
+    let idx = 0;
+    const advance = () => {
+      const pt = DEMO_ROUTE_WAYPOINTS[idx];
+      setDemoGpsPoint({ latitude: pt.lat, longitude: pt.lng, accuracy: 12, lastFixAt: Date.now() });
+      idx++;
+      if (idx >= DEMO_ROUTE_WAYPOINTS.length) {
+        if (demoIntervalRef.current) clearInterval(demoIntervalRef.current);
+        demoIntervalRef.current = null;
+      }
+    };
+    advance();
+    demoIntervalRef.current = setInterval(advance, 1500);
+  }, []);
+
+  const handleDemoEnterZone = useCallback(() => {
+    if (!HEADOUT_DEMO_ENABLED || !session?.latitude || !session?.longitude) return;
+    if (demoIntervalRef.current) { clearInterval(demoIntervalRef.current); demoIntervalRef.current = null; }
+    // Place the simulated GPS exactly on the destination so distanceToDestination ≈ 0,
+    // which makes the real hasArrived logic evaluate to true.
+    setDemoGpsPoint({ latitude: session.latitude, longitude: session.longitude, accuracy: 10, lastFixAt: Date.now() });
+  }, [session]);
+
+  const handleDemoGoOffRoute = useCallback(() => {
+    if (!HEADOUT_DEMO_ENABLED) return;
+    if (demoIntervalRef.current) { clearInterval(demoIntervalRef.current); demoIntervalRef.current = null; }
+    // Fire four positions with strictly increasing distance from destination to
+    // fill distanceHistoryRef (MOVING_AWAY_STREAK=3) so the real movingAway
+    // logic evaluates to true without needing a live route reference.
+    DEMO_OFF_ROUTE_POINTS.forEach((pt, i) => {
+      setTimeout(() => {
+        setDemoGpsPoint({ latitude: pt.lat, longitude: pt.lng, accuracy: 15, lastFixAt: Date.now() });
+      }, i * 300);
+    });
+  }, []);
+
+  const handleDemoMissCheckIn = useCallback(() => {
+    if (!HEADOUT_DEMO_ENABLED || !session) return;
+    if (demoIntervalRef.current) { clearInterval(demoIntervalRef.current); demoIntervalRef.current = null; }
+    // Backdate the session so the timer reads 0 — the real expired logic fires
+    // unchanged. Nothing is persisted to AsyncStorage so the session restores
+    // normally if the user refreshes.
+    setSession({ ...session, startTime: Date.now() - (session.durationMins * 60000 + 10000) });
+  }, [session]);
 
   // "Check in now" (post-expiry): handleExtendTime ADDS minutes to the
   // existing deadline, which is correct for the 'arrived' screen (deadline is
@@ -516,11 +600,29 @@ export default function HeadOut() {
 
   // GO1B: GPS tracking — active only when session running, flag on, AND user
   // has seen the pre-permission rationale (handle_permissions_contract).
-  const gps = useJourneyGPS(
+  const realGps = useJourneyGPS(
     journeyToken,
     GO1B_GPS_ENABLED && !!session && !expired && locationConsentGiven,
     () => setShowPermDeniedSettings(true),
   );
+  // Demo simulator: when HEADOUT_DEMO_ENABLED and a demo control button has
+  // been pressed, replace the GPS values with the simulated point. Every
+  // downstream calculation (hasArrived, hasDeviated, offRoute, distanceToDestination)
+  // runs against this data unchanged — the REAL screen logic determines what
+  // is shown, not a shortcut. When the flag is off, realGps flows through
+  // unchanged so this whole block is unreachable at runtime.
+  const gps = (HEADOUT_DEMO_ENABLED && demoGpsPoint)
+    ? {
+        ...realGps,
+        latitude:  demoGpsPoint.latitude,
+        longitude: demoGpsPoint.longitude,
+        accuracy:  demoGpsPoint.accuracy,
+        tracking:  true,
+        granted:   true,
+        denied:    false,
+        lastFixAt: demoGpsPoint.lastFixAt,
+      }
+    : realGps;
 
   const hasDestCoord = isValidCoord(session?.latitude ?? null, session?.longitude ?? null);
 
@@ -796,6 +898,54 @@ export default function HeadOut() {
         subtitle={authToken ? 'Your trusted circle is told only as per your settings' : 'Set a check-in timer — nothing is sent automatically'}
       />
 
+      {/* ── Demo controller banner — QA only, never shown in production ──── */}
+      {HEADOUT_DEMO_ENABLED && (
+        <View style={styles.demoBanner} testID="headout-demo-banner">
+          <View style={styles.demoBannerHeader}>
+            <Ionicons name="flask-outline" size={14} color="#92400e" />
+            <Text style={styles.demoBannerTitle}>Demo mode · simulated location, nothing is sent</Text>
+          </View>
+          <View style={styles.demoBtnRow}>
+            <Pressable
+              testID="headout-demo-start-route"
+              style={styles.demoBtn}
+              onPress={handleDemoStartRoute}
+              accessibilityRole="button"
+              accessibilityLabel="Demo: start simulated route"
+            >
+              <Text style={styles.demoBtnTxt}>Start route</Text>
+            </Pressable>
+            <Pressable
+              testID="headout-demo-enter-zone"
+              style={styles.demoBtn}
+              onPress={handleDemoEnterZone}
+              accessibilityRole="button"
+              accessibilityLabel="Demo: enter arrival zone"
+            >
+              <Text style={styles.demoBtnTxt}>Enter arrival zone</Text>
+            </Pressable>
+            <Pressable
+              testID="headout-demo-off-route"
+              style={styles.demoBtn}
+              onPress={handleDemoGoOffRoute}
+              accessibilityRole="button"
+              accessibilityLabel="Demo: go off route"
+            >
+              <Text style={styles.demoBtnTxt}>Go off route</Text>
+            </Pressable>
+            <Pressable
+              testID="headout-demo-miss-checkin"
+              style={styles.demoBtn}
+              onPress={handleDemoMissCheckIn}
+              accessibilityRole="button"
+              accessibilityLabel="Demo: miss check-in"
+            >
+              <Text style={styles.demoBtnTxt}>Miss check-in</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
       {expired ? (
             <View style={[styles.activeCard, styles.expiredCard]} testID="headout-expired-card">
               <Ionicons name="cloud-offline-outline" size={32} color={c.emergencyRed} />
@@ -919,19 +1069,28 @@ export default function HeadOut() {
               <Text style={styles.note}>
                 {`We've detected you're within the arrival zone (${Math.round(arrivalRadius)} m) of "${session.destination}". This doesn't automatically mean you're safe — confirm below.`}
               </Text>
-              <Pressable
-                testID="headout-i-arrived"
-                style={(s) => [styles.button, styles.safeButton, focusRingStyle(s)]}
-                onPress={endSession}
-                accessibilityRole="button"
-                accessibilityLabel="Confirm I arrived"
-              >
-                <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
-                <Text style={styles.buttonText}>I arrived</Text>
-              </Pressable>
-              <Pressable testID="headout-not-here-yet" onPress={handleDismissArrived} style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Not here yet">
-                <Text style={styles.linkTxt}>Not here yet</Text>
-              </Pressable>
+              {/* Arrived action row — two equal buttons side by side */}
+              <View style={styles.arrivedBtnRow}>
+                <Pressable
+                  testID="headout-i-arrived"
+                  style={(s) => [styles.button, styles.safeButton, styles.arrivedHalf, focusRingStyle(s)]}
+                  onPress={endSession}
+                  accessibilityRole="button"
+                  accessibilityLabel="Confirm I arrived"
+                >
+                  <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+                  <Text style={styles.buttonText}>I arrived</Text>
+                </Pressable>
+                <Pressable
+                  testID="headout-not-here-yet"
+                  style={(s) => [styles.button, styles.outlineNavyBtn, styles.arrivedHalf, focusRingStyle(s)]}
+                  onPress={handleDismissArrived}
+                  accessibilityRole="button"
+                  accessibilityLabel="Not there yet"
+                >
+                  <Text style={[styles.buttonText, { color: c.navy }]}>Not there yet</Text>
+                </Pressable>
+              </View>
               <Pressable
                 testID="headout-extend-time"
                 disabled={extending}
@@ -1378,4 +1537,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 12, fontFamily: theme.fonts.body, fontSize: 15,
     color: c.ink, marginTop: 10, marginBottom: 10,
   },
+  // ── Arrived card — side-by-side action buttons ──────────────────────────────
+  arrivedBtnRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  arrivedHalf: { flex: 1 },
+  outlineNavyBtn: { backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.navy },
+  // ── Demo simulator banner ────────────────────────────────────────────────────
+  demoBanner: {
+    backgroundColor: '#fef3c7', borderWidth: 1, borderColor: '#fbbf24',
+    borderRadius: 12, padding: 12, marginBottom: 10,
+  },
+  demoBannerHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  demoBannerTitle: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: '#92400e', flex: 1 },
+  demoBtnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  demoBtn: {
+    backgroundColor: '#fbbf24', borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 7,
+  },
+  demoBtnTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: '#78350f' },
 });
