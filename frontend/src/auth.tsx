@@ -20,6 +20,7 @@ import { useHeadOutWizard } from './women/headOutWizardStore';
 import { CONSENT_ANON_KEY, migrateAnonConsentToUser } from './consentStorage';
 import { useLocationUploadQueue } from './safety/locationUploadQueue';
 import { registerGuestScope, touchGuestScope } from './women/guestScopeRegistry';
+import { clearLocationCache } from './safety/locationCache';
 
 // Required for iOS to properly complete the auth session
 WebBrowser.maybeCompleteAuthSession();
@@ -385,6 +386,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     //  - unsent issue reports (they would be filed under the next account);
     //  - the pointer to an in-progress FIR draft and its module/language.
     try { useLocationUploadQueue.getState().clearAll(); } catch { /* non-blocking */ }
+    // A40: the last real location remembered on this phone belongs to the
+    // departing account. Remove it (and the signed-out fallback slot) so the
+    // next account on this phone can never read it.
+    try {
+      if (user?.id) await clearLocationCache(user.id);
+      await clearLocationCache('anon');
+    } catch { /* non-blocking */ }
     // B-25: the token lives in the secure store now, not AsyncStorage.
     await storage.secureRemove(TOKEN_KEY);
     // Also clear any pre-migration plaintext copy, in case this device never

@@ -21,8 +21,11 @@ import { Platform } from 'react-native';
 import * as Location from 'expo-location';
 import { useAuth } from '@/src/auth';
 import { API_BASE } from '@/src/apiBase';
+import { cacheLocation } from '@/src/safety/locationCache';
 
 const POLL_INTERVAL_MS  = 30_000;   // foreground: update every 30 s
+/** A40: how often a real fix is written to the on-phone store. */
+const CACHE_INTERVAL_MS = 20_000;
 const DISTANCE_METERS   = 50;        // only update after >50 m movement
 
 export type GPSState = {
@@ -60,10 +63,15 @@ export function useJourneyGPS(
   enabled: boolean,
   onPermDenied?: () => void,
 ): GPSState {
-  const { token: authToken } = useAuth();
+  const { token: authToken, user } = useAuth();
   const [state, setState]    = useState<GPSState>(INITIAL);
   const subRef  = useRef<Location.LocationSubscription | null>(null);
   const lastSent = useRef<number>(0);
+  // A40: the on-phone location store is kept per signed-in user. Read the id
+  // through a ref so a changed user object never restarts the GPS watcher.
+  const userIdRef = useRef<string>('anon');
+  useEffect(() => { userIdRef.current = user?.id ?? 'anon'; }, [user]);
+  const lastCached = useRef<number>(0);
 
   // ── Reverse geocode a position → human-readable area string ────────────────
   const geocode = useCallback(async (lat: number, lng: number): Promise<string> => {
@@ -105,6 +113,23 @@ export function useJourneyGPS(
   // ── Handle a new position fix ──────────────────────────────────────────────
   const handlePosition = useCallback(async (pos: Location.LocationObject) => {
     const { latitude, longitude, accuracy } = pos.coords;
+    // A40: remember this real fix on the phone (encrypted, per user) so the
+    // last-gasp upload and the Plus Code have a true location to use. Done
+    // BEFORE the area lookup, which can be slow or fail with no network.
+    // Written at most once per CACHE_INTERVAL_MS. Cleared when the journey
+    // ends and on sign-out. Best-effort: a failed write never breaks tracking.
+    const nowMs = Date.now();
+    if (nowMs - lastCached.current >= CACHE_INTERVAL_MS) {
+      lastCached.current = nowMs;
+      const fixMs = Number.isFinite(pos.timestamp) && pos.timestamp > 0 ? pos.timestamp : nowMs;
+      void cacheLocation(userIdRef.current, {
+        lat: latitude,
+        lng: longitude,
+        accuracyM: accuracy ?? null,
+        capturedAt: new Date(fixMs).toISOString(),
+        source: 'gps',
+      });
+    }
     const area = await geocode(latitude, longitude);
     setState(s => ({ ...s, area, accuracy: accuracy ?? null, latitude, longitude, lastFixAt: Date.now(), tracking: true }));
     await pushUpdate(latitude, longitude, accuracy ?? 0, area);
