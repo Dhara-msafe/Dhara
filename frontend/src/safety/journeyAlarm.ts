@@ -94,3 +94,147 @@ export const ALARM_COPY = {
       'Contact them yourself, or call 112 if you are in danger.',
   },
 } as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A31: what really happened to the missed-check-in alert
+// ─────────────────────────────────────────────────────────────────────────────
+// Before this, the screen said "Your trusted circle has been notified" the
+// moment the phone's own grace countdown reached zero, whether or not the
+// server had been reached. Now the wording follows the server's reply.
+
+export type AlertReport =
+  /** Nothing reported yet. */
+  | 'idle'
+  /** The report is on its way to the server. */
+  | 'sending'
+  /** The server replied and raised alerts (possibly for nobody; see counts). */
+  | 'confirmed'
+  /** The server replied and deliberately raised nothing. */
+  | 'skipped'
+  /** The server could not be reached. Retrying. */
+  | 'failed';
+
+export interface AlertReportState {
+  report: AlertReport;
+  /** Link ids an alert exists for. null when the server did not say (older server). */
+  alertedLinkIds: string[] | null;
+  /** How many people were selected for this journey. null when unknown. */
+  selected: number | null;
+  skippedReason: 'journey_completed' | 'sharing_withdrawn' | 'auto_notify_off' | 'unknown' | null;
+}
+
+export const IDLE_ALERT_REPORT: AlertReportState = Object.freeze({
+  report: 'idle', alertedLinkIds: null, selected: null, skippedReason: null,
+}) as AlertReportState;
+
+/** Turn the server's reply to POST .../missed-checkin into screen state. */
+export function parseMissedCheckinReply(data: any): AlertReportState {
+  const ids = Array.isArray(data?.alerted_link_ids)
+    ? data.alerted_link_ids.filter((x: unknown) => typeof x === 'string')
+    : null;
+  const selected = Number.isInteger(data?.selected) && data.selected >= 0 ? data.selected : null;
+  if (data?.skipped) {
+    const r = data?.skipped_reason;
+    const reason = r === 'journey_completed' || r === 'sharing_withdrawn' || r === 'auto_notify_off' ? r : 'unknown';
+    return { report: 'skipped', alertedLinkIds: ids ?? [], selected, skippedReason: reason };
+  }
+  return { report: 'confirmed', alertedLinkIds: ids, selected, skippedReason: null };
+}
+
+export const DO_NOTHING_TEXT = 'Won\'t auto-notify — you chose "Do nothing" in Step 3';
+
+/** The line shown under "Server alert status" after a missed check-in. */
+export function alertStatusText(input: {
+  state: AlertReportState;
+  autoNotifyOff: boolean;
+  pendingSafe: boolean;
+  graceCountdown: string;
+}): string {
+  const { state, autoNotifyOff, pendingSafe, graceCountdown } = input;
+  if (pendingSafe) {
+    return "You marked yourself safe, but this phone could not tell DHARA's server. " +
+      'The server may still alert your circle. Still trying.';
+  }
+  switch (state.report) {
+    case 'sending':
+      return "Raising the alert with DHARA's server…";
+    case 'failed':
+      return "Not confirmed. This phone cannot reach DHARA's server. Trying again…";
+    case 'skipped':
+      if (state.skippedReason === 'sharing_withdrawn') return 'No alert was raised, because you stopped sharing this journey.';
+      if (state.skippedReason === 'journey_completed') return 'No alert was raised. This journey was already marked safe.';
+      if (state.skippedReason === 'auto_notify_off') return DO_NOTHING_TEXT;
+      return 'No alert was raised for this journey.';
+    case 'confirmed': {
+      const seen = 'DHARA cannot tell yet whether they have seen it.';
+      if (state.alertedLinkIds === null) return `DHARA's server has raised the alert. ${seen}`;
+      const a = state.alertedLinkIds.length;
+      const n = state.selected ?? a;
+      if (a === 0) {
+        return 'No alert was raised. The people you chose have not accepted your invitation or have not allowed late alerts.';
+      }
+      return `Alert raised for ${a} of ${n} ${n === 1 ? 'person' : 'people'}. ${seen}`;
+    }
+    default:
+      return autoNotifyOff ? DO_NOTHING_TEXT : `Will notify your circle in ${graceCountdown}`;
+  }
+}
+
+/** The short label beside each person on the missed-check-in screen. */
+export function recipientAlertLabel(input: {
+  state: AlertReportState;
+  linkId: string;
+  autoNotifyOff: boolean;
+  pendingSafe: boolean;
+  graceCountdown: string;
+}): string {
+  const { state, linkId, autoNotifyOff, pendingSafe, graceCountdown } = input;
+  if (pendingSafe) return 'Not confirmed';
+  switch (state.report) {
+    case 'sending': return 'Alerting…';
+    case 'failed': return 'Not confirmed';
+    case 'skipped': return state.skippedReason === 'auto_notify_off' ? 'Not auto-notified' : 'Not alerted';
+    case 'confirmed':
+      if (state.alertedLinkIds === null) return 'Alert raised';
+      return state.alertedLinkIds.includes(linkId) ? 'Alert raised' : 'Not alerted';
+    default:
+      return autoNotifyOff ? 'Not auto-notified' : `In ${graceCountdown}`;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A35: "I'm safe" and "Stop sharing" when the server cannot be reached
+// ─────────────────────────────────────────────────────────────────────────────
+// Both used to be sent once. A failed "I'm safe" still cleared the journey on
+// the phone, so the server's alarm kept running and could alert her circle
+// after she had said she was safe. A failed "Stop sharing" did nothing and
+// showed nothing. Now each stays pending, is shown as pending, and is retried.
+
+/**
+ * Decide what a reply to PATCH .../safe or POST .../revoke means.
+ * 2xx: done. 403, 404, 410: the server has no open journey of hers under this
+ * token, so there is nothing left to close. Anything else, or no reply: retry.
+ */
+export function closeOutcome(httpStatus: number | null | undefined): 'done' | 'retry' {
+  if (typeof httpStatus !== 'number' || !Number.isFinite(httpStatus)) return 'retry';
+  if (httpStatus >= 200 && httpStatus < 300) return 'done';
+  if (httpStatus === 403 || httpStatus === 404 || httpStatus === 410) return 'done';
+  return 'retry';
+}
+
+export const CLOSE_COPY = {
+  safe_pending: {
+    title: "Not confirmed yet: this journey is still open on DHARA's server",
+    body:
+      "This phone cannot reach DHARA's server to say you are safe. Until it does, your trusted " +
+      'circle may still be alerted when your check-in time passes. Still trying. ' +
+      'If you can, tell them yourself that you are safe.',
+  },
+  revoke_pending: {
+    title: 'Sharing has NOT stopped yet',
+    body:
+      "This phone cannot reach DHARA's server. Your trusted circle can still see this journey. Still trying.",
+  },
+  retry: 'Try again now',
+  retrying: 'Trying…',
+} as const;

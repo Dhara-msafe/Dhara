@@ -155,7 +155,7 @@ async def _guardian_access_check(
 async def _notify_linked_recipients(
     user: dict, rec: dict, type_: str, extra_payload: Optional[dict] = None,
     idempotency_suffix: Optional[str] = None,
-) -> None:
+) -> list[str]:
     """Fan out a safety alert to every ACCEPTED trusted-circle link selected
     for this journey (rec['recipient_link_ids']). Best-effort — a push/alert
     failure must never break the journey action that triggered it.
@@ -167,10 +167,17 @@ async def _notify_linked_recipients(
     episode as "already sent". Callers of such types pass something that
     uniquely identifies the episode (e.g. when it started) so each episode
     gets its own key, while retries of the SAME episode's call still dedupe.
+
+    A31: returns the ids of the links an alert record now exists for (newly
+    created or already there from an earlier identical call). A link is left
+    out when it is missing, not accepted, lacks the permission this alert type
+    needs, or its alert failed to save. This says an alert was RAISED on the
+    server; it does not say a push reached the person or that they saw it.
     """
     link_ids = rec.get("recipient_link_ids") or []
+    alerted: list[str] = []
     if not link_ids:
-        return
+        return alerted
     payload = {
         "destination": rec.get("destination"),
         "journey_status": rec.get("status"),
@@ -204,13 +211,16 @@ async def _notify_linked_recipients(
                 continue
             base_key = f"{rec['token']}:{type_}:{link_id}" if type_ != "journey_status" else None
             idempotency_key = f"{base_key}:{idempotency_suffix}" if base_key and idempotency_suffix else base_key
-            await create_alert_and_notify(
+            doc = await create_alert_and_notify(
                 type_=type_, owner_id=user["id"], owner_name=user.get("name") or "A DHARA user",
                 link=link, payload=payload, journey_token=rec["token"],
                 idempotency_key=idempotency_key,
             )
+            if doc:
+                alerted.append(link_id)
         except Exception as e:
             logger.warning("[journey] alert fan-out failed for link %s: %s", link_id, e)
+    return alerted
 
 
 # ── Models ────────────────────────────────────────────────────────────────────
@@ -430,8 +440,16 @@ async def revoke_sharing(token: str, user: dict = Depends(current_user)):
     return {"ok": True, "revoked_at": rec["sharing_revoked_at"]}
 
 
+class MissedCheckinIn(BaseModel):
+    # A31: why the app is reporting. "auto" = its own timer ran out;
+    # "manual" = the owner tapped "Raise alert now". Older builds send no body.
+    trigger: Optional[str] = Field(default=None, pattern=r"^(auto|manual)$")
+
+
 @router.post("/journey/status/{token}/missed-checkin", status_code=200)
-async def report_missed_checkin(token: str, user: dict = Depends(current_user)):
+async def report_missed_checkin(
+    token: str, body: Optional[MissedCheckinIn] = None, user: dict = Depends(current_user),
+):
     """Client calls this when its own local check-in timer expires with no
     response, for the case where the app is in the foreground to notice.
     deadline_worker.py independently watches expected_checkin_at server-side
@@ -460,10 +478,26 @@ async def report_missed_checkin(token: str, user: dict = Depends(current_user)):
         raise HTTPException(404, "Journey not found")
     if rec["user_id"] != user["id"]:
         raise HTTPException(403, "Not your journey")
+    # A31: the reply now says what actually happened, so the app can stop
+    # telling the owner her circle "has been notified" on its own timer.
+    selected = len(rec.get("recipient_link_ids") or [])
     if _sharing_closed(rec):
-        return {"ok": True, "skipped": "journey already completed or sharing withdrawn"}
-    await _notify_linked_recipients(user, rec, "missed_checkin")
-    return {"ok": True}
+        return {
+            "ok": True, "skipped": "journey already completed or sharing withdrawn",
+            "skipped_reason": "journey_completed" if rec.get("status") == "safe" else "sharing_withdrawn",
+            "alerted_link_ids": [], "selected": selected,
+        }
+    # The owner chose "Do nothing" for missed check-ins on this journey. An
+    # automatic report must respect that (deadline_worker already does). A
+    # deliberate "Raise alert now" still goes through.
+    if body and body.trigger == "auto" and not rec.get("auto_notify_on_no_response", True):
+        return {
+            "ok": True, "skipped": "owner chose not to notify automatically",
+            "skipped_reason": "auto_notify_off",
+            "alerted_link_ids": [], "selected": selected,
+        }
+    alerted = await _notify_linked_recipients(user, rec, "missed_checkin")
+    return {"ok": True, "alerted_link_ids": alerted, "selected": selected}
 
 
 @router.post("/journey/status/{token}/heartbeat", status_code=200)

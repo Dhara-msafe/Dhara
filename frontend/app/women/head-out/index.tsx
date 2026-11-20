@@ -13,6 +13,10 @@ import { API_BASE } from '@/src/apiBase';
 import { getLastLocation, clearLocationCache } from '@/src/safety/locationCache';
 import { isUploadableLastGaspFix } from '@/src/safety/lastGaspGuard';
 import { alarmStatus, needsServerJourney, retryDelayMs, journeyClientRef, ALARM_COPY } from '@/src/safety/journeyAlarm';
+import {
+  IDLE_ALERT_REPORT, parseMissedCheckinReply, alertStatusText, recipientAlertLabel,
+  closeOutcome, CLOSE_COPY, type AlertReportState,
+} from '@/src/safety/journeyAlarm';
 import { formatLocationFix } from '@/src/safety/locationPresentation';
 import { useLocationUpload } from '@/src/hooks/useLocationUpload';
 import { ActiveJourneyMap } from '@/src/women/ActiveJourneyMap';
@@ -122,6 +126,11 @@ interface HeadOutSession {
    * sessions created before this field existed keep the original always-notify
    * behaviour). See deadline_worker.py's auto_notify_on_no_response gate. */
   autoNotifyOnNoResponse?: boolean;
+  /** A35: she tapped "I'm safe" but the server has not confirmed it yet.
+   * Persisted so the retry resumes if the app is closed and reopened. */
+  pendingSafe?: boolean;
+  /** A35: she tapped "Stop sharing" but the server has not confirmed it yet. */
+  pendingRevoke?: boolean;
   /** Server journey token, persisted so a remount never creates a second journey. */
   journeyToken?: string | null;
 }
@@ -180,6 +189,12 @@ export default function HeadOut() {
   const createInFlightRef = useRef(false);
   const [createFailures, setCreateFailures] = useState(0);
   const [creatingJourney, setCreatingJourney] = useState(false);
+  // A35: "I'm safe" and "Stop sharing" wait for the server's answer and are
+  // retried until it comes. closeInFlightRef stops two "safe" requests overlapping.
+  const closeInFlightRef = useRef(false);
+  const [closingJourney, setClosingJourney] = useState(false);
+  const [closeFailures, setCloseFailures] = useState(0);
+  const [revokeFailures, setRevokeFailures] = useState(0);
   // Who to notify for this journey now comes from the session itself (set by
   // the Head Out wizard's Trusted Circle step), not from a checkbox list on
   // this screen — this screen no longer has one.
@@ -385,12 +400,37 @@ export default function HeadOut() {
   }, [loading, session, router]);
 
   const endSession = useCallback(async () => {
-    // Part B/P4: tell linked recipients this journey completed safely — best-effort
+    // A35: this used to send "safe" once and clear the journey on the phone
+    // whatever happened. If the request failed, the server's alarm kept
+    // running and could alert her circle after she had said she was safe.
+    // Now the journey is cleared here only once the server has confirmed.
+    // Until then it is marked pendingSafe, shown as pending, and retried.
     if (authToken && journeyToken) {
-      fetch(`${API_BASE}/api/journey/status/${journeyToken}/safe`, {
-        method: 'PATCH', headers: { Authorization: `Bearer ${authToken}` },
-      }).catch(() => {});
+      if (closeInFlightRef.current) return;
+      closeInFlightRef.current = true;
+      setClosingJourney(true);
+      let status: number | null = null;
+      try {
+        const r = await fetch(`${API_BASE}/api/journey/status/${journeyToken}/safe`, {
+          method: 'PATCH', headers: { Authorization: `Bearer ${authToken}` },
+        });
+        status = r.status;
+      } catch { /* no reply: stays null and is retried */ }
+      closeInFlightRef.current = false;
+      setClosingJourney(false);
+      if (closeOutcome(status) !== 'done') {
+        setCloseFailures(n => n + 1);
+        const current = createSessionRef.current;
+        if (current && !current.pendingSafe) {
+          const updated = { ...current, pendingSafe: true };
+          setSession(updated);
+          AsyncStorage.setItem(SESSION_KEY, JSON.stringify(updated)).catch(() => {});
+        }
+        return;
+      }
     }
+    setCloseFailures(0);
+    setRevokeFailures(0);
     await AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
     // A40: the journey is over, so the location remembered on this phone for
     // it must not stay behind. (Not cleared on a missed check-in: she may
@@ -410,6 +450,15 @@ export default function HeadOut() {
     setCreateFailures(0); // A30: a future session starts its own create attempts from zero
   }, [authToken, journeyToken, user]);
 
+  // A35: keep trying a pending "I'm safe" until the server confirms. Starts
+  // straight away when the screen reopens with a pending one saved.
+  const pendingSafe = !!session?.pendingSafe;
+  useEffect(() => {
+    if (!pendingSafe || !authToken || !journeyToken) return;
+    const timer = setTimeout(() => { void endSession(); }, retryDelayMs(closeFailures));
+    return () => clearTimeout(timer);
+  }, [pendingSafe, authToken, journeyToken, closeFailures, endSession]);
+
   // Part B/P4: report a missed check-in to the backend — waits out the SAME
   // grace window shown on the "Check-in not received" screen (GRACE_MINUTES)
   // rather than firing the instant the timer hits zero, so "Will notify your
@@ -422,7 +471,11 @@ export default function HeadOut() {
   // share one idempotency key per journey+recipient, so the circle is never
   // double-notified regardless of which path actually fires first.
   const missedReportedRef = useRef(false);
-  const [alertRaised, setAlertRaised] = useState(false);
+  // A31: what the server said happened to the alert. The screen wording
+  // follows this, never the phone's own countdown.
+  const [alertReport, setAlertReport] = useState<AlertReportState>(IDLE_ALERT_REPORT);
+  const [alertReportFailures, setAlertReportFailures] = useState(0);
+  const alertTriggerRef = useRef<'auto' | 'manual' | null>(null);
 
   // ── Demo simulator state (allocated only when HEADOUT_DEMO_ENABLED) ────────
   // When the flag is off every ref/state here stays at its initial value and
@@ -435,25 +488,63 @@ export default function HeadOut() {
   useEffect(() => () => {
     if (demoIntervalRef.current) clearInterval(demoIntervalRef.current);
   }, []);
-  useEffect(() => {
-    if (graceSecsLeft === 0 && authToken && journeyToken && !missedReportedRef.current) {
-      missedReportedRef.current = true;
-      setAlertRaised(true);
-      fetch(`${API_BASE}/api/journey/status/${journeyToken}/missed-checkin`, {
-        method: 'POST', headers: { Authorization: `Bearer ${authToken}` },
-      }).catch(() => {});
+  const reportMissedCheckin = useCallback(async (trigger: 'auto' | 'manual') => {
+    if (!authToken || !journeyToken) return;
+    setAlertReport(prev => ({ ...prev, report: 'sending' }));
+    try {
+      const r = await fetch(`${API_BASE}/api/journey/status/${journeyToken}/missed-checkin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ trigger }),
+      });
+      if (!r.ok) throw new Error(`missed-checkin failed: ${r.status}`);
+      setAlertReport(parseMissedCheckinReply(await r.json()));
+      setAlertReportFailures(0);
+    } catch {
+      setAlertReport(prev => ({ ...prev, report: 'failed' }));
+      setAlertReportFailures(n => n + 1);
     }
-    if (!expired) { missedReportedRef.current = false; setAlertRaised(false); }
-  }, [expired, graceSecsLeft, authToken, journeyToken]);
+  }, [authToken, journeyToken]);
+
+  const autoNotifyOff = session?.autoNotifyOnNoResponse === false;
+  useEffect(() => {
+    if (!expired) {
+      missedReportedRef.current = false;
+      alertTriggerRef.current = null;
+      setAlertReport(IDLE_ALERT_REPORT);
+      setAlertReportFailures(0);
+      return;
+    }
+    // Automatic report when the grace countdown ends. Not sent when she chose
+    // "Do nothing" for missed check-ins (her choice was being overridden
+    // here before), and not sent while an "I'm safe" is waiting to reach the
+    // server (she has told us she is safe).
+    if (
+      graceSecsLeft === 0 && authToken && journeyToken && !missedReportedRef.current &&
+      !autoNotifyOff && !pendingSafe
+    ) {
+      missedReportedRef.current = true;
+      alertTriggerRef.current = 'auto';
+      void reportMissedCheckin('auto');
+    }
+  }, [expired, graceSecsLeft, authToken, journeyToken, autoNotifyOff, pendingSafe, reportMissedCheckin]);
+
+  // A31: a report that could not reach the server is retried, on the same
+  // timing as journey registration. The server will not raise a second alert
+  // for the same journey and person, so repeating it is safe.
+  useEffect(() => {
+    if (alertReport.report !== 'failed' || !expired || !alertTriggerRef.current || pendingSafe) return;
+    const trigger = alertTriggerRef.current;
+    const timer = setTimeout(() => { void reportMissedCheckin(trigger); }, retryDelayMs(alertReportFailures));
+    return () => clearTimeout(timer);
+  }, [alertReport.report, expired, alertReportFailures, pendingSafe, reportMissedCheckin]);
 
   const raiseAlertNow = useCallback(() => {
     if (!authToken || !journeyToken || missedReportedRef.current) return;
     missedReportedRef.current = true;
-    setAlertRaised(true);
-    fetch(`${API_BASE}/api/journey/status/${journeyToken}/missed-checkin`, {
-      method: 'POST', headers: { Authorization: `Bearer ${authToken}` },
-    }).catch(() => {});
-  }, [authToken, journeyToken]);
+    alertTriggerRef.current = 'manual';
+    void reportMissedCheckin('manual');
+  }, [authToken, journeyToken, reportMissedCheckin]);
 
   // "Stop sharing" — withdraws location/status sharing without claiming
   // arrival (distinct from endSession/"I'm home safely"). Reuses the same
@@ -466,15 +557,42 @@ export default function HeadOut() {
   const stopSharing = useCallback(async () => {
     if (!journeyToken || !authToken || revokingShare) return;
     setRevokingShare(true);
+    // A35: a failed request used to do nothing and show nothing, so she could
+    // believe sharing had stopped when it had not. Now it is marked
+    // pendingRevoke, shown as pending, and retried until the server confirms.
+    let status: number | null = null;
     try {
       const r = await fetch(`${API_BASE}/api/journey/status/${journeyToken}/revoke`, {
         method: 'POST', headers: { Authorization: `Bearer ${authToken}` },
       });
-      if (r.ok) setSharingRevoked(true);
-    } catch {} finally {
-      setRevokingShare(false);
+      status = r.status;
+    } catch { /* no reply: stays null and is retried */ }
+    setRevokingShare(false);
+    const current = createSessionRef.current;
+    if (closeOutcome(status) === 'done') {
+      setSharingRevoked(true);
+      setRevokeFailures(0);
+      if (current?.pendingRevoke) {
+        const updated = { ...current, pendingRevoke: false };
+        setSession(updated);
+        AsyncStorage.setItem(SESSION_KEY, JSON.stringify(updated)).catch(() => {});
+      }
+      return;
+    }
+    setRevokeFailures(n => n + 1);
+    if (current && !current.pendingRevoke) {
+      const updated = { ...current, pendingRevoke: true };
+      setSession(updated);
+      AsyncStorage.setItem(SESSION_KEY, JSON.stringify(updated)).catch(() => {});
     }
   }, [journeyToken, authToken, revokingShare]);
+
+  const pendingRevoke = !!session?.pendingRevoke && !sharingRevoked;
+  useEffect(() => {
+    if (!pendingRevoke || pendingSafe || !authToken || !journeyToken) return;
+    const timer = setTimeout(() => { void stopSharing(); }, retryDelayMs(revokeFailures));
+    return () => clearTimeout(timer);
+  }, [pendingRevoke, pendingSafe, authToken, journeyToken, revokeFailures, stopSharing]);
 
   const requestHelp = useCallback(() => {
     if (authToken && journeyToken) {
@@ -662,7 +780,9 @@ export default function HeadOut() {
   // has seen the pre-permission rationale (handle_permissions_contract).
   const realGps = useJourneyGPS(
     journeyToken,
-    GO1B_GPS_ENABLED && !!session && !expired && locationConsentGiven,
+    // A35: once she has tapped "I'm safe", stop reading and sending location,
+    // even while that request is still waiting to reach the server.
+    GO1B_GPS_ENABLED && !!session && !expired && locationConsentGiven && !session.pendingSafe,
     () => setShowPermDeniedSettings(true),
   );
   // Demo simulator: when HEADOUT_DEMO_ENABLED and a demo control button has
@@ -877,6 +997,7 @@ export default function HeadOut() {
         !wasActive ||
         lastGaspFiredRef.current ||
         !sessionRef.current ||
+        sessionRef.current.pendingSafe ||   // A35: she has said she is safe
         expiredRef.current
       ) return;
       lastGaspFiredRef.current = true;
@@ -1044,6 +1165,46 @@ export default function HeadOut() {
         </View>
       )}
 
+      {/* A35: a request she made that the server has not confirmed yet. */}
+      {pendingSafe && (
+        <View style={styles.alarmOffBanner} testID="headout-safe-pending" accessibilityRole="alert">
+          <Ionicons name="warning-outline" size={20} color={c.emergencyRed} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.alarmBannerTitle, { color: c.emergencyRed }]}>{CLOSE_COPY.safe_pending.title}</Text>
+            <Text style={styles.alarmBannerBody}>{CLOSE_COPY.safe_pending.body}</Text>
+            <Pressable
+              testID="headout-safe-retry"
+              disabled={closingJourney}
+              onPress={() => { void endSession(); }}
+              style={(st) => [styles.alarmRetryBtn, focusRingStyle(st)]}
+              accessibilityRole="button"
+              accessibilityLabel="Try again to tell DHARA's server you are safe"
+            >
+              <Text style={styles.alarmRetryTxt}>{closingJourney ? CLOSE_COPY.retrying : CLOSE_COPY.retry}</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+      {pendingRevoke && !pendingSafe && (
+        <View style={styles.alarmOffBanner} testID="headout-revoke-pending" accessibilityRole="alert">
+          <Ionicons name="warning-outline" size={20} color={c.emergencyRed} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.alarmBannerTitle, { color: c.emergencyRed }]}>{CLOSE_COPY.revoke_pending.title}</Text>
+            <Text style={styles.alarmBannerBody}>{CLOSE_COPY.revoke_pending.body}</Text>
+            <Pressable
+              testID="headout-revoke-retry"
+              disabled={revokingShare}
+              onPress={() => { void stopSharing(); }}
+              style={(st) => [styles.alarmRetryBtn, focusRingStyle(st)]}
+              accessibilityRole="button"
+              accessibilityLabel="Try again to stop sharing"
+            >
+              <Text style={styles.alarmRetryTxt}>{revokingShare ? CLOSE_COPY.retrying : CLOSE_COPY.retry}</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
       {expired ? (
             <View style={[styles.activeCard, styles.expiredCard]} testID="headout-expired-card">
               <Ionicons name="cloud-offline-outline" size={32} color={c.emergencyRed} />
@@ -1086,12 +1247,11 @@ export default function HeadOut() {
                   <Ionicons name="time-outline" size={20} color={c.navy} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.statusCardLabel}>Server alert status</Text>
-                    <Text style={styles.statusCardValue}>
-                      {session.autoNotifyOnNoResponse === false
-                        ? "Won't auto-notify — you chose \"Do nothing\" in Step 3"
-                        : alertRaised || graceSecsLeft === 0
-                          ? 'Your trusted circle has been notified'
-                          : `Will notify your circle in ${formatCountdown(graceSecsLeft ?? 0)}`}
+                    <Text style={styles.statusCardValue} testID="headout-server-alert-text">
+                      {alertStatusText({
+                        state: alertReport, autoNotifyOff, pendingSafe,
+                        graceCountdown: formatCountdown(graceSecsLeft ?? 0),
+                      })}
                     </Text>
                   </View>
                 </View>
@@ -1112,11 +1272,10 @@ export default function HeadOut() {
                         <Text style={styles.notifyName}>{link.contact_name}</Text>
                         <View style={{ flex: 1 }} />
                         <Text style={styles.notifyEta}>
-                          {session.autoNotifyOnNoResponse === false
-                            ? 'Not auto-notified'
-                            : alertRaised || graceSecsLeft === 0
-                              ? 'Notified'
-                              : `In ${formatCountdown(graceSecsLeft ?? 0)}`}
+                          {recipientAlertLabel({
+                            state: alertReport, linkId: link.id, autoNotifyOff, pendingSafe,
+                            graceCountdown: formatCountdown(graceSecsLeft ?? 0),
+                          })}
                         </Text>
                         <Ionicons name="time-outline" size={14} color={c.muted} />
                       </View>
@@ -1138,7 +1297,7 @@ export default function HeadOut() {
               </Pressable>
               {!!extendError && <Text style={styles.inlineError}>{extendError}</Text>}
 
-              {TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && journeyToken && selectedRecipients.length > 0 && !alertRaised && graceSecsLeft !== 0 && (
+              {TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && journeyToken && selectedRecipients.length > 0 && alertReport.report === 'idle' && graceSecsLeft !== 0 && !pendingSafe && (
                 <Pressable testID="headout-raise-alert-now" onPress={raiseAlertNow} style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Raise alert now">
                   <Text style={[styles.linkTxt, styles.linkTxtUnderline]}>Raise alert now</Text>
                 </Pressable>
