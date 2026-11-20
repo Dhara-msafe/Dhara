@@ -15,6 +15,7 @@ import { useCallback } from 'react';
 import * as Battery from 'expo-battery';
 import { API_BASE } from '@/src/apiBase';
 import { useLocationUploadQueue } from '@/src/safety/locationUploadQueue';
+import { buildLocationUploadBody, capturedAtToMs } from '@/src/safety/locationUploadBody';
 
 /** Battery fraction at or below which uploads are deferred (0.0 – 1.0). */
 const BATTERY_GATE = 0.15;
@@ -28,6 +29,8 @@ async function _rawUpload(
   lng: number,
   accuracy: number,
   area: string,
+  /** A06: when the phone took this fix (ms). null = unknown. */
+  capturedAtMs: number | null,
 ): Promise<boolean> {
   try {
     const resp = await fetch(
@@ -38,7 +41,9 @@ async function _rawUpload(
           'Content-Type': 'application/json',
           Authorization: `Bearer ${authToken}`,
         },
-        body: JSON.stringify({ lat, lng, accuracy, area }),
+        // A06: age is worked out here, at the moment of sending, so a fix that
+        // waited in the queue arrives with its real age.
+        body: JSON.stringify(buildLocationUploadBody({ lat, lng, accuracy, area, capturedAtMs })),
       },
     );
     return resp.ok;
@@ -64,6 +69,7 @@ async function _drainQueue(authToken: string): Promise<void> {
       entry.lng,
       entry.accuracy,
       entry.area,
+      capturedAtToMs(entry.capturedAt),
     );
     if (!ok) break; // entry remains at front for next attempt
     // Pop the successfully uploaded front entry
@@ -86,8 +92,13 @@ export function useLocationUpload(
    * • > 15 %  → upload; on failure enqueue; on success drain the queue.
    */
   const upload = useCallback(
-    async (lat: number, lng: number, accuracy: number, area: string): Promise<void> => {
+    async (
+      lat: number, lng: number, accuracy: number, area: string,
+      /** A06: when the phone took this fix (ms). Defaults to now. */
+      capturedAtMs: number = Date.now(),
+    ): Promise<void> => {
       if (!authToken || !journeyToken) return;
+      const capturedAt = new Date(capturedAtMs).toISOString();
 
       // Battery gate
       try {
@@ -100,13 +111,13 @@ export function useLocationUpload(
             lng,
             accuracy,
             area,
-            capturedAt: new Date().toISOString(),
+            capturedAt,
           });
           return;
         }
       } catch { /* non-fatal — proceed with upload */ }
 
-      const ok = await _rawUpload(authToken, journeyToken, lat, lng, accuracy, area);
+      const ok = await _rawUpload(authToken, journeyToken, lat, lng, accuracy, area, capturedAtMs);
       if (!ok) {
         enqueue({
           journeyToken,
@@ -114,7 +125,7 @@ export function useLocationUpload(
           lng,
           accuracy,
           area,
-          capturedAt: new Date().toISOString(),
+          capturedAt,
         });
         return;
       }
@@ -135,9 +146,11 @@ export function useLocationUpload(
       lng: number,
       accuracy: number | null,
       area: string,
+      /** A06: ISO time the cached fix was captured, so the server stores its real age. */
+      capturedAt?: string | null,
     ): Promise<void> => {
       if (!authToken || !journeyToken) return;
-      await _rawUpload(authToken, journeyToken, lat, lng, accuracy ?? 0, area);
+      await _rawUpload(authToken, journeyToken, lat, lng, accuracy ?? 0, area, capturedAtToMs(capturedAt));
     },
     [authToken, journeyToken],
   );
