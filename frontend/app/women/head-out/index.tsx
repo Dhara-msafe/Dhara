@@ -10,7 +10,7 @@ import { getCircle, type Contact } from '@/src/women/api';
 import { useAuth } from '@/src/auth';
 import { useJourneyGPS } from '@/src/hooks/useJourneyGPS';
 import { API_BASE } from '@/src/apiBase';
-import { getLastLocation } from '@/src/safety/locationCache';
+import { getLastLocation, clearLocationCache } from '@/src/safety/locationCache';
 import { isUploadableLastGaspFix } from '@/src/safety/lastGaspGuard';
 import { formatLocationFix } from '@/src/safety/locationPresentation';
 import { useLocationUpload } from '@/src/hooks/useLocationUpload';
@@ -337,6 +337,10 @@ export default function HeadOut() {
       }).catch(() => {});
     }
     await AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
+    // A40: the journey is over, so the location remembered on this phone for
+    // it must not stay behind. (Not cleared on a missed check-in: she may
+    // still need the Plus Code for her own alert SMS.)
+    await clearLocationCache(((user as any)?.id) ?? 'anon');
     setSession(null);
     setExpired(false);
     setJourneyToken(null);
@@ -349,7 +353,7 @@ export default function HeadOut() {
     deviationBaselineDistanceRef.current = null;
     deviationEscalatedRef.current = false;
     journeyCreateAttemptedRef.current = false; // a future session may need its own journey created
-  }, [authToken, journeyToken]);
+  }, [authToken, journeyToken, user]);
 
   // Part B/P4: report a missed check-in to the backend — waits out the SAME
   // grace window shown on the "Check-in not received" screen (GRACE_MINUTES)
