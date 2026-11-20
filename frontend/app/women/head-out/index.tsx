@@ -280,13 +280,13 @@ export default function HeadOut() {
   // Read the session and user through refs so createJourney keeps one
   // identity while the journey runs. Otherwise any session update (extend
   // time, change destination) would restart the retry wait from the top.
-  const sessionRef = useRef(session);
-  useEffect(() => { sessionRef.current = session; }, [session]);
+  const createSessionRef = useRef(session);
+  useEffect(() => { createSessionRef.current = session; }, [session]);
   const userIdForRef = useRef<string | null>(null);
   useEffect(() => { userIdForRef.current = (user as any)?.id ?? null; }, [user]);
 
   const createJourney = useCallback(async (): Promise<boolean> => {
-    const session = sessionRef.current;
+    const session = createSessionRef.current;
     if (!session || !authToken || journeyToken || createInFlightRef.current) return false;
     createInFlightRef.current = true;
     setCreatingJourney(true);
@@ -314,7 +314,7 @@ export default function HeadOut() {
       // request was in flight. The server now holds a journey the phone has
       // already finished with: close it straight away, or its alarm would
       // fire later and alert her circle for a journey she ended safely.
-      const latest = sessionRef.current;
+      const latest = createSessionRef.current;
       if (!latest || latest.startTime !== session.startTime) {
         fetch(`${API_BASE}/api/journey/status/${data.token}/safe`, {
           method: 'PATCH', headers: { Authorization: `Bearer ${authToken}` },

@@ -211,5 +211,17 @@ test('the missed-check-in "not alerted" card shows only when no server journey e
   assert.match(src, /\{serverJourneyNeeded && !journeyToken && \(\s*<View style=\{\[styles\.statusCard, styles\.alarmOffCard\]\} testID="headout-alarm-not-active-expired"/);
 });
 
+test('no hook-level name is declared twice in the journey screen', () => {
+  // A duplicate `const` in one component is an early JavaScript error: the
+  // whole screen fails to load. The first version of this change declared a
+  // second `sessionRef`; a syntax-only check did not catch it.
+  const names = [...src.matchAll(/^  const (?:\[([^\]]+)\]|(\w+))/gm)]
+    .flatMap(m => (m[1] ? m[1].split(',').map(x => x.trim()) : [m[2]]))
+    .filter(Boolean);
+  const seen = new Set(); const dup = new Set();
+  for (const n of names) { if (seen.has(n)) dup.add(n); seen.add(n); }
+  assert.deepEqual([...dup], []);
+});
+
 console.log(`\n  ${passed} passed   ${failed} failed   ${passed + failed} total\n`);
 if (failed > 0) process.exit(1);
