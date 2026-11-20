@@ -12,6 +12,7 @@ import { useJourneyGPS } from '@/src/hooks/useJourneyGPS';
 import { API_BASE } from '@/src/apiBase';
 import { getLastLocation, clearLocationCache } from '@/src/safety/locationCache';
 import { isUploadableLastGaspFix } from '@/src/safety/lastGaspGuard';
+import { alarmStatus, needsServerJourney, retryDelayMs, journeyClientRef, ALARM_COPY } from '@/src/safety/journeyAlarm';
 import { formatLocationFix } from '@/src/safety/locationPresentation';
 import { useLocationUpload } from '@/src/hooks/useLocationUpload';
 import { ActiveJourneyMap } from '@/src/women/ActiveJourneyMap';
@@ -173,9 +174,12 @@ export default function HeadOut() {
   // Pilot simulation preview for "Prepare alert" (Batch 2) — holds the
   // message body + recipient names shown in the preview Modal; never sent.
   const [simPreview, setSimPreview] = useState<{ body: string; recipients: string[] } | null>(null);
-  // Guards the journey-recovery effect below so it only ever attempts a
-  // create once per session — see that effect for the full race-prevention story.
-  const journeyCreateAttemptedRef = useRef(false);
+  // A30: registering the journey with the server is retried until it works.
+  // createInFlightRef stops two requests overlapping; createFailures drives
+  // the retry timing and what the screen tells her (see src/safety/journeyAlarm.ts).
+  const createInFlightRef = useRef(false);
+  const [createFailures, setCreateFailures] = useState(0);
+  const [creatingJourney, setCreatingJourney] = useState(false);
   // Who to notify for this journey now comes from the session itself (set by
   // the Head Out wizard's Trusted Circle step), not from a checkbox list on
   // this screen — this screen no longer has one.
@@ -260,38 +264,89 @@ export default function HeadOut() {
   // hands off here. Also covers this screen remounting after the app was
   // closed and reopened mid-session, since journeyToken has never been
   // persisted — only the session itself is.
+  //
+  // A30: this used to be ONE silent attempt. If it failed, the server never
+  // learned about the journey, so no server alarm existed, yet the screen
+  // still showed a running timer and she was not told. Now:
+  //   - the attempt is retried (2 s, 5 s, 10 s, then every 30 s) for as long
+  //     as the journey is active on this screen and no token has come back;
+  //   - every attempt carries the same client_ref, so the server returns the
+  //     same journey if an earlier attempt got through but its reply was lost;
+  //   - the screen says plainly whether the server alarm is armed (see the
+  //     "headout-alarm-*" blocks in the render below).
+  const serverJourneyNeeded = !!session &&
+    needsServerJourney(GO1B_GPS_ENABLED, session.recipientLinkIds?.length ?? 0);
+
+  // Read the session and user through refs so createJourney keeps one
+  // identity while the journey runs. Otherwise any session update (extend
+  // time, change destination) would restart the retry wait from the top.
+  const sessionRef = useRef(session);
+  useEffect(() => { sessionRef.current = session; }, [session]);
+  const userIdForRef = useRef<string | null>(null);
+  useEffect(() => { userIdForRef.current = (user as any)?.id ?? null; }, [user]);
+
+  const createJourney = useCallback(async (): Promise<boolean> => {
+    const session = sessionRef.current;
+    if (!session || !authToken || journeyToken || createInFlightRef.current) return false;
+    createInFlightRef.current = true;
+    setCreatingJourney(true);
+    try {
+      const r = await fetch(`${API_BASE}/api/journey/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({
+          destination: session.destination,
+          // Send the time actually LEFT so the server deadline matches the on-screen timer.
+          duration_mins: Math.max(1, Math.ceil((session.startTime + session.durationMins * 60000 - Date.now()) / 60000)),
+          recipient_link_ids: session.recipientLinkIds ?? [],
+          remind_before_mins: session.remindBeforeMins ?? null,
+          auto_notify_on_no_response: session.autoNotifyOnNoResponse ?? true,
+          destination_lat: session.latitude ?? null,
+          destination_lng: session.longitude ?? null,
+          radius_meters: session.radiusMeters ?? null,
+          client_ref: journeyClientRef(userIdForRef.current, session.startTime),
+        }),
+      });
+      if (!r.ok) throw new Error(`journey create failed: ${r.status}`);
+      const data = await r.json();
+      if (!data?.token) throw new Error('journey create returned no token');
+      // She may have ended this journey (or started another) while the
+      // request was in flight. The server now holds a journey the phone has
+      // already finished with: close it straight away, or its alarm would
+      // fire later and alert her circle for a journey she ended safely.
+      const latest = sessionRef.current;
+      if (!latest || latest.startTime !== session.startTime) {
+        fetch(`${API_BASE}/api/journey/status/${data.token}/safe`, {
+          method: 'PATCH', headers: { Authorization: `Bearer ${authToken}` },
+        }).catch(() => {});
+        return false;
+      }
+      setJourneyToken(data.token);
+      setCreateFailures(0);
+      const updated = { ...latest, journeyToken: data.token };
+      setSession(updated);
+      AsyncStorage.setItem(SESSION_KEY, JSON.stringify(updated)).catch(() => {});
+      return true;
+    } catch {
+      setCreateFailures(n => n + 1);
+      return false;
+    } finally {
+      createInFlightRef.current = false;
+      setCreatingJourney(false);
+    }
+  }, [authToken, journeyToken]);
+
   useEffect(() => {
-    if (
-      !session || expired || !authToken ||
-      (!GO1B_GPS_ENABLED && (session.recipientLinkIds?.length ?? 0) === 0) ||
-      journeyToken || journeyCreateAttemptedRef.current
-    ) return;
-    journeyCreateAttemptedRef.current = true;
-    fetch(`${API_BASE}/api/journey/status`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-      body: JSON.stringify({
-        destination: session.destination,
-        // Send the time actually LEFT so the server deadline matches the on-screen timer.
-        duration_mins: Math.max(1, Math.ceil((session.startTime + session.durationMins * 60000 - Date.now()) / 60000)),
-        recipient_link_ids: session.recipientLinkIds ?? [],
-        remind_before_mins: session.remindBeforeMins ?? null,
-        auto_notify_on_no_response: session.autoNotifyOnNoResponse ?? true,
-        destination_lat: session.latitude ?? null,
-        destination_lng: session.longitude ?? null,
-        radius_meters: session.radiusMeters ?? null,
-      }),
-    })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (!data?.token) return;
-        setJourneyToken(data.token);
-        const updated = { ...session, journeyToken: data.token };
-        setSession(updated);
-        AsyncStorage.setItem(SESSION_KEY, JSON.stringify(updated)).catch(() => {});
-      })
-      .catch(() => {});   // non-fatal — GPS tracking stays best-effort
-  }, [session, expired, authToken, journeyToken]);
+    if (!serverJourneyNeeded || expired || !authToken || journeyToken) return;
+    const timer = setTimeout(() => { void createJourney(); }, retryDelayMs(createFailures));
+    return () => clearTimeout(timer);
+  }, [serverJourneyNeeded, expired, authToken, journeyToken, createFailures, createJourney]);
+
+  const journeyAlarm = alarmStatus({
+    needsServerJourney: serverJourneyNeeded,
+    hasJourneyToken: !!journeyToken,
+    failedAttempts: createFailures,
+  });
 
   // Tick the countdown whenever session changes. Keeps running past the main
   // deadline (instead of stopping dead at 0) so it can also surface a live
@@ -352,7 +407,7 @@ export default function HeadOut() {
     deviationStartedAtRef.current = null;
     deviationBaselineDistanceRef.current = null;
     deviationEscalatedRef.current = false;
-    journeyCreateAttemptedRef.current = false; // a future session may need its own journey created
+    setCreateFailures(0); // A30: a future session starts its own create attempts from zero
   }, [authToken, journeyToken, user]);
 
   // Part B/P4: report a missed check-in to the backend — waits out the SAME
@@ -957,6 +1012,38 @@ export default function HeadOut() {
         </View>
       )}
 
+      {/* A30: tell her plainly whether the server-held alarm is armed. */}
+      {!expired && journeyAlarm === 'connecting' && (
+        <View style={styles.alarmPendingBanner} testID="headout-alarm-connecting" accessibilityLiveRegion="polite">
+          <Ionicons name="sync-outline" size={18} color="#92400e" />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.alarmBannerTitle}>{ALARM_COPY.connecting.title}</Text>
+            <Text style={styles.alarmBannerBody}>{ALARM_COPY.connecting.body}</Text>
+          </View>
+        </View>
+      )}
+      {!expired && journeyAlarm === 'not_active' && (
+        <View style={styles.alarmOffBanner} testID="headout-alarm-not-active" accessibilityRole="alert">
+          <Ionicons name="warning-outline" size={20} color={c.emergencyRed} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.alarmBannerTitle, { color: c.emergencyRed }]}>{ALARM_COPY.not_active.title}</Text>
+            <Text style={styles.alarmBannerBody}>{ALARM_COPY.not_active.body}</Text>
+            <Pressable
+              testID="headout-alarm-retry"
+              disabled={creatingJourney}
+              onPress={() => { void createJourney(); }}
+              style={(st) => [styles.alarmRetryBtn, focusRingStyle(st)]}
+              accessibilityRole="button"
+              accessibilityLabel="Try again to reach DHARA's server"
+            >
+              <Text style={styles.alarmRetryTxt}>
+                {creatingJourney ? ALARM_COPY.not_active.retrying : ALARM_COPY.not_active.retry}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
       {expired ? (
             <View style={[styles.activeCard, styles.expiredCard]} testID="headout-expired-card">
               <Ionicons name="cloud-offline-outline" size={32} color={c.emergencyRed} />
@@ -978,6 +1065,18 @@ export default function HeadOut() {
                           ? 'Looks online'
                           : `Looks offline (last location ${Math.round((Date.now() - gps.lastFixAt) / 60000)} min ago)`}
                     </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* A30: the server never accepted this journey, so no automatic
+                  alert exists. Say so, instead of showing nothing. */}
+              {serverJourneyNeeded && !journeyToken && (
+                <View style={[styles.statusCard, styles.alarmOffCard]} testID="headout-alarm-not-active-expired" accessibilityRole="alert">
+                  <Ionicons name="warning-outline" size={20} color={c.emergencyRed} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.statusCardValue, { color: c.emergencyRed }]}>{ALARM_COPY.expired_not_active.title}</Text>
+                    <Text style={styles.alarmBannerBody}>{ALARM_COPY.expired_not_active.body}</Text>
                   </View>
                 </View>
               )}
@@ -1172,6 +1271,12 @@ export default function HeadOut() {
                 <Text style={styles.activeTitle}>Journey active</Text>
               </View>
               <Text style={styles.destTxt}>{session.destination}</Text>
+              {journeyAlarm === 'active' && (
+                <View style={styles.alarmOnRow} testID="headout-alarm-active">
+                  <Ionicons name="shield-checkmark-outline" size={14} color={c.verifiedGreen} />
+                  <Text style={styles.alarmOnTxt}>{ALARM_COPY.active.body}</Text>
+                </View>
+              )}
               {GO1C_LIVE_ROUTE_ENABLED && gps.tracking && !(fixIsFresh && fixIsAccurate) && (
                 <Text style={styles.note} testID="headout-location-uncertain">
                   {"Location uncertain — DHARA can't confirm your arrival from this reading. Tap \"I'm safe\" or \"Need help\" yourself."}
@@ -1553,6 +1658,27 @@ const styles = StyleSheet.create({
   arrivedHalf: { flex: 1 },
   outlineNavyBtn: { backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.navy },
   // ── Demo simulator banner ────────────────────────────────────────────────────
+  // A30: server-alarm state
+  alarmPendingBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    backgroundColor: '#fef3c7', borderWidth: 1, borderColor: '#fbbf24',
+    borderRadius: 12, padding: 12, marginBottom: 10,
+  },
+  alarmOffBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    backgroundColor: '#fef2f2', borderWidth: 1.5, borderColor: c.emergencyRed,
+    borderRadius: 12, padding: 12, marginBottom: 10,
+  },
+  alarmOffCard: { alignItems: 'flex-start', backgroundColor: '#fef2f2', borderColor: c.emergencyRed },
+  alarmBannerTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: '#92400e' },
+  alarmBannerBody: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, lineHeight: 19, marginTop: 2 },
+  alarmRetryBtn: {
+    alignSelf: 'flex-start', marginTop: 8, paddingVertical: 8, paddingHorizontal: 14,
+    borderRadius: 10, borderWidth: 1.5, borderColor: c.navy, backgroundColor: c.surface, minHeight: 44, justifyContent: 'center',
+  },
+  alarmRetryTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13.5, color: c.navy },
+  alarmOnRow: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'stretch' },
+  alarmOnTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12.5, color: c.muted },
   demoBanner: {
     backgroundColor: '#fef3c7', borderWidth: 1, borderColor: '#fbbf24',
     borderRadius: 12, padding: 12, marginBottom: 10,

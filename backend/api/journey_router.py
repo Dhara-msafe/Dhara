@@ -231,6 +231,12 @@ class JourneyIn(BaseModel):
     destination_lat: Optional[float] = Field(default=None, ge=-90, le=90)
     destination_lng: Optional[float] = Field(default=None, ge=-180, le=180)
     radius_meters: Optional[int] = Field(default=None, ge=50, le=2000)   # matches safety_router RADIUS_MIN_M/MAX_M
+    # A30: a reference the app makes once per journey and sends with every
+    # create attempt. If an attempt reached the server but its reply was lost,
+    # the retry carries the same reference and gets the SAME journey back
+    # instead of a second one (a second one would run its own deadline and
+    # alert the circle after the owner had already checked in safe).
+    client_ref: Optional[str] = Field(default=None, min_length=8, max_length=80, pattern=r"^[A-Za-z0-9_.-]+$")
 
 
 class LocationIn(BaseModel):
@@ -262,8 +268,34 @@ class RouteDeviationIn(BaseModel):
 
 @router.post("/journey/status", status_code=201)
 async def create_journey(body: JourneyIn, user: dict = Depends(current_user)):
-    """Create a journey record and return a public status URL."""
+    """Create a journey record and return a public status URL.
+
+    A30: when the app sends a client_ref and this user already has an
+    in-progress, unexpired journey with the same reference, that journey is
+    returned unchanged: no second record and no second "journey started"
+    notification. The reply also carries the server's own clock and the
+    deadline it is holding, so the app can show that the alarm is armed.
+    """
     now   = datetime.now(timezone.utc)
+    if body.client_ref:
+        existing = await db.safety_journeys.find_one(
+            {"user_id": user["id"], "client_ref": body.client_ref, "status": "in_progress"}
+        )
+        if existing:
+            still_open = True
+            try:
+                still_open = now <= datetime.fromisoformat(existing["expires_at"])
+            except (KeyError, TypeError, ValueError):
+                pass
+            if still_open:
+                return {
+                    "token":               existing["token"],
+                    "status_url":          f"/api/journey/status/{existing['token']}",
+                    "expires_at":          existing.get("expires_at"),
+                    "expected_checkin_at": existing.get("expected_checkin_at"),
+                    "server_time":         now.isoformat(),
+                    "created":             False,
+                }
     token = _new_token()
     display_name = (user.get("name") or "").split()[0] or "User"   # first name only
 
@@ -286,13 +318,17 @@ async def create_journey(body: JourneyIn, user: dict = Depends(current_user)):
         "destination_lat":     body.destination_lat,
         "destination_lng":     body.destination_lng,
         "radius_meters":       body.radius_meters,
+        "client_ref":          body.client_ref,
     }
     await db.safety_journeys.insert_one(doc)
     await _notify_linked_recipients(user, doc, "journey_started")
     return {
-        "token":      token,
-        "status_url": f"/api/journey/status/{token}",
-        "expires_at": doc["expires_at"],
+        "token":               token,
+        "status_url":          f"/api/journey/status/{token}",
+        "expires_at":          doc["expires_at"],
+        "expected_checkin_at": doc["expected_checkin_at"],
+        "server_time":         now.isoformat(),
+        "created":             True,
     }
 
 
