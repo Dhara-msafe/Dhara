@@ -23,6 +23,20 @@ import { focusRingStyle } from '@/src/a11yFocus';
 
 const colors = theme.colors;
 
+/**
+ * v2.2 rollout phase 4 (accessibility only, reversible). ON: every consent
+ * control announces its name, role and on/off state to screen readers —
+ * the age pair becomes a labelled radiogroup, the two required checkboxes
+ * get explicit accessible names (today the name is derived from child
+ * text, which some readers skip), and the two optional Switch controls
+ * (kept as switches per owner decision, 21 Nov) get an explicit switch
+ * role and checked state. OFF (the default, including when the env var is
+ * unset): today's markup byte-for-byte. Defaults, visible labels, saved
+ * records and layout are identical either way; consentStrings is untouched
+ * (B-62). Same rollback pattern as src/designRevision.ts.
+ */
+const UI_V22_P4 = process.env.EXPO_PUBLIC_UI_V22_P4 === 'true';
+
 const PLACEHOLDERS: Record<string, string> = {
   '{{DATA_LOCATION}}': 'India (cloud-hosted, encrypted at rest)',
   '{{GRIEVANCE_OFFICER_NAME}}': grievanceOfficerName,
@@ -216,9 +230,11 @@ export default function ConsentScreen() {
             <View style={styles.divider} />
             <Text style={styles.sectionLabel}>REQUIRED TO USE DHARA</Text>
             <Text testID="consent-age-heading" style={styles.sectionHeading}>{copy.ageHeading}</Text>
-            <View style={styles.radioGroup}>
+            <View style={styles.radioGroup}
+              {...(UI_V22_P4 ? { accessibilityRole: 'radiogroup' as const, accessibilityLabel: copy.ageHeading, role: 'radiogroup' as const } : {})}>
               {(['18+', 'under18'] as const).map(value => (
                 <Pressable key={value} testID={value === '18+' ? 'consent-age-adult' : 'consent-age-under18'}
+                  {...(UI_V22_P4 ? { accessibilityLabel: value === '18+' ? strings.age_label : strings.age_under_label } : {})}
                   aria-checked={age === value} aria-disabled={saving}
                   accessibilityRole="radio" accessibilityState={{ checked: age === value, disabled: saving }} disabled={saving}
                   style={(state) => [styles.radioBtn, age === value && styles.radioSelected, state.pressed && styles.pressed, focusRingStyle(state)]}
@@ -243,11 +259,13 @@ export default function ConsentScreen() {
               <Ionicons name="chevron-forward" size={18} color={colors.primary} />
             </Pressable>
             <Pressable testID="consent-terms-checkbox" accessibilityRole="checkbox" aria-checked={termsTicked} aria-disabled={saving} accessibilityState={{ checked: termsTicked, disabled: saving }}
+              {...(UI_V22_P4 ? { accessibilityLabel: strings.terms_checkbox } : {})}
               disabled={saving} style={(s) => [styles.checkRow, focusRingStyle(s)]} onPress={() => setTerms(v => !v)}>
               <Ionicons name={termsTicked ? 'checkbox' : 'square-outline'} size={24} color={colors.primary} />
               <Text style={styles.checkLabel}>{strings.terms_checkbox}</Text>
             </Pressable>
             <Pressable testID="consent-data-checkbox" accessibilityRole="checkbox" aria-checked={dataTicked} aria-disabled={saving} accessibilityState={{ checked: dataTicked, disabled: saving }}
+              {...(UI_V22_P4 ? { accessibilityLabel: strings.data_checkbox } : {})}
               disabled={saving} style={(s) => [styles.checkRow, focusRingStyle(s)]} onPress={() => setData(v => !v)}>
               <Ionicons name={dataTicked ? 'checkbox' : 'square-outline'} size={24} color={colors.primary} />
               <Text style={styles.checkLabel}>{strings.data_checkbox}</Text>
@@ -263,11 +281,13 @@ export default function ConsentScreen() {
         <View style={styles.toggleRow}>
           <Text testID="consent-analytics-label" style={styles.toggleLabel}>{strings.optional_analytics}</Text>
           <Switch testID="consent-analytics-switch" accessibilityLabel={strings.optional_analytics} disabled={saving} value={analytics} onValueChange={setAnalytics}
+            {...(UI_V22_P4 ? { accessibilityRole: 'switch' as const, accessibilityState: { checked: analytics, disabled: saving } } : {})}
             trackColor={{ false: colors.border, true: colors.primary }} thumbColor={colors.onBrandPrimary} />
         </View>
         <View style={styles.toggleRow}>
           <Text testID="consent-updates-label" style={styles.toggleLabel}>{strings.optional_updates}</Text>
           <Switch testID="consent-updates-switch" accessibilityLabel={strings.optional_updates} disabled={saving} value={updates} onValueChange={setUpdates}
+            {...(UI_V22_P4 ? { accessibilityRole: 'switch' as const, accessibilityState: { checked: updates, disabled: saving } } : {})}
             trackColor={{ false: colors.border, true: colors.primary }} thumbColor={colors.onBrandPrimary} />
         </View>
         {!isUpdateMode && <Text testID="consent-disclaimer" style={styles.note}>{strings.disclaimer}</Text>}
