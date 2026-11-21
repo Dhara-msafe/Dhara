@@ -44,6 +44,8 @@ import {
 // `disabled`/`pointerEvents` guard below is left untouched.
 import { UI_REVISION_V1 } from '@/src/designRevision';
 import { focusRingStyle } from '@/src/a11yFocus';
+import { UI_V22_P7 } from '@/src/uiV22Flags';
+import { RECORD_NOTICES, type RecordNotice } from '@/src/recordCopy';
 
 const EVIDENCE_ACTIONS_ENABLED = process.env.EXPO_PUBLIC_EVIDENCE_ACTIONS === 'true';
 
@@ -241,6 +243,8 @@ export default function EvidenceLocker() {
   const [items, setItems] = useState<RecordingItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
+  // v2.2 phase 7: which distinct error state to show (null = plain status line).
+  const [notice, setNotice] = useState<RecordNotice | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
@@ -594,7 +598,7 @@ export default function EvidenceLocker() {
 
   const start = useCallback(async () => {
     if (working.current || active.current) return;
-    working.current = true; setBusy(true); setStatus(''); stopPlayer();
+    working.current = true; setBusy(true); setStatus(''); setNotice(null); stopPlayer();
     const id = ++epoch.current;
     try {
       // Check current status first — if already granted, skip the request so
@@ -603,7 +607,10 @@ export default function EvidenceLocker() {
       if (!permission.granted) {
         permission = await AudioModule.requestRecordingPermissionsAsync();
       }
-      if (!permission.granted) throw new Error('Microphone permission is needed. Allow it in your device or site settings, then try again.');
+      if (!permission.granted) {
+        if (UI_V22_P7) setNotice('micDenied');
+        throw new Error('Microphone permission is needed. Allow it in your device or site settings, then try again.');
+      }
       if (id !== epoch.current) return;
       // Fix C: claim BEFORE touching the native recorder. claimForLocker()
       // returns false only when a trigger-owned recording already holds it —
@@ -772,7 +779,10 @@ export default function EvidenceLocker() {
         owned.current = [item, ...owned.current]; setItems(owned.current);
         setStatus('Saved on this device. Nothing was uploaded or sent.');
       }
-    } catch (error: any) { setStatus(error.message || 'Recording could not be saved.'); }
+    } catch (error: any) {
+      setStatus(error.message || 'Recording could not be saved.');
+      if (UI_V22_P7) setNotice('saveFailed');
+    }
     finally {
       working.current = false; setBusy(false);
       releaseLockerClaim(); // release provider ownership after save
@@ -920,7 +930,7 @@ export default function EvidenceLocker() {
   // ── Camera capture (DHARA: photo + video, no network, 2-min video cap) ──
   const capture = useCallback(async (kind: 'photo' | 'video') => {
     if (busy) return;
-    setBusy(true); setStatus('');
+    setBusy(true); setStatus(''); setNotice(null);
     // EL-057: mark system overlay active for the entire capture flow.
     // Covers both requestCameraPermissionsAsync() (Android permission dialog)
     // and launchCameraAsync() (native camera on both platforms), both of which
@@ -1237,7 +1247,18 @@ export default function EvidenceLocker() {
             <Text style={styles.label}>🎥 Record video (max 2 min)</Text>
           </Pressable>
         </View>
-        {!!status && <Text testID="evidence-status" accessibilityLiveRegion="polite" style={styles.note}>{status}</Text>}
+        {/* v2.2 phase 7: microphone-denied and save-failed get their own
+            clearly marked notice with a next step, instead of the same plain
+            line as every other message. Flag OFF: today's status line only. */}
+        {UI_V22_P7 && notice ? (
+          <View testID={`evidence-notice-${notice}`} style={styles.noticeCard} accessibilityRole="alert" accessibilityLiveRegion="assertive">
+            <Text style={styles.noticeTitle}>{RECORD_NOTICES[notice].title}</Text>
+            <Text style={styles.noticeBody}>{RECORD_NOTICES[notice].body}</Text>
+            {!!status && <Text testID="evidence-status" style={styles.noticeDetail} selectable>{status}</Text>}
+          </View>
+        ) : (
+          !!status && <Text testID="evidence-status" accessibilityLiveRegion="polite" style={styles.note}>{status}</Text>
+        )}
         <Text style={styles.heading} testID="evidence-count">Saved items ({items.length})</Text>
         {items.map(item => <View key={item.id} style={styles.secondary} testID={`recording-${item.id}`}>
           <Text style={styles.label}>
@@ -1483,6 +1504,11 @@ const styles = StyleSheet.create({
   note2: { fontFamily: theme.fonts.body, fontSize: 14, lineHeight: 20, color: c.muted, textAlign: 'center', marginTop: 8, marginBottom: 20 },
   pinInput: { fontFamily: theme.fonts.bodyBold, fontSize: 28, letterSpacing: 8, textAlign: 'center', borderWidth: 1, borderColor: c.lines, borderRadius: 12, padding: 14, width: 180, marginBottom: 12, color: c.ink },
   // B5 (Phase 0.5)
+  // v2.2 phase 7 notice card (v2.2 tokens from phase 1).
+  noticeCard: { backgroundColor: c.redBg, borderColor: c.redDeep, borderWidth: 1, borderRadius: theme.radius.cardLg, padding: 14, marginTop: 10, gap: 6 },
+  noticeTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.redDeep },
+  noticeBody: { fontFamily: theme.fonts.body, fontSize: 15, lineHeight: 21, color: c.ink },
+  noticeDetail: { fontFamily: theme.fonts.body, fontSize: 13, lineHeight: 18, color: c.muted },
   changePinBtn: { alignSelf: 'flex-end', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: c.lines, minHeight: 48, justifyContent: 'center' },
   changePinText: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted },
   cpInput: { fontFamily: theme.fonts.bodyBold, fontSize: 26, letterSpacing: 8, textAlign: 'center', borderWidth: 1, borderColor: c.lines, borderRadius: 12, padding: 14, width: 180, marginVertical: 10, color: c.ink },
