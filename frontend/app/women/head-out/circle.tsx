@@ -111,6 +111,9 @@ export default function TrustedCircleAndRules() {
   const [autoNotifyOnNoResponse, setAutoNotifyOnNoResponse] = useState(true);
   const [openPicker, setOpenPicker] = useState<'remind' | 'response' | null>(null);
   const [starting, setStarting] = useState(false);
+  // Row 12: "Review & start" opens this recap; the journey only starts from
+  // inside it. Opening/closing writes nothing.
+  const [showRecap, setShowRecap] = useState(false);
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [pendingToggleKey, setPendingToggleKey] = useState<string | null>(null); // `${linkId}:${toggleKey}`
 
@@ -434,22 +437,128 @@ export default function TrustedCircleAndRules() {
         </Pressable>
       </Modal>
 
+      {/* Row 12: recap before Start — everything about to apply, on one
+          screen, with a way back to each step. Nothing is written or sent
+          until "Start journey" inside this recap is pressed. */}
+      <Modal visible={showRecap} transparent animationType="slide" onRequestClose={() => setShowRecap(false)}>
+        <View style={styles.recapBackdrop}>
+          <View style={[styles.recapSheet, { paddingBottom: insets.bottom + 14 }]} testID="headout-recap">
+            <Text style={styles.recapTitle}>Review your journey</Text>
+
+            <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 10 }}>
+              <RecapRow
+                icon="location-outline"
+                label="Destination"
+                value={`${draft.label.trim()}${draft.latitude == null ? ' (no map point — words only)' : ''}`}
+                editLabel="Change destination"
+                onEdit={() => { setShowRecap(false); router.push('/women/head-out/destination'); }}
+              />
+              <RecapRow
+                icon="radio-button-off-outline"
+                label="Arrival area"
+                value={radiusLabel(draft.radiusMeters)}
+                editLabel="Change arrival area"
+                onEdit={() => { setShowRecap(false); router.push('/women/head-out/radius'); }}
+              />
+              <RecapRow
+                icon="time-outline"
+                label="Check-in time"
+                value={DURATIONS.find(d => d.mins === durationMins)?.label ?? `${durationMins} min`}
+                editLabel="Change check-in time"
+                onEdit={() => setShowRecap(false)}
+              />
+              <RecapRow
+                icon="notifications-outline"
+                label="Remind me before alerting"
+                value={REMIND_OPTIONS.find(o => o.mins === remindBeforeMins)?.label ?? 'No reminder'}
+                editLabel="Change reminder"
+                onEdit={() => setShowRecap(false)}
+              />
+              <RecapRow
+                icon="people-outline"
+                label="Trusted circle for this journey"
+                value={
+                  !RECIPIENTS_ENABLED ? 'Not available'
+                  : selectedRecipientIds.length === 0 ? 'No one — timer only'
+                  : accepted.filter(l => selectedRecipientIds.includes(l.id)).map(l => l.contact_name).join(', ')
+                }
+                editLabel="Change who is told"
+                onEdit={() => setShowRecap(false)}
+              />
+              <RecapRow
+                icon="alert-circle-outline"
+                label="If I don't respond"
+                value={autoNotifyOnNoResponse
+                  ? (selectedRecipientIds.length > 0 ? 'Notify my circle' : 'Notify my circle (no one selected)')
+                  : 'Do nothing — no one is told'}
+                editLabel="Change what happens"
+                onEdit={() => setShowRecap(false)}
+              />
+            </ScrollView>
+
+            <Pressable
+              testID="headout-recap-start"
+              style={(s) => [styles.startBtn, starting && styles.startBtnDisabled, focusRingStyle(s)]}
+              disabled={starting}
+              onPress={handleStartJourney}
+              accessibilityRole="button"
+              accessibilityLabel="Start journey"
+            >
+              {starting
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Text style={styles.startBtnTxt}>Start journey</Text>}
+            </Pressable>
+            <Pressable
+              testID="headout-recap-back"
+              style={(s) => [styles.recapBackBtn, focusRingStyle(s)]}
+              onPress={() => setShowRecap(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Go back and edit"
+            >
+              <Text style={styles.recapBackTxt}>Go back</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
         <Pressable
           testID="headout-start-journey"
           style={(s) => [styles.startBtn, starting && styles.startBtnDisabled, focusRingStyle(s)]}
           disabled={starting}
-          onPress={handleStartJourney}
+          onPress={() => setShowRecap(true)}
           accessibilityRole="button"
-          accessibilityLabel="Start journey"
+          accessibilityLabel="Review and start journey"
         >
-          {starting
-            ? <ActivityIndicator size="small" color="#fff" />
-            : <Text style={styles.startBtnTxt}>Start journey</Text>}
+          <Text style={styles.startBtnTxt}>Review & start</Text>
         </Pressable>
       </View>
     </View>
   );
+}
+
+/** One line of the pre-start recap: icon, what it is, the value about to
+ * apply, and a way back to where it is changed. */
+function RecapRow({ icon, label, value, editLabel, onEdit }: {
+  icon: IconName; label: string; value: string; editLabel: string; onEdit: () => void;
+}) {
+  return (
+    <View style={styles.recapRow}>
+      <Ionicons name={icon} size={18} color={c.navy} style={{ marginTop: 2 }} />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.recapLabel}>{label}</Text>
+        <Text style={styles.recapValue}>{value}</Text>
+      </View>
+      <Pressable onPress={onEdit} accessibilityRole="button" accessibilityLabel={editLabel} style={(s) => [styles.recapEditBtn, focusRingStyle(s)]}>
+        <Text style={styles.recapEditTxt}>Edit</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+/** Human label for an arrival radius, matching the radius step's presets. */
+function radiusLabel(meters: number): string {
+  return meters >= 1000 ? `Within ${meters / 1000} km` : `Within ${meters} m`;
 }
 
 const styles = StyleSheet.create({
@@ -548,4 +657,22 @@ const styles = StyleSheet.create({
   startBtn: { backgroundColor: c.navy, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   startBtnDisabled: { opacity: 0.6 },
   startBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: '#fff' },
+  // Row 12 recap sheet
+  recapBackdrop: { flex: 1, backgroundColor: 'rgba(16,24,40,0.45)', justifyContent: 'flex-end' },
+  recapSheet: {
+    backgroundColor: c.background, borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    padding: 20, gap: 14, maxHeight: '85%',
+  },
+  recapTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 18, color: c.ink },
+  recapRow: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines,
+    borderRadius: 12, padding: 12,
+  },
+  recapLabel: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted },
+  recapValue: { fontFamily: theme.fonts.bodyBold, fontSize: 14.5, color: c.ink, marginTop: 1 },
+  recapEditBtn: { paddingHorizontal: 8, paddingVertical: 4 },
+  recapEditTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.darkGold },
+  recapBackBtn: { alignItems: 'center', paddingVertical: 8 },
+  recapBackTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.muted },
 });
