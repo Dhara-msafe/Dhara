@@ -10,6 +10,42 @@ import { ADVOCATE_MODE_ENABLED } from '../../advocateMode/flags';
 
 const c = theme.colors;
 
+/**
+ * v2.2 rollout phase 2 (presentation-only, reversible). The v2.2 responsive
+ * reference says: no promo rail on onboarding, consent, recording or
+ * emergency screens, and one emergency entry, not three. With the flag ON,
+ * "calm" routes (safety + onboarding, listed below) hide the right rail
+ * ("Start your first case" / "Get the app") and the top-bar SOS chip, leaving
+ * the sidebar "SOS · Emergency" as the single emergency entry; /emergency
+ * itself also hides the sidebar entry (the user is already there). Flag OFF
+ * (the default, including when the env var is unset) renders exactly the
+ * pre-phase-2 frame. No navigation, data or safety logic changes either way.
+ * Same rollback pattern as src/designRevision.ts.
+ */
+export const UI_V22_P2 = process.env.EXPO_PUBLIC_UI_V22_P2 === 'true';
+
+/**
+ * Safety + onboarding routes that get the calm desktop frame when UI_V22_P2
+ * is ON. Prefix match. /consent, /login, /signup, /forgot-password and
+ * /delete-account never reach this component at all (B-65 STANDALONE_ROUTES
+ * in app/_layout.tsx renders them frameless), so they are not listed here.
+ */
+export const CALM_ROUTES = [
+  '/language',
+  '/how-it-helps',
+  '/state',
+  '/emergency',
+  '/women-shield',
+  '/women', // /women/head-out, /women/evidence-locker, /women/silent-alert, …
+  '/family-journey',
+  '/guardian',
+] as const;
+
+export function isCalmRoute(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+  return CALM_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
+}
+
 type NavItem = { label: string; icon: any; route: string; match: string };
 
 /**
@@ -62,6 +98,9 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
   // here hid the top-bar SOS button and sidebar "SOS · Emergency" link on
   // the Ask screen (same bug, same stale pattern as app/(tabs)/_layout.tsx).
   const isHome = pathname === '/(tabs)/home' || pathname === '/home';
+  // v2.2 phase 2: calm frame on safety/onboarding routes (flag-gated).
+  const calm = UI_V22_P2 && isCalmRoute(pathname);
+  const onEmergencyScreen = !!pathname && (pathname === '/emergency' || pathname.startsWith('/emergency/'));
   const [q, setQ] = useState('');
 
   const Item = ({ it }: { it: NavItem }) => (
@@ -113,7 +152,9 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
               <Text style={styles.signInTopTxt}>Sign in</Text>
             </Pressable>
           )}
-          {!isHome && (
+          {/* v2.2 phase 2: on calm routes the sidebar "SOS · Emergency" is the
+              one emergency entry, so the top chip is hidden there. */}
+          {!isHome && !calm && (
           <Pressable accessibilityRole="button" accessibilityLabel="Open emergency help" style={styles.sosTop} onPress={() => router.push('/emergency')}>
             <Ionicons name="warning-outline" size={16} color="#fff" />
             <Text style={styles.sosTopTxt}>SOS</Text>
@@ -137,7 +178,9 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
           <Text style={styles.group}>{tr('home.journeys', lang).toUpperCase()}</Text>
           {journeys.map(it => <Item key={it.match} it={it} />)}
         </ScrollView>
-        {!isHome && (
+        {/* v2.2 phase 2: on /emergency itself the user has arrived — no
+            second entry pointing at the screen they are on. */}
+        {!isHome && !(calm && onEmergencyScreen) && (
         <Pressable accessibilityRole="button" accessibilityLabel="Open emergency help" style={styles.sos} onPress={() => router.push('/emergency')}>
           <Ionicons name="warning-outline" size={18} color="#fff" />
           <Text style={styles.sosTxt}>SOS · {tr('all.emergency', lang)}</Text>
@@ -151,6 +194,9 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
       </View>
 
       {/* ── Right rail ── */}
+      {/* v2.2 phase 2: no promo rail ("Start your first case", "Get the
+          app") on safety and onboarding screens. */}
+      {calm ? null : (
       <ScrollView style={styles.rail} contentContainerStyle={{ padding: 20, gap: 16 }} showsVerticalScrollIndicator={false}>
         <View style={styles.railCard}>
           <View style={styles.railTag}><Ionicons name="sparkles" size={13} color={c.darkGold} /><Text style={styles.railTagTxt}>{tr('home.forYou', lang).toUpperCase()}</Text></View>
@@ -184,6 +230,7 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
           <Pressable accessibilityRole="button" accessibilityLabel="Sign in" style={styles.signIn} onPress={() => router.push('/login')}><Text style={styles.signInTxt}>Sign in</Text></Pressable>
         )}
       </ScrollView>
+      )}
       </View>
     </View>
   );
