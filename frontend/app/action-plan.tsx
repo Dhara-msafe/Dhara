@@ -10,6 +10,8 @@ import { useScreenSpeech } from '@/src/hooks/useScreenSpeech';
 import { useRightsCard } from '@/src/hooks/useRightsCard';
 
 import { openExternal } from '@/src/outbound';
+import { UI_V22_P6 } from '@/src/uiV22Flags';
+import { dialLabel, dialHint, DIAL_112_BUTTON } from '@/src/emergencyCopy';
 const c = theme.colors;
 
 // Maps each "Know your rights" scenario to the i18n key used for its chip
@@ -92,9 +94,10 @@ export default function ActionPlan() {
           <View style={styles.safetyGateCard} testID="safety-emergency">
             <Ionicons name="warning" size={28} color="#B91C1C" />
             <Text style={styles.safetyGateTitle}>Get to safety first — help is one tap away</Text>
-            <Pressable style={styles.safetyEmergencyBtn} testID="safety-call-112" onPress={() => openExternal('tel:112').catch(() => {})}>
+            <Pressable style={styles.safetyEmergencyBtn} testID="safety-call-112" onPress={() => openExternal('tel:112').catch(() => {})}
+              {...(UI_V22_P6 ? { accessibilityRole: 'button' as const, accessibilityLabel: dialLabel('112'), accessibilityHint: dialHint('112') } : {})}>
               <Ionicons name="call" size={20} color="#fff" />
-              <Text style={styles.safetyGateDangerTxt}>Call Police — 112</Text>
+              <Text style={styles.safetyGateDangerTxt}>{UI_V22_P6 ? DIAL_112_BUTTON : 'Call Police — 112'}</Text>
             </Pressable>
             <Pressable style={[styles.safetyEmergencyBtn, { backgroundColor: c.darkGold }]} testID="safety-call-1091" onPress={() => openExternal('tel:1091').catch(() => {})}>
               <Ionicons name="call" size={20} color="#fff" />

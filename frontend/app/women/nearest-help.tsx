@@ -10,6 +10,8 @@ import { openPhone } from '@/src/women/helpActions';
 import { useAuth } from '@/src/auth';
 
 import { openExternal } from '@/src/outbound';
+import { UI_V22_P6 } from '@/src/uiV22Flags';
+import { dialLabel, dialHint, DIAL_112_BUTTON } from '@/src/emergencyCopy';
 const c = theme.colors;
 
 // B-102: how long to wait for the location-permission prompt / fix before
@@ -203,7 +205,8 @@ export default function NearestHelp() {
         )}
 
         {!!status && <Text testID="nearest-help-status" accessibilityLiveRegion="polite" style={styles.note}>{status}</Text>}
-        <Pressable testID="nearest-call-112" style={styles.card} onPress={async () => setStatus(await openPhone('112'))}><Text style={styles.label}>Immediate danger? Call 112</Text></Pressable>
+        <Pressable testID="nearest-call-112" style={styles.card} onPress={async () => setStatus(await openPhone('112'))}
+          {...(UI_V22_P6 ? { accessibilityRole: 'button' as const, accessibilityLabel: dialLabel('112'), accessibilityHint: dialHint('112') } : {})}><Text style={styles.label}>{UI_V22_P6 ? `Immediate danger? ${DIAL_112_BUTTON}` : 'Immediate danger? Call 112'}</Text></Pressable>
       </ScrollView>
     </View>
   );

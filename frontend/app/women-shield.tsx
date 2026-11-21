@@ -18,6 +18,9 @@ import { activateCover } from '@/src/women/coverState';
 // ring only — no contrast/touch-target gaps found on this screen. No logic
 // changes.
 import { focusRingStyle } from '@/src/a11yFocus';
+import { UI_V22_P6 } from '@/src/uiV22Flags';
+import { dialLabel, dialHint, DIAL_LIST_NOTE } from '@/src/emergencyCopy';
+import { openPhone } from '@/src/women/helpActions';
 const PRIVACY_COVER_ENABLED = process.env.EXPO_PUBLIC_PRIVACY_COVER_V1 === 'true';
 
 const HEAD_OUT_ENABLED = process.env.EXPO_PUBLIC_SAFETY_SESSION_V1 === 'true';
@@ -59,6 +62,9 @@ export default function WomenShield() {
   const [discreet, setDiscreet] = useState(false);
   const [checkin, setCheckin] = useState(true);
   const [helplines, setHelplines] = useState<Helpline[]>([]);
+  // v2.2 phase 6: status from openPhone() (same line as on Emergency).
+  const [dialStatus, setDialStatus] = useState('');
+  const [campusDialStatus, setCampusDialStatus] = useState('');
   const [circleCount, setCircleCount] = useState(0);
   const [lockerCount, setLockerCount] = useState(0);
   const [lockerEnabled, setLockerEnabled] = useState(true); // EL-055: default true; set from flags on mount
@@ -282,12 +288,20 @@ export default function WomenShield() {
             <Text style={styles.h2}>Campus safety</Text>
             <Text style={styles.h2sub}>Resources for students and campus communities</Text>
             <View style={styles.toolCard}>
-              <ToolRow icon="school-outline" title="Anti-Ragging helpline" sub="National helpline: 1800-180-5522 (calling not yet active)" />
+              {UI_V22_P6 ? (
+                <ToolRow icon="school-outline" title="Anti-Ragging helpline" sub="National helpline: 1800-180-5522" action="Open dialler"
+                  onPress={async () => setCampusDialStatus(await openPhone('18001805522'))} />
+              ) : (
+                <ToolRow icon="school-outline" title="Anti-Ragging helpline" sub="National helpline: 1800-180-5522 (calling not yet active)" />
+              )}
               <Divider />
               <ToolRow icon="briefcase-outline" title="POSH / Internal Complaints" sub="Your institution's Internal Complaints Committee (ICC)" action="How to find" onPress={() => router.push({ pathname: '/all-help', params: { q: 'POSH committee' } })} />
               <Divider />
               <ToolRow icon="shield-checkmark-outline" title="Campus security" sub="Contact your campus security office directly" action="Ask DHARA" onPress={() => router.push({ pathname: '/(tabs)', params: { draft: 'How do I contact campus security or file a complaint?', entry: Date.now().toString() } } as any)} />
             </View>
+            {UI_V22_P6 && !!campusDialStatus && (
+              <Text testID="ws-campus-dial-status" style={styles.hlNote} accessibilityLiveRegion="polite" accessibilityRole="alert" selectable>{campusDialStatus}</Text>
+            )}
             <View style={styles.lessonRow}>
               <Ionicons name="information-circle-outline" size={18} color={c.darkGold} />
               <Text style={styles.lessonTxt}>Campus security numbers vary by institution — check your campus app or notice boards</Text>
@@ -298,17 +312,31 @@ export default function WomenShield() {
         {/* Talk to someone */}
         <View style={styles.section}>
           <Text style={styles.h2}>{tr('ws.talk', lang)}</Text>
-          <Text style={styles.h2sub}>{tr('ws.talk.sub', lang)}</Text>
+          <Text style={styles.h2sub}>{tr(UI_V22_P6 ? 'ws.talk.sub.v22' : 'ws.talk.sub', lang)}</Text>
           <View style={styles.hlGrid}>
-            {shownHelplines.map(h => (
+            {shownHelplines.map(h => (UI_V22_P6 ? (
+              /* v2.2 phase 6: same control as the Emergency 112 button —
+                 openPhone() via the Outbound Guard, dialler only, the user
+                 presses call; number stays selectable text as the fallback. */
+              <Pressable key={h.num} style={(s) => [styles.hlCard, focusRingStyle(s)]} testID={`hl-${h.num}`}
+                onPress={async () => setDialStatus(await openPhone(h.num))}
+                accessibilityRole="button" accessibilityLabel={`${dialLabel(h.num)} — ${h.label}`} accessibilityHint={dialHint(h.num)}>
+                {h.verified && <Ionicons name="checkmark-circle" size={13} color={c.verifiedGreen} style={styles.hlVerified} />}
+                <Text style={styles.hlNum} selectable>{h.num}</Text>
+                <Text style={styles.hlLabel} numberOfLines={1}>{h.label}</Text>
+              </Pressable>
+            ) : (
               <View key={h.num} style={styles.hlCard} testID={`hl-${h.num}`} accessibilityLabel={`${h.num} — ${h.label}. Calling not yet active.`}>
                 {h.verified && <Ionicons name="checkmark-circle" size={13} color={c.verifiedGreen} style={styles.hlVerified} />}
                 <Text style={styles.hlNum}>{h.num}</Text>
                 <Text style={styles.hlLabel} numberOfLines={1}>{h.label}</Text>
               </View>
-            ))}
+            )))}
           </View>
-          <Text style={styles.hlNote} accessibilityRole="text">Tap-to-call is not yet active. Note the number and dial manually.</Text>
+          {UI_V22_P6 && !!dialStatus && (
+            <Text testID="ws-dial-status" style={styles.hlNote} accessibilityLiveRegion="polite" accessibilityRole="alert" selectable>{dialStatus}</Text>
+          )}
+          <Text style={styles.hlNote} accessibilityRole="text">{UI_V22_P6 ? DIAL_LIST_NOTE : 'Tap-to-call is not yet active. Note the number and dial manually.'}</Text>
         </View>
 
         {/* Safety plan */}

@@ -135,6 +135,9 @@ export const UI: Record<string, L> = {
   'ws.setup':        { en: 'Set up', hi: 'सेट करें', mr: 'सेट करा', ta: 'அமை' },
   'ws.talk':         { en: 'Talk to someone', hi: 'किसी से बात करें', mr: 'कोणाशी बोला', ta: 'யாரிடமாவது பேசுங்கள்' },
   'ws.talk.sub':     { en: 'Emergency numbers (calling will be enabled in a future update)', hi: 'आपातकालीन नंबर (कॉलिंग भविष्य के अपडेट में सक्षम होगी)', mr: 'आपत्कालीन क्रमांक (कॉलिंग भविष्यातील अपडेटमध्ये सक्षम होईल)', ta: 'அவசர எண்கள் (அழைப்பு எதிர்கால புதுப்பிப்பில் இயக்கப்படும்)' },
+  // v2.2 phase 6 (UI_V22_P6): built only from already-approved strings —
+  // the 'ws.talk.sub' prefix + the 'em.tapcall' text used on Emergency.
+  'ws.talk.sub.v22': { en: 'Emergency numbers — Tap to open dialler', hi: 'आपातकालीन नंबर — डायलर खोलने के लिए टैप करें', mr: 'आपत्कालीन क्रमांक — डायलर उघडण्यासाठी टॅप करा', ta: 'அவசர எண்கள் — டயலரைத் திறக்க தட்டவும்' },
   'ws.plan':         { en: 'My safety plan', hi: 'मेरी सुरक्षा योजना', mr: 'माझी सुरक्षा योजना', ta: 'எனது பாதுகாப்பு திட்டம்' },
   'ws.plan.sub':     { en: 'Answer 8 questions at your own pace. Nothing is shared unless you choose.', hi: '8 सवालों के जवाब अपनी गति से दें। जब तक आप न चाहें, कुछ साझा नहीं होता।', mr: '8 प्रश्नांची उत्तरे तुमच्या गतीने द्या. तुम्ही निवडल्याशिवाय काहीही शेअर होत नाही.', ta: '8 கேள்விகளுக்கு உங்கள் வேகத்தில் பதிலளியுங்கள். நீங்கள் தேர்வுசெய்யாவிட்டால் எதுவும் பகிரப்படாது.' },
   'ws.start':        { en: 'Start', hi: 'शुरू करें', mr: 'सुरू करा', ta: 'தொடங்கு' },

@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
+import { UI_V22_P6 } from '@/src/uiV22Flags';
+import { dialLabel, dialHint, DIAL_LIST_NOTE } from '@/src/emergencyCopy';
+import { openPhone } from '@/src/women/helpActions';
 
 type Helpline = {
   label: string;
@@ -31,6 +34,8 @@ export function SOSButton({
   inline = false,
 }: { variant?: 'chip' | 'floating'; inline?: boolean }) {
   const [open, setOpen] = useState(false);
+  // v2.2 phase 6: status from openPhone() (same line as on Emergency).
+  const [dialStatus, setDialStatus] = useState('');
 
   return (
     <>
@@ -61,7 +66,27 @@ export function SOSButton({
                 <Ionicons name="close" size={24} color={theme.colors.onSurfaceSecondary} />
               </Pressable>
             </View>
-            {HELPLINES.map((h) => (
+            {HELPLINES.map((h) => (UI_V22_P6 ? (
+              /* v2.2 phase 6: same control as the Emergency 112 button —
+                 openPhone() via the Outbound Guard; number stays selectable. */
+              <Pressable
+                key={h.number}
+                testID={`sos-dial-${h.number}`}
+                style={styles.row}
+                onPress={async () => setDialStatus(await openPhone(h.number))}
+                accessibilityRole="button"
+                accessibilityLabel={`${dialLabel(h.number)} — ${h.label}`}
+                accessibilityHint={dialHint(h.number)}
+              >
+                <View style={styles.rowIcon}>
+                  <Ionicons name={h.icon} size={20} color={theme.colors.error} />
+                </View>
+                <Text style={styles.rowLabel}>{h.label}</Text>
+                <View style={styles.numberPill}>
+                  <Text style={styles.numberText} selectable>{h.number}</Text>
+                </View>
+              </Pressable>
+            ) : (
               <View
                 key={h.number}
                 testID={`sos-dial-${h.number}`}
@@ -76,8 +101,11 @@ export function SOSButton({
                   <Text style={styles.numberText}>{h.number}</Text>
                 </View>
               </View>
-            ))}
-            <Text style={styles.note}>Calling will be enabled in a future update. Dhara is not an emergency service.</Text>
+            )))}
+            {UI_V22_P6 && !!dialStatus && (
+              <Text testID="sos-dial-status" style={styles.note} accessibilityLiveRegion="polite" accessibilityRole="alert" selectable>{dialStatus}</Text>
+            )}
+            <Text style={styles.note}>{UI_V22_P6 ? `${DIAL_LIST_NOTE} Dhara is not an emergency service.` : 'Calling will be enabled in a future update. Dhara is not an emergency service.'}</Text>
           </Pressable>
         </Pressable>
       </Modal>

@@ -54,7 +54,7 @@ test('calm routes cover the safety + onboarding screens and only them', () => {
 });
 
 test('right rail is gated: hidden on calm routes, untouched otherwise', () => {
-  assert.match(frameSrc, /\{calm \? null : \(\s*\n\s*<ScrollView style=\{styles\.rail\}/);
+  assert.match(frameSrc, /\{calm \|\| hideHomeRail \? null : \(\s*\n\s*<ScrollView style=\{styles\.rail\}/);
   // The rail content itself is unchanged (rollback = flag off).
   assert.ok(frameSrc.includes('Start your first case'));
   assert.ok(frameSrc.includes('Get the app'));
@@ -64,7 +64,7 @@ test('one emergency entry on calm routes; none pointing at /emergency from itsel
   // Top chip: hidden on calm routes (sidebar entry remains).
   assert.match(frameSrc, /\{!isHome && !calm && \(\s*\n\s*<Pressable[^\n]*style=\{styles\.sosTop\}/);
   // Sidebar entry: hidden only when calm AND already on /emergency.
-  assert.match(frameSrc, /\{!isHome && !\(calm && onEmergencyScreen\) && \(/);
+  assert.match(frameSrc, /\{\(!isHome \|\| sidebarSosOnHome\) && !\(calm && onEmergencyScreen\) && \(/);
   assert.match(frameSrc, /pathname === '\/emergency' \|\| pathname\.startsWith\('\/emergency\/'\)/);
 });
 

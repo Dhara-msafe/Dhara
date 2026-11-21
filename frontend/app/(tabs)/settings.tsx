@@ -12,6 +12,7 @@ import { SOSButton } from '@/src/components/SOSButton';
 import { getPushPermissionState, enablePushNotifications, PushPermissionState } from '@/src/push';
 import { t } from '@/src/i18n';
 import { formatDateDMY } from '@/src/dateFormat';
+import { UI_V22_P6 } from '@/src/uiV22Flags';
 
 // Batch FREE-V1-001: Pro upgrade / Stripe / Razorpay payment UI gated off for v1.
 const PRO_UPGRADE_ENABLED = process.env.EXPO_PUBLIC_PRO_UPGRADE_ENABLED === 'true';
@@ -514,7 +515,7 @@ export default function Settings() {
         <View style={styles.sosRow} testID="sos-row">
           <View style={{ flex: 1 }}>
             <Text style={styles.rowTitle}>Emergency SOS</Text>
-            <Text style={styles.rowValue}>One tap to call 112, police, women or child helpline</Text>
+            <Text style={styles.rowValue}>{UI_V22_P6 ? 'Open your dialler for 112, police, women or child helpline' : 'One tap to call 112, police, women or child helpline'}</Text>
           </View>
           <SOSButton variant="floating" inline />
         </View>
