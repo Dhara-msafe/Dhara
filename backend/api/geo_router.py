@@ -122,10 +122,14 @@ PLACES_DETAILS_BASE_URL = "https://places.googleapis.com/v1/places/"
 # separate key from Places above, same fail-closed-to-approximation pattern) ──
 FEATURE_GOOGLE_DIRECTIONS_V1 = _flag_on("FEATURE_GOOGLE_DIRECTIONS_V1")
 GOOGLE_DIRECTIONS_SERVER_KEY = os.getenv("GOOGLE_DIRECTIONS_SERVER_KEY", "").strip()
-DIRECTIONS_URL = "https://maps.googleapis.com/maps/api/directions/json"
-# Walking, not driving — Head Out journeys are framed as personal/pedestrian
+# Routes API (computeRoutes) — migrated from the legacy Directions API
+# (maps.googleapis.com/maps/api/directions/json), which Google has deprecated
+# for new usage. Same flag, same key env var; the key must have "Routes API"
+# enabled in the Google Cloud console (an owner/console task, not code).
+ROUTES_URL = "https://routes.googleapis.com/directions/v2:computeRoutes"
+# WALK, not DRIVE — Head Out journeys are framed as personal/pedestrian
 # check-ins (destinations like "Hostel"), not vehicle trips.
-_DIRECTIONS_MODE = "walking"
+_ROUTES_TRAVEL_MODE = "WALK"
 # Used only by the approximate fallback below — an assumed walking pace,
 # never shown as anything but an estimate.
 _ASSUMED_WALK_MPS = 1.4   # ~5 km/h
@@ -616,24 +620,38 @@ def _approximate_route(origin_lat: float, origin_lng: float, dest_lat: float, de
 
 
 async def _google_route(origin_lat: float, origin_lng: float, dest_lat: float, dest_lng: float) -> DirectionsResult:
-    params = {
-        "origin": f"{origin_lat},{origin_lng}",
-        "destination": f"{dest_lat},{dest_lng}",
-        "mode": _DIRECTIONS_MODE,
-        "key": GOOGLE_DIRECTIONS_SERVER_KEY,
+    """Routes API v2 computeRoutes. POST with a field mask (mandatory — an
+    unmasked request is rejected); the key goes in a header, never the URL,
+    so it can't leak into access logs. Any non-OK answer raises, and the
+    caller falls back to the approximate straight-line route."""
+    body = {
+        "origin":      {"location": {"latLng": {"latitude": origin_lat, "longitude": origin_lng}}},
+        "destination": {"location": {"latLng": {"latitude": dest_lat,  "longitude": dest_lng}}},
+        "travelMode": _ROUTES_TRAVEL_MODE,
+        # Walking has no traffic; omitting routingPreference is required for WALK.
+    }
+    headers = {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": GOOGLE_DIRECTIONS_SERVER_KEY,
+        "X-Goog-FieldMask": "routes.polyline.encodedPolyline,routes.distanceMeters,routes.duration",
     }
     async with httpx.AsyncClient(timeout=8.0) as client:
-        resp = await client.get(DIRECTIONS_URL, params=params)
+        resp = await client.post(ROUTES_URL, json=body, headers=headers)
     resp.raise_for_status()
     data = resp.json()
-    if data.get("status") != "OK" or not data.get("routes"):
-        raise RuntimeError(f"Directions API status: {data.get('status')}")
-    route = data["routes"][0]
-    leg = route["legs"][0]
+    routes = data.get("routes") or []
+    if not routes:
+        raise RuntimeError(f"Routes API returned no routes: {str(data)[:200]}")
+    route = routes[0]
+    encoded = (route.get("polyline") or {}).get("encodedPolyline")
+    distance = route.get("distanceMeters")
+    duration_s = route.get("duration")   # e.g. "347s"
+    if not encoded or distance is None or not duration_s:
+        raise RuntimeError("Routes API answer missing polyline/distance/duration")
     return DirectionsResult(
-        polyline=_decode_polyline(route["overview_polyline"]["points"]),
-        distance_meters=leg["distance"]["value"],
-        duration_seconds=leg["duration"]["value"],
+        polyline=_decode_polyline(encoded),
+        distance_meters=int(distance),
+        duration_seconds=int(float(str(duration_s).rstrip("s"))),
         provider="google",
     )
 
