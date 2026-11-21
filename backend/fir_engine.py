@@ -207,6 +207,12 @@ _STATIC_TRANS: dict[str, dict[str, str]] = {
         "mr": "ठीक आहे, मी हे तुमचे ठिकाणाचे तपशील म्हणून नोंदवले आहे: “{text}”",
         "ta": "சரி, இதை உங்கள் இட விவரமாக குறித்துக்கொண்டேன்: “{text}”",
     },
+    "gps_not_captured": {
+        "en": "Just so you know — no GPS coordinates were captured (this screen couldn't read your location), so I haven't recorded a place yet.",
+        "hi": "ध्यान दें — GPS निर्देशांक नहीं मिल पाए (यह स्क्रीन आपकी लोकेशन नहीं पढ़ सकी), इसलिए अभी तक कोई जगह दर्ज नहीं हुई है।",
+        "mr": "लक्षात घ्या — GPS निर्देशांक मिळाले नाहीत (ही स्क्रीन तुमचे स्थान वाचू शकली नाही), त्यामुळे अजून कोणतेही ठिकाण नोंदवलेले नाही.",
+        "ta": "கவனிக்கவும் — GPS ஆயத்தொலைவுகள் பெறப்படவில்லை (இந்தத் திரை உங்கள் இருப்பிடத்தைப் படிக்க முடியவில்லை), எனவே இன்னும் இடம் பதிவு செய்யப்படவில்லை.",
+    },
     "place_off_topic": {
         "en": "I've noted your question and will come back to it.\n\nFor the complaint, I need the **location** of the incident.\n{suffix}",
         "hi": "मैंने आपका सवाल नोट कर लिया है और बाद में उस पर वापस आऊंगा।\n\nशिकायत के लिए, मुझे घटना की **जगह** चाहिए।\n{suffix}",
@@ -611,6 +617,27 @@ _NON_PLACE_PATTERNS = [
     r"^i (want|need|don't|dont|wish|am|was|have|had)",
     r"^(not|na|none|nil|skip)",
 ]
+
+
+_BARE_GPS_ANSWER_FILLER = {
+    "yes", "yeah", "yep", "ya", "y", "ok", "okay", "sure", "fine", "no",
+    "nope", "n", "please", "pls", "use", "my", "the", "gps", "location",
+    "current", "share", "it", "that", "do", "dont", "don't", "want", "to",
+    "correct", "right", "haan", "ha", "nahi", "theek", "hai",
+}
+
+
+def _is_bare_gps_answer(text: str) -> bool:
+    """B-112: on web the GPS probe renders as a plain text box, so people
+    answer the literal yes/no question ("Yes, use GPS") instead of giving a
+    place. Such a reply carries NO location information: saving it as
+    incident_gps_address put "Yes, use GPS" into the summary's Where line and
+    the draft's Place of incident. True when every token is yes/no/GPS filler
+    — "yes, near Ameerpet metro" keeps its place words and stays False."""
+    tokens = re.findall(r"[a-zA-Z']+", (text or "").lower())
+    if not tokens:
+        return False  # digits or non-Latin text may be a real place; let B-111 logic judge it
+    return all(t in _BARE_GPS_ANSWER_FILLER for t in tokens)
 
 
 def _is_valid_place_response(text: str) -> bool:
@@ -2200,6 +2227,29 @@ async def _dispatch(
                 # if nothing had been typed at all. Store it as a manual
                 # location note and say so, instead of discarding it.
                 text = user_message.strip()
+                # ── B-112: a reply that only answers the yes/no question
+                # ("Yes, use GPS", "ok", "no") carries no location at all.
+                # Write NEITHER slot — incident_gps_address is the first slot
+                # the summary's "Where:" line and the draft's "Place of
+                # incident" read, and _is_valid_place_response() accepts
+                # three filler words happily. Say plainly that no coordinates
+                # were captured, and ask for the place in words next if none
+                # has been given yet.
+                if _is_bare_gps_answer(text):
+                    slots["incident_gps"] = {"source": "unavailable_no_coords", "answer": text}
+                    await db.fir_sessions.update_one(
+                        {"session_id": sid},
+                        {"$set": {"slots": slots, "updated_at": now}},
+                    )
+                    if not slots.get("incident_place_text") and "probe_place_text" not in pending_probes:
+                        pending_probes = ["probe_place_text"] + list(pending_probes)
+                    return await _advance_probe(
+                        db, corpus_db, sid, slots, pending_probes, incident_types, now,
+                        completed_probe=cp, language=language,
+                        ack_message=_tm("gps_not_captured", language),
+                    )
+                # A reply that names a real place ("yes, near Ameerpet metro")
+                # is still kept as a manual location note (B-113 behaviour).
                 slots["incident_gps"] = {"source": "manual_text", "text": text}
                 slots["incident_gps_address"] = text
                 await db.fir_sessions.update_one(

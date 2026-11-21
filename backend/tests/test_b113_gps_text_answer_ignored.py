@@ -112,24 +112,34 @@ async def run():
         {}, ["probe_theft_items"], "probe_place_gps", ["theft"],
         "yes", None, None, "dummy-key", "en", "English", "2026-11-14T00:00:00Z",
     )
+    # B-112 (21 Nov): the original intent stands — "yes" must not be silently
+    # skipped — but saving it as a manual LOCATION was itself the next bug:
+    # "yes" answers the yes/no question and names no place, so it must write
+    # NEITHER gps slot, say that no coordinates were captured, and ask for
+    # the place in words next.
     _check(
         "typed 'yes' is NOT recorded as skipped",
         db.fir_sessions.last_set.get("slots", {}).get("incident_gps", {}).get("source") != "skipped",
         detail=str(db.fir_sessions.last_set.get("slots")),
     )
     _check(
-        "typed 'yes' is recorded as a manual_text note",
-        db.fir_sessions.last_set.get("slots", {}).get("incident_gps", {}).get("source") == "manual_text",
+        "typed 'yes' is NOT saved as a location (B-112)",
+        db.fir_sessions.last_set.get("slots", {}).get("incident_gps_address") in (None, ""),
         detail=str(db.fir_sessions.last_set.get("slots")),
     )
     _check(
-        "the bot acknowledges the typed answer instead of silently moving on",
-        "noted" in str(result.get("bot_message", "")).lower() and "yes" in str(result.get("bot_message", "")),
+        "typed 'yes' is recorded as an answer with no coordinates",
+        db.fir_sessions.last_set.get("slots", {}).get("incident_gps", {}).get("source") == "unavailable_no_coords",
+        detail=str(db.fir_sessions.last_set.get("slots")),
+    )
+    _check(
+        "the bot says plainly that no coordinates were captured",
+        "no gps coordinates were captured" in str(result.get("bot_message", "")).lower(),
         detail=str(result.get("bot_message")),
     )
     _check(
-        "the flow still advances to the next probe (doesn't get stuck)",
-        result.get("probe_key") == "probe_theft_items",
+        "the flow asks for the place in words next (probe_place_text queued)",
+        result.get("probe_key") == "probe_place_text",
         detail=str(result.get("probe_key")),
     )
 
@@ -194,7 +204,38 @@ async def run():
     )
 
 
+async def run_b112_extra():
+    # 'yes' + place already captured in words: no re-ask, flow advances
+    doc = _base_session()
+    doc["slots"]["incident_place_text"] = "Ameerpet, Hyderabad"
+    db6 = _FakeDb(doc)
+    result6 = await fir_engine._dispatch(
+        db6, None, db6.fir_sessions._session_doc, fir_engine.STAGE_PROBE,
+        {"incident_place_text": "Ameerpet, Hyderabad"}, ["probe_theft_items"], "probe_place_gps", ["theft"],
+        "yes please", None, None, "dummy-key", "en", "English", "2026-11-14T00:00:00Z",
+    )
+    _check(
+        "bare answer with a place already in words advances without re-asking",
+        result6.get("probe_key") == "probe_theft_items",
+        detail=str(result6.get("probe_key")),
+    )
+    # a reply that names a real place keeps the B-113 manual-note behaviour
+    db7 = _FakeDb(_base_session())
+    result7 = await fir_engine._dispatch(
+        db7, None, db7.fir_sessions._session_doc, fir_engine.STAGE_PROBE,
+        {}, ["probe_theft_items"], "probe_place_gps", ["theft"],
+        "yes, near Ameerpet metro", None, None, "dummy-key", "en", "English", "2026-11-14T00:00:00Z",
+    )
+    _check(
+        "'yes, near Ameerpet metro' is still saved as a manual location note (B-113 survives)",
+        db7.fir_sessions.last_set.get("slots", {}).get("incident_gps", {}).get("source") == "manual_text"
+        and db7.fir_sessions.last_set.get("slots", {}).get("incident_gps_address") == "yes, near Ameerpet metro",
+        detail=str(db7.fir_sessions.last_set.get("slots")),
+    )
+
+
 if __name__ == "__main__":
     asyncio.run(run())
+    asyncio.run(run_b112_extra())
     print(f"\n{PASS} passed, {FAIL} failed")
     sys.exit(1 if FAIL else 0)
