@@ -228,6 +228,9 @@ export default function HeadOut() {
   const [arrivedDismissedAt, setArrivedDismissedAt] = useState<number | null>(null);
   const [deviatedDismissedAt, setDeviatedDismissedAt] = useState<number | null>(null);
   const [extending, setExtending] = useState(false);
+  // Fix 6 (21 Nov): after "I'm safe" is confirmed by the server, show a
+  // "You're marked safe" screen instead of silently bouncing to wizard step 1.
+  const [safeConfirmed, setSafeConfirmed] = useState(false);
   const [extendError, setExtendError] = useState<string | null>(null);
   const [showChangeDest, setShowChangeDest] = useState(false);
   const [changeDestLabel, setChangeDestLabel] = useState('');
@@ -392,7 +395,7 @@ export default function HeadOut() {
   // first step instead of rendering an inline form (that form now lives at
   // app/women/head-out/destination.tsx, as Step 1 of 3).
   useEffect(() => {
-    if (!loading && !session) router.replace('/women/head-out/destination');
+    if (!loading && !session && !safeConfirmed) router.replace('/women/head-out/destination');
   }, [loading, session, router]);
 
   const endSession = useCallback(async () => {
@@ -427,6 +430,7 @@ export default function HeadOut() {
     }
     setCloseFailures(0);
     setRevokeFailures(0);
+    setSafeConfirmed(true);   // fix 6: show the confirmation instead of jumping to step 1
     await AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
     // A40: the journey is over, so the location remembered on this phone for
     // it must not stay behind. (Not cleared on a missed check-in: she may
@@ -1009,9 +1013,44 @@ export default function HeadOut() {
       </View>
     );
   }
+  // Fix 6: "I'm safe" just succeeded — confirm it calmly instead of
+  // teleporting the user back into wizard step 1 with no acknowledgement.
+  if (!session && safeConfirmed) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface, padding: 24, gap: 10 }} testID="headout-marked-safe">
+        <Ionicons name="checkmark-circle" size={56} color={c.verifiedGreen} />
+        <Text style={styles.activeTitle}>{"You're marked safe"}</Text>
+        <Text style={[styles.note, { textAlign: 'center' }]}>
+          Your journey has ended. If your Trusted Circle was following it, they can no longer see your location.
+        </Text>
+        <Pressable
+          testID="headout-safe-done"
+          style={(s) => [styles.button, styles.safeButton, { alignSelf: 'stretch', marginTop: 8 }, focusRingStyle(s)]}
+          onPress={() => { setSafeConfirmed(false); router.replace('/women'); }}
+          accessibilityRole="button"
+          accessibilityLabel="Done"
+        >
+          <Text style={styles.buttonText}>Done</Text>
+        </Pressable>
+        <Pressable
+          testID="headout-safe-new-journey"
+          style={(s) => [focusRingStyle(s)]}
+          onPress={() => { setSafeConfirmed(false); router.replace('/women/head-out/destination'); }}
+          accessibilityRole="button"
+          accessibilityLabel="Plan another journey"
+        >
+          <Text style={[styles.linkTxt, styles.linkTxtUnderline]}>Plan another journey</Text>
+        </Pressable>
+      </View>
+    );
+  }
   // No session yet — the redirect effect above is about to send the user into
   // the wizard. Return null so there is nothing to flash before the transition.
   if (!session) return null;
+
+  // Fix 5/7 (21 Nov): several actions only make sense when somebody is in the
+  // journey's circle; with nobody there, show a way to add someone instead.
+  const hasCircleRecipients = (session.recipientLinkIds?.length ?? 0) > 0;
 
   return (
     <ScrollView
@@ -1360,7 +1399,7 @@ export default function HeadOut() {
               <Text style={styles.disclosureNote}>
                 {session.autoNotifyOnNoResponse === false
                   ? 'Your Trusted Circle is not told about this automatically — you chose "Do nothing" for missed responses in Step 3. They\'re only notified if you tap "Need help" above.'
-                  : 'If this continues for 15 minutes with no sign of you heading back, DHARA will let your Trusted Circle know — tap "I\'m okay" or "Change destination" any time before then to cancel that.'}
+                  : 'A route change alone never alerts your Trusted Circle. They are only told if you miss your check-in or tap "Need help".'}
               </Text>
             </View>
       ) : (
@@ -1408,7 +1447,7 @@ export default function HeadOut() {
               <Text style={styles.timerLbl}>Next check-in in</Text>
               <Text testID="headout-timer" style={styles.timerDisplay}>{formatCountdown(secsLeft)}</Text>
               <Text style={styles.note}>{'Tap "I\'m safe" when you reach. DHARA will help you alert your circle if this timer runs out.'}</Text>
-              {GUARDIAN_SHARE_ENABLED && (
+              {GUARDIAN_SHARE_ENABLED && hasCircleRecipients && (
                 <Pressable
                   testID="headout-notify-guardian"
                   style={(s) => [styles.button, styles.guardianBtn, focusRingStyle(s)]}
@@ -1503,6 +1542,41 @@ export default function HeadOut() {
                   )}
                 </>
               )}
+              {/* Fix 7: Extend is available on the normal active card too,
+                  not only on the arrived card. */}
+              <Pressable
+                testID="headout-active-extend-time"
+                disabled={extending}
+                onPress={() => handleExtendTime(15)}
+                style={(s) => [focusRingStyle(s)]}
+                accessibilityRole="button"
+                accessibilityLabel="Extend check-in time by 15 minutes"
+              >
+                <Text style={[styles.linkTxt, styles.linkTxtUnderline]}>{extending ? 'Extending…' : 'Extend time (+15 min)'}</Text>
+              </Pressable>
+              {!!extendError && <Text style={styles.inlineError}>{extendError}</Text>}
+              {/* Fix 5: with nobody in the circle, prompt to add a person
+                  instead of silently hiding every circle action. */}
+              {TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && journeyToken && !hasCircleRecipients && (
+                <View style={styles.gpsRationaleCard} testID="headout-empty-circle-prompt">
+                  <Ionicons name="people-outline" size={18} color={c.navy} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.gpsRationaleTitle}>No one is in your Trusted Circle</Text>
+                    <Text style={styles.gpsRationaleBody}>
+                      Nobody will be told if you need help on this journey. Add a person so someone has your back.
+                    </Text>
+                    <Pressable
+                      testID="headout-add-circle-person"
+                      style={(s) => [styles.gpsAllowBtn, focusRingStyle(s)]}
+                      onPress={() => router.push('/women/trusted-circle')}
+                      accessibilityRole="button"
+                      accessibilityLabel="Add a person to your Trusted Circle"
+                    >
+                      <Text style={styles.gpsAllowBtnText}>Add a person</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              )}
               {TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && journeyToken && selectedRecipients.length > 0 && (
                 <Pressable
                   testID="headout-need-help"
@@ -1515,7 +1589,7 @@ export default function HeadOut() {
                   <Text style={styles.buttonText}>Need help</Text>
                 </Pressable>
               )}
-              {journeyToken && (
+              {journeyToken && hasCircleRecipients && (
                 sharingRevoked ? (
                   <Text style={styles.disclosureNote} testID="headout-sharing-revoked-note">
                     {"Sharing stopped. Your trusted circle can no longer see this journey's location or status."}
@@ -1553,7 +1627,9 @@ export default function HeadOut() {
           ? (session.autoNotifyOnNoResponse === false
               ? 'Your selected trusted circle was told this journey started. They are not alerted automatically if you miss a check-in.'
               : 'Your selected trusted circle was told this journey started. If you miss your check-in, they are alerted 5 minutes after the timer ends.')
-          : 'Nothing has been sent. Your session is saved on this device only.'}
+          : journeyToken
+              ? 'No alerts have been sent. Your journey timer runs on DHARA\u2019s server, but no Trusted Circle was selected, so nobody is told automatically.'
+              : 'Nothing has been sent and DHARA\u2019s server could not record this journey \u2014 your session is saved on this device only, and no alerts can be sent.'}
       </Text>
 
       {/* Pilot simulation preview — replaces the real sms: intent while

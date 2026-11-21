@@ -143,8 +143,10 @@ export function DestinationMapPicker({
 
   // Re-centre map when recenterKey changes (saved place selected by parent)
   useEffect(() => {
-    const lat = isValidCoord(latitude, longitude) ? latitude! : DEMO_LAT;
-    const lng = isValidCoord(latitude, longitude) ? longitude! : DEMO_LNG;
+    // Fix 8: with no pin, centre on the user's own position when we have it —
+    // the generic Delhi fallback is only for no-pin AND no-location.
+    const lat = isValidCoord(latitude, longitude) ? latitude! : fallbackLat;
+    const lng = isValidCoord(latitude, longitude) ? longitude! : fallbackLng;
     setMarkerPos({ lat, lng });
     mapRef.current?.panTo({ lat, lng });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -252,7 +254,7 @@ export function DestinationMapPicker({
       <Text style={styles.hint} testID="destination-map-picker-hint">
         {hasPin
           ? 'Drag the pin or click the map to adjust your planned arrival area.'
-          : 'Demo view — click the map or drag the pin to set your planned arrival area. No device location is used.'}
+          : 'Click the map or drag the pin to set your planned arrival area.'}
       </Text>
     </View>
   );
