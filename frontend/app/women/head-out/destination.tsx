@@ -399,26 +399,68 @@ export default function ChooseDestination() {
 
   const canContinue = value.label.trim().length > 0;
 
-  const handleNext = useCallback(async () => {
-    const final: DestinationValue = { ...value, label: value.label.trim() };
-    if (!final.label) return;
-    // B-126: a typed destination carries no coordinates (typing clears them
-    // so a stale pin can never contradict the words), which left the active
-    // journey unable to draw its route map. Resolve the label through the
-    // free OSM endpoint this screen already uses and attach the top match.
-    // Best-effort: on no match or network failure the journey still starts
-    // text-only, exactly as before.
-    if (final.latitude == null || final.longitude == null) {
-      const hits = await fetchOsmSuggestions(base, final.label);
-      if (hits.length > 0) {
-        final.latitude = hits[0].latitude;
-        final.longitude = hits[0].longitude;
-      }
-    }
+  // ── Confirm-this-point for typed destinations ──────────────────────────────
+  // B-126 attached the top OSM geocode hit to a typed destination silently.
+  // A wrong top hit (common with short or ambiguous labels) would point live
+  // tracking at the wrong place without the traveller ever seeing it. So the
+  // geocoded point is now shown on the map first and must be confirmed:
+  //   Next (typed, no coords) → geocode → pin + map recentre + confirm bar →
+  //   "Yes, that's the spot" proceeds with coords; "No — continue without a
+  //   map point" proceeds text-only (exactly the pre-B-126 journey).
+  // No match / network failure still proceeds text-only, as before.
+  const [geocoding, setGeocoding] = useState(false);
+  const [pendingConfirm, setPendingConfirm] = useState<{ matchedLabel: string } | null>(null);
+
+  // Any change to the typed label (editing it, or picking a saved place /
+  // recent / suggestion, which all replace it) makes a shown match stale —
+  // drop the question. Dragging the pin keeps it: the bar itself invites that.
+  useEffect(() => { setPendingConfirm(null); }, [value.label]);
+
+  const proceed = useCallback(async (final: DestinationValue) => {
+    setPendingConfirm(null);
     setDraft(final);
     await recordRecentDestination(final);
     router.push('/women/head-out/radius');
-  }, [value, setDraft, router, base]);
+  }, [setDraft, router]);
+
+  const handleNext = useCallback(async () => {
+    const final: DestinationValue = { ...value, label: value.label.trim() };
+    if (!final.label) return;
+    if (final.latitude != null && final.longitude != null) {
+      // Coordinates the user already chose (saved place, suggestion tap, map
+      // pin, confirmed geocode) need no second confirmation.
+      await proceed(final);
+      return;
+    }
+    setGeocoding(true);
+    const hits = await fetchOsmSuggestions(base, final.label).catch(() => [] as CoordSuggestion[]);
+    setGeocoding(false);
+    if (hits.length === 0) {
+      await proceed(final);   // text-only journey, exactly as before
+      return;
+    }
+    // Show the match instead of silently trusting it: drop the pin there,
+    // recentre the map, and ask. Coordinates are label-paired, so editing
+    // the text afterwards clears them (coordsFromSelectionRef contract).
+    coordsFromSelectionRef.current = true;
+    setValue(v => ({ ...v, latitude: hits[0].latitude, longitude: hits[0].longitude }));
+    setTab('map');
+    setMapRecenterKey(k => k + 1);
+    setPendingConfirm({ matchedLabel: hits[0].label });
+  }, [value, base, proceed]);
+
+  const confirmGeocodedPoint = useCallback(() => {
+    void proceed({ ...value, label: value.label.trim() });
+  }, [value, proceed]);
+
+  const rejectGeocodedPoint = useCallback(() => {
+    // Not that place — continue with the typed words only. The wrong pin is
+    // removed so nothing downstream can ever use it.
+    coordsFromSelectionRef.current = false;
+    const final: DestinationValue = { ...value, label: value.label.trim(), latitude: null, longitude: null };
+    setValue(v => ({ ...v, latitude: null, longitude: null }));
+    void proceed(final);
+  }, [value, proceed]);
 
   return (
     <View style={styles.root}>
@@ -620,16 +662,47 @@ export default function ChooseDestination() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
-        <Pressable
-          testID="headout-dest-next"
-          style={(s) => [styles.nextBtn, !canContinue && styles.nextBtnDisabled, focusRingStyle(s)]}
-          disabled={!canContinue}
-          onPress={handleNext}
-          accessibilityRole="button"
-          accessibilityLabel="Next — set arrival radius"
-        >
-          <Text style={styles.nextBtnTxt}>Next</Text>
-        </Pressable>
+        {pendingConfirm ? (
+          <View testID="headout-confirm-point" style={styles.confirmBox}>
+            <Text style={styles.confirmTitle}>Is this the right spot?</Text>
+            <Text style={styles.confirmMatch} numberOfLines={2}>
+              Best match for “{value.label.trim()}”: {pendingConfirm.matchedLabel}. The pin on the map shows it — you can drag it to adjust.
+            </Text>
+            <View style={styles.confirmBtnRow}>
+              <Pressable
+                testID="headout-confirm-point-yes"
+                style={(s) => [styles.nextBtn, styles.confirmBtn, focusRingStyle(s)]}
+                onPress={confirmGeocodedPoint}
+                accessibilityRole="button"
+                accessibilityLabel="Yes, that is the spot — continue"
+              >
+                <Text style={styles.nextBtnTxt}>Yes, that’s the spot</Text>
+              </Pressable>
+              <Pressable
+                testID="headout-confirm-point-no"
+                style={(s) => [styles.confirmNoBtn, focusRingStyle(s)]}
+                onPress={rejectGeocodedPoint}
+                accessibilityRole="button"
+                accessibilityLabel="No — continue without a map point"
+              >
+                <Text style={styles.confirmNoTxt}>No — continue without a map point</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          <Pressable
+            testID="headout-dest-next"
+            style={(s) => [styles.nextBtn, (!canContinue || geocoding) && styles.nextBtnDisabled, focusRingStyle(s)]}
+            disabled={!canContinue || geocoding}
+            onPress={handleNext}
+            accessibilityRole="button"
+            accessibilityLabel="Next — set arrival radius"
+          >
+            {geocoding
+              ? <ActivityIndicator size="small" color="#FFFFFF" />
+              : <Text style={styles.nextBtnTxt}>Next</Text>}
+          </Pressable>
+        )}
       </View>
     </View>
   );
@@ -693,4 +766,12 @@ const styles = StyleSheet.create({
   nextBtn: { backgroundColor: c.navy, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   nextBtnDisabled: { opacity: 0.4 },
   nextBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: '#fff' },
+  // Confirm-this-point bar (typed destination → geocoded pin confirmation)
+  confirmBox: { gap: 8 },
+  confirmTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink },
+  confirmMatch: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18 },
+  confirmBtnRow: { gap: 8 },
+  confirmBtn: { marginTop: 2 },
+  confirmNoBtn: { alignItems: 'center', paddingVertical: 10 },
+  confirmNoTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.darkGold },
 });
