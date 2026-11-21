@@ -43,6 +43,7 @@ import { openExternal } from '@/src/outbound';
 // EvidenceWidget, ConfirmButtons, EmergencyOverlay). Zero changes to the
 // FIR wizard's stage/question/upload/recording logic.
 import { UI_REVISION_V1 } from '@/src/designRevision';
+import { UI_V22_P8 } from '@/src/uiV22Flags';
 import { focusRingStyle } from '@/src/a11yFocus';
 // Native location is optional; importing it on web fails in the installed version.
 const Location: typeof import('expo-location') | null =
@@ -95,7 +96,9 @@ const INCIDENT_MODULES = [
     key: 'domestic_violence',
     emoji: '🏠',
     label: 'Domestic Violence',
-    sublabel: 'Dowry · 498A · DV Act',
+    // v2.2 phase 8: '498A' is the old IPC number; the tile's own `bns`
+    // line already gives the BNS reference.
+    sublabel: UI_V22_P8 ? 'Dowry · Cruelty by husband or in-laws · DV Act' : 'Dowry · 498A · DV Act',
     bns: 'BNS 85 · DV Act',
     color: '#7B2D8B',
   },

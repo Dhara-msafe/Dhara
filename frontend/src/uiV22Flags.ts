@@ -9,6 +9,20 @@
  */
 
 /**
+ * Phase 8: Women's Shield and journey naming.
+ * - Women's Shield: safety tools before "Know your rights"
+ * - the dead "Safe-journey check-in" switch row is removed (it only stored
+ *   ws_checkin_enabled on the device; nothing ever read it)
+ * - Discreet mode switch announces its real on/off state with a neutral name
+ * - one name for the journey feature: "Head out safely" (Home card, profile)
+ * - FIR draft Domestic Violence tile: "498A" (old IPC) -> plain wording
+ * - All help: Police & FIR gets its own description (was copied from
+ *   Women's Shield)
+ * Declared here, above the later phases, to keep merges with P7 clean.
+ */
+export const UI_V22_P8 = process.env.EXPO_PUBLIC_UI_V22_P8 === 'true';
+
+/**
  * Phase 5b: tidy Home.
  * - Home grid drops its "All help" tile (the "All help" link above the grid stays).
  * - Home's empty "My files" card ("No cases yet — tap to start your first
