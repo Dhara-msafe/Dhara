@@ -197,6 +197,17 @@ export default function Login() {
               {loading ? <ActivityIndicator color={theme.colors.onBrandPrimary} /> : <Text style={styles.btnText}>Sign In</Text>}
             </Pressable>
 
+            {/* 21 Nov (Vivek): Forgot password sits right under Sign In. */}
+            {/* The wrapper carries the layout: on web, Link asChild drops a
+                Pressable's style function, so it was never centred or spaced. */}
+            <View style={styles.forgotWrap}>
+              <Link href="/forgot-password" asChild>
+                <Pressable testID="go-to-forgot-password" style={(s) => [styles.forgotTap, focusRingStyle(s)]} accessibilityRole="link" accessibilityLabel="Forgot password?">
+                  <Text style={styles.forgotLink}>Forgot password?</Text>
+                </Pressable>
+              </Link>
+            </View>
+
             {/* ── Divider ── */}
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
@@ -223,12 +234,6 @@ export default function Login() {
                 </>
               )}
             </Pressable>
-
-            <Link href="/forgot-password" asChild>
-              <Pressable testID="go-to-forgot-password" style={(s) => [styles.forgotWrap, focusRingStyle(s)]} accessibilityRole="link" accessibilityLabel="Forgot password?">
-                <Text style={styles.forgotLink}>Forgot password?</Text>
-              </Pressable>
-            </Link>
 
             <View style={styles.row}>
               <Text style={styles.rowLead}>New here? </Text>
@@ -290,7 +295,8 @@ const styles = StyleSheet.create({
   eyeBtn: { paddingHorizontal: theme.spacing.md, paddingVertical: theme.spacing.md, justifyContent: 'center', alignItems: 'center' },
   btn: { backgroundColor: theme.colors.brand, padding: theme.spacing.lg, borderRadius: theme.radius.md, alignItems: 'center', marginTop: theme.spacing.xl, minHeight: 52 },
   btnText: { color: theme.colors.onBrandPrimary, fontWeight: '700', fontSize: 16 },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', marginTop: theme.spacing.lg, gap: 8 },
+  // 21 Nov: same space below "or" as above it (above = Forgot password's tap area + marginTop).
+  dividerRow: { flexDirection: 'row', alignItems: 'center', marginTop: theme.spacing.lg, marginBottom: 30, gap: 8 },
   dividerLine: { flex: 1, height: 1, backgroundColor: theme.colors.border },
   dividerText: { color: theme.colors.onSurfaceTertiary, fontSize: 13, fontWeight: '500' },
   googleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1.5, borderColor: theme.colors.border, borderRadius: theme.radius.md, padding: theme.spacing.lg, minHeight: 52, backgroundColor: theme.colors.surface },
@@ -300,7 +306,9 @@ const styles = StyleSheet.create({
   rowLead: { color: theme.colors.onSurfaceSecondary },
   // "Create an account" link: navy-on-cream — 11.92:1 ✅ + underline for link affordance
   link: { color: theme.dhara.textPrimary, fontWeight: '700', textDecorationLine: 'underline' },
-  forgotWrap: { alignItems: 'center', marginTop: theme.spacing.md, padding: 6, minHeight: UI_REVISION_V1 ? 44 : undefined, justifyContent: 'center' },
+  // 21 Nov: centred under Sign In, with a little more space above it.
+  forgotWrap: { alignItems: 'center', justifyContent: 'center', marginTop: theme.spacing.lg, minHeight: UI_REVISION_V1 ? 44 : undefined },
+  forgotTap: { padding: 6, minHeight: UI_REVISION_V1 ? 44 : undefined, justifyContent: 'center' },
   // "Forgot password?": navy-on-cream — 11.92:1 ✅ (already had underline)
   forgotLink: { color: theme.dhara.textPrimary, fontWeight: '600', fontSize: 14, textDecorationLine: 'underline' },
   // NF-UI-REV-05: this link had zero padding/touch-target before — under 44px.
