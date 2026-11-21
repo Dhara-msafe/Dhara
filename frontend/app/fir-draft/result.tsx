@@ -31,7 +31,12 @@ const BORDER = theme.colors.border;
 const RED    = theme.colors.error;
 
 const HELPLINES = [
-  { label: 'Police',         number: '100',   icon: 'shield-outline' },
+  // B-117: this list must agree with the FIR letter's own footer, which
+  // always cites the unified emergency number (112), never the legacy
+  // standalone police line (100) — a citizen reading the result page and
+  // the letter side by side must not see two different numbers for the
+  // same thing.
+  { label: 'Police / Emergency', number: '112', icon: 'shield-outline' },
   { label: 'Women Helpline', number: '181',   icon: 'woman-outline' },
   { label: 'NALSA Legal Aid',number: '15100', icon: 'briefcase-outline' },
   { label: 'Cybercrime',     number: '1930',  icon: 'laptop-outline' },
