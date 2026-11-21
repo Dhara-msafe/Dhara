@@ -24,6 +24,7 @@ import {
 import { whisperTranscribeFile } from '@/src/voice/stt';
 import { ChunkedSpeaker } from '@/src/voice/tts';
 import { createBrowserTtsPlayer } from '@/src/voice/browserPlayer';
+import { splitInlineBold, stripInlineMarkdown } from '@/src/fir/inlineMarkdown';
 import { claimMic, MIC_BUSY_MESSAGE, withMicLease, isMicHeldByEvidenceLocker, TTS_BLOCKED_BY_LOCKER_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
 import { canSpeakNow, noteSpeakIntent, VOICE_COMPANION_ENABLED } from '@/src/voice/speechGate';
 import { VoiceStateMachine } from '@/src/voice/core/voiceStateMachine';
@@ -1739,6 +1740,13 @@ ${data.bot_message}`);
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
+/** B-75: render **bold** markers in bot text as bold (see src/fir/inlineMarkdown). */
+function renderInlineBold(text: string): React.ReactNode {
+  return splitInlineBold(text).map((seg, i) =>
+    seg.bold ? <Text key={i} style={{ fontWeight: '700' }}>{seg.text}</Text> : seg.text,
+  );
+}
+
 function MessageBubble({
   role, text, msgId, onSpeak, isSpeaking, isTtsLoading,
 }: {
@@ -1765,14 +1773,14 @@ function MessageBubble({
           <Text textBreakStrategy="simple" style={[styles.bubbleText, isBot ? styles.bubbleTextBot : styles.bubbleTextUser]}>
             {/* trailing space gives Android's shrink-to-fit measure a few px of
                 slack so the last Devanagari word never wraps out of view */}
-            {isBot ? text : `${text} `}
+            {isBot ? renderInlineBold(text) : `${text} `}
           </Text>
         </View>
         {/* TTS speaker button on bot messages */}
         {isBot && msgId && onSpeak && (
           <Pressable
             testID={`fir-listen-${msgId}`}
-            onPress={() => onSpeak(msgId, text)}
+            onPress={() => onSpeak(msgId, stripInlineMarkdown(text))}
             style={(s) => [styles.ttsBubbleBtn, focusRingStyle(s)]}
             hitSlop={8}
             accessibilityRole="button"
