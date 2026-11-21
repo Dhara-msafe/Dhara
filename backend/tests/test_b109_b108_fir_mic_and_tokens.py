@@ -77,6 +77,10 @@ def run_b109_checks():
         "probe_theft_items", "probe_assault_mlc", "probe_cyber_amount",
         "probe_accused", "probe_incident_place_detail", "probe_dv_duration",
         "probe_posh_employer", "probe_posh_role", "probe_consumer_company",
+        # 21 Nov web retest: the phone question gets the mic too — the
+        # transcript lands in the editable composer first, and spoken digits
+        # are normalised server-side (_spoken_phone_to_digits).
+        "probe_informant_phone", "probe_informant_phone_retry",
     ]
     for key in should_be_voice:
         _check(
@@ -87,7 +91,6 @@ def run_b109_checks():
 
     # Regression guard: short machine-readable codes/numbers stay typing-only.
     should_stay_text = [
-        "probe_informant_phone", "probe_informant_phone_retry",
         "probe_stolen_phone_imei", "probe_transaction_ids",
         "probe_scammer_contact", "probe_consumer_order_id",
     ]
@@ -103,6 +106,14 @@ def run_b109_checks():
     _check("probe_place_gps untouched (gps)", PQ["probe_place_gps"]["input_type"] == fir_engine.INPUT_GPS)
     _check("probe_evidence untouched (evidence)", PQ["probe_evidence"]["input_type"] == fir_engine.INPUT_EVIDENCE)
     _check("probe_date untouched (already voice_or_text)", PQ["probe_date"]["input_type"] == fir_engine.INPUT_VOICE_TEXT)
+
+    # Spoken phone numbers normalise to digits; typed/mixed answers untouched.
+    sp = fir_engine._spoken_phone_to_digits
+    _check("spoken digits -> number", sp("nine eight four four five six seven eight nine zero") == "9844567890", sp("nine eight four four five six seven eight nine zero"))
+    _check("'double'/'triple' expand", sp("nine double eight triple four five") == "9884445", sp("nine double eight triple four five"))
+    _check("already-digit answer normalised to its digits", sp("98445 67890") == "9844567890")
+    _check("a non-number answer is returned as given", sp("I don't have a phone") == "I don't have a phone")
+    _check("normalised spoken number validates", fir_engine._is_valid_phone(sp("nine eight four four five six seven eight nine zero")))
 
 
 # ─── B-108: narrative-turn logging ──────────────────────────────────────────

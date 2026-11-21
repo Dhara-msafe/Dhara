@@ -1662,21 +1662,35 @@ ${data.bot_message}`);
             )}
 
             {inputType === 'gps' && !gpsAvailable && (
-              /* Web fallback: typed place input when GPS is unavailable */
+              /* Web fallback: typed (or spoken) place input when GPS is
+                 unavailable. B-109 (21 Nov retest): this box had no mic, so
+                 the place could not be spoken here — it now uses the same
+                 voice wiring as the normal composer. */
               <TextInputArea
                 value={textInput}
                 onChange={setTextInput}
-                onSend={(t) => { if (t.trim()) sendTurn(t.trim()); }}
+                onSend={handleTextSend}
                 onSkip={skipLabel ? () => sendTurn(undefined, undefined, 'skip') : undefined}
                 skipLabel={skipLabel}
-                showVoice={false}
-                isRecording={false}
-                transcribing={false}
-                onStartRecord={() => {}}
-                onStopRecord={() => {}}
+                showVoice
+                isRecording={isRecording}
+                transcribing={transcribing}
+                onStartRecord={onMicPressIn}
+                onStopRecord={onMicPressOut}
                 onAttach={handlePickEvidence}
                 attachedFiles={evidenceFiles}
                 onRemoveAttach={handleRemoveEvidence}
+                onCaptionChange={handleCaptionChange}
+                locked={locked}
+                slideCancelled={slideCancelled}
+                slideX={slideX}
+                slideY={slideY}
+                micPulse={micPulse}
+                waveBars={waveBars}
+                holdElapsed={holdElapsed}
+                onLockedCancel={onLockedCancel}
+                onLockedFinish={onLockedFinish}
+                micPanHandlers={micPanResponder.panHandlers}
               />
             )}
 

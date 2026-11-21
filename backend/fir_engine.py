@@ -791,6 +791,41 @@ def _validate_time_input(text: str) -> bool:
     return h <= 23 and mi <= 59
 
 
+_SPOKEN_DIGITS = {
+    "zero": "0", "oh": "0", "o": "0", "one": "1", "two": "2", "three": "3",
+    "four": "4", "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9",
+}
+
+
+def _spoken_phone_to_digits(text: str) -> str:
+    """B-109: turn a spoken number ('nine eight four double five ...',
+    'triple 0') into digits so a voice answer to the phone question
+    validates like a typed one. Returns the input unchanged when it does not
+    read as a spoken number (any other word present)."""
+    if not text:
+        return text
+    tokens = re.findall(r"[a-zA-Z]+|\d+", text.lower())
+    out, mult = [], 1
+    for t in tokens:
+        if t == "double":
+            mult = 2
+            continue
+        if t == "triple":
+            mult = 3
+            continue
+        if t.isdigit():
+            out.append(t[0] * mult + t[1:] if mult > 1 else t)
+        elif t in _SPOKEN_DIGITS:
+            out.append(_SPOKEN_DIGITS[t] * mult)
+        elif t in ("plus", "and", "dash", "hyphen", "space"):
+            continue
+        else:
+            return text  # a non-number word — leave the answer as given
+        mult = 1
+    joined = "".join(out)
+    return joined if joined else text
+
+
 def _is_valid_phone(text: str) -> bool:
     """Return True if text looks like a real contact number."""
     if not text:
@@ -1177,11 +1212,14 @@ PROBE_Q: dict[str, dict] = {
     },
     "probe_informant_phone": {
         "message": "Your mobile number (the police can reach you on this):",
-        "slot": "informant_phone", "input_type": INPUT_TEXT,
+        # B-109 (21 Nov retest): mic offered on the phone question too. Safe:
+        # a transcript lands in the editable composer before it is sent, and
+        # spoken digits are normalised by _spoken_phone_to_digits().
+        "slot": "informant_phone", "input_type": INPUT_VOICE_TEXT,
     },
     "probe_informant_phone_retry": {
         "message": "That doesn't look like a valid mobile number — the police will need to reach you.\nPlease enter a 10-digit Indian mobile number:",
-        "slot": "informant_phone", "input_type": INPUT_TEXT, "skip_label": "Skip — I'll share it at the station",
+        "slot": "informant_phone", "input_type": INPUT_VOICE_TEXT, "skip_label": "Skip — I'll share it at the station",
     },
     # ── New incident-specific probes ──────────────────────────────────────────
     "probe_force_used": {
@@ -2331,6 +2369,7 @@ async def _dispatch(
 
                 # ── FIX 6: Phone validation + one retry ──────────────────────
                 elif cp == "probe_informant_phone":
+                    user_message = _spoken_phone_to_digits(user_message)
                     if not _is_valid_phone(user_message):
                         phone_retry_done = session.get("phone_retry_done", False)
                         if not phone_retry_done:
@@ -2347,7 +2386,7 @@ async def _dispatch(
                                 "session_id": sid, "stage": STAGE_PROBE,
                                 "probe_key": "probe_informant_phone_retry",
                                 "bot_message": _tp("probe_informant_phone_retry", language),
-                                "input_type": INPUT_TEXT,
+                                "input_type": PROBE_Q["probe_informant_phone_retry"]["input_type"],
                                 "skip_label": PROBE_Q["probe_informant_phone_retry"]["skip_label"],
                                 "quick_replies": [], "completed": False,
                             }
@@ -2365,6 +2404,7 @@ async def _dispatch(
 
                 elif cp == "probe_informant_phone_retry":
                     # Accept whatever is given at this point
+                    user_message = _spoken_phone_to_digits(user_message)
                     slots["informant_phone"] = user_message
                     await db.fir_sessions.update_one(
                         {"session_id": sid}, {"$set": {"slots": slots, "updated_at": now}}
