@@ -297,8 +297,8 @@ const styles = StyleSheet.create({
   eyeBtn: { paddingHorizontal: theme.spacing.md, paddingVertical: theme.spacing.md, justifyContent: 'center', alignItems: 'center' },
   btn: { backgroundColor: theme.colors.brand, padding: theme.spacing.lg, borderRadius: theme.radius.md, alignItems: 'center', marginTop: theme.spacing.xl, minHeight: 52 },
   btnText: { color: theme.colors.onBrandPrimary, fontWeight: '700', fontSize: 16 },
-  // 21 Nov: same space below "or" as above it (above = Forgot password's tap area + marginTop).
-  dividerRow: { flexDirection: 'row', alignItems: 'center', marginTop: theme.spacing.lg, marginBottom: 30, gap: 8 },
+  // 21 Nov: 16px (spacing.lg) between each element below Sign In.
+  dividerRow: { flexDirection: 'row', alignItems: 'center', marginTop: theme.spacing.lg, marginBottom: theme.spacing.lg, gap: 8 },
   dividerLine: { flex: 1, height: 1, backgroundColor: theme.colors.border },
   dividerText: { color: theme.colors.onSurfaceTertiary, fontSize: 13, fontWeight: '500' },
   googleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1.5, borderColor: theme.colors.border, borderRadius: theme.radius.md, padding: theme.spacing.lg, minHeight: 52, backgroundColor: theme.colors.surface },
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
   // "Create an account" link: navy-on-cream — 11.92:1 ✅ + underline for link affordance
   link: { color: theme.dhara.textPrimary, fontWeight: '700', textDecorationLine: 'underline' },
   // 21 Nov: centred under Sign In, with a little more space above it.
-  forgotWrap: { alignItems: 'center', justifyContent: 'center', marginTop: theme.spacing.lg, minHeight: UI_REVISION_V1 ? 44 : undefined },
+  forgotWrap: { alignItems: 'center', justifyContent: 'center', marginTop: theme.spacing.lg },
   forgotTap: { padding: 6, minHeight: UI_REVISION_V1 ? 44 : undefined, justifyContent: 'center' },
   // "Forgot password?": navy-on-cream — 11.92:1 ✅ (already had underline)
   forgotLink: { color: theme.dhara.textPrimary, fontWeight: '600', fontSize: 14, textDecorationLine: 'underline' },
