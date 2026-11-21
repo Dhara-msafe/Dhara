@@ -10,9 +10,9 @@
  * RESULT: no bug found here. Every citizen-facing route in
  * api/journey_router.py (POST /journey/status, and every
  * /journey/status/{token}/* action -- safe, revoke, missed-checkin,
- * heartbeat, help, location, extend, destination, route-deviation) requires
+ * heartbeat, help, location, extend, destination) requires
  * current_user server-side, and every corresponding fetch() call in
- * app/women/head-out.tsx, app/women/head-out/destination.tsx,
+ * app/women/head-out/index.tsx, app/women/head-out/destination.tsx,
  * src/hooks/useJourneyGPS.ts and src/hooks/useLocationUpload.ts already
  * sends `Authorization: Bearer ${authToken}`. The two routes that
  * intentionally send NO auth header -- GET /api/geocode/search (OSM
@@ -78,8 +78,8 @@ function fetchCallsRequiringAuth(src: string): string[] {
   );
 }
 
-test('W2-J05: every head-out.tsx network call except the public OSM geocode fallback sends Authorization', () => {
-  const src = read('app/women/head-out.tsx');
+test('W2-J05: every head-out/index.tsx network call except the public OSM geocode fallback sends Authorization', () => {
+  const src = read('app/women/head-out/index.tsx');
   const authRequired = fetchCallsRequiringAuth(src);
   assert.ok(authRequired.length >= 8, `expected at least 8 auth-required fetch() calls in head-out.tsx, found ${authRequired.length}`);
   for (const call of authRequired) {
