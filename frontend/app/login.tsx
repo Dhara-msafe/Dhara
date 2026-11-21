@@ -115,8 +115,9 @@ export default function Login() {
         <Text style={styles.tag}>Know your rights. Speak them.</Text>
 
           <View style={styles.card}>
-            <Text style={styles.heading}>Welcome back</Text>
-            <Text style={styles.sub}>Sign in to continue</Text>
+            {/* 21 Nov (Vivek): neutral greeting for new and returning users, centred. */}
+            <Text style={[styles.heading, styles.centred]}>Welcome to Dhara</Text>
+            <Text style={[styles.sub, styles.centred]}>Sign in or Create an account</Text>
 
             {showAccountDeleted ? (
               <View style={styles.accountDeletedBanner} testID="account-deleted-banner">
@@ -288,6 +289,7 @@ const styles = StyleSheet.create({
   card: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, padding: theme.spacing.xl, marginTop: theme.spacing.xxl },
   heading: { fontFamily: theme.fonts.display, fontSize: 24, color: theme.colors.onSurface, fontWeight: '700' },
   sub: { color: theme.colors.onSurfaceSecondary, marginTop: 4 },
+  centred: { textAlign: 'center' },
   label: { color: theme.colors.onSurfaceSecondary, marginTop: theme.spacing.lg, marginBottom: theme.spacing.sm, fontWeight: '600' },
   input: { borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, padding: theme.spacing.md, fontSize: 16, color: theme.colors.onSurface, backgroundColor: theme.colors.surfaceSecondary },
   pwWrap: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceSecondary },
