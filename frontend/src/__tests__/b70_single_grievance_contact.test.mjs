@@ -46,8 +46,13 @@ for (const [label, file] of Object.entries(screens)) {
     const src = readFileSync(file, 'utf8');
     assert.match(src, /from\s+['"]@\/src\/operatorIdentity['"]/);
     assert.match(src, /grievanceOfficerName/);
-    assert.match(src, /grievanceContactEmail/);
+    // 21 Nov: since the v2.2 redesign Data & Privacy shows only the officer's
+    // name and opens /grievance (which shows the email), so the email import
+    // is required only on the screens that display it.
+    if (label !== 'data-privacy.tsx') assert.match(src, /grievanceContactEmail/);
     assert.match(src, /isGrievanceContactPlaceholder/);
+    // No old address anywhere in the file, not even in comments.
+    assert.doesNotMatch(src, /calviltech\.com/);
     // The old hardcoded literal must not still be sitting there as a second,
     // competing source of truth.
     assert.doesNotMatch(src, /'grievance@calviltech\.com'/);

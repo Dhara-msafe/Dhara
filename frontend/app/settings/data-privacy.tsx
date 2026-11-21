@@ -27,18 +27,18 @@ import { goBackOr } from '@/src/goBackOr';
 // rollback flag + visible keyboard-focus ring + missing a11y labels.
 import { UI_REVISION_V1 } from '@/src/designRevision';
 import { focusRingStyle } from '@/src/a11yFocus';
-// B-70: GRIEVANCE_EMAIL / GRIEVANCE_OFFICER_NAME used to be their own local
-// constants here -- a FOURTH value, independent of the consent screen
-// (operatorIdentity.ts's Varuna Moses / varuna@calviltech.com), my-data.tsx
-// and /grievance's hardcoded "grievance@calviltech.com". Now reads the same
-// single source of truth as every other screen.
+// B-70: the grievance officer used to be hardcoded here as its own local
+// value, different from the consent screen, my-data.tsx and /grievance. Now
+// every screen reads the single source, operatorIdentity.ts (Varuna Moses,
+// grievances@askdhara.in, owner-confirmed 17 Nov). This screen shows the
+// officer's name and opens /grievance, which shows the email.
 import { grievanceOfficerName as GRIEVANCE_OFFICER_NAME, isGrievanceContactPlaceholder, privacyContactEmail } from '@/src/operatorIdentity';
 // ── Contact constants ─────────────────────────────────────────────────────────
 // SUPPORT_EMAIL is the general privacy / data-controller inbox (Callistus,
 // callistus@askdhara.in). It is imported from operatorIdentity.ts so there
-// is one place to update it. It is intentionally distinct from
-// GRIEVANCE_EMAIL (the statutory DPDP grievance officer, Varuna Moses /
-// varuna@calviltech.com) and is not part of the B-70 grievance consolidation.
+// is one place to update it. It is intentionally distinct from the
+// statutory DPDP grievance contact (operatorIdentity.ts grievanceContactEmail)
+// and is not part of the B-70 grievance consolidation.
 const SUPPORT_EMAIL          = privacyContactEmail;
 
 // ── Accent colours (spec) ─────────────────────────────────────────────────────

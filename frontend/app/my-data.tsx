@@ -30,11 +30,10 @@ import * as Sharing from 'expo-sharing';
 // export/fetch/delete logic changes.
 import { UI_REVISION_V1 } from '@/src/designRevision';
 import { focusRingStyle } from '@/src/a11yFocus';
-// B-70: this screen used to hardcode its own "grievance@calviltech.com" --
-// a THIRD value, different from both the consent screen's operatorIdentity.ts
-// (Varuna Moses, varuna@calviltech.com) and /grievance's own hardcoded
-// string. operatorIdentity.ts is already documented as the single source of
-// truth "across the app"; this screen just wasn't reading it yet.
+// B-70: this screen used to hardcode its own grievance address, different
+// from the consent screen and /grievance. It now reads the single source,
+// operatorIdentity.ts (Varuna Moses, grievances@askdhara.in, owner-confirmed
+// 17 Nov).
 import { grievanceOfficerName, grievanceContactEmail, isGrievanceContactPlaceholder } from '@/src/operatorIdentity';
 
 interface MyDataSummary {

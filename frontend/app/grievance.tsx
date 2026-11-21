@@ -22,11 +22,10 @@ import { useRouter } from 'expo-router';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { goBackOr } from '@/src/goBackOr';
-// B-70: this screen used to hardcode its own "grievance@calviltech.com" with
-// no officer name -- a THIRD value, different from both the consent screen
-// (Varuna Moses, varuna@calviltech.com via operatorIdentity.ts) and
-// my-data.tsx's own hardcoded string. Reading the single source of truth
-// instead of a separately hardcoded string here.
+// B-70: this screen used to hardcode its own grievance address with no
+// officer name, different from the consent screen and my-data.tsx. It now
+// reads the single source, operatorIdentity.ts (Varuna Moses,
+// grievances@askdhara.in, owner-confirmed 17 Nov).
 import { grievanceOfficerName, grievanceContactEmail, isGrievanceContactPlaceholder } from '@/src/operatorIdentity';
 
 const CATEGORIES = [
