@@ -59,12 +59,15 @@ test('S2A-04: radius.tsx shows "GPS accuracy: ~10–25 metres"', () => {
   assert.match(radius, /10[–\-]25\s*met/, 'GPS accuracy range must be 10–25 m');
 });
 
-test('S2A-05: radius.tsx shows "We will consider you arrived when you enter this area"', () => {
+test('S2A-05: radius.tsx states that entering the area counts as arriving', () => {
+  // Reworded 21 Nov (owner finding 9): the old 'planning only, no geofence'
+  // line contradicted this note, so the copy now tells one truth.
   assert.match(
     radius,
-    /We will consider you arrived when you enter this area/,
-    'arrival note must appear verbatim',
+    /DHARA will ask you to confirm you arrived/,
+    'arrival note must appear',
   );
+  assert.doesNotMatch(radius, /does not turn on geofence/, 'contradictory planning-only claim must be gone');
 });
 
 test('S2A-06: radius.tsx shows the disclaimer note about safety guarantee', () => {

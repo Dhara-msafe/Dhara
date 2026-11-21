@@ -33,7 +33,12 @@ export function GlobalHelpButton() {
   const isAuthOnboarding =
     pathname === '/login' || pathname === '/signup' ||
     pathname === '/consent' || pathname === '/language';
-  if (pathname === '/emergency' || pathname?.startsWith('/oauth') || (pathname?.startsWith('/women') && !pathname?.startsWith('/women/head-out')) || pathname?.startsWith('/family-journey') || pathname?.startsWith('/guardian') || pathname?.startsWith('/admin-') || isHome || hideScan || isAuthOnboarding) return null;
+  // Head Out wizard substeps (/women/head-out/destination|radius|circle) have
+  // their own bottom footers and dropdown rows exactly where this FAB floats —
+  // on step 3 it covered the "Notify my circle" dropdown (owner finding 10,
+  // 21 Nov). The active journey screen (/women/head-out) keeps the button.
+  const isHeadOutWizardStep = !!pathname?.startsWith('/women/head-out/');
+  if (pathname === '/emergency' || pathname?.startsWith('/oauth') || (pathname?.startsWith('/women') && !pathname?.startsWith('/women/head-out')) || isHeadOutWizardStep || pathname?.startsWith('/family-journey') || pathname?.startsWith('/guardian') || pathname?.startsWith('/admin-') || isHome || hideScan || isAuthOnboarding) return null;
 
   return (
     <Pressable

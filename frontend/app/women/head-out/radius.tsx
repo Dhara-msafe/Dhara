@@ -70,8 +70,9 @@ export default function ArrivalRadius() {
 
         <Text style={styles.fieldLabel}>Planned arrival area</Text>
         <Text style={styles.note}>
-          How close to your destination counts as &ldquo;arrived&rdquo;. This is for planning only — it
-          does not turn on geofence monitoring.
+          How close to your destination counts as &ldquo;arrived&rdquo;. While your journey is
+          active and location sharing is on, DHARA treats entering this area as arriving
+          and will ask you to confirm.
         </Text>
 
         {/* Map preview — shows destination pin + arrival radius circle */}
@@ -90,7 +91,7 @@ export default function ArrivalRadius() {
           <Text style={styles.gpsAccuracyTxt}>GPS accuracy: ~10–25 metres</Text>
         </View>
         <Text style={styles.arrivalNote}>
-          We will consider you arrived when you enter this area.
+          When you enter this area with location on, DHARA will ask you to confirm you arrived.
         </Text>
 
         <View style={styles.chipRow}>

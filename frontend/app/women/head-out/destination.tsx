@@ -70,6 +70,10 @@ interface CoordSuggestion {
  * details() call only happens if the user actually selects this row, same
  * discipline DestinationPicker.tsx's Places pilot already follows. */
 interface PlacesSuggestionRow {
+  /** The place's display NAME alone (e.g. 'Inorbit Mall') — used as the
+   * destination label when tapped; the resolved street address stays for
+   * coordinates only (fix 4, 21 Nov). */
+  mainText: string;
   kind: 'places';
   place_id: string;
   label: string;
@@ -130,6 +134,10 @@ async function fetchPlacesAutocomplete(base: string, input: string, sessionToken
     kind: 'places' as const,
     place_id: row.place_id,
     label: row.secondary_text ? `${row.main_text}, ${row.secondary_text}` : row.main_text,
+    // Fix 4 (21 Nov): keep the PLACE NAME. details() returns a street
+    // address ('S No. 64, Inorbit Mall Rd'); the name the user actually
+    // tapped ('Inorbit Mall') is what the journey should be called.
+    mainText: row.main_text,
     provider: row.provider,
   }));
 }
@@ -402,8 +410,8 @@ export default function ChooseDestination() {
     placesSessionTokenRef.current = null; // session concluded — fresh token next search
     if (!details) return; // fails closed — typed text stays exactly as the user left it
     coordsFromSelectionRef.current = true;
-    autoDefaultCoordsRef.current = false;
-    setValue(v => ({ label: shortAddressLabel(details.label), radiusMeters: v.radiusMeters, savedPlaceId: undefined, latitude: details.latitude, longitude: details.longitude }));
+    autoDefaultCoordsRef.current = false;   // #79: a tapped place is a deliberate choice
+    setValue(v => ({ label: s.mainText || shortAddressLabel(details.label), radiusMeters: v.radiusMeters, savedPlaceId: undefined, latitude: details.latitude, longitude: details.longitude }));   // #83 fix 4: keep the place NAME
     setAddressSuggestions([]);
     setMapRecenterKey(k => k + 1);
   }, [base, authToken]);
