@@ -62,10 +62,10 @@ _TYPE_PERMISSION_KEY = {
     "sharing_ended":        "journey_status",
     "location_unavailable": "journey_status",
     "missed_checkin":       "missed_checkin",
-    # Reuses the same toggle as missed_checkin ("Late arrival alert" in
-    # circle.tsx) — a sustained unexplained deviation is the same category of
-    # signal, just caught earlier than waiting for the final deadline.
-    "route_deviation":      "missed_checkin",
+    # Row 25: "route_deviation" removed from this SEND-permission map
+    # (21 Nov 2026) — nothing sends that type any more. It stays in the
+    # display title map and list filter above/below only so historical
+    # alerts keep rendering.
     "help_requested":       "emergency_requests",
     "arrival_confirmed":    "expected_arrival",
     "journey_completed":    "expected_arrival",

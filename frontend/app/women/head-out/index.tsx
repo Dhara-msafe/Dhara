@@ -66,16 +66,12 @@ const MOVING_AWAY_STREAK = 3;
 // eligible to reappear (it can still reappear sooner if the underlying
 // condition clears and re-triggers, e.g. leaving and re-entering the zone).
 const DISMISS_COOLDOWN_MS = 5 * 60 * 1000;
-// If a deviation persists this long with no sign of heading back AND the
-// traveller hasn't dismissed it, auto-notify the trusted circle — product
-// decision: 15 minutes (the low end of "15 to 20" — short enough to still be
-// useful as an early warning, long enough to absorb a GPS blip or someone
-// just not glancing at their phone right away).
-const DEVIATION_ESCALATION_MS = 15 * 60 * 1000;
-// "Heading back toward the destination" means the current distance is at
-// least this much closer than it was when the deviation episode started —
-// a small buffer so ordinary GPS jitter doesn't get read as course-correcting.
-const HEADING_BACK_MARGIN_METERS = 30;
+// Row 25 (21 Nov 2026): the 15-minute deviation auto-escalation to the
+// trusted circle was REMOVED by owner decision. Deviation is now an in-app
+// prompt only ("Off your usual route — are you okay?"); nothing is ever sent
+// to the circle automatically because of a deviation. The circle is only
+// contacted by the missed-check-in path (deadline_worker.py) or an explicit
+// "Need help" from the traveller.
 
 // "Check-in not received" screen (shown once the check-in timer expires).
 // GRACE_MINUTES must match deadline_worker.py's _GRACE_MINUTES on the
@@ -444,9 +440,6 @@ export default function HeadOut() {
     referenceRouteRef.current = null;
     referenceRouteProviderRef.current = null;
     distanceHistoryRef.current = [];
-    deviationStartedAtRef.current = null;
-    deviationBaselineDistanceRef.current = null;
-    deviationEscalatedRef.current = false;
     setCreateFailures(0); // A30: a future session starts its own create attempts from zero
   }, [authToken, journeyToken, user]);
 
@@ -713,13 +706,6 @@ export default function HeadOut() {
   const handleOkayDeviated = useCallback(() => {
     setDeviatedDismissedAt(Date.now());
     setRouteInfo(null);
-    // An explicit "I'm okay" always cancels any pending auto-escalation for
-    // this episode — a human just affirmatively responded, so there is
-    // nothing left to escalate about. A future deviation starts a fresh
-    // episode with its own full 15-minute window, never an immediate re-fire.
-    deviationStartedAtRef.current = null;
-    deviationBaselineDistanceRef.current = null;
-    deviationEscalatedRef.current = false;
   }, []);
 
   // GO1C: "Change destination" — a lightweight inline picker rather than
@@ -764,9 +750,6 @@ export default function HeadOut() {
       referenceRouteRef.current = null;  // old route is meaningless against a different destination
       referenceRouteProviderRef.current = null;
       distanceHistoryRef.current = [];   // old trend data no longer means anything against a new destination
-      deviationStartedAtRef.current = null;   // same reasoning as handleOkayDeviated — a new destination is a fresh start
-      deviationBaselineDistanceRef.current = null;
-      deviationEscalatedRef.current = false;
       setDeviatedDismissedAt(null);
       setShowChangeDest(false);
     } catch {
@@ -913,54 +896,10 @@ export default function HeadOut() {
   useEffect(() => { if (!hasArrived) setArrivedDismissedAt(null); }, [hasArrived]);
   useEffect(() => { if (!hasDeviated) setDeviatedDismissedAt(null); }, [hasDeviated]);
 
-  // GO1C: deviation → trusted-circle auto-escalation after sustained silence.
-  // Tracks one "episode" per continuous hasDeviated streak: when it starts,
-  // the distance-to-destination baseline at that moment, and whether this
-  // episode has already escalated (so retries/re-renders don't re-fire).
-  // handleOkayDeviated / handleSaveChangeDestination explicitly clear
-  // deviationStartedAtRef — an acknowledged deviation never escalates later,
-  // even if hasDeviated happens to still read true right after.
-  const deviationStartedAtRef = useRef<number | null>(null);
-  const deviationBaselineDistanceRef = useRef<number | null>(null);
-  const deviationEscalatedRef = useRef(false);
-
-  useEffect(() => {
-    if (hasDeviated && deviationStartedAtRef.current == null) {
-      deviationStartedAtRef.current = Date.now();
-      deviationBaselineDistanceRef.current = distanceToDestination;
-      deviationEscalatedRef.current = false;
-    } else if (!hasDeviated) {
-      deviationStartedAtRef.current = null;
-      deviationBaselineDistanceRef.current = null;
-      deviationEscalatedRef.current = false;
-    }
-  }, [hasDeviated, distanceToDestination]);
-
-  useEffect(() => {
-    const startedAt = deviationStartedAtRef.current;
-    if (
-      !GO1C_LIVE_ROUTE_ENABLED || !startedAt || deviationEscalatedRef.current ||
-      !authToken || !journeyToken || session?.autoNotifyOnNoResponse === false ||
-      Date.now() - startedAt < DEVIATION_ESCALATION_MS
-    ) return;
-
-    const baseline = deviationBaselineDistanceRef.current;
-    const headingBack = baseline != null && distanceToDestination != null
-      && baseline - distanceToDestination > HEADING_BACK_MARGIN_METERS;
-    if (headingBack) {
-      // Clearly correcting course — don't escalate, and let this episode end
-      // naturally (hasDeviated should clear on its own shortly as offRoute/
-      // movingAway stop being true against the improving distance).
-      return;
-    }
-
-    deviationEscalatedRef.current = true;   // claim BEFORE the async call — a slow response must not double-fire
-    fetch(`${API_BASE}/api/journey/status/${journeyToken}/route-deviation`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-      body: JSON.stringify({ started_at: new Date(startedAt).toISOString() }),
-    }).catch(() => {});   // best-effort — a failed escalation call must not crash the journey screen
-  }, [distanceToDestination, authToken, journeyToken, session]);
+  // Row 25: the deviation → trusted-circle auto-escalation that lived here
+  // (15-minute episode timer + POST /journey/status/{token}/route-deviation)
+  // was removed by owner decision, 21 Nov 2026. hasDeviated now drives the
+  // in-app prompt only.
 
   // F2b / F2c: battery-aware upload hook + stable refs for the AppState handler
   const { lastGaspUpload } = useLocationUpload(authToken, GO1B_GPS_ENABLED ? journeyToken : null);

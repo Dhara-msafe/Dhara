@@ -161,8 +161,7 @@ async def _notify_linked_recipients(
     failure must never break the journey action that triggered it.
 
     idempotency_suffix: for alert types that can legitimately fire more than
-    once in the same journey (e.g. "route_deviation" — a traveller could
-    deviate, course-correct, then deviate again), the default per-journey
+    once in the same journey, the default per-journey
     idempotency key (token:type:link_id) would wrongly dedupe the SECOND
     episode as "already sent". Callers of such types pass something that
     uniquely identifies the episode (e.g. when it started) so each episode
@@ -273,14 +272,6 @@ class ChangeDestinationIn(BaseModel):
     destination: str = Field(..., min_length=1, max_length=_MAX_LABEL)
     lat: Optional[float] = Field(default=None, ge=-90, le=90)
     lng: Optional[float] = Field(default=None, ge=-180, le=180)
-
-
-class RouteDeviationIn(BaseModel):
-    # ISO timestamp of when THIS deviation episode began, per the client's own
-    # tracking (head-out.tsx) — used only as an idempotency-key ingredient, see
-    # _notify_linked_recipients' idempotency_suffix. Not otherwise validated
-    # against server time since clock skew doesn't matter for that purpose.
-    started_at: str = Field(..., min_length=1, max_length=40)
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -699,33 +690,12 @@ async def change_destination(token: str, body: ChangeDestinationIn, user: dict =
     return {"ok": True, "destination": update["destination"]}
 
 
-@router.post("/journey/status/{token}/route-deviation", status_code=200)
-async def report_route_deviation(token: str, body: RouteDeviationIn, user: dict = Depends(current_user)):
-    """Client calls this ONCE per deviation episode — after its own
-    client-side check (head-out.tsx) confirms the traveller has been off
-    their planned route or moving away from the destination for a sustained
-    window (15+ minutes, per product decision) with no sign of heading back,
-    AND the traveller hasn't dismissed the in-app prompt ("I'm okay" /
-    "Change destination" both cancel this before it fires).
-
-    Gated by the SAME `missed_checkin` permission as the existing "Late
-    arrival alert" toggle — deliberately not a new permission type, since a
-    sustained unexplained deviation is the same category of "something may be
-    off" signal as a missed check-in, just detected earlier. Respects the
-    owner's existing auto_notify_on_no_response choice the same way
-    deadline_worker.py's missed-checkin escalation does — if they chose
-    "Do nothing" there, the frontend skips calling this endpoint at all
-    (enforced client-side; this endpoint itself has no separate opt-out field).
-    """
-    rec = await db.safety_journeys.find_one({"token": token})
-    if not rec:
-        raise HTTPException(404, "Journey not found")
-    if rec["user_id"] != user["id"]:
-        raise HTTPException(403, "Not your journey")
-    if _sharing_closed(rec):
-        return {"ok": True, "skipped": "journey already completed or sharing withdrawn"}
-    await _notify_linked_recipients(user, rec, "route_deviation", idempotency_suffix=body.started_at)
-    return {"ok": True}
+# Row 25 (removed 21 Nov 2026, owner decision): POST
+# /journey/status/{token}/route-deviation and its RouteDeviationIn model were
+# deleted. Route deviation no longer auto-notifies the trusted circle; it is
+# an in-app prompt only (head-out/index.tsx). "route_deviation" stays in
+# alerts_router's DISPLAY maps only, so alerts of that type already in the
+# database keep rendering for recipients.
 
 
 @router.get("/journey/{token}/guardian", status_code=200)
