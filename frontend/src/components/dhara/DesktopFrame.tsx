@@ -7,6 +7,7 @@ import { useAuth } from '../../auth';
 import { tr } from '../../ui18n';
 import { useComplaintsPassive, isDraftReady, complaintTitle, complaintProgress } from '../../home/complaints';
 import { ADVOCATE_MODE_ENABLED } from '../../advocateMode/flags';
+import { UI_V22_P5_HOME } from '../../uiV22Flags';
 
 const c = theme.colors;
 
@@ -101,6 +102,9 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
   // v2.2 phase 2: calm frame on safety/onboarding routes (flag-gated).
   const calm = UI_V22_P2 && isCalmRoute(pathname);
   const onEmergencyScreen = !!pathname && (pathname === '/emergency' || pathname.startsWith('/emergency/'));
+  // v2.2 phase 5b: Home already shows the help list and the start-a-case
+  // card, so on Home the sidebar list and the rail case card are hidden.
+  const homeTidy = UI_V22_P5_HOME && isHome;
   const [q, setQ] = useState('');
 
   const Item = ({ it }: { it: NavItem }) => (
@@ -175,8 +179,12 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
         </Pressable>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
           {nav.map(it => <Item key={it.match} it={it} />)}
-          <Text style={styles.group}>{tr('home.journeys', lang).toUpperCase()}</Text>
-          {journeys.map(it => <Item key={it.match} it={it} />)}
+          {!homeTidy && (
+            <>
+              <Text style={styles.group}>{tr('home.journeys', lang).toUpperCase()}</Text>
+              {journeys.map(it => <Item key={it.match} it={it} />)}
+            </>
+          )}
         </ScrollView>
         {/* v2.2 phase 2: on /emergency itself the user has arrived — no
             second entry pointing at the screen they are on. */}
@@ -198,6 +206,7 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
           app") on safety and onboarding screens. */}
       {calm ? null : (
       <ScrollView style={styles.rail} contentContainerStyle={{ padding: 20, gap: 16 }} showsVerticalScrollIndicator={false}>
+        {!homeTidy && (
         <View style={styles.railCard}>
           <View style={styles.railTag}><Ionicons name="sparkles" size={13} color={c.darkGold} /><Text style={styles.railTagTxt}>{tr('home.forYou', lang).toUpperCase()}</Text></View>
           {railCase && railProgress ? (
@@ -214,12 +223,17 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
             </>
           )}
         </View>
+        )}
 
+        {/* v2.2 phase 5b: hidden until launch — "available on Android and
+            iOS" is not true yet and the QR is a placeholder icon. */}
+        {!UI_V22_P5_HOME && (
         <View style={[styles.railCard, { backgroundColor: c.navy }]}>
           <Text style={styles.getApp}>Get the app</Text>
           <Text style={styles.getAppSub}>Scan to install DHARA on your phone — available on Android and iOS.</Text>
           <View style={styles.qr}><Ionicons name="qr-code-outline" size={84} color={c.navy} /></View>
         </View>
+        )}
 
         <View style={styles.verified}>
           <Ionicons name="information-circle-outline" size={18} color={c.muted} />
