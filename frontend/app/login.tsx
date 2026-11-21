@@ -155,8 +155,7 @@ export default function Login() {
                 style={styles.pwInput}
                 value={password}
                 onChangeText={setPassword}
-                placeholder="••••••••"
-                placeholderTextColor={UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : theme.colors.onSurfaceTertiary}
+                // 21 Nov (Vivek): empty box, no dot placeholder; typed text is still hidden.
                 secureTextEntry={!showPassword}
                 accessibilityLabel="Password"
               />

@@ -204,8 +204,7 @@ export default function ForgotPassword() {
                 style={[styles.input, styles.codeInput]}
                 value={code}
                 onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
-                placeholder="••••••"
-                placeholderTextColor={theme.colors.onSurfaceTertiary}
+                // 21 Nov (Vivek): empty boxes on this screen, no dot placeholders.
                 keyboardType="number-pad"
                 maxLength={6}
               />
@@ -216,8 +215,6 @@ export default function ForgotPassword() {
                 style={styles.input}
                 value={newPassword}
                 onChangeText={setNewPassword}
-                placeholder="••••••••"
-                placeholderTextColor={theme.colors.onSurfaceTertiary}
                 secureTextEntry
               />
 
@@ -227,8 +224,6 @@ export default function ForgotPassword() {
                 style={styles.input}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
-                placeholder="••••••••"
-                placeholderTextColor={theme.colors.onSurfaceTertiary}
                 secureTextEntry
               />
 
