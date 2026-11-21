@@ -1026,7 +1026,7 @@ export default function HeadOut() {
         <Pressable
           testID="headout-safe-done"
           style={(s) => [styles.button, styles.safeButton, { alignSelf: 'stretch', marginTop: 8 }, focusRingStyle(s)]}
-          onPress={() => { setSafeConfirmed(false); router.replace('/women'); }}
+          onPress={() => { setSafeConfirmed(false); router.replace('/women-shield'); }}
           accessibilityRole="button"
           accessibilityLabel="Done"
         >
