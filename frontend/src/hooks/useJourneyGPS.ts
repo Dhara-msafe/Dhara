@@ -23,6 +23,11 @@ import { useAuth } from '@/src/auth';
 import { API_BASE } from '@/src/apiBase';
 import { cacheLocation } from '@/src/safety/locationCache';
 import { buildLocationUploadBody } from '@/src/safety/locationUploadBody';
+import { useLocationUploadQueue } from '@/src/safety/locationUploadQueue';
+import {
+  uploadOutcome, newestFor, afterSettled, usableFor, RETRY_INTERVAL_MS,
+  type UploadOutcome,
+} from '@/src/safety/locationUploadRetry';
 
 const POLL_INTERVAL_MS  = 30_000;   // foreground: update every 30 s
 /** A40: how often a real fix is written to the on-phone store. */
@@ -92,16 +97,13 @@ export function useJourneyGPS(
     return 'Unknown area';
   }, []);
 
-  // ── Send one location update to backend ────────────────────────────────────
-  const pushUpdate = useCallback(async (
+  // ── A10: one PATCH to the server, with a verdict on what to do next ───────
+  const sendReading = useCallback(async (
     lat: number, lng: number, accuracy: number, area: string, capturedAtMs: number,
-  ) => {
-    if (!authToken || !journeyToken) return;
-    const now = Date.now();
-    if (now - lastSent.current < 25_000) return;   // client-side throttle
-    lastSent.current = now;
+  ): Promise<UploadOutcome> => {
+    if (!authToken || !journeyToken) return 'retry';
     try {
-      await fetch(`${API_BASE}/api/journey/status/${journeyToken}/location`, {
+      const resp = await fetch(`${API_BASE}/api/journey/status/${journeyToken}/location`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -111,8 +113,63 @@ export function useJourneyGPS(
         // the server stores the true capture time instead of the arrival time.
         body: JSON.stringify(buildLocationUploadBody({ lat, lng, accuracy, area, capturedAtMs })),
       });
-    } catch { /* non-fatal — GPS update failure must not break the session */ }
+      let body: unknown = null;
+      try { body = await resp.json(); } catch { /* no JSON body */ }
+      return uploadOutcome(resp.status, body);
+    } catch {
+      return uploadOutcome(null);   // no answer: offline, timeout
+    }
   }, [authToken, journeyToken]);
+
+  // ── Send one location update to backend ────────────────────────────────────
+  // A10: a reading the server did not take is no longer thrown away. It is
+  // held on the phone (locationUploadQueue) and retried by flushHeld below.
+  const pushUpdate = useCallback(async (
+    lat: number, lng: number, accuracy: number, area: string, capturedAtMs: number,
+  ) => {
+    if (!authToken || !journeyToken) return;
+    const now = Date.now();
+    if (now - lastSent.current < 25_000) return;   // client-side throttle
+    lastSent.current = now;
+    try {
+      const outcome = await sendReading(lat, lng, accuracy, area, capturedAtMs);
+      const q = useLocationUploadQueue.getState();
+      if (outcome === 'retry') {
+        q.enqueue({ journeyToken, lat, lng, accuracy, area, capturedAt: new Date(capturedAtMs).toISOString() });
+      } else {
+        // Settled: anything held that is not newer than this reading is obsolete.
+        const kept = afterSettled(q.queue, journeyToken, capturedAtMs, Date.now());
+        if (kept.length !== q.queue.length) useLocationUploadQueue.setState({ queue: kept });
+      }
+    } catch { /* non-fatal — GPS update failure must not break the session */ }
+  }, [authToken, journeyToken, sendReading]);
+
+  // ── A10: retry the newest held reading ────────────────────────────────────
+  // Called every RETRY_INTERVAL_MS while tracking is on. Sends only the most
+  // recent held reading for this journey (see locationUploadRetry.ts for why).
+  const flushing = useRef(false);
+  const flushHeld = useCallback(async () => {
+    if (!authToken || !journeyToken || flushing.current) return;
+    flushing.current = true;
+    try {
+      const { queue } = useLocationUploadQueue.getState();
+      const nowMs = Date.now();
+      const entry = newestFor(queue, journeyToken, nowMs);
+      if (!entry) {
+        // Nothing sendable: clear out leftovers (other journeys, too old).
+        if (queue.length > 0) useLocationUploadQueue.setState({ queue: usableFor(queue, journeyToken, nowMs) });
+        return;
+      }
+      const capturedAtMs = Date.parse(entry.capturedAt);
+      const outcome = await sendReading(entry.lat, entry.lng, entry.accuracy, entry.area, capturedAtMs);
+      if (outcome === 'retry') return;   // stays held for the next round
+      lastSent.current = Date.now();
+      const latest = useLocationUploadQueue.getState().queue;
+      useLocationUploadQueue.setState({ queue: afterSettled(latest, journeyToken, capturedAtMs, Date.now()) });
+    } catch { /* non-fatal */ } finally {
+      flushing.current = false;
+    }
+  }, [authToken, journeyToken, sendReading]);
 
   // ── Handle a new position fix ──────────────────────────────────────────────
   const handlePosition = useCallback(async (pos: Location.LocationObject) => {
@@ -178,6 +235,8 @@ export function useJourneyGPS(
   const handlePositionRef    = useRef(handlePosition);
   requestPermissionRef.current = requestPermission;
   handlePositionRef.current    = handlePosition;
+  const flushHeldRef = useRef(flushHeld);
+  flushHeldRef.current = flushHeld;
 
   // ── Start / stop tracking based on `enabled` ──────────────────────────────
   useEffect(() => {
@@ -202,6 +261,12 @@ export function useJourneyGPS(
     }
 
     let cancelled = false;
+
+    // A10: retry held readings on a timer. Needed because a new GPS reading
+    // only arrives after she moves 50 m, so "retry on the next reading" could
+    // leave her last position unsent for a long time while she stands still.
+    const retryTimer = setInterval(() => { void flushHeldRef.current(); }, RETRY_INTERVAL_MS);
+    void flushHeldRef.current();   // also once at start (readings held before the app was closed)
 
     (async () => {
       const ok = await requestPermissionRef.current();
@@ -238,6 +303,7 @@ export function useJourneyGPS(
 
     return () => {
       cancelled = true;
+      clearInterval(retryTimer);
       try { subRef.current?.remove(); } catch { /* expo-location web can throw */ }
       subRef.current = null;
     };
