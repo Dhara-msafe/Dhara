@@ -72,12 +72,6 @@ export function useJourneyGPS(
   // through a ref so a changed user object never restarts the GPS watcher.
   const userIdRef = useRef<string>('anon');
   useEffect(() => { userIdRef.current = user?.id ?? 'anon'; }, [user]);
-  // Fix 2 (21 Nov): callers pass onPermDenied as an inline arrow, which is a
-  // new function every render. Read it through a ref so requestPermission —
-  // and therefore the start/stop effect below — stays stable across renders;
-  // a changing callback must never restart (or loop) the GPS watcher.
-  const onPermDeniedRef = useRef(onPermDenied);
-  useEffect(() => { onPermDeniedRef.current = onPermDenied; }, [onPermDenied]);
   const lastCached = useRef<number>(0);
 
   // ── Reverse geocode a position → human-readable area string ────────────────
@@ -155,7 +149,7 @@ export function useJourneyGPS(
     }
     if (!canAskAgain) {
       setState(s => ({ ...s, denied: true, canAskAgain: false }));
-      onPermDeniedRef.current?.();
+      onPermDenied?.();
       return false;
     }
     // 2. Ask once
@@ -167,9 +161,9 @@ export function useJourneyGPS(
       denied: !granted,
       canAskAgain: res.canAskAgain ?? true,
     }));
-    if (!granted) onPermDeniedRef.current?.();
+    if (!granted) onPermDenied?.();
     return granted;
-  }, []);
+  }, [onPermDenied]);
 
   // ── Start / stop tracking based on `enabled` ──────────────────────────────
   useEffect(() => {
@@ -183,11 +177,7 @@ export function useJourneyGPS(
 
     // Web: expo-location has limited web support — skip silently
     if (Platform.OS === 'web') {
-      // Bail out when nothing changes: returning the same state object stops
-      // React re-rendering, which is the second half of the update-depth guard.
-      setState(s => (s.tracking === false && s.error === 'GPS not available in web preview')
-        ? s
-        : { ...s, tracking: false, error: 'GPS not available in web preview' });
+      setState(s => ({ ...s, tracking: false, error: 'GPS not available in web preview' }));
       return;
     }
 
