@@ -35,6 +35,7 @@ export function makeHarness({ os, fetchImpl }) {
     static now() { return clock.t; }
   }
   let onPosition = null;
+  const current = { impl: fetchImpl };
   const slots = []; let i = 0; let pending = []; let dirty = false;
   const counts = { perm: 0, current: 0, watch: 0, removed: 0, effectRuns: 0 };
   const React = {
@@ -102,19 +103,20 @@ export function makeHarness({ os, fetchImpl }) {
     fetch: async (url, init) => {
       const call = { url, body: JSON.parse(init.body) };
       sent.push(call);
-      return (fetchImpl ?? (async () => ({ status: 200, json: async () => ({ ok: true }) })))(call);
+      return (current.impl ?? (async () => ({ status: 200, json: async () => ({ ok: true }) })))(call);
     },
   });
   const { useJourneyGPS } = module.exports;
 
   /** Render once, run effects, and keep re-rendering while state changes.
    *  Throws like React does if it never settles. */
-  function render(token, enabled) {
+  function render(token, enabled, keepRetryingHeld = false) {
     let state; let loops = 0;
     do {
       if (++loops > 50) throw new Error('Maximum update depth exceeded');
       dirty = false; i = 0; pending = [];
-      state = useJourneyGPS(token, enabled, () => {});   // inline callback: new every render
+      // inline callback and options object: new on every render, like the real screen
+      state = useJourneyGPS(token, enabled, () => {}, { keepRetryingHeld });
       for (const run of pending) run();
     } while (dirty);
     return state;
@@ -127,6 +129,7 @@ export function makeHarness({ os, fetchImpl }) {
     onPosition({ coords: { latitude: lat, longitude: lng, accuracy: 12 }, timestamp: clock.t - agoMs });
     await settle();
   };
-  return { clock, emit, render, counts, settle, tick, sent, store, Location, liveTimers: () => timers.filter((t) => t.on).length };
+  const setNet = (impl) => { current.impl = impl; };
+  return { clock, emit, setNet, render, counts, settle, tick, sent, store, Location, liveTimers: () => timers.filter((t) => t.on).length };
 }
 
