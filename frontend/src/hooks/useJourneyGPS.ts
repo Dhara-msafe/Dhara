@@ -64,12 +64,18 @@ const INITIAL: GPSState = {
  * @param journeyToken  - the backend journey token (from POST /api/journey/status)
  * @param enabled       - start tracking only when true (session active)
  * @param onPermDenied  - optional callback if user permanently blocks location
+ * @param opts.keepRetryingHeld - A10b: keep sending readings already held on
+ *        the phone even while `enabled` is false. Set while the check-in has
+ *        been missed: no new readings are taken, but the last real one she
+ *        has must still reach the people who were just alerted.
  */
 export function useJourneyGPS(
   journeyToken: string | null,
   enabled: boolean,
   onPermDenied?: () => void,
+  opts?: { keepRetryingHeld?: boolean },
 ): GPSState {
+  const keepRetryingHeld = opts?.keepRetryingHeld ?? false;
   const { token: authToken, user } = useAuth();
   const [state, setState]    = useState<GPSState>(INITIAL);
   const subRef  = useRef<Location.LocationSubscription | null>(null);
@@ -262,12 +268,6 @@ export function useJourneyGPS(
 
     let cancelled = false;
 
-    // A10: retry held readings on a timer. Needed because a new GPS reading
-    // only arrives after she moves 50 m, so "retry on the next reading" could
-    // leave her last position unsent for a long time while she stands still.
-    const retryTimer = setInterval(() => { void flushHeldRef.current(); }, RETRY_INTERVAL_MS);
-    void flushHeldRef.current();   // also once at start (readings held before the app was closed)
-
     (async () => {
       const ok = await requestPermissionRef.current();
       if (!ok || cancelled) return;
@@ -303,11 +303,30 @@ export function useJourneyGPS(
 
     return () => {
       cancelled = true;
-      clearInterval(retryTimer);
       try { subRef.current?.remove(); } catch { /* expo-location web can throw */ }
       subRef.current = null;
     };
   }, [enabled, journeyToken]);
+
+  // ── A10: retry held readings on a timer ───────────────────────────────────
+  // Needed because a new GPS reading only arrives after she moves 50 m, so
+  // "retry on the next reading" could leave her last position unsent for a
+  // long time while she stands still.
+  //
+  // A10b: this runs on its own, not inside the watcher effect above, because
+  // it must outlive the watcher. When the check-in time passes, tracking
+  // stops but the journey is still open and her circle has just been told
+  // something is wrong — that is exactly when the reading still waiting on
+  // the phone matters most. It keeps going until she taps "I'm safe", stops
+  // sharing, or the journey is cleared (the screen then passes
+  // keepRetryingHeld = false, and those paths also clear what is held).
+  useEffect(() => {
+    if (!journeyToken || Platform.OS === 'web') return;
+    if (!enabled && !keepRetryingHeld) return;
+    void flushHeldRef.current();   // once now (readings held before the app was reopened)
+    const retryTimer = setInterval(() => { void flushHeldRef.current(); }, RETRY_INTERVAL_MS);
+    return () => clearInterval(retryTimer);
+  }, [enabled, keepRetryingHeld, journeyToken]);
 
   return state;
 }

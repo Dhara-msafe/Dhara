@@ -796,6 +796,10 @@ export default function HeadOut() {
     // even while that request is still waiting to reach the server.
     GO1B_GPS_ENABLED && !!session && !expired && locationConsentGiven && !session.pendingSafe,
     handlePermDenied,
+    // A10b: when the check-in time passes, tracking stops but her circle has
+    // just been alerted, so a reading still waiting on this phone must still
+    // be sent. Same conditions as above, without `!expired`.
+    { keepRetryingHeld: GO1B_GPS_ENABLED && !!session && locationConsentGiven && !session.pendingSafe },
   );
   // Demo simulator: when HEADOUT_DEMO_ENABLED and a demo control button has
   // been pressed, replace the GPS values with the simulated point. Every
