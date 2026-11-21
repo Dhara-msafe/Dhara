@@ -231,7 +231,7 @@ export default function Login() {
             </Link>
 
             <View style={styles.row}>
-              <Text style={styles.sub}>New here? </Text>
+              <Text style={styles.rowLead}>New here? </Text>
               <Link href="/signup" asChild>
                 <Pressable testID="go-to-signup" style={(s) => [styles.signupLink, focusRingStyle(s)]} accessibilityRole="link" accessibilityLabel="Create an account"><Text style={styles.link}>Create an account</Text></Pressable>
               </Link>
@@ -295,7 +295,9 @@ const styles = StyleSheet.create({
   dividerText: { color: theme.colors.onSurfaceTertiary, fontSize: 13, fontWeight: '500' },
   googleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1.5, borderColor: theme.colors.border, borderRadius: theme.radius.md, padding: theme.spacing.lg, minHeight: 52, backgroundColor: theme.colors.surface },
   googleBtnText: { color: theme.colors.onSurface, fontWeight: '600', fontSize: 15 },
-  row: { flexDirection: 'row', justifyContent: 'center', marginTop: theme.spacing.lg },
+  // 21 Nov: centre the row so the plain text and the link sit on one line.
+  row: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: theme.spacing.lg },
+  rowLead: { color: theme.colors.onSurfaceSecondary },
   // "Create an account" link: navy-on-cream — 11.92:1 ✅ + underline for link affordance
   link: { color: theme.dhara.textPrimary, fontWeight: '700', textDecorationLine: 'underline' },
   forgotWrap: { alignItems: 'center', marginTop: theme.spacing.md, padding: 6, minHeight: UI_REVISION_V1 ? 44 : undefined, justifyContent: 'center' },

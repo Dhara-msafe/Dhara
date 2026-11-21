@@ -246,22 +246,29 @@ export default function ForgotPassword() {
                 )}
               </Pressable>
 
-              <Pressable
-                testID="fp-resend-button"
-                style={styles.secondaryBtn}
-                disabled={loading}
-                onPress={requestCode}
-              >
-                <Text style={styles.link}>{'Didn\u2019t get it? Send again'}</Text>
-              </Pressable>
+              {/* 21 Nov: only "Send again" is the tappable, underlined link,
+                  laid out like "Remembered it? Back to sign in". */}
+              <View style={[styles.row, styles.resendRow]}>
+                <Text style={styles.rowLead}>{'Didn\u2019t get it? '}</Text>
+                <Pressable
+                  testID="fp-resend-button"
+                  style={styles.resendTap}
+                  disabled={loading}
+                  onPress={requestCode}
+                  accessibilityRole="button"
+                  accessibilityLabel="Send the code again"
+                >
+                  <Text style={[styles.link, styles.linkUnderline]}>Send again</Text>
+                </Pressable>
+              </View>
             </>
           )}
 
           <View style={styles.row}>
-            <Text style={styles.sub}>Remembered it? </Text>
+            <Text style={styles.rowLead}>Remembered it? </Text>
             <Link href="/login" asChild>
               <Pressable testID="go-to-login">
-                <Text style={styles.link}>Back to sign in</Text>
+                <Text style={[styles.link, styles.linkUnderline]}>Back to sign in</Text>
               </Pressable>
             </Link>
           </View>
@@ -328,9 +335,14 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   btnText: { color: theme.colors.onBrandPrimary, fontWeight: '700', fontSize: 15 },
-  secondaryBtn: { alignItems: 'center', paddingVertical: theme.spacing.md, minHeight: 44 },
-  row: { flexDirection: 'row', justifyContent: 'center', marginTop: theme.spacing.lg },
+  // 21 Nov: centre the row so the plain text and the link sit on one line.
+  row: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: theme.spacing.lg },
+  rowLead: { color: theme.colors.onSurfaceSecondary },
   link: { color: theme.colors.brandSecondary, fontWeight: '700' },
+  // 21 Nov: underlined like the sign-in page's "Create an account".
+  linkUnderline: { textDecorationLine: 'underline' },
+  resendRow: { marginTop: theme.spacing.sm },
+  resendTap: { minHeight: 44, justifyContent: 'center' },
   error: { color: theme.colors.error, marginTop: theme.spacing.md, fontSize: 13 },
   footer: {
     textAlign: 'center',
