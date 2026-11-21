@@ -11,6 +11,8 @@ import { theme } from '@/src/theme';
 import { useVisitorSessionOrRedirect, getStateLocalLang, HINDI_LANG } from '@/src/visitor/session';
 
 import { openExternal } from '@/src/outbound';
+import { UI_V22_P6 } from '@/src/uiV22Flags';
+import { dialLabel, dialHint, DIAL_112_BUTTON } from '@/src/emergencyCopy';
 const C = theme.colors;
 
 const WORKFLOWS = [
@@ -126,9 +128,10 @@ export default function VisitorIntent() {
 
         <Pressable style={s.callBtn} testID="visitor-intent-call-112" onPress={() => {
           openExternal('tel:112');
-        }}>
+        }}
+          {...(UI_V22_P6 ? { accessibilityRole: 'button' as const, accessibilityLabel: dialLabel('112'), accessibilityHint: dialHint('112') } : {})}>
           <Ionicons name="call" size={20} color="#fff" />
-          <Text style={s.callBtnText}>Call 112 — Emergency</Text>
+          <Text style={s.callBtnText}>{UI_V22_P6 ? DIAL_112_BUTTON : 'Call 112 — Emergency'}</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>

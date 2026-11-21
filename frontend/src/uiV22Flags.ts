@@ -20,3 +20,15 @@
  *   "available on Android and iOS" text and placeholder QR are not true yet).
  */
 export const UI_V22_P5_HOME = process.env.EXPO_PUBLIC_UI_V22_P5_HOME === 'true';
+
+/**
+ * Phase 6: one 112 message everywhere. Women's Shield helplines and the SOS
+ * helpline sheet stop saying calling is "not yet active" / "will be enabled
+ * in a future update" and use the Emergency screen's control instead: name
+ * "Open dialler for <number>", same hint, the existing openPhone() call
+ * (Outbound Guard: opens the dialler only, the user presses call; QA builds
+ * simulate), a status line, and the number as selectable text (fallback).
+ * Other 112 buttons and the Settings row take the same wording. All copy
+ * lives in src/emergencyCopy.ts.
+ */
+export const UI_V22_P6 = process.env.EXPO_PUBLIC_UI_V22_P6 === 'true';

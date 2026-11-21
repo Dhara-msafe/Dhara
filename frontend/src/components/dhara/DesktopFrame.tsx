@@ -7,7 +7,7 @@ import { useAuth } from '../../auth';
 import { tr } from '../../ui18n';
 import { useComplaintsPassive, isDraftReady, complaintTitle, complaintProgress } from '../../home/complaints';
 import { ADVOCATE_MODE_ENABLED } from '../../advocateMode/flags';
-import { UI_V22_P5_HOME } from '../../uiV22Flags';
+import { UI_V22_P5_HOME, UI_V22_P6 } from '../../uiV22Flags';
 
 const c = theme.colors;
 
@@ -105,6 +105,12 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
   // v2.2 phase 5b: Home already shows the help list and the start-a-case
   // card, so on Home the sidebar list and the rail case card are hidden.
   const homeTidy = UI_V22_P5_HOME && isHome;
+  // v2.2 phase 6 (manager preview check, 21 Nov): Home desktop must keep
+  // exactly one emergency entry — the sidebar "SOS · Emergency" (top chip
+  // stays off on Home). And once phase 5b has emptied the Home rail down to
+  // the disclaimer, the rail is dropped on Home so the main column uses it.
+  const sidebarSosOnHome = UI_V22_P6;
+  const hideHomeRail = UI_V22_P6 && homeTidy;
   const [q, setQ] = useState('');
 
   const Item = ({ it }: { it: NavItem }) => (
@@ -188,7 +194,7 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
         </ScrollView>
         {/* v2.2 phase 2: on /emergency itself the user has arrived — no
             second entry pointing at the screen they are on. */}
-        {!isHome && !(calm && onEmergencyScreen) && (
+        {(!isHome || sidebarSosOnHome) && !(calm && onEmergencyScreen) && (
         <Pressable accessibilityRole="button" accessibilityLabel="Open emergency help" style={styles.sos} onPress={() => router.push('/emergency')}>
           <Ionicons name="warning-outline" size={18} color="#fff" />
           <Text style={styles.sosTxt}>SOS · {tr('all.emergency', lang)}</Text>
@@ -204,7 +210,7 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
       {/* ── Right rail ── */}
       {/* v2.2 phase 2: no promo rail ("Start your first case", "Get the
           app") on safety and onboarding screens. */}
-      {calm ? null : (
+      {calm || hideHomeRail ? null : (
       <ScrollView style={styles.rail} contentContainerStyle={{ padding: 20, gap: 16 }} showsVerticalScrollIndicator={false}>
         {!homeTidy && (
         <View style={styles.railCard}>

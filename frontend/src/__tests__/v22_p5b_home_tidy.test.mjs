@@ -29,7 +29,7 @@ const frame = readFileSync(join(root, 'src', 'components', 'dhara', 'DesktopFram
 test('flag defaults OFF: only the exact string "true" enables phase 5b', () => {
   assert.match(flags, /export const UI_V22_P5_HOME = process\.env\.EXPO_PUBLIC_UI_V22_P5_HOME === 'true';/);
   assert.match(home, /import \{ UI_V22_P5_HOME \} from '@\/src\/uiV22Flags';/);
-  assert.match(frame, /import \{ UI_V22_P5_HOME \} from '\.\.\/\.\.\/uiV22Flags';/);
+  assert.match(frame, /import \{ UI_V22_P5_HOME(, UI_V22_P6)? \} from '\.\.\/\.\.\/uiV22Flags';/);
 });
 
 test('Home: "All help" tile dropped with the flag on; header link kept', () => {
@@ -56,6 +56,6 @@ test('Desktop: "Get the app" hidden everywhere with the flag on', () => {
 
 test('earlier phases intact: phase 2 calm rail and SOS gating unchanged', () => {
   assert.match(frame, /const calm = UI_V22_P2 && isCalmRoute\(pathname\);/);
-  assert.match(frame, /\{calm \? null : \(/);
+  assert.match(frame, /\{calm \|\| hideHomeRail \? null : \(/);
   assert.equal((frame.match(/router\.push\('\/emergency'\)/g) || []).length, 2);
 });
