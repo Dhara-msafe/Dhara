@@ -761,12 +761,17 @@ export default function HeadOut() {
 
   // GO1B: GPS tracking — active only when session running, flag on, AND user
   // has seen the pre-permission rationale (handle_permissions_contract).
+  // Fix 2 (21 Nov): stable callback — an inline arrow here is a new function
+  // every render, which (before the hook's own ref-guard) recreated
+  // requestPermission and re-ran the GPS start/stop effect in a loop
+  // ('Maximum update depth exceeded' after Allow for this journey).
+  const handlePermDenied = useCallback(() => setShowPermDeniedSettings(true), []);
   const realGps = useJourneyGPS(
     journeyToken,
     // A35: once she has tapped "I'm safe", stop reading and sending location,
     // even while that request is still waiting to reach the server.
     GO1B_GPS_ENABLED && !!session && !expired && locationConsentGiven && !session.pendingSafe,
-    () => setShowPermDeniedSettings(true),
+    handlePermDenied,
   );
   // Demo simulator: when HEADOUT_DEMO_ENABLED and a demo control button has
   // been pressed, replace the GPS values with the simulated point. Every
