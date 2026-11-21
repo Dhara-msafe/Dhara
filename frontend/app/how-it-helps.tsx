@@ -31,6 +31,15 @@ import { theme } from '@/src/theme';
 import { goBackOr } from '@/src/goBackOr';
 import { focusRingStyle } from '@/src/a11yFocus';
 
+/**
+ * v2.2 rollout phase 3 (presentation-only, reversible). ON: this screen
+ * labels itself "Step 2 of 4" with a 4-segment progress bar, matching
+ * language.tsx ("STEP 1 OF 4") and consent.tsx ("STEP 3 OF 4"). OFF (the
+ * default, including when the env var is unset): the pre-phase-3 "Step 2
+ * of 3" label and 3-segment bar. Same rollback pattern as designRevision.ts.
+ */
+const UI_V22_P3 = process.env.EXPO_PUBLIC_UI_V22_P3 === 'true';
+
 const c = theme.colors;
 
 const FEATURES: {
@@ -78,13 +87,19 @@ export default function HowItHelps() {
           <Ionicons name="arrow-back" size={20} color={c.brand} />
         </Pressable>
         <View style={{ flex: 1 }} />
-        <Text style={styles.step}>Step 2 of 3</Text>
+        {/* v2.2 phase 3: onboarding is 4 steps (Language 1, How it helps 2,
+            Consent 3, State 4). language.tsx says "STEP 1 OF 4" and
+            consent.tsx "STEP 3 OF 4"; this screen said "of 3", so the count
+            jumped. Flag-gated for rollback (EXPO_PUBLIC_UI_V22_P3, default
+            OFF keeps the old label and 3-segment bar). */}
+        <Text style={styles.step}>{UI_V22_P3 ? 'Step 2 of 4' : 'Step 2 of 3'}</Text>
       </View>
 
       <View style={styles.progressRow}>
         <View style={[styles.progressSeg, styles.progressSegDone]} />
         <View style={[styles.progressSeg, styles.progressSegDone]} />
         <View style={styles.progressSeg} />
+        {UI_V22_P3 && <View style={styles.progressSeg} />}
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
