@@ -19,6 +19,7 @@ import {
 } from '@/src/safety/journeyAlarm';
 import { formatLocationFix } from '@/src/safety/locationPresentation';
 import { useLocationUpload } from '@/src/hooks/useLocationUpload';
+import { useLocationUploadQueue } from '@/src/safety/locationUploadQueue';
 import { ActiveJourneyMap } from '@/src/women/ActiveJourneyMap';
 import { DestinationMapPicker } from '@/src/women/DestinationMapPicker';
 import { isValidCoord, isValidRadius, haversineMeters, distanceToPolylineMeters } from '@/src/utils/mapValidation';
@@ -404,6 +405,9 @@ export default function HeadOut() {
     // running and could alert her circle after she had said she was safe.
     // Now the journey is cleared here only once the server has confirmed.
     // Until then it is marked pendingSafe, shown as pending, and retried.
+    // A10: she has said she is safe, so location readings still waiting on
+    // this phone to be sent must not go out afterwards.
+    try { useLocationUploadQueue.getState().clearAll(); } catch { /* non-blocking */ }
     if (authToken && journeyToken) {
       if (closeInFlightRef.current) return;
       closeInFlightRef.current = true;
@@ -554,6 +558,8 @@ export default function HeadOut() {
   const stopSharing = useCallback(async () => {
     if (!journeyToken || !authToken || revokingShare) return;
     setRevokingShare(true);
+    // A10: she asked to stop sharing, so drop readings still waiting to be sent.
+    try { useLocationUploadQueue.getState().clearAll(); } catch { /* non-blocking */ }
     // A35: a failed request used to do nothing and show nothing, so she could
     // believe sharing had stopped when it had not. Now it is marked
     // pendingRevoke, shown as pending, and retried until the server confirms.
