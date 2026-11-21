@@ -167,7 +167,7 @@ async function searchAddressesLayered(
   // mutable .current box, which useRef() always satisfies.
   sessionTokenRef: { current: string | null },
   authToken: string | null,
-): Promise<UnifiedSuggestion[]> {
+): Promise<{ rows: UnifiedSuggestion[]; source: 'google' | 'osm' }> {
   if (!sessionTokenRef.current) sessionTokenRef.current = Crypto.randomUUID();
   // N-02: /api/geo/autocomplete now requires an authenticated session. No
   // token at all (not even a guest one) means skip straight to OSM rather
@@ -175,12 +175,18 @@ async function searchAddressesLayered(
   if (authToken) {
     try {
       const placesResults = await fetchPlacesAutocomplete(base, query, sessionTokenRef.current, authToken);
-      if (placesResults.length > 0) return placesResults;
+      if (placesResults.length > 0) {
+        // The backend's own fallback provider also serves OSM rows through
+        // this endpoint (row.provider === 'osm') — label those as OSM too,
+        // so the on-screen source note is honest either way.
+        const allOsm = placesResults.every(r => r.provider === 'osm');
+        return { rows: placesResults, source: allOsm ? 'osm' : 'google' };
+      }
     } catch {
       // Pilot off (503), misconfigured, or Google/network error — fall through to OSM.
     }
   }
-  return fetchOsmSuggestions(base, query);
+  return { rows: await fetchOsmSuggestions(base, query), source: 'osm' };
 }
 
 /** Best-effort icon from the label text. No "place type" field exists on the
@@ -223,6 +229,9 @@ export default function ChooseDestination() {
   const [recents, setRecents] = useState<RecentDestination[]>([]);
 
   const [addressSuggestions, setAddressSuggestions] = useState<UnifiedSuggestion[]>([]);
+  // Where the current suggestions came from — drives the visible OSM note so
+  // the user knows when Google address search is unavailable (old PR #7 ask).
+  const [suggestionSource, setSuggestionSource] = useState<'google' | 'osm' | null>(null);
   const [showAddressDropdown, setShowAddressDropdown] = useState(false);
   const [addressSearching, setAddressSearching] = useState(false);
   const [resolvingPlace, setResolvingPlace] = useState(false);
@@ -336,8 +345,9 @@ export default function ChooseDestination() {
       setAddressSearching(true);
       const results = await searchAddressesLayered(base, trimmed, placesSessionTokenRef, authToken);
       if (addressReqRef.current !== reqId) return; // superseded by a newer keystroke
-      setAddressSuggestions(results);
-      setShowAddressDropdown(results.length > 0);
+      setAddressSuggestions(results.rows);
+      setSuggestionSource(results.source);
+      setShowAddressDropdown(results.rows.length > 0);
       setAddressSearching(false);
     }, ADDRESS_SEARCH_DEBOUNCE_MS);
   }, [base, authToken]);
@@ -491,6 +501,11 @@ export default function ChooseDestination() {
             tapped, so it has no lat/lng yet to key on here. */}
         {showAddressDropdown && addressSuggestions.length > 0 && (
           <View style={styles.suggestionsBox} testID="headout-address-suggestions">
+            {suggestionSource === 'osm' && (
+              <Text style={styles.sourceNote} testID="headout-osm-source-note">
+                Showing OpenStreetMap results — Google address search is currently unavailable
+              </Text>
+            )}
             {addressSuggestions.map((s, i) => (
               <Pressable
                 key={s.kind === 'coords' ? `coords-${s.latitude}-${s.longitude}-${i}` : `places-${s.place_id}`}
@@ -721,6 +736,11 @@ const styles = StyleSheet.create({
   suggestionsBox: {
     borderWidth: 1, borderColor: c.lines, borderRadius: 12, backgroundColor: c.surface,
     marginTop: 6, overflow: 'hidden',
+  },
+  sourceNote: {
+    fontFamily: theme.fonts.body, fontSize: 11.5, color: c.muted,
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.lines,
   },
   suggestionRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 11,
