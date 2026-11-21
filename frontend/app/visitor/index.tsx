@@ -87,7 +87,7 @@ export default function VisitorSetup() {
           style={(st) => [s.picker, focusRingStyle(st)]}
           onPress={() => setShowStatePicker(true)}
           accessibilityRole="button"
-          accessibilityLabel={`State: ${selectedState.name}`}
+          accessibilityLabel={selectedState ? `State: ${selectedState.name}` : 'State: not selected yet'}
           accessibilityHint="Opens a list to change your state"
         >
           <Ionicons name="location-outline" size={18} color={C.primary} />
@@ -181,7 +181,7 @@ export default function VisitorSetup() {
                   onPress={() => { setSelectedState(item); setShowStatePicker(false); setStateSearch(''); }}
                   accessibilityRole="button"
                   accessibilityLabel={item.name}
-                  accessibilityState={{ selected: item.code === selectedState.code }}
+                  accessibilityState={{ selected: item.code === selectedState?.code }}
                 >
                   <Text style={s.modalItemNative}>{item.name}</Text>
                   {item.code === selectedState?.code && <Ionicons name="checkmark" size={18} color={C.primary} />}
