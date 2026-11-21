@@ -11,7 +11,24 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Animated, StyleSheet, ScrollView } from 'react-native';
 import { theme } from '../theme';
 
-const ITEMS = [
+/**
+ * v2.2 rollout phase 5a — NEEDS LEGAL OK BEFORE MERGE.
+ * Two banner lines break the v2.2 content rules: "drawn exclusively from
+ * official sources" is a claim the app cannot back up, and "Your data is
+ * encrypted and never shared with police or courts" is a blanket
+ * encryption claim plus a promise no one can make against a court order.
+ * Behind EXPO_PUBLIC_UI_V22_P5_BANNER (default OFF) they are replaced by
+ * the owner-approved lines below; the second reuses the approved consent
+ * notice wording. Every other item is unchanged. Flag OFF = today's text.
+ */
+export const UI_V22_P5_BANNER = process.env.EXPO_PUBLIC_UI_V22_P5_BANNER === 'true';
+
+export const BANNER_SOURCES_LINE =
+  'Answers draw on Indian law (BNS 2023, BNSS, Constitution). Not legal advice.';
+export const BANNER_PRIVACY_LINE =
+  'We never share your complaint with the police or anyone else. Only you decide whether to file it.';
+
+const LEGACY_ITEMS = [
   'Dhara answers drawn exclusively from official sources',
   'Bharatiya Nyaya Sanhita (BNS)',
   'Constitution of India',
@@ -21,6 +38,13 @@ const ITEMS = [
   'Not legal advice — consult a qualified advocate before acting',
   'Your data is encrypted and never shared with police or courts',
 ];
+
+export const ITEMS = UI_V22_P5_BANNER
+  ? LEGACY_ITEMS.map((item, i) =>
+      i === 0 ? BANNER_SOURCES_LINE
+      : i === LEGACY_ITEMS.length - 1 ? BANNER_PRIVACY_LINE
+      : item)
+  : LEGACY_ITEMS;
 
 const SEP = '   ·   ';
 // Single pass text
