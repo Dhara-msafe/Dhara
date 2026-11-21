@@ -261,6 +261,13 @@ export default function ChooseDestination() {
   // only bump mapRecenterKey if the user has NOT yet typed a label or placed
   // a pin; once fired we never fire again so user edits are respected.
   const liveAutoRecenteredRef = useRef(false);
+  // True while the pin's coordinates are ONLY the current-location default
+  // placed by the effect below — nobody chose them. A deliberate act (pin
+  // drag/drop, picking a place, 'Add a custom destination') clears it. A
+  // typed label riding on these default coordinates must NOT be trusted as
+  // "label matches point": 'Charminar' typed over a pin at the user's house
+  // would silently track the wrong place (owner finding, 21 Nov).
+  const autoDefaultCoordsRef = useRef(false);
   // 10-second deadline: if no GPS fix arrives in time, stop the spinner and
   // show a plain "tap to retry" hint. The underlying watch continues so a
   // late fix is still applied — this is purely a UI state.
@@ -312,6 +319,7 @@ export default function ChooseDestination() {
     if (value.label.trim() !== '' || value.latitude != null) return;
     liveAutoRecenteredRef.current = true;
     // Place pin at user's location (coordsFromSelectionRef stays false).
+    autoDefaultCoordsRef.current = true;
     setValue(v => ({ ...v, latitude: live.point!.latitude, longitude: live.point!.longitude }));
     setMapRecenterKey(k => k + 1);
   }, [live.point, value.label, value.latitude]);
@@ -336,6 +344,7 @@ export default function ChooseDestination() {
     // point live tracking at the wrong location. See coordsFromSelectionRef.
     if (coordsFromSelectionRef.current) {
       coordsFromSelectionRef.current = false;
+    autoDefaultCoordsRef.current = false;
       setValue(v => ({ ...v, label: text, savedPlaceId: undefined, latitude: null, longitude: null }));
     } else {
       setValue(v => ({ ...v, label: text, savedPlaceId: undefined }));
@@ -362,6 +371,7 @@ export default function ChooseDestination() {
 
   const selectSavedPlace = useCallback((p: SavedPlace) => {
     coordsFromSelectionRef.current = true;
+    autoDefaultCoordsRef.current = false;
     setValue({ label: p.label, radiusMeters: p.radius_meters, savedPlaceId: p.place_id, latitude: p.latitude, longitude: p.longitude });
     setShowAddressDropdown(false);
     setMapRecenterKey(k => k + 1);
@@ -369,6 +379,7 @@ export default function ChooseDestination() {
 
   const selectRecent = useCallback((r: RecentDestination) => {
     coordsFromSelectionRef.current = true;
+    autoDefaultCoordsRef.current = false;
     setValue({ label: r.label, radiusMeters: r.radiusMeters, latitude: r.latitude ?? null, longitude: r.longitude ?? null, savedPlaceId: undefined });
     setShowAddressDropdown(false);
     setMapRecenterKey(k => k + 1);
@@ -377,6 +388,7 @@ export default function ChooseDestination() {
   const selectAddressSuggestion = useCallback(async (s: UnifiedSuggestion) => {
     if (s.kind === 'coords') {
       coordsFromSelectionRef.current = true;
+    autoDefaultCoordsRef.current = false;
       setValue(v => ({ label: s.label, radiusMeters: v.radiusMeters, savedPlaceId: undefined, latitude: s.latitude, longitude: s.longitude }));
       setAddressSuggestions([]);
       setShowAddressDropdown(false);
@@ -394,7 +406,8 @@ export default function ChooseDestination() {
     placesSessionTokenRef.current = null; // session concluded — fresh token next search
     if (!details) return; // fails closed — typed text stays exactly as the user left it
     coordsFromSelectionRef.current = true;
-    setValue(v => ({ label: s.mainText || shortAddressLabel(details.label), radiusMeters: v.radiusMeters, savedPlaceId: undefined, latitude: details.latitude, longitude: details.longitude }));
+    autoDefaultCoordsRef.current = false;   // #79: a tapped place is a deliberate choice
+    setValue(v => ({ label: s.mainText || shortAddressLabel(details.label), radiusMeters: v.radiusMeters, savedPlaceId: undefined, latitude: details.latitude, longitude: details.longitude }));   // #83 fix 4: keep the place NAME
     setAddressSuggestions([]);
     setMapRecenterKey(k => k + 1);
   }, [base, authToken]);
@@ -404,6 +417,7 @@ export default function ChooseDestination() {
     // coordsFromSelectionRef and onChangeText's comment for why typing a
     // label afterward is allowed to keep these coordinates.
     coordsFromSelectionRef.current = false;
+    autoDefaultCoordsRef.current = false;
     setValue(v => ({ ...v, latitude: lat, longitude: lng }));
   }, []);
 
@@ -412,6 +426,7 @@ export default function ChooseDestination() {
     // and any coordinates picked earlier (e.g. from a different saved place)
     // so this reads unambiguously as a fresh, unlinked custom destination.
     coordsFromSelectionRef.current = false;
+    autoDefaultCoordsRef.current = false;
     setValue(v => ({ label: v.label, radiusMeters: v.radiusMeters, savedPlaceId: undefined, latitude: null, longitude: null }));
   }, []);
 
@@ -444,9 +459,13 @@ export default function ChooseDestination() {
   const handleNext = useCallback(async () => {
     const final: DestinationValue = { ...value, label: value.label.trim() };
     if (!final.label) return;
-    if (final.latitude != null && final.longitude != null) {
-      // Coordinates the user already chose (saved place, suggestion tap, map
-      // pin, confirmed geocode) need no second confirmation.
+    // Coordinates still carrying the current-location DEFAULT are not a
+    // choice: a typed label over them must be geocoded and confirmed like a
+    // coordinate-less one, or 'Charminar' would silently track the user's
+    // own location. Deliberate coords (saved place, suggestion, pin drag,
+    // confirmed geocode) skip straight through.
+    const coordsAreDefaultOnly = autoDefaultCoordsRef.current;
+    if (final.latitude != null && final.longitude != null && !coordsAreDefaultOnly) {
       await proceed(final);
       return;
     }
@@ -454,13 +473,16 @@ export default function ChooseDestination() {
     const hits = await fetchOsmSuggestions(base, final.label).catch(() => [] as CoordSuggestion[]);
     setGeocoding(false);
     if (hits.length === 0) {
-      await proceed(final);   // text-only journey, exactly as before
+      // Text-only journey. Default-only coordinates are dropped too — better
+      // no map point than the wrong one.
+      await proceed({ ...final, latitude: null, longitude: null });
       return;
     }
     // Show the match instead of silently trusting it: drop the pin there,
     // recentre the map, and ask. Coordinates are label-paired, so editing
     // the text afterwards clears them (coordsFromSelectionRef contract).
     coordsFromSelectionRef.current = true;
+    autoDefaultCoordsRef.current = false;
     setValue(v => ({ ...v, latitude: hits[0].latitude, longitude: hits[0].longitude }));
     setTab('map');
     setMapRecenterKey(k => k + 1);
@@ -475,6 +497,7 @@ export default function ChooseDestination() {
     // Not that place — continue with the typed words only. The wrong pin is
     // removed so nothing downstream can ever use it.
     coordsFromSelectionRef.current = false;
+    autoDefaultCoordsRef.current = false;
     const final: DestinationValue = { ...value, label: value.label.trim(), latitude: null, longitude: null };
     setValue(v => ({ ...v, latitude: null, longitude: null }));
     void proceed(final);

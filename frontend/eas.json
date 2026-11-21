@@ -8,6 +8,17 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_OUTBOUND_MODE": "simulate",
+        "EXPO_PUBLIC_OUTBOUND_PROFILE": "internal_qa",
+        "EXPO_PUBLIC_ALERT_SIMULATION_MODE": "true",
+        "EXPO_PUBLIC_SAFETY_SESSION_V1": "true",
+        "EXPO_PUBLIC_GO1B_GPS": "true",
+        "EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT": "true",
+        "EXPO_PUBLIC_TRUSTED_CIRCLE_V2": "true",
+        "EXPO_PUBLIC_GUARDIAN_SHARE": "true",
+        "EXPO_PUBLIC_HEADOUT_DEMO": "false"
+      },
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleDebug"
@@ -15,18 +26,40 @@
     },
     "internal_qa": {
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_OUTBOUND_MODE": "simulate",
+        "EXPO_PUBLIC_OUTBOUND_PROFILE": "internal_qa",
+        "EXPO_PUBLIC_ALERT_SIMULATION_MODE": "true",
+        "EXPO_PUBLIC_SAFETY_SESSION_V1": "true",
+        "EXPO_PUBLIC_GO1B_GPS": "true",
+        "EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT": "true",
+        "EXPO_PUBLIC_TRUSTED_CIRCLE_V2": "true",
+        "EXPO_PUBLIC_GUARDIAN_SHARE": "true",
+        "EXPO_PUBLIC_HEADOUT_DEMO": "false"
+      },
       "android": {
         "buildType": "apk"
       }
     },
     "closed_testing": {
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_SAFETY_SESSION_V1": "true",
+        "EXPO_PUBLIC_GO1B_GPS": "true",
+        "EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT": "true",
+        "EXPO_PUBLIC_TRUSTED_CIRCLE_V2": "true",
+        "EXPO_PUBLIC_GUARDIAN_SHARE": "true",
+        "EXPO_PUBLIC_HEADOUT_DEMO": "false"
+      },
       "android": {
         "buildType": "app-bundle"
       }
     },
     "production": {
       "distribution": "store",
+      "env": {
+        "EXPO_PUBLIC_HEADOUT_DEMO": "false"
+      },
       "android": {
         "buildType": "app-bundle"
       }

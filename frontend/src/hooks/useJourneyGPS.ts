@@ -28,6 +28,7 @@ const POLL_INTERVAL_MS  = 30_000;   // foreground: update every 30 s
 /** A40: how often a real fix is written to the on-phone store. */
 const CACHE_INTERVAL_MS = 20_000;
 const DISTANCE_METERS   = 50;        // only update after >50 m movement
+const WEB_UNAVAILABLE   = 'GPS not available in web preview';
 
 export type GPSState = {
   area:        string | null;   // reverse-geocoded area name
@@ -165,6 +166,19 @@ export function useJourneyGPS(
     return granted;
   }, [onPermDenied]);
 
+  // The start/stop effect below must run only when tracking really has to
+  // start or stop (enabled / journeyToken change). The functions it calls
+  // change identity far more often: `onPermDenied` is usually an inline arrow
+  // from the screen (new on every render), and `pushUpdate` changes when the
+  // auth token refreshes. If they were effect dependencies, every render
+  // would stop and restart permission + GPS watching (and on web it looped
+  // forever: "Maximum update depth exceeded"). So the effect reads the latest
+  // versions through refs instead.
+  const requestPermissionRef = useRef(requestPermission);
+  const handlePositionRef    = useRef(handlePosition);
+  requestPermissionRef.current = requestPermission;
+  handlePositionRef.current    = handlePosition;
+
   // ── Start / stop tracking based on `enabled` ──────────────────────────────
   useEffect(() => {
     if (!enabled || !journeyToken) {
@@ -175,16 +189,22 @@ export function useJourneyGPS(
       return;
     }
 
-    // Web: expo-location has limited web support — skip silently
+    // Web: expo-location has limited web support — skip silently.
+    // Return the SAME state object when nothing changes so React skips the
+    // re-render.
     if (Platform.OS === 'web') {
-      setState(s => ({ ...s, tracking: false, error: 'GPS not available in web preview' }));
+      setState(s => (
+        s.tracking === false && s.error === WEB_UNAVAILABLE
+          ? s
+          : { ...s, tracking: false, error: WEB_UNAVAILABLE }
+      ));
       return;
     }
 
     let cancelled = false;
 
     (async () => {
-      const ok = await requestPermission();
+      const ok = await requestPermissionRef.current();
       if (!ok || cancelled) return;
 
       // Take an immediate fix to seed the UI
@@ -192,7 +212,7 @@ export function useJourneyGPS(
         const pos = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
         });
-        if (!cancelled) await handlePosition(pos);
+        if (!cancelled) await handlePositionRef.current(pos);
       } catch { /* non-fatal */ }
 
       // Watch for ongoing movement
@@ -204,7 +224,7 @@ export function useJourneyGPS(
             distanceInterval:  DISTANCE_METERS,
             timeInterval:      POLL_INTERVAL_MS,
           },
-          (pos) => { if (!cancelled) handlePosition(pos); },
+          (pos) => { if (!cancelled) handlePositionRef.current(pos); },
         );
       } catch {
         setState(s => ({ ...s, tracking: false, error: 'Location tracking could not start on this device.' }));
@@ -221,7 +241,7 @@ export function useJourneyGPS(
       try { subRef.current?.remove(); } catch { /* expo-location web can throw */ }
       subRef.current = null;
     };
-  }, [enabled, journeyToken, requestPermission, handlePosition]);
+  }, [enabled, journeyToken]);
 
   return state;
 }
