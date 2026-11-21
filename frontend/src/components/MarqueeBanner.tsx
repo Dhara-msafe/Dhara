@@ -68,26 +68,34 @@ export function MarqueeBanner({ speed = 52, variant = 'dark' }: Props) {
     <View
       style={[styles.wrap, { backgroundColor: bg, borderBottomColor: dot }]}
       pointerEvents="none"
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
     >
+      {/* B-75 (21 Nov retest): the ticker text appeared THREE times on web
+          (page text / screen readers): this measurer stayed mounted forever
+          next to the two loop copies. It is now removed once measured, and
+          the second loop copy is hidden from assistive tech, so exactly one
+          readable copy exists. */}
       {/* ── Invisible horizontal scroll to measure real text width ────────── */}
-      <ScrollView
-        horizontal
-        scrollEnabled={false}
-        showsHorizontalScrollIndicator={false}
-        style={styles.measurer}
-      >
-        <Text
-          style={[styles.text, { color: tc }]}
-          onLayout={(e) => {
-            const w = e.nativeEvent.layout.width;
-            if (w > 0 && singleWidth === 0) setSingleWidth(w);
-          }}
+      {singleWidth === 0 && (
+        <ScrollView
+          horizontal
+          scrollEnabled={false}
+          showsHorizontalScrollIndicator={false}
+          style={styles.measurer}
+          aria-hidden
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
         >
-          {SINGLE}
-        </Text>
-      </ScrollView>
+          <Text
+            style={[styles.text, { color: tc }]}
+            onLayout={(e) => {
+              const w = e.nativeEvent.layout.width;
+              if (w > 0 && singleWidth === 0) setSingleWidth(w);
+            }}
+          >
+            {SINGLE}
+          </Text>
+        </ScrollView>
+      )}
 
       {/* ── Animated doubled ticker (seamless loop via translate) ─────────── */}
       {singleWidth > 0 && (
@@ -97,7 +105,13 @@ export function MarqueeBanner({ speed = 52, variant = 'dark' }: Props) {
           <Text style={[styles.text, { color: tc, width: singleWidth }]}>
             {SINGLE}
           </Text>
-          <Text style={[styles.text, { color: tc, width: singleWidth }]}>
+          {/* Visual-only duplicate for the seamless loop. */}
+          <Text
+            style={[styles.text, { color: tc, width: singleWidth }]}
+            aria-hidden
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
             {SINGLE}
           </Text>
         </Animated.View>
