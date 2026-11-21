@@ -591,8 +591,12 @@ export default function HeadOut() {
     return () => clearTimeout(timer);
   }, [pendingRevoke, pendingSafe, authToken, journeyToken, revokeFailures, stopSharing]);
 
+  // L2 (21 Nov): helpRequested only drives the confirmation line under the
+  // button — the send path itself is unchanged (existing help_requested flow).
+  const [helpRequested, setHelpRequested] = useState(false);
   const requestHelp = useCallback(() => {
     if (authToken && journeyToken) {
+      setHelpRequested(true);
       fetch(`${API_BASE}/api/journey/status/${journeyToken}/help`, {
         method: 'POST', headers: { Authorization: `Bearer ${authToken}` },
       }).catch(() => {});
@@ -1582,17 +1586,45 @@ export default function HeadOut() {
                   </View>
                 </View>
               )}
-              {TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && journeyToken && selectedRecipients.length > 0 && (
-                <Pressable
-                  testID="headout-need-help"
-                  style={(s) => [styles.button, styles.alertButton, { marginTop: 10 }, focusRingStyle(s)]}
-                  onPress={requestHelp}
-                  accessibilityRole="button"
-                  accessibilityLabel="Request help from your Trusted Circle"
-                >
-                  <Ionicons name="warning-outline" size={18} color="#fff" />
-                  <Text style={styles.buttonText}>Need help</Text>
-                </Pressable>
+              {/* L2 (21 Nov): a clear Need help action is ALWAYS on the active
+                  card. With people in the circle it uses the existing
+                  help_requested flow; otherwise it opens the existing
+                  emergency screen (the same place the global Help pill goes).
+                  No new send path. */}
+              {TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && journeyToken && selectedRecipients.length > 0 ? (
+                <>
+                  <Pressable
+                    testID="headout-need-help"
+                    style={(s) => [styles.button, styles.alertButton, { marginTop: 10 }, focusRingStyle(s)]}
+                    onPress={requestHelp}
+                    accessibilityRole="button"
+                    accessibilityLabel="Request help from your Trusted Circle"
+                  >
+                    <Ionicons name="warning-outline" size={18} color="#fff" />
+                    <Text style={styles.buttonText}>Need help</Text>
+                  </Pressable>
+                  <Text style={styles.disclosureNote}>
+                    {helpRequested
+                      ? 'Your Trusted Circle has been asked for help with your latest shared location.'
+                      : 'Sends a help alert to the people you picked for this journey.'}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Pressable
+                    testID="headout-need-help-emergency"
+                    style={(s) => [styles.button, styles.alertButton, { marginTop: 10 }, focusRingStyle(s)]}
+                    onPress={() => router.push('/emergency')}
+                    accessibilityRole="button"
+                    accessibilityLabel="Need help — open emergency numbers"
+                  >
+                    <Ionicons name="warning-outline" size={18} color="#fff" />
+                    <Text style={styles.buttonText}>Need help</Text>
+                  </Pressable>
+                  <Text style={styles.disclosureNote}>
+                    Opens emergency help with numbers like 112 and 181. No one in your Trusted Circle is alerted — nobody is selected for this journey.
+                  </Text>
+                </>
               )}
               {journeyToken && hasCircleRecipients && (
                 sharingRevoked ? (

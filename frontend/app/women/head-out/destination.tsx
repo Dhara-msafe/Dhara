@@ -268,6 +268,10 @@ export default function ChooseDestination() {
   // "label matches point": 'Charminar' typed over a pin at the user's house
   // would silently track the wrong place (owner finding, 21 Nov).
   const autoDefaultCoordsRef = useRef(false);
+  // L1 (21 Nov): render-visible mirror of autoDefaultCoordsRef — the pill
+  // below must stop claiming 'Using your location' once the point is a
+  // chosen destination rather than the current-location default.
+  const [coordsAreDefaultUi, setCoordsAreDefaultUi] = useState(false);
   // 10-second deadline: if no GPS fix arrives in time, stop the spinner and
   // show a plain "tap to retry" hint. The underlying watch continues so a
   // late fix is still applied — this is purely a UI state.
@@ -324,6 +328,7 @@ export default function ChooseDestination() {
     liveAutoRecenteredRef.current = true;
     // Place pin at user's location (coordsFromSelectionRef stays false).
     autoDefaultCoordsRef.current = true;
+    setCoordsAreDefaultUi(true);
     setValue(v => ({ ...v, latitude: live.point!.latitude, longitude: live.point!.longitude }));
     setMapRecenterKey(k => k + 1);
   }, [live.point, value.label, value.latitude]);
@@ -349,6 +354,7 @@ export default function ChooseDestination() {
     if (coordsFromSelectionRef.current) {
       coordsFromSelectionRef.current = false;
     autoDefaultCoordsRef.current = false;
+    setCoordsAreDefaultUi(false);
       setValue(v => ({ ...v, label: text, savedPlaceId: undefined, latitude: null, longitude: null }));
     } else {
       setValue(v => ({ ...v, label: text, savedPlaceId: undefined }));
@@ -376,6 +382,7 @@ export default function ChooseDestination() {
   const selectSavedPlace = useCallback((p: SavedPlace) => {
     coordsFromSelectionRef.current = true;
     autoDefaultCoordsRef.current = false;
+    setCoordsAreDefaultUi(false);
     setValue({ label: p.label, radiusMeters: p.radius_meters, savedPlaceId: p.place_id, latitude: p.latitude, longitude: p.longitude });
     setShowAddressDropdown(false);
     setMapRecenterKey(k => k + 1);
@@ -384,6 +391,7 @@ export default function ChooseDestination() {
   const selectRecent = useCallback((r: RecentDestination) => {
     coordsFromSelectionRef.current = true;
     autoDefaultCoordsRef.current = false;
+    setCoordsAreDefaultUi(false);
     setValue({ label: r.label, radiusMeters: r.radiusMeters, latitude: r.latitude ?? null, longitude: r.longitude ?? null, savedPlaceId: undefined });
     setShowAddressDropdown(false);
     setMapRecenterKey(k => k + 1);
@@ -393,6 +401,7 @@ export default function ChooseDestination() {
     if (s.kind === 'coords') {
       coordsFromSelectionRef.current = true;
     autoDefaultCoordsRef.current = false;
+    setCoordsAreDefaultUi(false);
       setValue(v => ({ label: s.label, radiusMeters: v.radiusMeters, savedPlaceId: undefined, latitude: s.latitude, longitude: s.longitude }));
       setAddressSuggestions([]);
       setShowAddressDropdown(false);
@@ -410,7 +419,8 @@ export default function ChooseDestination() {
     placesSessionTokenRef.current = null; // session concluded — fresh token next search
     if (!details) return; // fails closed — typed text stays exactly as the user left it
     coordsFromSelectionRef.current = true;
-    autoDefaultCoordsRef.current = false;   // #79: a tapped place is a deliberate choice
+    autoDefaultCoordsRef.current = false;
+    setCoordsAreDefaultUi(false);   // #79: a tapped place is a deliberate choice
     setValue(v => ({ label: s.mainText || shortAddressLabel(details.label), radiusMeters: v.radiusMeters, savedPlaceId: undefined, latitude: details.latitude, longitude: details.longitude }));   // #83 fix 4: keep the place NAME
     setAddressSuggestions([]);
     setMapRecenterKey(k => k + 1);
@@ -422,6 +432,7 @@ export default function ChooseDestination() {
     // label afterward is allowed to keep these coordinates.
     coordsFromSelectionRef.current = false;
     autoDefaultCoordsRef.current = false;
+    setCoordsAreDefaultUi(false);
     setValue(v => ({ ...v, latitude: lat, longitude: lng }));
   }, []);
 
@@ -431,6 +442,7 @@ export default function ChooseDestination() {
     // so this reads unambiguously as a fresh, unlinked custom destination.
     coordsFromSelectionRef.current = false;
     autoDefaultCoordsRef.current = false;
+    setCoordsAreDefaultUi(false);
     setValue(v => ({ label: v.label, radiusMeters: v.radiusMeters, savedPlaceId: undefined, latitude: null, longitude: null }));
   }, []);
 
@@ -487,6 +499,7 @@ export default function ChooseDestination() {
     // the text afterwards clears them (coordsFromSelectionRef contract).
     coordsFromSelectionRef.current = true;
     autoDefaultCoordsRef.current = false;
+    setCoordsAreDefaultUi(false);
     setValue(v => ({ ...v, latitude: hits[0].latitude, longitude: hits[0].longitude }));
     setTab('map');
     setMapRecenterKey(k => k + 1);
@@ -502,6 +515,7 @@ export default function ChooseDestination() {
     // removed so nothing downstream can ever use it.
     coordsFromSelectionRef.current = false;
     autoDefaultCoordsRef.current = false;
+    setCoordsAreDefaultUi(false);
     const final: DestinationValue = { ...value, label: value.label.trim(), latitude: null, longitude: null };
     setValue(v => ({ ...v, latitude: null, longitude: null }));
     void proceed(final);
@@ -660,8 +674,12 @@ export default function ChooseDestination() {
             size={18}
             color={live.status === 'granted' ? c.navy : c.darkGold}
           />
-          <Text style={[styles.locationBtnTxt, live.status === 'granted' && styles.locationBtnTxtActive]}>
-            {live.status === 'granted' ? 'Using your location' : 'Use my current location'}
+          <Text style={[styles.locationBtnTxt, live.status === 'granted' && coordsAreDefaultUi && styles.locationBtnTxtActive]}>
+            {live.status === 'granted' && coordsAreDefaultUi && value.latitude != null
+              ? 'Using your location'
+              : live.status === 'granted' && value.label.trim()
+                ? `Destination: ${value.label.trim()}`
+                : 'Use my current location'}
           </Text>
           {live.status === 'asking' && !locationTimedOut && (
             <ActivityIndicator size="small" color={c.muted} style={{ marginLeft: 4 }} />

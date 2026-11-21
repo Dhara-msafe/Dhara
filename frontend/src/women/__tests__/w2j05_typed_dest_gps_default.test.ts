@@ -8,7 +8,8 @@ const src = readFileSync(join(import.meta.dirname, '..', '..', '..', 'app/women/
 
 test('auto-default coords are flagged and every deliberate choice clears the flag', () => {
   assert.match(src, /const autoDefaultCoordsRef = useRef\(false\)/);
-  assert.match(src, /autoDefaultCoordsRef\.current = true;\s*\n\s*setValue\(v => \(\{ \.\.\.v, latitude: live\.point!/);
+  // L1 added a render-visible mirror between the ref write and the setValue.
+  assert.match(src, /autoDefaultCoordsRef\.current = true;\s*\n\s*setCoordsAreDefaultUi\(true\);\s*\n\s*setValue\(v => \(\{ \.\.\.v, latitude: live\.point!/);
   // Every coordsFromSelectionRef assignment (selection, pin, custom, geocode) clears it.
   const assigns = src.match(/coordsFromSelectionRef\.current = (true|false);/g) ?? [];
   const clears = src.match(/autoDefaultCoordsRef\.current = false;/g) ?? [];
