@@ -1558,7 +1558,12 @@ async def suggest_sections(
 # ─── Draft generation ─────────────────────────────────────────────────────────
 _DRAFT_SYS = """You are a legal draft writer for Indian citizens.
 Generate a first-person FIR complaint letter as required for Section 173(1) BNSS filing.
-Be factual. Use exactly the information provided. Output ONLY the letter text, no markdown."""
+Be factual. Use exactly the information provided. Output ONLY the letter text, no markdown.
+B-113: this letter goes to the police over the complainant's signature. NEVER
+add facts, events, claims or dramatic colour the complainant did not state —
+no invented sequence of events ("before I could raise an alarm"), no assumed
+manner ("forcibly") and no claims about available evidence (GPS, CCTV,
+recordings) unless the details provided say so explicitly."""
 
 # B-101: suggested BNS sections in a FIR draft come from suggest_sections()'s
 # lookup against db.legal_sections (existence + dead-law/judicial-flag check
@@ -1610,6 +1615,18 @@ async def generate_draft(
         if language not in ("en", "english") else ""
     )
 
+    # B-113 (21 Nov retest): the letter claimed "the precise GPS coordinates
+    # of the incident location are available" when none were captured. State
+    # the GPS truth explicitly in the prompt, both ways, so the model cannot
+    # guess it from the presence of a 'Place of incident' line.
+    gps = slots.get("incident_gps") or {}
+    has_real_gps = isinstance(gps, dict) and "lat" in gps and "lng" in gps
+    gps_line = (
+        f"GPS coordinates of the incident location: {gps['lat']}, {gps['lng']} (captured in-app)"
+        if has_real_gps
+        else "GPS coordinates: NOT captured. Do NOT mention GPS or precise coordinates anywhere in the letter."
+    )
+
     # IMPORTANT: Only include incident_place_text if it actually looks like a place.
     # Off-topic answers stored in the field are filtered here as a final safety net.
     place_display = loc
@@ -1624,6 +1641,7 @@ Contact number: {slots.get('informant_phone') or 'Not provided'}
 Date of incident: {slots.get('incident_date') or 'Not specified'}
 Time of incident: {slots.get('incident_time') or 'Not specified'}
 Place of incident: {place_display}
+{gps_line}
 Incident description: {slots.get('description') or 'Not provided'}
 Accused: {slots.get('accused') or 'Not identified'}
 Injury: {slots.get('injury') or 'Not reported'}
@@ -1647,6 +1665,7 @@ Write the letter in English, addressed to "The Station House Officer".
 Write in first person throughout.
 IMPORTANT: NEVER use [bracket placeholders] in the letter. If a detail is missing or not provided, write "Not provided" or omit the sentence entirely. Do not leave any square bracket text in the output.
 IMPORTANT: If Injury, Force used, or Property loss above are stated as "no", explicitly state that none occurred (e.g. "No injuries were sustained," "No force or weapon was used"). Never imply force, a weapon, or an injury happened unless the corresponding field above says "yes".
+IMPORTANT: State ONLY what the details above say. NEVER invent facts, sequence of events, or the complainant's reactions (do not add phrases like "before I could raise adequate alarm" or "forcibly took" unless those words come from the incident description itself). Mention GPS or coordinates ONLY if the GPS line above says they were captured.
 {lang_line}
 
 End the letter (after both languages if bilingual) with EXACTLY this disclaimer block:
