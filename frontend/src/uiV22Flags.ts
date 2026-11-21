@@ -32,3 +32,11 @@ export const UI_V22_P5_HOME = process.env.EXPO_PUBLIC_UI_V22_P5_HOME === 'true';
  * lives in src/emergencyCopy.ts.
  */
 export const UI_V22_P6 = process.env.EXPO_PUBLIC_UI_V22_P6 === 'true';
+
+/**
+ * Phase 7: Record (Evidence Locker). Microphone-denied and save-failed get
+ * their own notice card with a next step (copy in src/recordCopy.ts) instead
+ * of the same plain status line as every other message. Recording, saving,
+ * pending-recovery and storage logic are unchanged.
+ */
+export const UI_V22_P7 = process.env.EXPO_PUBLIC_UI_V22_P7 === 'true';
