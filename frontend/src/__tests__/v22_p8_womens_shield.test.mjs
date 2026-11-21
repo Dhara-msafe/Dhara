@@ -11,6 +11,9 @@
  * - FIR draft Domestic Violence tile drops "498A" (old IPC)
  * - All help: Police & FIR gets its own description
  *
+ * (A guard that diffed the working tree against origin was removed: it
+ * failed whenever any other PR touched head-out. PR review covers scope.)
+ *
  * Source-level tests, qaModeBanner.test.mjs convention.
  * Run with: node --test src/__tests__/v22_p8_womens_shield.test.mjs
  */
@@ -18,7 +21,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -76,11 +78,4 @@ test('All help: Police & FIR has its own description', () => {
   assert.match(i18n, /'all\.police\.sub':\s+\{ en: 'File an FIR, your rights at the police station',/);
   // Women's Shield keeps its own line.
   assert.match(allHelp, /sub: tr\('all\.shield\.sub', lang\), route: '\/women-shield'/);
-});
-
-test('Head Out screens are not touched by this phase (phase 9 is the Head Out chat)', () => {
-  const diff = execSync('git diff --name-only origin/emergent-workspace-9/11 -- . || true', {
-    cwd: root, encoding: 'utf8', shell: '/bin/bash',
-  });
-  assert.ok(!/app\/women\/head-out\//.test(diff), 'no head-out file may change in phase 8');
 });
