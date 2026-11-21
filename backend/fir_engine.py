@@ -2479,6 +2479,16 @@ async def _dispatch(
                     await db.fir_sessions.update_one(
                         {"session_id": sid}, {"$set": {"slots": slots, "updated_at": now}}
                     )
+                # ── B-114: probe_date_confirm has slot == "incident_date" (so
+                # it reaches this generic fallback), but it is a confirm/
+                # reject quick-reply, not a free-text date. Writing the raw
+                # reply ("Yes, that's correct 20:00") into slots["incident_date"]
+                # here clobbered the already-parsed date before the dedicated
+                # confirm/reject handler below ever ran, so the FIR draft's
+                # "When:" line showed the confirmation text instead of a date.
+                # Let that handler own incident_date/date_confirmed entirely.
+                elif cp == "probe_date_confirm":
+                    pass
                 else:
                     slots[slot_key] = user_message
                     await db.fir_sessions.update_one(
