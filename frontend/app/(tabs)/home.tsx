@@ -13,6 +13,7 @@ import { useUserProfile } from '@/src/userProfile';
 import { unreadCount } from '@/src/trustedCircle/api';
 import { useFamilyJourneyEnabled } from '@/src/familyJourney/store';
 import { FJ_SEND_ENABLED } from '@/src/familyJourney/flags';
+import { UI_V22_P5_HOME } from '@/src/uiV22Flags';
 
 /** Same gate as women-shield.tsx — when Head Out is off, fall back to the shield. */
 const HEAD_OUT_ENABLED = process.env.EXPO_PUBLIC_SAFETY_SESSION_V1 === 'true';
@@ -76,7 +77,9 @@ export default function Home() {
     { key: 'j.cyber',    sub: 'साइबर',        icon: 'desktop-outline', route: '/fraud-checklist' },
     { key: 'j.consumer', sub: 'उपभोक्ता',     icon: 'cart-outline', route: '/all-help' },
     { key: 'j.voter',    sub: 'मतदाता',       icon: 'checkbox-outline', route: '/(tabs)/voter-roll' },
-    { key: 'home.allHelp', sub: 'सारी मदद',   icon: 'apps-outline', route: '/all-help', allHelp: true },
+    // v2.2 phase 5b: with the flag on, this tile is dropped — the "All help"
+    // link above the grid is the one way in, not two side by side.
+    ...(UI_V22_P5_HOME ? [] : [{ key: 'home.allHelp', sub: 'सारी मदद',   icon: 'apps-outline', route: '/all-help', allHelp: true }]),
   ];
 
   // Promote profile-matching tiles right after the engine tile (position 1).
@@ -353,6 +356,11 @@ export default function Home() {
         </Pressable>
 
         {/* ── My files preview ─────────────────────────── */}
+        {/* v2.2 phase 5b: with the flag on, the empty card ("No cases yet —
+            tap to start your first complaint") is hidden; "Start your first
+            case" in "For you right now" is the one start action. The section
+            shows as soon as a case exists. */}
+        {(!UI_V22_P5_HOME || (primaryCase && primaryProgress)) && (
         <View style={styles.section}>
           <View style={styles.rowBetween}>
             <Text style={styles.h2}>{tr('home.myFiles', lang)}</Text>
@@ -385,6 +393,7 @@ export default function Home() {
             </Pressable>
           )}
         </View>
+        )}
       </ScrollView>
     </View>
   );
