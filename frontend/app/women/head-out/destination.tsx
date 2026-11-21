@@ -293,7 +293,11 @@ export default function ChooseDestination() {
   // unavailable), the spinner race is over — cancel the timeout and clear the
   // timed-out flag so the correct status message shows immediately.
   useEffect(() => {
-    if (live.status === 'asking') return;
+    // Fix 8 (21 Nov): this effect also runs once at mount while status is
+    // still 'idle' — clearing the deadline then left the spinner with no
+    // timeout at all, so 'Getting your location…' could spin forever when no
+    // fix ever arrived. Only a TERMINAL state ends the race.
+    if (live.status === 'asking' || live.status === 'idle') return;
     if (locationTimeoutRef.current) {
       clearTimeout(locationTimeoutRef.current);
       locationTimeoutRef.current = null;
