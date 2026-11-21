@@ -25,6 +25,13 @@ test('L2: Need help is always on the active card and only uses existing flows', 
   assert.match(active, /testID="headout-need-help"/);
   assert.match(active, /Sends a help alert to the people you picked for this journey\./);
   assert.match(active, /Your Trusted Circle has been asked for help with your latest shared location\./);
+  // A31 rule: 'sent' is claimed only after the server said ok — never before
+  // the POST, and a swallowed error must land in 'failed', not 'sent'.
+  assert.match(active, /ok = r\.ok;/);
+  assert.match(active, /setHelpReqState\(ok \? 'sent' : 'failed'\);/);
+  assert.doesNotMatch(active, /setHelpReqState\('sent'\);/);
+  assert.match(active, /setHelpReqState\('sending'\);/);
+  assert.match(active, /'Sending…'/);
   // Empty-circle branch: existing emergency screen, honest about who is NOT told.
   assert.match(active, /testID="headout-need-help-emergency"/);
   assert.match(active, /router\.push\('\/emergency'\)/);
@@ -32,4 +39,13 @@ test('L2: Need help is always on the active card and only uses existing flows', 
   // No new send path: the only help POST is the existing journey help endpoint.
   const helpPosts = active.match(/\/help`/g) ?? [];
   assert.equal(helpPosts.length, 1, 'exactly one help endpoint reference (the existing one)');
+});
+
+test('L2 failure path: screen says the circle was NOT told and offers emergency numbers + retry', () => {
+  assert.match(active, /Could not reach DHARA\. Your circle was NOT told\. Call 112 now\./);
+  assert.match(active, /testID="headout-help-failed-note"/);
+  assert.match(active, /testID="headout-help-failed-emergency"/);
+  // Retry: the same button stays live in 'failed' and re-runs requestHelp.
+  assert.match(active, /Need help — try again/);
+  assert.match(active, /disabled=\{helpReqState === 'sending'\}/);
 });
