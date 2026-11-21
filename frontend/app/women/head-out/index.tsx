@@ -591,12 +591,26 @@ export default function HeadOut() {
     return () => clearTimeout(timer);
   }, [pendingRevoke, pendingSafe, authToken, journeyToken, revokeFailures, stopSharing]);
 
-  const requestHelp = useCallback(() => {
-    if (authToken && journeyToken) {
-      fetch(`${API_BASE}/api/journey/status/${journeyToken}/help`, {
+  // L2 (21 Nov, A31 rule): the screen only claims the circle was asked for
+  // help once the SERVER confirmed it. While in flight it says sending; a
+  // failure says plainly that nobody was told and points at 112. The send
+  // path itself is unchanged (existing help_requested flow); retry = press
+  // the button again.
+  const [helpReqState, setHelpReqState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
+  const helpInFlightRef = useRef(false);
+  const requestHelp = useCallback(async () => {
+    if (!authToken || !journeyToken || helpInFlightRef.current) return;
+    helpInFlightRef.current = true;
+    setHelpReqState('sending');
+    let ok = false;
+    try {
+      const r = await fetch(`${API_BASE}/api/journey/status/${journeyToken}/help`, {
         method: 'POST', headers: { Authorization: `Bearer ${authToken}` },
-      }).catch(() => {});
-    }
+      });
+      ok = r.ok;
+    } catch { /* ok stays false */ }
+    helpInFlightRef.current = false;
+    setHelpReqState(ok ? 'sent' : 'failed');
   }, [authToken, journeyToken]);
 
   // GO1C: "Extend time" — pushes the check-in deadline forward without
@@ -1582,17 +1596,68 @@ export default function HeadOut() {
                   </View>
                 </View>
               )}
-              {TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && journeyToken && selectedRecipients.length > 0 && (
-                <Pressable
-                  testID="headout-need-help"
-                  style={(s) => [styles.button, styles.alertButton, { marginTop: 10 }, focusRingStyle(s)]}
-                  onPress={requestHelp}
-                  accessibilityRole="button"
-                  accessibilityLabel="Request help from your Trusted Circle"
-                >
-                  <Ionicons name="warning-outline" size={18} color="#fff" />
-                  <Text style={styles.buttonText}>Need help</Text>
-                </Pressable>
+              {/* L2 (21 Nov): a clear Need help action is ALWAYS on the active
+                  card. With people in the circle it uses the existing
+                  help_requested flow; otherwise it opens the existing
+                  emergency screen (the same place the global Help pill goes).
+                  No new send path. */}
+              {TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && journeyToken && selectedRecipients.length > 0 ? (
+                <>
+                  <Pressable
+                    testID="headout-need-help"
+                    disabled={helpReqState === 'sending'}
+                    style={(s) => [styles.button, styles.alertButton, { marginTop: 10 }, helpReqState === 'sending' && { opacity: 0.6 }, focusRingStyle(s)]}
+                    onPress={() => { void requestHelp(); }}
+                    accessibilityRole="button"
+                    accessibilityLabel={helpReqState === 'failed' ? 'Retry asking your Trusted Circle for help' : 'Request help from your Trusted Circle'}
+                  >
+                    {helpReqState === 'sending'
+                      ? <ActivityIndicator size="small" color="#fff" />
+                      : <Ionicons name="warning-outline" size={18} color="#fff" />}
+                    <Text style={styles.buttonText}>{helpReqState === 'failed' ? 'Need help — try again' : 'Need help'}</Text>
+                  </Pressable>
+                  {helpReqState === 'failed' ? (
+                    <>
+                      <Text style={[styles.disclosureNote, { color: '#B91C1C' }]} testID="headout-help-failed-note">
+                        Could not reach DHARA. Your circle was NOT told. Call 112 now.
+                      </Text>
+                      <Pressable
+                        testID="headout-help-failed-emergency"
+                        style={(s) => [styles.button, styles.alertButton, { marginTop: 6 }, focusRingStyle(s)]}
+                        onPress={() => router.push('/emergency')}
+                        accessibilityRole="button"
+                        accessibilityLabel="Open emergency numbers"
+                      >
+                        <Ionicons name="call-outline" size={18} color="#fff" />
+                        <Text style={styles.buttonText}>Open emergency numbers</Text>
+                      </Pressable>
+                    </>
+                  ) : (
+                    <Text style={styles.disclosureNote}>
+                      {helpReqState === 'sent'
+                        ? 'Your Trusted Circle has been asked for help with your latest shared location.'
+                        : helpReqState === 'sending'
+                          ? 'Sending…'
+                          : 'Sends a help alert to the people you picked for this journey.'}
+                    </Text>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Pressable
+                    testID="headout-need-help-emergency"
+                    style={(s) => [styles.button, styles.alertButton, { marginTop: 10 }, focusRingStyle(s)]}
+                    onPress={() => router.push('/emergency')}
+                    accessibilityRole="button"
+                    accessibilityLabel="Need help — open emergency numbers"
+                  >
+                    <Ionicons name="warning-outline" size={18} color="#fff" />
+                    <Text style={styles.buttonText}>Need help</Text>
+                  </Pressable>
+                  <Text style={styles.disclosureNote}>
+                    Opens emergency help with numbers like 112 and 181. No one in your Trusted Circle is alerted — nobody is selected for this journey.
+                  </Text>
+                </>
               )}
               {journeyToken && hasCircleRecipients && (
                 sharingRevoked ? (
