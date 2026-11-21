@@ -123,6 +123,26 @@ module.exports = ({ config, platform }) => {
     );
   }
 
+  // ── A02: the Head Out demo simulator must never ship ───────────────────────
+  //
+  // EXPO_PUBLIC_HEADOUT_DEMO=true turns on demo controls on the live journey
+  // screen (fake GPS points, "miss check-in", "go off route"). It is for
+  // demos on an internal QA build only. On any build or deploy whose outbound
+  // profile is not internal_qa, real people and real alerts are involved, so
+  // refuse outright rather than ship it. Same style as the guards above: a
+  // build that would produce a dangerous artifact throws instead.
+  //
+  // This runs wherever the value comes from (eas.json "env", an EAS
+  // environment, deployment Secrets or a local .env), so it does not depend
+  // on which of those sources wins.
+  if (process.env.EXPO_PUBLIC_HEADOUT_DEMO === "true" && profile !== "internal_qa") {
+    throw new Error(
+      `[app.config.js] Refusing ${profile} build: EXPO_PUBLIC_HEADOUT_DEMO is "true". ` +
+      'The Head Out demo simulator is allowed only with the internal_qa outbound profile. ' +
+      'Set EXPO_PUBLIC_HEADOUT_DEMO=false (or remove it) and build again.'
+    );
+  }
+
   // ── Android guard ──────────────────────────────────────────────────────────
   if (isPlaceholder(androidKey)) {
     // eslint-disable-next-line no-console
