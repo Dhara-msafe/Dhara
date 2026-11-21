@@ -13,7 +13,7 @@ import { useUserProfile } from '@/src/userProfile';
 import { unreadCount } from '@/src/trustedCircle/api';
 import { useFamilyJourneyEnabled } from '@/src/familyJourney/store';
 import { FJ_SEND_ENABLED } from '@/src/familyJourney/flags';
-import { UI_V22_P5_HOME } from '@/src/uiV22Flags';
+import { UI_V22_P5_HOME, UI_V22_P8 } from '@/src/uiV22Flags';
 
 /** Same gate as women-shield.tsx — when Head Out is off, fall back to the shield. */
 const HEAD_OUT_ENABLED = process.env.EXPO_PUBLIC_SAFETY_SESSION_V1 === 'true';
@@ -240,14 +240,15 @@ export default function Home() {
               <Ionicons name="navigate-outline" size={13} color={c.darkGold} />
               <Text style={[styles.forYouTagTxt, { color: c.darkGold }]}>TONIGHT</Text>
             </View>
-            <Text style={[styles.forYouTitle, { color: c.ink }]}>Heading out?</Text>
-            <Text style={[styles.forYouBody, { color: c.muted }]}>Start a safe-journey check-in with your trusted circle.</Text>
+            {/* v2.2 phase 8: one name for the journey feature. */}
+            <Text style={[styles.forYouTitle, { color: c.ink }]}>{UI_V22_P8 ? 'Head out safely' : 'Heading out?'}</Text>
+            <Text style={[styles.forYouBody, { color: c.muted }]}>{UI_V22_P8 ? 'Set a check-in timer before you leave.' : 'Start a safe-journey check-in with your trusted circle.'}</Text>
             <Pressable
               style={styles.navyBtn}
               onPress={() => router.push(HEAD_OUT_ENABLED ? '/women/head-out' : '/women-shield')}
               testID="home-heading-out-start"
               accessibilityRole="button"
-              accessibilityLabel="Start a safe journey check-in"
+              accessibilityLabel={UI_V22_P8 ? 'Open Head out safely' : 'Start a safe journey check-in'}
             >
               <Text style={styles.navyBtnTxt}>Start</Text>
             </Pressable>

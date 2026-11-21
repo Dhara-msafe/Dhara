@@ -13,6 +13,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { storage } from '@/src/utils/storage';
 import { useAuth } from '@/src/auth';
+import { UI_V22_P8 } from './uiV22Flags';
 import { accountKey } from '@/src/accountStorage';
 
 const PROFILE_KEY = 'dhara_user_interests_v1';
@@ -82,7 +83,7 @@ export const INTERESTS: InterestMeta[] = [
     forYouCard: {
       tag: "WOMEN'S SAFETY",
       title: "Women's Shield",
-      body: 'Safe journey check-in, evidence locker & trusted circle.',
+      body: UI_V22_P8 ? 'Head out safely, evidence locker & trusted circle.' : 'Safe journey check-in, evidence locker & trusted circle.',
       route: '/women-shield',
       cta: 'Open Shield',
     },

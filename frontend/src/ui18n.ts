@@ -78,6 +78,8 @@ export const UI: Record<string, L> = {
   'all.sec.soon':    { en: 'COMING SOON', hi: 'जल्द आ रहा है', mr: 'लवकरच', ta: 'விரைவில்' },
   'all.soon':        { en: 'Tell me when it\u2019s ready', hi: 'तैयार होने पर बताएं', mr: 'तयार झाल्यावर सांगा', ta: 'தயாரானதும் சொல்லுங்கள்' },
   'all.shield.sub':  { en: 'Rights, safe journeys, private evidence', hi: 'अधिकार, सुरक्षित यात्रा, निजी सबूत' },
+  // v2.2 phase 8 (UI_V22_P8): Police & FIR had the Women's Shield line. hi needs native review.
+  'all.police.sub':  { en: 'File an FIR, your rights at the police station', hi: 'FIR दर्ज कराना, थाने में आपके अधिकार' },
   'all.missing.sub': { en: 'Report, share poster, next steps', hi: 'रिपोर्ट, पोस्टर, अगले कदम' },
   'all.emergency':   { en: 'Emergency', hi: 'आपातकाल', mr: 'आणीबाणी', ta: 'அவசரம்' },
   'all.emergency.sub':{ en: '112 and nearest help', hi: '112 और नज़दीकी मदद' },

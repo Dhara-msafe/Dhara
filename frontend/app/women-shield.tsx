@@ -18,7 +18,7 @@ import { activateCover } from '@/src/women/coverState';
 // ring only — no contrast/touch-target gaps found on this screen. No logic
 // changes.
 import { focusRingStyle } from '@/src/a11yFocus';
-import { UI_V22_P6 } from '@/src/uiV22Flags';
+import { UI_V22_P6, UI_V22_P8 } from '@/src/uiV22Flags';
 import { dialLabel, dialHint, DIAL_LIST_NOTE } from '@/src/emergencyCopy';
 import { openPhone } from '@/src/women/helpActions';
 const PRIVACY_COVER_ENABLED = process.env.EXPO_PUBLIC_PRIVACY_COVER_V1 === 'true';
@@ -204,7 +204,9 @@ export default function WomenShield() {
               <Text style={styles.discreetTitle}>{discreet ? tr('ws.discreet', lang) : tr('ws.discreet.off', lang)}</Text>
               <Text style={styles.discreetSub}>{tr('ws.discreet.sub', lang)}</Text>
             </View>
-            <Switch testID="ws-discreet-switch" accessibilityLabel={tr('ws.discreet', lang)} value={discreet} onValueChange={handleDiscreet} trackColor={{ true: c.gold, false: '#334' }} thumbColor="#fff" />
+            <Switch testID="ws-discreet-switch" accessibilityLabel={tr(UI_V22_P8 ? 'ws.discreet.off' : 'ws.discreet', lang)}
+              {...(UI_V22_P8 ? { accessibilityRole: 'switch' as const, accessibilityState: { checked: discreet } } : {})}
+              value={discreet} onValueChange={handleDiscreet} trackColor={{ true: c.gold, false: '#334' }} thumbColor="#fff" />
           </View>
         </View>
 
@@ -233,26 +235,18 @@ export default function WomenShield() {
         {/* Sensitive content — removed from the tree while discreet is on */}
         {(!prefsLoading && !discreet) && <>
 
-        {/* Know your rights */}
-        <View style={styles.section}>
-          <Text style={styles.h2}>{tr('ws.rights', lang)}</Text>
-          <Text style={styles.h2sub}>{tr('ws.rights.sub', lang)}</Text>
-          <View style={styles.grid}>
-            {RIGHTS.map(r => (
-              <Pressable key={r.key} style={(s) => [styles.rightCard, focusRingStyle(s)]} onPress={() => openScenario(r.scenario)} testID={`ws-${r.key}`} accessibilityRole="button" accessibilityLabel={tr(r.key, lang)}>
-                <View style={styles.rightIcon}><Ionicons name={r.icon} size={18} color={c.darkGold} /></View>
-                <Text style={styles.rightTxt} numberOfLines={2}>{tr(r.key, lang)}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
+        {/* v2.2 phase 8: safety tools first, rights below (flag ON). */}
+        {UI_V22_P8 && <>
         {/* Safety tools */}
         <View style={styles.section}>
           <Text style={styles.h2}>{tr('ws.tools', lang)}</Text>
           <View style={styles.toolCard}>
             <ToolRow icon="people-outline" title={tr('ws.circle', lang)} sub={circleCount > 0 ? tr('ws.circle.sub.count', lang).replace('{n}', String(circleCount)) : tr('ws.circle.sub.empty', lang)} action={tr('ws.manage', lang)} onPress={() => router.push('/women/trusted-circle')} />
             <Divider />
+            {/* v2.2 phase 8: this switch only stored ws_checkin_enabled on the
+                device and nothing ever read it — removed with the flag on.
+                "Head out safely" below is the real journey check-in. */}
+            {!UI_V22_P8 && <>
             <View style={styles.toolRow}>
               <View style={styles.toolIcon}><Ionicons name="navigate-outline" size={20} color={c.navy} /></View>
               <View style={{ flex: 1 }}>
@@ -261,6 +255,7 @@ export default function WomenShield() {
               <Switch testID="ws-checkin-switch" accessibilityLabel={tr('ws.checkin', lang)} value={checkin} onValueChange={onCheckin} trackColor={{ true: c.navy, false: c.surfaceTertiary }} thumbColor="#fff" />
             </View>
             <Divider />
+            </>}
             {lockerEnabled && (
               <ToolRow icon="lock-closed-outline" title={tr('ws.locker', lang)} sub={tr('ws.locker.sub.count', lang).replace('{n}', String(lockerCount))} action={tr('ws.open', lang)} onPress={() => router.push('/women/evidence-locker')} />
             )}
@@ -282,6 +277,63 @@ export default function WomenShield() {
           </Pressable>
         </View>
 
+        </>}
+        {/* Know your rights */}
+        <View style={styles.section}>
+          <Text style={styles.h2}>{tr('ws.rights', lang)}</Text>
+          <Text style={styles.h2sub}>{tr('ws.rights.sub', lang)}</Text>
+          <View style={styles.grid}>
+            {RIGHTS.map(r => (
+              <Pressable key={r.key} style={(s) => [styles.rightCard, focusRingStyle(s)]} onPress={() => openScenario(r.scenario)} testID={`ws-${r.key}`} accessibilityRole="button" accessibilityLabel={tr(r.key, lang)}>
+                <View style={styles.rightIcon}><Ionicons name={r.icon} size={18} color={c.darkGold} /></View>
+                <Text style={styles.rightTxt} numberOfLines={2}>{tr(r.key, lang)}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        {!UI_V22_P8 && <>
+        {/* Safety tools */}
+        <View style={styles.section}>
+          <Text style={styles.h2}>{tr('ws.tools', lang)}</Text>
+          <View style={styles.toolCard}>
+            <ToolRow icon="people-outline" title={tr('ws.circle', lang)} sub={circleCount > 0 ? tr('ws.circle.sub.count', lang).replace('{n}', String(circleCount)) : tr('ws.circle.sub.empty', lang)} action={tr('ws.manage', lang)} onPress={() => router.push('/women/trusted-circle')} />
+            <Divider />
+            {/* v2.2 phase 8: this switch only stored ws_checkin_enabled on the
+                device and nothing ever read it — removed with the flag on.
+                "Head out safely" below is the real journey check-in. */}
+            {!UI_V22_P8 && <>
+            <View style={styles.toolRow}>
+              <View style={styles.toolIcon}><Ionicons name="navigate-outline" size={20} color={c.navy} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.toolTitle}>{tr('ws.checkin', lang)}</Text>
+              </View>
+              <Switch testID="ws-checkin-switch" accessibilityLabel={tr('ws.checkin', lang)} value={checkin} onValueChange={onCheckin} trackColor={{ true: c.navy, false: c.surfaceTertiary }} thumbColor="#fff" />
+            </View>
+            <Divider />
+            </>}
+            {lockerEnabled && (
+              <ToolRow icon="lock-closed-outline" title={tr('ws.locker', lang)} sub={tr('ws.locker.sub.count', lang).replace('{n}', String(lockerCount))} action={tr('ws.open', lang)} onPress={() => router.push('/women/evidence-locker')} />
+            )}
+            <Divider />
+            <ToolRow icon="mic-outline" title={tr('ws.code', lang)} sub={tr('ws.code.sub', lang)} action={tr('ws.setup', lang)} onPress={() => router.push('/women/code-phrase')} />
+            {HEAD_OUT_ENABLED && <>
+              <Divider />
+              <ToolRow icon="navigate-outline" title="Head out safely" sub="Set a check-in timer before you leave" action="Set timer" onPress={() => router.push('/women/head-out')} />
+            </>}
+            {HEAD_OUT_ENABLED && (process.env.EXPO_PUBLIC_GUARDIAN_SHARE === 'true') && <>
+              <Divider />
+              <ToolRow icon="people-circle-outline" title="Guardian Journey" sub="Share where you're going with someone you trust" action="Share" onPress={() => router.push('/women/guardian-share')} />
+            </>}
+          </View>
+          <Pressable style={(s) => [styles.lessonRow, focusRingStyle(s)]} onPress={() => router.push('/women/panic-lesson')} accessibilityRole="button" accessibilityLabel="Learn the 20-second panic trigger for 112">
+            <Ionicons name="school-outline" size={18} color={c.darkGold} />
+            <Text style={styles.lessonTxt}>Learn the 20-second panic trigger for 112</Text>
+            <Ionicons name="chevron-forward" size={18} color={c.onSurfaceTertiary} />
+          </Pressable>
+        </View>
+
+        </>}
         {/* Campus safety — S4 Campus Pilot Layer */}
         {CAMPUS_ENABLED && (
           <View style={styles.section}>

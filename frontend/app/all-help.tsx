@@ -8,6 +8,7 @@ import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
 import { SosPill } from '@/src/components/dhara/SosPill';
 import { UI_REVISION_V1 } from '@/src/designRevision';
+import { UI_V22_P8 } from '@/src/uiV22Flags';
 import { focusRingStyle } from '@/src/a11yFocus';
 
 const c = theme.colors;
@@ -35,7 +36,7 @@ export default function AllHelp() {
       { icon: 'heart-outline', title: tr('all.children', lang), sub: tr('all.children.sub', lang), route: '/action-plan' },
     ] },
     { id: 'police', label: tr('all.sec.police', lang), cards: [
-      { icon: 'ribbon-outline', title: tr('j.police', lang), sub: tr('all.shield.sub', lang), route: '/fir-draft' },
+      { icon: 'ribbon-outline', title: tr('j.police', lang), sub: tr(UI_V22_P8 ? 'all.police.sub' : 'all.shield.sub', lang), route: '/fir-draft' },
       { icon: 'search-outline', title: tr('all.checkcase', lang), sub: tr('all.checkcase.sub', lang), route: '/(tabs)/lookup' },
       { icon: 'library-outline', title: tr('all.bail', lang), sub: tr('all.bail.sub', lang), route: '/action-plan' },
     ] },
