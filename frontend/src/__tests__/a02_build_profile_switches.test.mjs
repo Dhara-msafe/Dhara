@@ -13,12 +13,9 @@ const profiles = eas.build;
 
 // A02b: switches whose code lands in a pull request that has not merged yet.
 // An unknown name in eas.json is harmless at build time; remove each one from
-// this list once the code that reads it is on the branch.
-const PENDING_IN_CODE = [
-  'EXPO_PUBLIC_UI_V22_ONE_SOS',
-  'EXPO_PUBLIC_UI_V22_MYDATA',
-  'EXPO_PUBLIC_UI_V22_SWEEP',
-];
+// this list once the code that reads it is on the branch. Empty since #112
+// (one SOS, My Data, 390px sweep), so every name in eas.json is read in the app.
+const PENDING_IN_CODE = [];
 
 /** A02b: on in the three builds people test with. */
 const TEST_BUILDS_ON = [
@@ -34,7 +31,9 @@ const TEST_BUILDS_ON = [
   'EXPO_PUBLIC_UI_V22_P9',
   'EXPO_PUBLIC_UI_V22_P10',
   'EXPO_PUBLIC_UI_V22_DOCK',
-  ...PENDING_IN_CODE,
+  'EXPO_PUBLIC_UI_V22_ONE_SOS',
+  'EXPO_PUBLIC_UI_V22_MYDATA',
+  'EXPO_PUBLIC_UI_V22_SWEEP',
   // With the dock on, the bug-report button is shown only when this is
   // explicitly "true" (src/components/IssueReporterButton.tsx).
   'EXPO_PUBLIC_ENABLE_ISSUE_REPORTER',
