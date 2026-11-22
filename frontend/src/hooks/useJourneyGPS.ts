@@ -1,20 +1,39 @@
 /**
- * useJourneyGPS — GO1B Live GPS tracking during Head Out sessions
+ * useJourneyGPS — live location during a Head Out journey (GO1B)
  * ---------------------------------------------------------------
- * Foreground tracking: uses expo-location watchPositionAsync.
- *   Works in Expo Go and web preview (web returns mock position).
+ * FOREGROUND ONLY. expo-location watchPositionAsync, which runs while DHARA
+ * is open on her screen and stops when it is not. There is NO background
+ * tracking in this app: no expo-task-manager, no startLocationUpdatesAsync,
+ * no background location permission. (A15: this header used to describe a
+ * background path that has never existed. If background tracking is built,
+ * the consent wording on the radius step has to change with it.)
  *
- * Background tracking: uses expo-location startLocationUpdatesAsync
- *   with expo-task-manager. CANNOT be tested in Expo Go — requires
- *   a development or production build. Gated behind
- *   EXPO_PUBLIC_GPS_BACKGROUND=false.
+ * In the web preview expo-location is not used at all: the hook reports
+ * "GPS not available in web preview" and sends nothing. Only a real build
+ * produces readings.
  *
- * Privacy design:
- *   - Device does the reverse-geocoding (area/city name) — no third-party
- *     geocoding API; only area name + rough coords sent to backend.
- *   - Backend throttles to max 1 update per 30 s.
- *   - Location log limited to last 20 fixes on server.
- *   - All data expires with the parent journey (24 h TTL).
+ * What the phone sends, and when:
+ *   - a reading at most every 25 s (lastSent below), and only after ~50 m of
+ *     movement, since that is what watchPositionAsync is asked for;
+ *   - with its true capture time and source, so the server can store when it
+ *     was taken rather than when it arrived (A06, A07);
+ *   - a reading the server does not take is held on the phone and the newest
+ *     one retried every 30 s, through a missed check-in (A10, A10b);
+ *   - when the server says the journey is closed, sending stops and the
+ *     screen is told (A14).
+ *
+ * Privacy:
+ *   - the device does the reverse geocoding, so no third party is asked
+ *     where she is; the server gets an area name and coordinates;
+ *   - the server ignores a second reading arriving within 25 s, and never
+ *     lets an older reading replace a newer one;
+ *   - the journey's location log is cleared when she marks herself safe or
+ *     stops sharing.
+ *
+ * Not true yet, despite what older comments claimed: journeys are NOT
+ * deleted automatically. There is no expiry index on safety_journeys; a
+ * journey past its expires_at is refused (410) but still stored. That is
+ * task A12.
  */
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { Platform } from 'react-native';
