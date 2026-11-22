@@ -2,7 +2,7 @@
  * Visitor Mode — V2: Intent Router
  * Selects between Emergency and Lost Passport workflows.
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -11,6 +11,7 @@ import { theme } from '@/src/theme';
 import { useVisitorSessionOrRedirect, getStateLocalLang, HINDI_LANG } from '@/src/visitor/session';
 
 import { openExternal } from '@/src/outbound';
+import { openPhone } from '@/src/women/helpActions';
 import { UI_V22_P6 } from '@/src/uiV22Flags';
 import { dialLabel, dialHint, DIAL_112_BUTTON } from '@/src/emergencyCopy';
 const C = theme.colors;
@@ -73,6 +74,8 @@ const WORKFLOWS = [
 ];
 
 export default function VisitorIntent() {
+  // v2.2 phase 6 follow-up: status from openPhone(), same line as Emergency.
+  const [dialStatus, setDialStatus] = useState('');
   const router = useRouter();
   // B-86: redirects to /visitor if this screen is opened directly (URL hit
   // or refresh) with no session ever saved, instead of spinning forever.
@@ -126,19 +129,24 @@ export default function VisitorIntent() {
           ℹ️ In any emergency, call <Text style={{ fontWeight: '800' }}>112</Text> immediately.
         </Text>
 
-        <Pressable style={s.callBtn} testID="visitor-intent-call-112" onPress={() => {
+        <Pressable style={s.callBtn} testID="visitor-intent-call-112" onPress={UI_V22_P6 ? async () => setDialStatus(await openPhone('112')) : () => {
           openExternal('tel:112');
         }}
           {...(UI_V22_P6 ? { accessibilityRole: 'button' as const, accessibilityLabel: dialLabel('112'), accessibilityHint: dialHint('112') } : {})}>
           <Ionicons name="call" size={20} color="#fff" />
           <Text style={s.callBtnText}>{UI_V22_P6 ? DIAL_112_BUTTON : 'Call 112 — Emergency'}</Text>
         </Pressable>
+        {UI_V22_P6 && !!dialStatus && (
+          <Text testID="visitor-dial-status" style={s.dialStatus} accessibilityLiveRegion="polite" accessibilityRole="alert" selectable>{dialStatus}</Text>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
+  // v2.2 phase 6 follow-up: dial status line (selectable = number fallback).
+  dialStatus: { fontSize: 14, lineHeight: 20, color: C.ink, textAlign: 'center', marginTop: 10 },
   safe:    { flex: 1, backgroundColor: C.background },
   content: { padding: 20, paddingBottom: 40, flexGrow: 1 },
 
