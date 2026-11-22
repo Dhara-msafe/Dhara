@@ -70,3 +70,34 @@ export const UI_V22_P7 = process.env.EXPO_PUBLIC_UI_V22_P7 === 'true';
  *   which do not set it, never show it.
  */
 export const UI_V22_DOCK = process.env.EXPO_PUBLIC_UI_V22_DOCK === 'true';
+
+/**
+ * Phase 9: Head Out (look only; journey logic, alerts and server calls are
+ * untouched). Owned by the Head Out feature session (#65).
+ * - one name on all four screens: "Head out safely"
+ * - active journey: green "Sharing is on" banner while the chosen people can
+ *   see the journey (reads existing state only)
+ * - 48 px minimum on the two 44 px Head Out controls
+ * - FAB-safe bottom gutter on all Head Out screens, so no control is stuck
+ *   under the floating Help pill / issue reporter (they sit ~140-244 px
+ *   above the bottom on the right). The global FAB fix is the UI session's;
+ *   this only touches Head Out files.
+ * Desktop rail and the extra SOS on Head Out are already handled by P2
+ * (its calm-route list covers /women/*).
+ */
+export const UI_V22_P9 = process.env.EXPO_PUBLIC_UI_V22_P9 === 'true';
+
+/** Bottom gutter (px, on top of the safe-area inset) that keeps Head Out
+ * controls scrollable clear of the floating-button band. */
+export const HEADOUT_FAB_SAFE_GUTTER = 260;
+
+/**
+ * Head Out scroll-view bottom padding. The 260 px FAB-safe gutter applies
+ * only with P9 on AND the bottom dock (UI_V22_DOCK) off: with the dock on,
+ * the Help pill / bug button take real layout space, so the screen already
+ * ends above them and each screen keeps its normal padding (`base`: 110 on
+ * the wizard steps, which clears their fixed footer; 32 on the active screen).
+ */
+export function headOutBottomGutter(base: number): number {
+  return UI_V22_P9 && !UI_V22_DOCK ? HEADOUT_FAB_SAFE_GUTTER : base;
+}

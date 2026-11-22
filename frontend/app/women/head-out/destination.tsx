@@ -28,6 +28,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
 import { theme } from '@/src/theme';
+import { UI_V22_P9, headOutBottomGutter } from '@/src/uiV22Flags';
 // NF-UI-REV-13 (Group G follow-up, DHARA UI Revision v2.2.1): visible
 // keyboard-focus ring only. No destination/search/map logic changes.
 import { focusRingStyle } from '@/src/a11yFocus';
@@ -523,8 +524,8 @@ export default function ChooseDestination() {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Head Out" subtitle="Step 1 of 3 — Where are you going?" />
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 110 }]} keyboardShouldPersistTaps="handled">
+      <ScreenHeader title={UI_V22_P9 ? 'Head out safely' : 'Head Out'} subtitle="Step 1 of 3 — Where are you going?" />
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + headOutBottomGutter(110) }]} keyboardShouldPersistTaps="handled">
 
         <Text style={styles.fieldLabel}>Where are you going?</Text>
         <View style={styles.searchRow}>

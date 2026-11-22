@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
+import { UI_V22_P9, headOutBottomGutter } from '@/src/uiV22Flags';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { useHeadOutWizard } from '@/src/women/headOutWizardStore';
 import { RADIUS_PRESETS, isPreset, CustomRadiusModal } from '@/src/women/DestinationPicker';
@@ -64,8 +65,8 @@ export default function ArrivalRadius() {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Head Out" subtitle="Step 2 of 3 — Arrival area" />
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 110 }]}>
+      <ScreenHeader title={UI_V22_P9 ? 'Head out safely' : 'Head Out'} subtitle="Step 2 of 3 — Arrival area" />
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + headOutBottomGutter(110) }]}>
         <Text style={styles.destTxt} numberOfLines={2}>{draft.label}</Text>
 
         <Text style={styles.fieldLabel}>Planned arrival area</Text>
