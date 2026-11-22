@@ -37,9 +37,14 @@ const LANGUAGES: Language[] = [
 ];
 
 export default function LanguageSelect() {
-  const { language, setLanguage } = useAuth();
+  const { language, setLanguage, user } = useAuth();
   const router = useRouter();
   const { from } = useLocalSearchParams<{ from?: string }>();
+  // 22 Nov: anyone already signed in (account or guest) is changing their
+  // language, not doing first-time setup. The Home pill, Me > Language and the
+  // desktop header open this screen without from=home, which used to send them
+  // through "How it helps" to the sign-in page.
+  const isChange = from === 'home' || !!user;
   const [selected, setSelected] = useState<Language>(language);
   const [query,    setQuery]    = useState('');
 
@@ -59,7 +64,7 @@ export default function LanguageSelect() {
       trackEvent('language_changed', { from_lang: language.code, to_lang: selected.code });
     }
     await setLanguage(selected);
-    if (from === 'home') {
+    if (isChange) {
       if (router.canGoBack()) router.back();
       else router.replace('/(tabs)/home');
     } else router.replace('/how-it-helps');
@@ -69,7 +74,7 @@ export default function LanguageSelect() {
     <SafeAreaView style={styles.safe} testID="language-screen">
       {/* ── Top bar: shows back button when reached from home ── */}
       <View style={styles.topbar}>
-        {from === 'home' ? (
+        {isChange ? (
           <Pressable
             onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/home')}
             style={(s) => [styles.iconBtn, focusRingStyle(s)]}
@@ -85,7 +90,7 @@ export default function LanguageSelect() {
       </View>
       {/* ── Step + heading + subtitle ── */}
       <View style={styles.header}>
-        <Text style={styles.eyebrow}>STEP 1 OF 4</Text>
+        {!isChange && <Text style={styles.eyebrow}>STEP 1 OF 4</Text>}
         <Text style={styles.title}>Choose your language</Text>
         <Text style={styles.sub}>
           DHARA speaks in the language you prefer. Which features work in each language is shown after you choose.
