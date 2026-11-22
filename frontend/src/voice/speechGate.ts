@@ -77,11 +77,14 @@ export function noteAudioInterruption(): void {
 /**
  * Call at the start of a USER-INITIATED speak (a tap): it marks the browser
  * gesture and clears any prior interruption so a fresh tap can speak — but it
- * never auto-resumes on its own.
+ * never auto-resumes on its own — and marks the speaking preference as known
+ * (the first explicit tap IS the user's consent to hear voice).
  */
 export function noteSpeakIntent(): void {
   userGestureThisPageLoad = true;
   flags = reduceGate(flags, { type: 'resume_requested' });
+  speakingPreferenceKnown = true;
+  AsyncStorage.setItem(K_PREF_KNOWN, 'true').catch(() => {});
 }
 
 /** Persisted Quiet toggle. */
