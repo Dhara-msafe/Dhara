@@ -58,7 +58,13 @@ test('_layout.tsx\'s onHome still matches the real Home screen paths', () => {
 });
 
 test('the persistent SosPill is still gated by onHome (i.e. still shown everywhere except real Home)', () => {
-  assert.ok(layoutSrc.includes('{!onHome && (') && layoutSrc.includes('<SosPill />'));
+  // Updated 22 Nov (UI_V22_ONE_SOS): the overlay also steps aside on screens
+  // that carry their own SOS — but only with the flag on, and Ask then shows
+  // one in its header row, so Ask always has exactly one SOS.
+  assert.ok(layoutSrc.includes('{!onHome && !screenHasOwnSos && (') && layoutSrc.includes('<SosPill />'));
+  assert.ok(/const screenHasOwnSos = UI_V22_ONE_SOS && \(onAsk \|\| onMe \|\| onSettings\);/.test(layoutSrc));
+  const askSrc = readFileSync(join(__dirname, '../../app/(tabs)/index.tsx'), 'utf8');
+  assert.ok(askSrc.includes('{UI_V22_ONE_SOS && <SosPill compact />}'), 'Ask must show its own SOS when the overlay steps aside');
 });
 
 console.log('\n── Same fix mirrored in the desktop web shell ───────────────────');
@@ -79,14 +85,16 @@ test('DesktopFrame.tsx\'s isHome still matches the real Home screen paths', () =
 
 test('the top-bar SOS button is still gated by isHome (shown everywhere except real Home, now including Ask)', () => {
   const idx = desktopFrameSrc.indexOf('accessibilityLabel="Open emergency help" style={styles.sosTop}');
-  const slice = desktopFrameSrc.slice(Math.max(0, idx - 80), idx);
-  assert.ok(slice.includes('{!isHome && ('));
+  const slice = desktopFrameSrc.slice(Math.max(0, idx - 160), idx);
+  // Updated 22 Nov: later v2.2 phases add more conditions (calm routes,
+  // UI_V22_ONE_SOS); the B-99 point is that the gate is isHome, never '/'.
+  assert.ok(/\{!isHome && /.test(slice));
 });
 
 test('the sidebar "SOS · Emergency" link is still gated by isHome', () => {
   const idx = desktopFrameSrc.indexOf('accessibilityLabel="Open emergency help" style={styles.sos}');
-  const slice = desktopFrameSrc.slice(Math.max(0, idx - 80), idx);
-  assert.ok(slice.includes('{!isHome && ('));
+  const slice = desktopFrameSrc.slice(Math.max(0, idx - 120), idx);
+  assert.ok(/!isHome/.test(slice));
 });
 
 console.log(`\n${'═'.repeat(60)}`);

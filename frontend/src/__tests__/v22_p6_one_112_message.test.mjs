@@ -89,7 +89,7 @@ test('Home desktop: exactly one emergency entry, and the empty rail is dropped',
   assert.match(frame, /const sidebarSosOnHome = UI_V22_P6;/);
   assert.match(frame, /\{\(!isHome \|\| sidebarSosOnHome\) && !\(calm && onEmergencyScreen\) && \(/);
   // The top chip stays off on Home, so sidebar SOS is the single entry.
-  assert.match(frame, /\{!isHome && !calm && \(/);
+  assert.match(frame, /\{!isHome && !calm( && !UI_V22_ONE_SOS)? && \(/);
   assert.match(frame, /const hideHomeRail = UI_V22_P6 && homeTidy;/);
   assert.match(frame, /\{calm \|\| hideHomeRail \? null : \(/);
 });

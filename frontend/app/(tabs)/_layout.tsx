@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { theme } from '@/src/theme';
 import { AppTabBar } from '@/src/components/AppTabBar';
 import { SosPill } from '@/src/components/dhara/SosPill';
+import { UI_V22_ONE_SOS } from '@/src/uiV22Flags';
 import { useAuth } from '@/src/auth';
 import { addNotificationTapListener } from '@/src/push';
 
@@ -30,6 +31,12 @@ export default function TabsLayout() {
   // persistent SOS pill on the Ask screen — exactly the reported bug (no
   // header SOS, no sidebar "SOS - Emergency" on "/").
   const onHome = pathname === '/(tabs)/home' || pathname === '/home';
+  // UI_V22_ONE_SOS: screens with their own SOS get no floating one on top —
+  // Ask (SOS now in its header row, B-122), Me and Settings (SOS in content).
+  const onAsk = pathname === '/' || pathname === '/(tabs)' || pathname === '/(tabs)/index' || pathname === '/index';
+  const onMe = pathname === '/me' || pathname === '/(tabs)/me';
+  const onSettings = pathname === '/settings' || pathname === '/(tabs)/settings';
+  const screenHasOwnSos = UI_V22_ONE_SOS && (onAsk || onMe || onSettings);
 
   useEffect(() => {
     if (loading) return;
@@ -74,7 +81,7 @@ export default function TabsLayout() {
         </Tabs>
         {/* Global persistent SOS — visible on every tab screen except Home
             (moved there into the Me tab, see me.tsx), never scrolls away. */}
-        {!onHome && (
+        {!onHome && !screenHasOwnSos && (
           <View style={[styles.sosOverlay, { top: insets.top + 10 }]} pointerEvents="box-none">
             <SosPill />
           </View>

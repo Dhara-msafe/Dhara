@@ -7,7 +7,8 @@ import { useAuth } from '../../auth';
 import { tr } from '../../ui18n';
 import { useComplaintsPassive, isDraftReady, complaintTitle, complaintProgress } from '../../home/complaints';
 import { ADVOCATE_MODE_ENABLED } from '../../advocateMode/flags';
-import { UI_V22_P5_HOME, UI_V22_P6 } from '../../uiV22Flags';
+import { UI_V22_P5_HOME, UI_V22_P6, UI_V22_ONE_SOS } from '../../uiV22Flags';
+import { InDesktopFrameContext } from './desktopFrameContext';
 
 const c = theme.colors;
 
@@ -164,7 +165,8 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
           )}
           {/* v2.2 phase 2: on calm routes the sidebar "SOS · Emergency" is the
               one emergency entry, so the top chip is hidden there. */}
-          {!isHome && !calm && (
+          {/* UI_V22_ONE_SOS: the sidebar SOS is the one entry on desktop. */}
+          {!isHome && !calm && !UI_V22_ONE_SOS && (
           <Pressable accessibilityRole="button" accessibilityLabel="Open emergency help" style={styles.sosTop} onPress={() => router.push('/emergency')}>
             <Ionicons name="warning-outline" size={16} color="#fff" />
             <Text style={styles.sosTopTxt}>SOS</Text>
@@ -204,7 +206,7 @@ export function DesktopFrame({ children }: { children: ReactNode }) {
 
       {/* ── Centre app column ── */}
       <View style={styles.centerWrap}>
-        <View style={styles.center}>{children}</View>
+        <View style={styles.center}><InDesktopFrameContext.Provider value={true}>{children}</InDesktopFrameContext.Provider></View>
       </View>
 
       {/* ── Right rail ── */}
