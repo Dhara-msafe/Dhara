@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { theme } from '@/src/theme';
 import { AppTabBar } from '@/src/components/AppTabBar';
 import { SosPill } from '@/src/components/dhara/SosPill';
+import { UI_V22_ONE_SOS } from '@/src/uiV22Flags';
 import { useAuth } from '@/src/auth';
 import { addNotificationTapListener } from '@/src/push';
 
@@ -30,6 +31,13 @@ export default function TabsLayout() {
   // persistent SOS pill on the Ask screen — exactly the reported bug (no
   // header SOS, no sidebar "SOS - Emergency" on "/").
   const onHome = pathname === '/(tabs)/home' || pathname === '/home';
+  // UI_V22_ONE_SOS: on phones the tab SOS never floats over a screen (the
+  // 390px sweep found it covering headings and cards on Ask (B-122), Rights,
+  // My files, Me and Settings). Each tab keeps one red emergency entry that
+  // covers nothing: Ask — SOS in its header row; Me / Settings — their own
+  // SOS in the content; every other tab — the red Help button (opens
+  // Emergency), which sits in the bottom dock when UI_V22_DOCK is on.
+  // Desktop is unaffected (SosPill steps aside there; sidebar SOS).
 
   useEffect(() => {
     if (loading) return;
@@ -74,7 +82,7 @@ export default function TabsLayout() {
         </Tabs>
         {/* Global persistent SOS — visible on every tab screen except Home
             (moved there into the Me tab, see me.tsx), never scrolls away. */}
-        {!onHome && (
+        {!onHome && !UI_V22_ONE_SOS && (
           <View style={[styles.sosOverlay, { top: insets.top + 10 }]} pointerEvents="box-none">
             <SosPill />
           </View>

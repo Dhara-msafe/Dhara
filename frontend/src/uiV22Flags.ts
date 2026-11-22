@@ -115,3 +115,34 @@ export const HEADOUT_FAB_SAFE_GUTTER = 260;
 export function headOutBottomGutter(base: number): number {
   return UI_V22_P9 && !UI_V22_DOCK ? HEADOUT_FAB_SAFE_GUTTER : base;
 }
+
+/**
+ * One emergency entry per screen (owner, 22 Nov; B-122).
+ * - Desktop frame: the sidebar "SOS · Emergency" is the one entry. Screen
+ *   SOS pills (Women's Shield, All help, Family journey, the tab overlay)
+ *   step aside inside the frame, and the top-bar SOS chip is not shown.
+ * - Phones: the tab layout's SOS no longer floats over any tab screen (it
+ *   covered "New chat" on Ask — B-122 — and headings/cards on Rights, My
+ *   files, Me, Settings). Ask gets an SOS pill in its header row; Me and
+ *   Settings keep their own SOS in the content; other tabs keep the red Help
+ *   button (opens Emergency; docked with UI_V22_DOCK).
+ */
+export const UI_V22_ONE_SOS = process.env.EXPO_PUBLIC_UI_V22_ONE_SOS === 'true';
+
+/**
+ * My Data (client finding, 22 Nov): data-type labels read "Fir Drafts" /
+ * "Otp Logs" (title-cased backend keys) and long values were cut off at
+ * two lines ("Indefinite (legal ..."). With the flag: plain labels with
+ * correct acronyms ("FIR drafts", "OTP logs") and values that wrap in full.
+ */
+export const UI_V22_MYDATA = process.env.EXPO_PUBLIC_UI_V22_MYDATA === 'true';
+
+/**
+ * 390px sweep fixes (22 Nov): text cut off on narrow phones.
+ * - FIR draft "What happened?" tiles: title, description and BNS line may
+ *   use two lines instead of being cut to one ("Domestic Violence",
+ *   "Workplace Harassment", "BNS 74–75 · POSH 2013").
+ * - Family journey header: the title "Support a family member" wraps to two
+ *   lines instead of being cut off.
+ */
+export const UI_V22_SWEEP = process.env.EXPO_PUBLIC_UI_V22_SWEEP === 'true';

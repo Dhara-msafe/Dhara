@@ -62,7 +62,7 @@ test('right rail is gated: hidden on calm routes, untouched otherwise', () => {
 
 test('one emergency entry on calm routes; none pointing at /emergency from itself', () => {
   // Top chip: hidden on calm routes (sidebar entry remains).
-  assert.match(frameSrc, /\{!isHome && !calm && \(\s*\n\s*<Pressable[^\n]*style=\{styles\.sosTop\}/);
+  assert.match(frameSrc, /\{!isHome && !calm( && !UI_V22_ONE_SOS)? && \(\s*\n\s*<Pressable[^\n]*style=\{styles\.sosTop\}/);
   // Sidebar entry: hidden only when calm AND already on /emergency.
   assert.match(frameSrc, /\{\(!isHome \|\| sidebarSosOnHome\) && !\(calm && onEmergencyScreen\) && \(/);
   assert.match(frameSrc, /pathname === '\/emergency' \|\| pathname\.startsWith\('\/emergency\/'\)/);
