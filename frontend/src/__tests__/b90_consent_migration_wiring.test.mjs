@@ -69,3 +69,15 @@ test('auth.tsx persist() calls migrateAnonConsentToUser BEFORE setUser (not afte
 test('auth.tsx still fires the durable server-side /api/consent/link call too (belt-and-suspenders)', () => {
   assert.match(AUTH_TSX, /\/api\/consent\/link/);
 });
+
+// 22 Nov 2026 (Vivek): after a sign-out, a NEW account or guest on the same
+// phone/browser inherited the earlier person's signed-out consent and never
+// saw the privacy notice. The signed-out consent is now used up (removed)
+// once it has been handed to the account that signed in.
+test('migrateAnonConsentToUser removes the anonymous consent after handing it over', () => {
+  const fn = CONSENT_STORAGE_TS.match(/export async function migrateAnonConsentToUser[\s\S]*?\n\}/);
+  assert.ok(fn, 'could not locate migrateAnonConsentToUser');
+  assert.match(fn[0], /AsyncStorage\.multiRemove\(\[consentVersionKey\(undefined\), CONSENT_PREFS_KEY\]\)/);
+  // The removal must not sit behind the "already migrated" early return.
+  assert.doesNotMatch(fn[0], /if \(isCurrentConsent\(alreadyMigrated, undefined\)\) return;/);
+});

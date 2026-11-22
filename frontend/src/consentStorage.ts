@@ -38,8 +38,9 @@ export async function saveConsentLocally(
  *
  * This copies the anonymous local consent flag onto the new user's own key
  * immediately (pure on-device AsyncStorage, no network), so that race can
- * never cause a re-ask. It's a no-op if the anonymous flag isn't current
- * (nothing to migrate) or if the user-scoped key is already populated.
+ * never cause a re-ask, and then removes the anonymous flag so it cannot be
+ * inherited by a different account later. It's a no-op if the anonymous flag
+ * isn't current (nothing to migrate).
  */
 export async function migrateAnonConsentToUser(userId: string): Promise<void> {
   if (!userId) return;
@@ -48,10 +49,16 @@ export async function migrateAnonConsentToUser(userId: string): Promise<void> {
     if (!isCurrentConsent(anonVersion, undefined)) return;
     const userKey = consentVersionKey(userId);
     const alreadyMigrated = await AsyncStorage.getItem(userKey);
-    if (isCurrentConsent(alreadyMigrated, undefined)) return;
-    const anonPrefs = await AsyncStorage.getItem(CONSENT_PREFS_KEY);
-    if (anonPrefs) await AsyncStorage.setItem(`${CONSENT_PREFS_KEY}:${userId}`, anonPrefs);
-    await AsyncStorage.setItem(userKey, CONSENT_NOTICE_VERSION);
+    if (!isCurrentConsent(alreadyMigrated, undefined)) {
+      const anonPrefs = await AsyncStorage.getItem(CONSENT_PREFS_KEY);
+      if (anonPrefs) await AsyncStorage.setItem(`${CONSENT_PREFS_KEY}:${userId}`, anonPrefs);
+      await AsyncStorage.setItem(userKey, CONSENT_NOTICE_VERSION);
+    }
+    // 22 Nov (Vivek): the signed-out consent belongs to the person who just
+    // signed in, so use it up. Before, it stayed on the device and every later
+    // new account or guest on that phone/browser inherited it and never saw
+    // the privacy notice. Now, after a sign-out, the next person is asked.
+    await AsyncStorage.multiRemove([consentVersionKey(undefined), CONSENT_PREFS_KEY]);
   } catch {
     // Best-effort: worst case the guard re-checks via the server-side
     // terms_version (set durably by /api/consent/link) on the next load.

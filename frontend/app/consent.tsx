@@ -51,13 +51,13 @@ const fillPlaceholders = (text: string) => Object.entries(PLACEHOLDERS)
 
 export default function ConsentScreen() {
   const router = useRouter();
-  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const { mode, next } = useLocalSearchParams<{ mode?: string; next?: string }>();
   // B-81: this same screen is reused from Settings/Data & Privacy's "Withdraw
   // consent" action (routed as /consent?mode=update) for an ALREADY-signed-up,
   // already-consented user who only wants to flip their two optional
   // (analytics/updates) choices -- not redo age/terms/required-data consent.
   const isUpdateMode = mode === 'update';
-  const { token, user, language, refreshUser } = useAuth();
+  const { token, user, language, refreshUser, continueAsGuest } = useAuth();
   const langCode = consentStrings[language.code] ? language.code : 'en';
   const strings = consentStrings[langCode];
   const copy = consentCopy[langCode];
@@ -162,7 +162,16 @@ export default function ConsentScreen() {
           if (raw) resolvedToken = JSON.parse(raw) as string;
         } catch { /* storage unavailable; will redirect to login */ }
       }
-      router.replace(resolvedToken ? '/(tabs)/home' : '/login');
+      if (resolvedToken) { router.replace('/(tabs)/home'); return; }
+      // 22 Nov (Vivek): the notice was opened by "Create an account" or
+      // "Continue as guest" on a device that is already set up: carry on there.
+      if (next === 'signup') { router.replace('/signup'); return; }
+      if (next === 'guest') {
+        try { await continueAsGuest(); router.replace('/(tabs)/home'); }
+        catch { router.replace('/login'); }
+        return;
+      }
+      router.replace('/login');
     } catch {
       setSaveError(true);
     } finally {
@@ -184,7 +193,7 @@ export default function ConsentScreen() {
           </View>
         ) : (
           <>
-            <Text style={styles.stepEyebrow}>STEP 3 OF 4</Text>
+            {!user && !next && <Text style={styles.stepEyebrow}>STEP 3 OF 4</Text>}
             <View style={styles.titleRow}>
               <Image source={require('../assets/images/dhara_mark.png')} style={styles.logoBox} resizeMode="contain" />
               <Text testID="consent-title" style={styles.title}>{strings.title}</Text>
