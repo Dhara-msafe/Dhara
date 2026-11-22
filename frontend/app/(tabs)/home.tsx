@@ -114,6 +114,11 @@ export default function Home() {
               </View>
             </View>
             <View style={styles.headerActions}>
+              {/* 22 Nov (Vivek): language pill first, then the bell. */}
+              <Pressable style={(state) => [styles.langPill, focusRingStyle(state)]} onPress={() => router.push('/language')} accessibilityRole="button" accessibilityLabel={`Change language, currently ${language.native}`}>
+                <Ionicons name="globe-outline" size={14} color="#fff" />
+                <Text style={styles.langTxt} numberOfLines={1}>{language.native}</Text>
+              </Pressable>
               {TRUSTED_CIRCLE_RECIPIENT && (
                 <Pressable style={(state) => [styles.bellBtn, focusRingStyle(state)]} onPress={() => router.push('/alerts' as any)} testID="home-alerts-bell" accessibilityRole="button" accessibilityLabel={alertCount > 0 ? `View alerts, ${alertCount} unread` : 'View alerts'}>
                   <Ionicons name="notifications-outline" size={20} color="#fff" />
@@ -122,10 +127,6 @@ export default function Home() {
                   )}
                 </Pressable>
               )}
-              <Pressable style={(state) => [styles.langPill, focusRingStyle(state)]} onPress={() => router.push('/language')} accessibilityRole="button" accessibilityLabel={`Change language, currently ${language.native}`}>
-                <Ionicons name="globe-outline" size={14} color="#fff" />
-                <Text style={styles.langTxt} numberOfLines={1}>{language.native}</Text>
-              </Pressable>
             </View>
           </View>
           )}
@@ -403,13 +404,15 @@ export default function Home() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
   header: { backgroundColor: c.navy, paddingHorizontal: 20, paddingBottom: 54, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  // 22 Nov: centre the bell and language pill with the logo and wordmark.
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logo: { width: 44, height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: c.gold, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   logoImg: { width: '100%', height: '100%' },
   brand: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 24, letterSpacing: 1 },
   tagline: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 11 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginRight: 72 },
+  // 22 Nov: no right margin; the 72px was kept for a floating help button that is hidden on Home.
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   // UI-revision pilot (reversible via UI_REVISION_V1): 40x40 was below the
   // 48px minimum touch target.
   bellBtn: { width: UI_REVISION_V1 ? 48 : 40, height: UI_REVISION_V1 ? 48 : 40, borderRadius: UI_REVISION_V1 ? 24 : 20, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
