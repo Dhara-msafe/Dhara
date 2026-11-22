@@ -44,6 +44,7 @@ import {
 // `disabled`/`pointerEvents` guard below is left untouched.
 import { UI_REVISION_V1 } from '@/src/designRevision';
 import { focusRingStyle } from '@/src/a11yFocus';
+import { PIN_NO_AUTOFILL, pinFromBox } from '@/src/women/pinInput';
 import { UI_V22_P7 } from '@/src/uiV22Flags';
 import { RECORD_NOTICES, type RecordNotice } from '@/src/recordCopy';
 
@@ -90,6 +91,12 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
   // explicit `pointerEvents: 'none'` style, since `disabled` alone was
   // observed to still allow a click through on web.
   const submittingRef = useRef(false);
+  // PIN autofill (owner GO, 22 Nov): Chrome can autofill this box and show
+  // dots without the value ever reaching `pin` (no change event until the
+  // user interacts), so Unlock said "Enter at least 4 digits". On submit we
+  // read the box's real value — Chrome releases it on that tap — and use it
+  // only if it is 4–6 digits (an autofilled account password is ignored).
+  const pinInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     hasPin()
@@ -126,14 +133,16 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
         setLockoutMs(freshLockoutMs);
         return;
       }
-      if (pin.length < 4) { setError('Enter at least 4 digits.'); return; }
-      if (mode === 'create') { setFirstPin(pin); setPinInput(''); setMode('confirm'); return; }
+      const entered = pinFromBox(pin, pinInputRef.current, Platform.OS);
+      if (entered !== pin) setPinInput(entered);
+      if (entered.length < 4) { setError('Enter at least 4 digits.'); return; }
+      if (mode === 'create') { setFirstPin(entered); setPinInput(''); setMode('confirm'); return; }
       if (mode === 'confirm') {
-        if (pin !== firstPin) { setError('PINs did not match — try again.'); setPinInput(''); setFirstPin(''); setMode('create'); return; }
-        await setPin(pin); onUnlock(); return;
+        if (entered !== firstPin) { setError('PINs did not match — try again.'); setPinInput(''); setFirstPin(''); setMode('create'); return; }
+        await setPin(entered); onUnlock(); return;
       }
       if (mode === 'enter') {
-        const result = await verifyPin(pin);
+        const result = await verifyPin(entered);
         setPinInput('');
         if (result.ok) { onUnlock(); return; }
         if (result.reason === 'locked_out') {
@@ -161,8 +170,11 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
         {mode === 'enter' ? 'This locks your recordings, photos and videos so no one else can open this screen.' : 'Choose 4–6 digits. This stays on your device only — DHARA cannot reset it for you.'}
       </Text>
       <TextInput
+        ref={pinInputRef}
         testID="evidence-pin-input"
         value={pin}
+        // Not a password: stop browsers / phones offering to autofill it.
+        {...PIN_NO_AUTOFILL}
         // (c) Ignore input entirely while locked — a PIN must never be able
         // to reach `pin` state during an active lockout, no matter how the
         // underlying platform input was changed (typing, paste, or a test/
@@ -1430,6 +1442,7 @@ export default function EvidenceLocker() {
             <Text style={styles.modalBody}>{changePinLabel}</Text>
             <TextInput
               testID="cp-input"
+              {...PIN_NO_AUTOFILL}
               style={styles.cpInput}
               value={changePinInput}
               onChangeText={t => { setCpError(''); setChangePinInput(t.replace(/\D/g, '').slice(0, 6)); }}
