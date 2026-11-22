@@ -2,6 +2,7 @@ import { Pressable, Text, StyleSheet } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { UI_V22_ONE_SOS } from '../../uiV22Flags';
 import { theme } from '@/src/theme';
 
 const c = theme.colors;
@@ -50,7 +51,9 @@ export function GlobalHelpButton({ docked = false }: { docked?: boolean } = {}) 
     <Pressable
       testID="global-help-button"
       accessibilityRole="button"
-      accessibilityLabel="Help — emergency numbers and what to do next"
+      // UI_V22_ONE_SOS (owner, 22 Nov): the red emergency button reads "SOS"
+      // everywhere, so it matches the SOS on Ask, Me, Settings and desktop.
+      accessibilityLabel={UI_V22_ONE_SOS ? 'SOS — emergency numbers and what to do next' : 'Help — emergency numbers and what to do next'}
       onPress={() => router.push('/emergency')}
       // Tab bar (minHeight 52) + DisclaimerBanner (~64px text + 12px padding = 76px)
       // + safe-area bottom (~34px on iPhone X+) ≈ 162px total from the screen edge.
@@ -60,7 +63,7 @@ export function GlobalHelpButton({ docked = false }: { docked?: boolean } = {}) 
       style={docked ? [styles.btn, styles.btnDocked] : [styles.btn, { bottom: insets.bottom + 140 }]}
     >
       <Ionicons name="alert-circle" size={18} color="#fff" />
-      <Text style={styles.txt}>Help</Text>
+      <Text style={styles.txt}>{UI_V22_ONE_SOS ? 'SOS' : 'Help'}</Text>
     </Pressable>
   );
 }
