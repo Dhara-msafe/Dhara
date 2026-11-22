@@ -53,12 +53,52 @@ export function nextStepFor(citations?: { short_label: string }[]):
  * citizen to the actual Voice FIR Drafting Assistant instead of leaving them
  * with a generic "no verified source" dead-end.
  */
+// FIR is for crimes (owner, 22 Nov): "What is the time limit to file a
+// consumer complaint?" used to get the FIR card because any "file ...
+// complaint" matched. A plain "complaint" now needs a crime or danger signal.
+const CRIME_OR_DANGER = /\b(police|theft|thief|stole|stolen|steal|robbery|robbed|snatch\w*|burglar\w*|break-?in|assault\w*|attack\w*|beat(en|ing)?|hit me|harass\w*|molest\w*|rape\w*|sexual\w*|stalk\w*|threat\w*|kidnap\w*|abduct\w*|murder\w*|kill\w*|dowry|domestic violence|abus\w*|cheat\w*|fraud\w*|scam\w*|extort\w*|blackmail\w*|acid|eve[- ]teas\w*|missing (person|child|girl|boy|woman|man)|danger\w*|unsafe|crime|criminal|offen[cs]e)\b/;
+const EXPLICIT_FIR = /\b(fir|f\.i\.r|police report|police complaint|zero fir|e-?fir)\b/;
+
 export function detectFirIntent(text: string): boolean {
   const low = text.toLowerCase();
-  return /\b(draft|file|register|write|lodge)\b.{0,20}\b(fir|f\.i\.r|complaint|police report)\b/.test(low)
-    || /\breport\s+(an?\s+)?(incident|crime|theft|assault|harassment)\b/.test(low)
-    || /\bhelp me (draft|file|write)\b.{0,15}\bfir\b/.test(low)
-    || /\bwant to (file|report|draft)\b.{0,20}\b(fir|complaint|incident|crime)\b/.test(low);
+  // Explicit FIR / police report: always the FIR card.
+  if (/\b(draft|file|register|write|lodge)\b.{0,20}\b(fir|f\.i\.r|police report|police complaint)\b/.test(low)) return true;
+  if (/\bhelp me (draft|file|write)\b.{0,15}\bfir\b/.test(low)) return true;
+  if (/\breport\s+(an?\s+)?(incident|crime|theft|assault|harassment)\b/.test(low)) return true;
+  if (/\bwant to (file|report|draft)\b.{0,20}\b(fir|incident|crime)\b/.test(low)) return true;
+  // A plain "complaint": only with a crime or danger signal in the question.
+  const complaintAsk = /\b(draft|file|register|write|lodge|want to (file|report|draft))\b.{0,20}\bcomplaint\b/.test(low);
+  return complaintAsk && (CRIME_OR_DANGER.test(low) || EXPLICIT_FIR.test(low));
+}
+
+/**
+ * Non-criminal complaint questions get the matching action instead of the
+ * FIR card: the ready notice where one exists (deposit refund, unpaid
+ * salary, cheque bounce), otherwise the journey's steps. Returns null for
+ * crime/danger questions (the FIR card covers those) and for questions that
+ * are not about a complaint or notice at all.
+ */
+export function civilComplaintAction(text: string):
+  | { label: string; route: string; icon: IconName }
+  | null {
+  const low = text.toLowerCase();
+  if (detectFirIntent(text) || CRIME_OR_DANGER.test(low)) return null;
+  if (!/\b(complaint|complain|notice|claim|refund|case)\b/.test(low)) return null;
+  if (/\b(cheque|check) (bounce|bounced|dishono[u]?r\w*|return\w*)\b/.test(low)) {
+    return { label: 'Get a ready cheque-bounce notice', route: '/drafts/cheque_bounce', icon: 'document-text-outline' };
+  }
+  if (/\b(deposit|landlord|tenant|tenancy|rent|lease|evict\w*)\b/.test(low)) {
+    return { label: 'Get a ready deposit-refund notice', route: '/drafts/deposit_refund', icon: 'home-outline' };
+  }
+  if (/\b(salary|wages?|unpaid|employer|payslip|gratuity|overtime)\b/.test(low)) {
+    return { label: 'Get a ready unpaid-salary notice', route: '/drafts/unpaid_salary', icon: 'briefcase-outline' };
+  }
+  if (/\b(consumer|refund|defective|faulty|warranty|product|seller|shop|e-?commerce|online order|delivery|service provider)\b/.test(low)) {
+    // No ready consumer notice exists; the consumer journey's steps (the
+    // same place All help -> Consumer opens).
+    return { label: 'See the steps for a consumer complaint', route: '/action-plan', icon: 'cart-outline' };
+  }
+  return null;
 }
 
 /**

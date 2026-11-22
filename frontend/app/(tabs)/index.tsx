@@ -43,7 +43,7 @@ import { activateCover } from '@/src/women/coverState';
 import { SosEmergencyBanner, EmergencyCallShortcut } from '@/src/chat/EmergencyBanners';
 import { getBasicSuggestions, getProSuggestions, TOPIC_SUGGESTIONS } from '@/src/chat/suggestions';
 import {
-  stripStreamMarkdown, nextStepFor, detectFirIntent, splitVerdict, generateId,
+  stripStreamMarkdown, nextStepFor, detectFirIntent, civilComplaintAction, splitVerdict, generateId,
   isIpcCitation, looksLikeDanger,
 } from '@/src/chat/messageUtils';
 import type { Citation, Msg } from '@/src/chat/types';
@@ -494,7 +494,7 @@ export default function ChatScreen() {
       setMessages((prev) => [
         ...prev,
         { id: userId, role: 'user', content: q },
-        { id: assistantId, role: 'assistant', content: '', mode: modeToSend, firIntent: detectFirIntent(q) },
+        { id: assistantId, role: 'assistant', content: '', mode: modeToSend, firIntent: detectFirIntent(q), civilAction: civilComplaintAction(q) },
       ]);
       setInput('');
       setStreaming(true);
@@ -2323,6 +2323,27 @@ export default function ChatScreen() {
                     >
                       <Ionicons name={step.icon} size={18} color={theme.colors.onBrandSecondary} />
                       <Text style={styles.nextStepText}>{step.label}</Text>
+                      <Ionicons name="chevron-forward" size={16} color={theme.colors.onBrandSecondary} />
+                    </Pressable>
+                  );
+                })()}
+                {(() => {
+                  // FIR is for crimes (owner, 22 Nov): a non-criminal complaint
+                  // question gets its matching notice / steps instead — unless
+                  // the answer's own next-step button already goes there.
+                  if (m.role !== 'assistant' || m.firIntent || !m.civilAction) return null;
+                  const act = m.civilAction;
+                  if (nextStepFor(m.citations)?.route === act.route) return null;
+                  return (
+                    <Pressable
+                      testID={`civil-action-${m.id}`}
+                      style={(s) => [styles.nextStep, focusRingStyle(s)]}
+                      onPress={() => router.push(act.route as any)}
+                      accessibilityRole="button"
+                      accessibilityLabel={act.label}
+                    >
+                      <Ionicons name={act.icon as any} size={18} color={theme.colors.onBrandSecondary} />
+                      <Text style={styles.nextStepText}>{act.label}</Text>
                       <Ionicons name="chevron-forward" size={16} color={theme.colors.onBrandSecondary} />
                     </Pressable>
                   );
