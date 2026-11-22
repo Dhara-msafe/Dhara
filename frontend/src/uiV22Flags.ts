@@ -70,3 +70,13 @@ export const UI_V22_P7 = process.env.EXPO_PUBLIC_UI_V22_P7 === 'true';
  *   which do not set it, never show it.
  */
 export const UI_V22_DOCK = process.env.EXPO_PUBLIC_UI_V22_DOCK === 'true';
+
+/**
+ * 390px sweep fixes (22 Nov): text cut off on narrow phones.
+ * - FIR draft "What happened?" tiles: title, description and BNS line may
+ *   use two lines instead of being cut to one ("Domestic Violence",
+ *   "Workplace Harassment", "BNS 74–75 · POSH 2013").
+ * - Family journey header: the title "Support a family member" wraps to two
+ *   lines instead of being cut off.
+ */
+export const UI_V22_SWEEP = process.env.EXPO_PUBLIC_UI_V22_SWEEP === 'true';
