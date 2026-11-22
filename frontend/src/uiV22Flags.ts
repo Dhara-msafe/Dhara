@@ -54,3 +54,19 @@ export const UI_V22_P6 = process.env.EXPO_PUBLIC_UI_V22_P6 === 'true';
  * pending-recovery and storage logic are unchanged.
  */
 export const UI_V22_P7 = process.env.EXPO_PUBLIC_UI_V22_P7 === 'true';
+
+/**
+ * Floating buttons never cover content (client finding, 22 Nov: the bug
+ * button covered "+ Rec" on Silent alert and values on My Data; the Help
+ * pill cut off "Indefinite (legal ...)").
+ * - Phones / narrow web: the Help pill and the bug-report button move out of
+ *   the floating layer into a bottom dock that takes real layout space, so
+ *   the screen ends above it and no row can sit underneath. The dock only
+ *   appears on routes where at least one of the two is shown.
+ * - Wide web (desktop frame): the floating Help pill is not shown; the
+ *   sidebar "SOS · Emergency" is the one emergency entry.
+ * - Bug-report button: shown only when a build sets
+ *   EXPO_PUBLIC_ENABLE_ISSUE_REPORTER=true (test builds). Production builds,
+ *   which do not set it, never show it.
+ */
+export const UI_V22_DOCK = process.env.EXPO_PUBLIC_UI_V22_DOCK === 'true';

@@ -17,6 +17,8 @@ import { DesktopFrame } from "@/src/components/dhara/DesktopFrame";
 import { GlobalHelpButton } from "@/src/components/dhara/GlobalHelpButton";
 import { QaModeBanner } from "@/src/components/dhara/QaModeBanner";
 import { IssueReporterButton } from "@/src/components/IssueReporterButton";
+import { DockedStack } from "@/src/components/dhara/FloatingDock";
+import { UI_V22_DOCK } from "@/src/uiV22Flags";
 import { LanguageOnboardModal } from "@/src/components/LanguageOnboardModal";
 import { AuthProvider, useAuth } from "@/src/auth";
 import { consentVersionKey, isCurrentConsent } from "@/src/consentStorage";
@@ -440,13 +442,24 @@ export default function RootLayout() {
                   <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.surface } }} />
                 </DesktopFrame>
               ) : (
+                UI_V22_DOCK ? (
+                  // UI_V22_DOCK: Help + bug-report live in a bottom dock that
+                  // takes real space, so they can never cover a screen's content.
+                  <DockedStack>
+                    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.surface } }} />
+                  </DockedStack>
+                ) : (
                 <View style={{ flex: 1 }}>
                   <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.surface } }} />
                   <GlobalHelpButton />
                   <IssueReporterButton />
                 </View>
+                )
               )}
-              {isWideWeb && <GlobalHelpButton />}
+              {/* UI_V22_DOCK on desktop: no floating Help pill — the sidebar
+                  "SOS · Emergency" is the one emergency entry. The bug button
+                  stays (test builds only). */}
+              {isWideWeb && !UI_V22_DOCK && <GlobalHelpButton />}
               {isWideWeb && <IssueReporterButton />}
               </EvidenceRecorderProvider>
             </AuthProvider>
