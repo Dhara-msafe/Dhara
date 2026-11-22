@@ -40,10 +40,8 @@ test('desktop: top-bar SOS chip off with the flag; sidebar SOS unchanged', () =>
   assert.match(frame, /style=\{styles\.sos\} onPress=\{\(\) => router\.push\('\/emergency'\)\}/);
 });
 
-test('phones (B-122): no floating SOS over Ask, Me or Settings with the flag on', () => {
-  assert.match(tabs, /const screenHasOwnSos = UI_V22_ONE_SOS && \(onAsk \|\| onMe \|\| onSettings\);/);
-  assert.match(tabs, /\{!onHome && !screenHasOwnSos && \(/);
-  assert.match(tabs, /const onAsk = pathname === '\/' \|\| pathname === '\/\(tabs\)'/);
+test('phones (B-122 + 390px sweep): the tab SOS never floats with the flag on', () => {
+  assert.match(tabs, /\{!onHome && !UI_V22_ONE_SOS && \(/);
 });
 
 test('Ask keeps exactly one SOS: in its header row, after New chat and History', () => {

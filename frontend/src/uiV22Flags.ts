@@ -60,9 +60,10 @@ export const UI_V22_P7 = process.env.EXPO_PUBLIC_UI_V22_P7 === 'true';
  * - Desktop frame: the sidebar "SOS · Emergency" is the one entry. Screen
  *   SOS pills (Women's Shield, All help, Family journey, the tab overlay)
  *   step aside inside the frame, and the top-bar SOS chip is not shown.
- * - Phones: the tab layout's floating SOS no longer floats over the Ask
- *   header (B-122: it covered "New chat"): Ask gets an SOS pill inside its
- *   header row, in normal layout. Me and Settings already have their own SOS
- *   in the screen, so the floating one is not added there.
+ * - Phones: the tab layout's SOS no longer floats over any tab screen (it
+ *   covered "New chat" on Ask — B-122 — and headings/cards on Rights, My
+ *   files, Me, Settings). Ask gets an SOS pill in its header row; Me and
+ *   Settings keep their own SOS in the content; other tabs keep the red Help
+ *   button (opens Emergency; docked with UI_V22_DOCK).
  */
 export const UI_V22_ONE_SOS = process.env.EXPO_PUBLIC_UI_V22_ONE_SOS === 'true';

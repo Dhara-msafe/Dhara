@@ -61,8 +61,7 @@ test('the persistent SosPill is still gated by onHome (i.e. still shown everywhe
   // Updated 22 Nov (UI_V22_ONE_SOS): the overlay also steps aside on screens
   // that carry their own SOS — but only with the flag on, and Ask then shows
   // one in its header row, so Ask always has exactly one SOS.
-  assert.ok(layoutSrc.includes('{!onHome && !screenHasOwnSos && (') && layoutSrc.includes('<SosPill />'));
-  assert.ok(/const screenHasOwnSos = UI_V22_ONE_SOS && \(onAsk \|\| onMe \|\| onSettings\);/.test(layoutSrc));
+  assert.ok(layoutSrc.includes('{!onHome && !UI_V22_ONE_SOS && (') && layoutSrc.includes('<SosPill />'));
   const askSrc = readFileSync(join(__dirname, '../../app/(tabs)/index.tsx'), 'utf8');
   assert.ok(askSrc.includes('{UI_V22_ONE_SOS && <SosPill compact />}'), 'Ask must show its own SOS when the overlay steps aside');
 });
