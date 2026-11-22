@@ -71,6 +71,7 @@ export const UI_V22_P7 = process.env.EXPO_PUBLIC_UI_V22_P7 === 'true';
  */
 export const UI_V22_DOCK = process.env.EXPO_PUBLIC_UI_V22_DOCK === 'true';
 
+/**
  * My Data (client finding, 22 Nov): data-type labels read "Fir Drafts" /
  * "Otp Logs" (title-cased backend keys) and long values were cut off at
  * two lines ("Indefinite (legal ..."). With the flag: plain labels with
