@@ -122,9 +122,9 @@ export default function Signup() {
             </Pressable>
 
             <View style={styles.row}>
-              <Text style={styles.sub}>Already registered? </Text>
+              <Text style={styles.rowLead}>Already registered? </Text>
               <Link href="/login" asChild>
-                <Pressable testID="go-to-login"><Text style={styles.link}>Sign in</Text></Pressable>
+                <Pressable testID="go-to-login"><Text style={[styles.link, styles.linkUnderline]}>Sign in</Text></Pressable>
               </Link>
             </View>
           </View>
@@ -174,7 +174,10 @@ const styles = StyleSheet.create({
   termsLink: { color: theme.colors.brandSecondary, fontWeight: '700', textDecorationLine: 'underline' },
   btn: { backgroundColor: theme.colors.brand, padding: theme.spacing.lg, borderRadius: theme.radius.md, alignItems: 'center', marginTop: theme.spacing.xl, minHeight: 52 },
   btnText: { color: theme.colors.onBrandPrimary, fontWeight: '700', fontSize: 16 },
-  row: { flexDirection: 'row', justifyContent: 'center', marginTop: theme.spacing.lg },
+  // 22 Nov: same as sign-in and reset: text and link on one line, link underlined.
+  row: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: theme.spacing.lg },
+  rowLead: { color: theme.colors.onSurfaceSecondary },
+  linkUnderline: { textDecorationLine: 'underline' },
   link: { color: theme.colors.brandSecondary, fontWeight: '700' },
   error: { color: theme.colors.error, marginTop: theme.spacing.md },
   copyright: { textAlign: 'center', color: '#8A93A6', marginTop: theme.spacing.xl, fontSize: 11, letterSpacing: 0.5 },
