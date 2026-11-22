@@ -25,7 +25,7 @@ import { theme } from '@/src/theme';
 import { trackEvent } from '@/src/analytics';
 import { getConfiguredSTT, whisperTranscribeFile, sttErrorToMessage, MAX_AUDIO_BYTES, AUDIO_TOO_LARGE_MESSAGE } from '@/src/voice/stt';
 import { claimMic, MIC_BUSY_MESSAGE, withMicLease, isMicHeldByEvidenceLocker, TTS_BLOCKED_BY_LOCKER_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
-import { canSpeakNow, noteAudioInterruption, noteSpeakIntent, VOICE_COMPANION_ENABLED } from '@/src/voice/speechGate';
+import { canSpeakNow, noteAudioInterruption, noteSpeakIntent, VOICE_COMPANION_ENABLED, VOICE_OFF_HINT } from '@/src/voice/speechGate';
 import { VoiceStateMachine } from '@/src/voice/core/voiceStateMachine';
 import { needsConfirmation } from '@/src/voice/core/voicePolicy';
 import { classifyFact } from '@/src/voice/factClassifier';
@@ -917,7 +917,7 @@ export default function ChatScreen() {
       // Talk to DHARA speech gate (inert when voice-companion flag is OFF).
       if (userInitiated) noteSpeakIntent();
       if (!canSpeakNow()) {
-        if (userInitiated) notify('Voice is off', 'Showing the answer as text. Turn voice back on to hear it.');
+        if (userInitiated) notify('Voice is off', VOICE_OFF_HINT);
         return;
       }
 

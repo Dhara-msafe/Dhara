@@ -50,13 +50,13 @@ test('the preference is persisted, so it survives an app restart', () => {
   assert.ok(writes.some(([k, v]) => k === 'dhara_voice_pref_known' && v === 'true'), JSON.stringify(writes));
 });
 
-test("Women's Shield quiet still blocks, and a later tap does not override it", async () => {
+test("Women's Shield blocks while there; a tap does not override it; leaving restores voice", async () => {
   await gate.enterWomensShield();
   assert.equal(gate.canSpeakNow(), false);
   gate.noteSpeakIntent();
-  assert.equal(gate.canSpeakNow(), false, 'a tap must not lift Women\'s Shield quiet');
+  assert.equal(gate.canSpeakNow(), false, 'a tap must not lift the Shield while inside');
   gate.leaveWomensShield();
-  // Quiet stays on after leaving (persisted, by design) — still blocked.
-  assert.equal(gate.isQuiet(), true);
-  assert.equal(gate.canSpeakNow(), false);
+  // 22 Nov: the Shield never sets Quiet any more — voice is back after leaving.
+  assert.equal(gate.isQuiet(), false);
+  assert.equal(gate.canSpeakNow(), true);
 });

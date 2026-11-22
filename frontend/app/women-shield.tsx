@@ -10,7 +10,7 @@ import { tr } from '@/src/ui18n';
 import { SosPill, Divider } from '@/src/components/dhara/SosPill';
 import { fetchFlags, fetchHelplines, safetyRoute, setCheckin as persistCheckin, getCheckin, getCircle, type Helpline } from '@/src/women/api';
 import { loadVisibleRecordings, releaseRecordings } from '@/src/women/evidenceStore'; // Fix (S1-2): count only visible (non-segment) items
-import { enterWomensShield, leaveWomensShield } from '@/src/voice/speechGate';
+import { noteQuickExit } from '@/src/voice/speechGate';
 import { activateCover } from '@/src/women/coverState';
 
 // openPhone is reserved for when tap-to-call is activated on helpline rows
@@ -102,8 +102,8 @@ export default function WomenShield() {
     useCallback(() => {
       let alive = true;
       const scope = user?.id || 'device';
-      // Talk to DHARA — entering the Shield forces Quiet on (no spoken replies here).
-      void enterWomensShield();
+      // Voice: the no-speech scope for this screen is set by the root layout
+      // from the route (hub + /women/*), so it also covers the sub-screens.
       (async () => {
         const [circle, items] = await Promise.all([getCircle(), loadVisibleRecordings(scope)]);
         if (!alive) { releaseRecordings(items); return; }
@@ -111,7 +111,7 @@ export default function WomenShield() {
         setLockerCount(items.length);
         releaseRecordings(items);
       })();
-      return () => { alive = false; leaveWomensShield(); };
+      return () => { alive = false; };
     }, [user?.id])
   );
 
@@ -163,6 +163,7 @@ export default function WomenShield() {
   // jump to google.com showed a blank "refused to connect" page whenever the
   // app runs inside a frame (Emergent preview, embeds).
   const quickExit = () => {
+    noteQuickExit();   // voice: nothing speaks after a Quick exit until the next tap
     router.replace('/(tabs)/home');
   };
 

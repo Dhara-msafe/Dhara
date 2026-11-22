@@ -7,8 +7,11 @@
  *
  * When ON it enforces, via the already-tested maySpeakOn():
  *   - no spoken welcome until the user has chosen whether DHARA may speak;
- *   - Quiet (persisted, survives restart);
- *   - Women's Shield forces Quiet on;
+ *   - Quiet (persisted, survives restart) — set ONLY by the user, through the
+ *     Settings switch "Voice: read answers aloud";
+ *   - no speech WHILE on Women's Shield screens (hub + /women/*); leaving
+ *     restores the previous voice state, nothing is saved;
+ *   - after a Quick exit, no speech until the next explicit tap (session only);
  *   - no auto-resume after a call, headphone unplug, app background or web tab
  *     switch — only an explicit user tap resumes;
  *   - on web, silence until the first tap on this page load.
@@ -20,14 +23,26 @@ import { reduceGate, INITIAL_GATE, type GateFlags } from './core/speechGateReduc
 
 export const VOICE_COMPANION_ENABLED = process.env.EXPO_PUBLIC_VOICE_COMPANION_ENABLED === 'true';
 
+/** Shown when a tapped Listen is refused: names the real control. */
+export const VOICE_OFF_HINT = 'Showing the answer as text. To hear answers, turn on "Voice: read answers aloud" in Settings.';
+
 const K_QUIET = 'dhara_voice_quiet';
 const K_PREF_KNOWN = 'dhara_voice_pref_known';
+// Who set Quiet. 'user' = the Settings switch. Anything else (including a
+// missing value) means the old Women's Shield code wrote it.
+const K_QUIET_SOURCE = 'dhara_voice_quiet_source';
 
 let flags: GateFlags = { ...INITIAL_GATE };
 let speakingPreferenceKnown = false;
 // Native apps don't need the browser first-tap rule; web starts silent.
 let userGestureThisPageLoad = Platform.OS !== 'web';
 let initialised = false;
+// Women's Shield scope is reference-counted, so moving between the hub and a
+// /women/* screen (blur of one, focus of the next, in either order) never
+// flickers the gate open in between.
+let shieldScopes = 0;
+// Session-only: after a Quick exit nothing speaks until the next explicit tap.
+let quietAfterQuickExit = false;
 
 function platform() {
   return toVoicePlatform(Platform.OS);
@@ -38,11 +53,19 @@ export async function initSpeechGate(): Promise<void> {
   if (initialised) return;
   initialised = true;
   try {
-    const [q, p] = await Promise.all([
+    const [q, p, src] = await Promise.all([
       AsyncStorage.getItem(K_QUIET),
       AsyncStorage.getItem(K_PREF_KNOWN),
+      AsyncStorage.getItem(K_QUIET_SOURCE),
     ]);
-    if (q === 'true') flags = { ...flags, quiet: true };
+    if (q === 'true' && src !== 'user') {
+      // Migration (22 Nov): a stale Quiet written by the old Women's Shield
+      // code, not by the user (no UI could set Quiet before the Settings
+      // switch existed). Clear it so voice comes back.
+      AsyncStorage.removeItem(K_QUIET).catch(() => {});
+    } else if (q === 'true') {
+      flags = { ...flags, quiet: true };
+    }
     speakingPreferenceKnown = p === 'true';
   } catch {
     // Non-fatal: default to not-quiet / preference-unknown.
@@ -82,15 +105,34 @@ export function noteAudioInterruption(): void {
  */
 export function noteSpeakIntent(): void {
   userGestureThisPageLoad = true;
+  quietAfterQuickExit = false;
   flags = reduceGate(flags, { type: 'resume_requested' });
   speakingPreferenceKnown = true;
   AsyncStorage.setItem(K_PREF_KNOWN, 'true').catch(() => {});
 }
 
-/** Persisted Quiet toggle. */
+/** Persisted Quiet toggle — the USER's choice (Settings switch). */
 export async function setQuiet(v: boolean): Promise<void> {
   flags = { ...flags, quiet: v };
-  try { await AsyncStorage.setItem(K_QUIET, v ? 'true' : 'false'); } catch {}
+  try {
+    await AsyncStorage.setItem(K_QUIET, v ? 'true' : 'false');
+    await AsyncStorage.setItem(K_QUIET_SOURCE, 'user');
+  } catch {}
+}
+
+/**
+ * Settings "Voice: read answers aloud". ON = DHARA may speak (also records the
+ * speaking choice, so the first-run block lifts); OFF = never speak, answers
+ * show as text. Same gate canSpeakNow() reads.
+ */
+export async function setVoiceReadAloud(on: boolean): Promise<void> {
+  await setQuiet(!on);
+  if (on) await setSpeakingPreferenceKnown(true);
+}
+
+/** Current value for the Settings switch. */
+export function isVoiceReadAloudOn(): boolean {
+  return !flags.quiet && speakingPreferenceKnown;
 }
 
 export function isQuiet(): boolean {
@@ -103,15 +145,31 @@ export async function setSpeakingPreferenceKnown(v: boolean): Promise<void> {
   try { await AsyncStorage.setItem(K_PREF_KNOWN, v ? 'true' : 'false'); } catch {}
 }
 
-/** Entering Women's Shield forces Quiet on (persisted); never turns it off. */
+/**
+ * Entering a Women's Shield screen: no speech WHILE there. In memory only —
+ * never saved, never changes Quiet. Pair every call with leaveWomensShield().
+ */
 export async function enterWomensShield(): Promise<void> {
+  shieldScopes += 1;
   flags = reduceGate(flags, { type: 'enter_womens_shield' });
-  try { await AsyncStorage.setItem(K_QUIET, 'true'); } catch {}
 }
 
-/** Leaving the Shield clears only the in-session flag; Quiet stays as chosen. */
+/** Leaving a Women's Shield screen. When no Shield screen remains, the
+ * previous voice state is back exactly as it was. */
 export function leaveWomensShield(): void {
-  flags = { ...flags, inWomensShield: false };
+  shieldScopes = Math.max(0, shieldScopes - 1);
+  if (shieldScopes === 0) flags = reduceGate(flags, { type: 'leave_womens_shield' });
+}
+
+/** Women's Shield screens for the voice gate: the hub and every /women/* screen. */
+export function isWomensShieldRoute(pathname: string | null | undefined): boolean {
+  return pathname === '/women-shield' || !!pathname?.startsWith('/women/');
+}
+
+/** Quick exit from a sensitive screen: no speech until the next explicit tap.
+ * Session only — never saved. */
+export function noteQuickExit(): void {
+  quietAfterQuickExit = true;
 }
 
 /**
@@ -120,6 +178,7 @@ export function leaveWomensShield(): void {
  */
 export function canSpeakNow(): boolean {
   if (!VOICE_COMPANION_ENABLED) return true;
+  if (quietAfterQuickExit) return false;
   return maySpeakOn(platform(), {
     quiet: flags.quiet,
     speakingPreferenceKnown,
