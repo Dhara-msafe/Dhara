@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { theme } from '../../theme';
 import { UI_V22_ONE_SOS } from '../../uiV22Flags';
+import { noteQuickExit } from '@/src/voice/speechGate';
 import { useInDesktopFrame } from './desktopFrameContext';
 
 const c = theme.colors;
@@ -35,7 +36,7 @@ export function QuickExit({ dark }: { dark?: boolean }) {
       testID="quick-exit"
       accessibilityRole="button"
       accessibilityLabel="Quick exit"
-      onPress={() => router.replace('/(tabs)/home')}
+      onPress={() => { noteQuickExit(); router.replace('/(tabs)/home'); }}
       style={({ pressed }) => [styles.qe, dark && styles.qeDark, pressed && { opacity: 0.85 }]}
     >
       <Ionicons name="exit-outline" size={16} color={dark ? '#fff' : c.navy} />

@@ -26,7 +26,7 @@ import { ChunkedSpeaker } from '@/src/voice/tts';
 import { createBrowserTtsPlayer } from '@/src/voice/browserPlayer';
 import { splitInlineBold, stripInlineMarkdown } from '@/src/fir/inlineMarkdown';
 import { claimMic, MIC_BUSY_MESSAGE, withMicLease, isMicHeldByEvidenceLocker, TTS_BLOCKED_BY_LOCKER_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
-import { canSpeakNow, noteSpeakIntent, VOICE_COMPANION_ENABLED } from '@/src/voice/speechGate';
+import { canSpeakNow, noteSpeakIntent, VOICE_COMPANION_ENABLED, VOICE_OFF_HINT } from '@/src/voice/speechGate';
 import { VoiceStateMachine } from '@/src/voice/core/voiceStateMachine';
 import { needsConfirmation } from '@/src/voice/core/voicePolicy';
 import { classifyFact } from '@/src/voice/factClassifier';
@@ -1203,7 +1203,7 @@ ${data.bot_message}`);
     // Talk to DHARA speech gate (inert when voice-companion flag is OFF).
     if (userInitiated) noteSpeakIntent();
     if (!canSpeakNow()) {
-      if (userInitiated) setVoiceNotice('Voice is off. Showing the answer as text — turn voice back on to hear it.');
+      if (userInitiated) setVoiceNotice(`Voice is off. ${VOICE_OFF_HINT}`);
       return;
     }
 

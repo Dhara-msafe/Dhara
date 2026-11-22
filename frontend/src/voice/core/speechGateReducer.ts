@@ -22,7 +22,8 @@ export type GateEvent =
   | { type: 'audio_interruption' }   // incoming call / headphone unplug / iOS interruption
   | { type: 'web_tab_hidden' }       // browser visibilitychange -> hidden
   | { type: 'resume_requested' }     // user explicitly asked to speak again
-  | { type: 'enter_womens_shield' }; // entering the Shield forces Quiet on
+  | { type: 'enter_womens_shield' }  // entering the Shield: no speech while there
+  | { type: 'leave_womens_shield' }; // leaving restores the previous voice state
 
 export const INITIAL_GATE: GateFlags = {
   quiet: false,
@@ -41,8 +42,13 @@ export function reduceGate(s: GateFlags, e: GateEvent): GateFlags {
     case 'resume_requested':
       return { ...s, interruptedNotResumed: false };
     case 'enter_womens_shield':
-      // Forces Quiet on; never turns it off.
-      return { ...s, quiet: true, inWomensShield: true };
+      // 22 Nov (owner GO): the Shield blocks speech only WHILE the user is in
+      // it (maySpeak checks inWomensShield). It no longer touches Quiet —
+      // the old 'force Quiet on, persisted' left voice off forever after one
+      // visit, with no way back.
+      return { ...s, inWomensShield: true };
+    case 'leave_womens_shield':
+      return { ...s, inWomensShield: false };
     default:
       return s;
   }
