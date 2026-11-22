@@ -27,6 +27,8 @@ export type Msg = {
   saved?: boolean;
   /** The user's own message text matched FIR/police-complaint drafting intent */
   firIntent?: boolean;
+  /** Non-criminal complaint: the matching notice / steps (see civilComplaintAction). */
+  civilAction?: { label: string; route: string; icon: string } | null;
   /** 2-3 contextual follow-up questions generated after the answer */
   followUpQuestions?: string[];
 };
