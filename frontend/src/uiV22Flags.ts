@@ -54,3 +54,11 @@ export const UI_V22_P6 = process.env.EXPO_PUBLIC_UI_V22_P6 === 'true';
  * pending-recovery and storage logic are unchanged.
  */
 export const UI_V22_P7 = process.env.EXPO_PUBLIC_UI_V22_P7 === 'true';
+
+/**
+ * My Data (client finding, 22 Nov): data-type labels read "Fir Drafts" /
+ * "Otp Logs" (title-cased backend keys) and long values were cut off at
+ * two lines ("Indefinite (legal ..."). With the flag: plain labels with
+ * correct acronyms ("FIR drafts", "OTP logs") and values that wrap in full.
+ */
+export const UI_V22_MYDATA = process.env.EXPO_PUBLIC_UI_V22_MYDATA === 'true';
