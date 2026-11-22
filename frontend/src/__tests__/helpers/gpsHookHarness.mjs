@@ -110,13 +110,13 @@ export function makeHarness({ os, fetchImpl }) {
 
   /** Render once, run effects, and keep re-rendering while state changes.
    *  Throws like React does if it never settles. */
-  function render(token, enabled, keepRetryingHeld = false) {
+  function render(token, enabled, keepRetryingHeld = false, onJourneyClosed) {
     let state; let loops = 0;
     do {
       if (++loops > 50) throw new Error('Maximum update depth exceeded');
       dirty = false; i = 0; pending = [];
       // inline callback and options object: new on every render, like the real screen
-      state = useJourneyGPS(token, enabled, () => {}, { keepRetryingHeld });
+      state = useJourneyGPS(token, enabled, () => {}, { keepRetryingHeld, onJourneyClosed });
       for (const run of pending) run();
     } while (dirty);
     return state;

@@ -57,6 +57,30 @@ export function uploadOutcome(status: number | null, body?: unknown): UploadOutc
   return 'retry';   // 401 (sign-in refreshing), 429, 5xx, anything unexpected
 }
 
+/**
+ * A14: does this reply mean the journey is over on the server?
+ *
+ * Three ways the server says so on the location endpoint:
+ *   404 the journey is gone,
+ *   410 the link has expired,
+ *   200 with a "skipped" reason naming completion or withdrawn sharing
+ *       ("journey already completed or sharing withdrawn").
+ *
+ * 403 ("Not your journey") is deliberately NOT treated as closed. It can
+ * also mean a mismatched sign-in, and clearing her journey because of a
+ * token mix-up would be worse than stopping the uploads, which `drop`
+ * already does.
+ */
+export function journeyIsClosed(status: number | null, body?: unknown): boolean {
+  if (status === 404 || status === 410) return true;
+  if (status === null || status < 200 || status >= 300) return false;
+  const skipped = body && typeof body === 'object' ? (body as { skipped?: unknown }).skipped : undefined;
+  if (typeof skipped !== 'string') return false;
+  const reason = skipped.toLowerCase();
+  return reason.includes('completed') || reason.includes('withdrawn');
+}
+
+
 function capturedMs(e: HeldReading): number | null {
   const t = Date.parse(e.capturedAt);
   return Number.isFinite(t) ? t : null;

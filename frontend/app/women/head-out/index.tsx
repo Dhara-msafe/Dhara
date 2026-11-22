@@ -485,6 +485,28 @@ export default function HeadOut() {
 
   // A35: keep trying a pending "I'm safe" until the server confirms. Starts
   // straight away when the screen reopens with a pending one saved.
+  // A14: the server closed this journey (it expired, was completed, or
+  // sharing was withdrawn — from another device, say). The phone must stop
+  // tracking something nobody is watching, and she must be told why her
+  // journey ended, rather than the screen simply emptying.
+  const [closedByServer, setClosedByServer] = useState(false);
+
+  const handleJourneyClosedByServer = useCallback(() => {
+    setClosedByServer(true);
+    setJourneyToken(null);
+    setSession(null);
+    setExpired(false);
+    setSharingRevoked(false);
+    setRouteInfo(null);
+    setCreateFailures(0);
+    // Not marked "safe": the server ended the journey, she did not say so.
+    try { useLocationUploadQueue.getState().clearAll(); } catch { /* non-blocking */ }
+    AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
+  }, []);
+
+  // A14: a new journey clears the notice from the last one.
+  useEffect(() => { if (session) setClosedByServer(false); }, [session]);
+
   const pendingSafe = !!session?.pendingSafe;
   useEffect(() => {
     if (!pendingSafe || !authToken || !journeyToken) return;
@@ -848,7 +870,10 @@ export default function HeadOut() {
     // A10b: when the check-in time passes, tracking stops but her circle has
     // just been alerted, so a reading still waiting on this phone must still
     // be sent. Same conditions as above, without `!expired`.
-    { keepRetryingHeld: GO1B_GPS_ENABLED && !!session && locationConsentGiven && !session.pendingSafe },
+    {
+      keepRetryingHeld: GO1B_GPS_ENABLED && !!session && locationConsentGiven && !session.pendingSafe,
+      onJourneyClosed: handleJourneyClosedByServer,
+    },
   );
   // Demo simulator: when HEADOUT_DEMO_ENABLED and a demo control button has
   // been pressed, replace the GPS values with the simulated point. Every
@@ -1222,6 +1247,20 @@ export default function HeadOut() {
                 {creatingJourney ? ALARM_COPY.not_active.retrying : ALARM_COPY.not_active.retry}
               </Text>
             </Pressable>
+          </View>
+        </View>
+      )}
+
+      {/* A14: the server ended this journey, so the phone stopped sending. */}
+      {closedByServer && (
+        <View style={styles.alarmOffBanner} testID="headout-journey-closed" accessibilityRole="alert">
+          <Ionicons name="information-circle-outline" size={20} color={c.emergencyRed} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.alarmBannerTitle, { color: c.emergencyRed }]}>This journey has ended</Text>
+            <Text style={styles.alarmBannerBody}>
+              DHARA&apos;s server closed it, so your location is no longer being shared and no one will
+              be alerted for it. Start a new journey if you are still on your way.
+            </Text>
           </View>
         </View>
       )}
