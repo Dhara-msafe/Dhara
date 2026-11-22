@@ -21,6 +21,7 @@ import { CONSENT_ANON_KEY, migrateAnonConsentToUser } from './consentStorage';
 import { useLocationUploadQueue } from './safety/locationUploadQueue';
 import { registerGuestScope, touchGuestScope } from './women/guestScopeRegistry';
 import { clearLocationCache } from './safety/locationCache';
+import { languageForCode } from './languages';
 
 // Required for iOS to properly complete the auth session
 WebBrowser.maybeCompleteAuthSession();
@@ -98,6 +99,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [googleError, setGoogleError] = useState<{ message: string; minor: boolean } | null>(null);
   // Guard: prevent the same session_id being exchanged twice on Android
   const usedSessionIds = useRef<Set<string>>(new Set());
+  // Language per account (22 Nov): callbacks below need the CURRENT session
+  // and language without being re-created, so mirror them in refs.
+  const tokenRef = useRef<string | null>(null);
+  const userRef = useRef<User | null>(null);
+  const languageRef = useRef<Language>(DEFAULT_LANG);
+  useEffect(() => { tokenRef.current = token; }, [token]);
+  useEffect(() => { userRef.current = user; }, [user]);
+  useEffect(() => { languageRef.current = language; }, [language]);
 
   useEffect(() => {
     (async () => {
@@ -123,7 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // W1-J04: same sign-in path as the app (persist links the earlier
                 // consent and resets the previous account's cover state).
                 if (minorMsg) setGoogleError({ message: minorMsg, minor: true });
-                else await persist(data.token, data.user);
+                else await persist(data.token, data.user, { isNew: !!data.is_new });
               }
             } catch (e: any) {
               setGoogleError({ message: e?.message || 'Google sign-in failed. Please try again.', minor: false });
@@ -170,7 +179,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       let hydratedUser: User | null = null;
       if (u) { hydratedUser = JSON.parse(u); setUser(hydratedUser); }
       _setActiveUserIdCache(hydratedUser);
-      if (l) setLanguageState(JSON.parse(l));
+      // Language per account (22 Nov): gk_lang is one value per device, so a
+      // previous account's choice leaked into the next one. A signed-in
+      // account uses its own saved profile language; the device value is
+      // only for guests and before sign-in.
+      const profileLang = hydratedUser && !hydratedUser.is_guest ? languageForCode(hydratedUser.language) : null;
+      if (profileLang) setLanguageState(profileLang);
+      else if (l) setLanguageState(JSON.parse(l));
       if (a !== null) setAutoSpeakState(a === '1');
       if (v !== null) {
         const n = parseFloat(v);
@@ -195,13 +210,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const fresh = await r.json();
             await AsyncStorage.setItem(USER_KEY, JSON.stringify(fresh));
             setUser(fresh);
+            const freshLang = !fresh.is_guest ? languageForCode(fresh.language) : null;
+            if (freshLang) setLanguageState(freshLang);
           }
         } catch { /* offline: keep the saved session */ }
       }
     })();
   }, []);
 
-  const persist = async (t: string, u: User) => {
+  // Saves a language to the signed-in account's profile and to the cached
+  // user. Best-effort: offline, the choice still applies on this device now
+  // and is sent the next time the user changes language.
+  const saveProfileLanguage = async (t: string, code: string) => {
+    try {
+      const r = await fetch(`${API}/api/auth/language`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+        body: JSON.stringify({ language: code }),
+      });
+      if (!r.ok) return;
+    } catch { return; }
+    setUser((prev) => {
+      const next = prev ? { ...prev, language: code } : prev;
+      if (next) AsyncStorage.setItem(USER_KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  };
+
+  const persist = async (t: string, u: User, opts: { isNew?: boolean } = {}) => {
     // B-91: a new sign-in ends the "account deleted" notice.
     setAccountDeletedNotice(false);
     // B002 fix: clear the *previous* session's cover flag before switching
@@ -230,6 +266,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (u.id) await migrateAnonConsentToUser(u.id);
     setToken(t);
     setUser(u);
+    // Language per account (22 Nov). Guests keep the device language.
+    // A just-created account (sign-up, first Google sign-in) is created with
+    // the "en" default, so save the language the person used through
+    // onboarding to it. An existing account uses its own saved language.
+    if (!u.is_guest) {
+      if (opts.isNew) {
+        // Read the onboarding choice from the device value itself: the web
+        // Google redirect lands here before the stored language is loaded.
+        void (async () => {
+          let code = languageRef.current.code;
+          try { const dev = await AsyncStorage.getItem(LANG_KEY); if (dev) code = JSON.parse(dev).code || code; } catch { /* keep current */ }
+          await saveProfileLanguage(t, code);
+        })();
+      } else {
+        const own = languageForCode(u.language);
+        if (own) setLanguageState(own);
+      }
+    }
     // W1-J01 / B-67: the consent given before sign-in was logged under an
     // anonymous id. Attach it to this account once, then forget the id so a
     // later account on this phone never claims it. Best-effort, never blocks.
@@ -341,7 +395,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     if (!r.ok) throw new Error(await _extractError(r, 'Registration failed'));
     const data = await r.json();
-    await persist(data.token, data.user);
+    await persist(data.token, data.user, { isNew: true });
   };
 
   const continueAsGuest = async (langCode?: string) => {
@@ -426,6 +480,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setToken(null);
     setUser(null);
+    // Language per account (22 Nov): signed out, the device language applies
+    // again (the account's own language stays on its profile).
+    try {
+      const dev = await AsyncStorage.getItem(LANG_KEY);
+      setLanguageState(dev ? JSON.parse(dev) : DEFAULT_LANG);
+    } catch { setLanguageState(DEFAULT_LANG); }
   };
 
   // Any authenticated fetch call site should call this the moment it sees a
@@ -450,9 +510,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSessionExpired(false);
   }, []);
 
+  // Language per account (22 Nov): signed in to an account -> save to that
+  // account's profile (PATCH /api/auth/language); guest or signed out ->
+  // the device value (gk_lang), as before. Does not navigate (97ac37d).
   const setLanguage = useCallback(async (l: Language) => {
     setLanguageState(l);
-    await AsyncStorage.setItem(LANG_KEY, JSON.stringify(l));
+    const t = tokenRef.current;
+    const u = userRef.current;
+    if (t && u && !u.is_guest) {
+      await saveProfileLanguage(t, l.code);
+    } else {
+      await AsyncStorage.setItem(LANG_KEY, JSON.stringify(l));
+    }
   }, []);
 
   const setAutoSpeak = useCallback(async (v: boolean) => {
@@ -519,7 +588,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       err.code = 'minor_blocked';
       throw err;
     }
-    await persist(data.token, data.user);
+    await persist(data.token, data.user, { isNew: !!data.is_new });
     return true;
   }, []);
 
