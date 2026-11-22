@@ -651,6 +651,7 @@ async def extend_checkin(token: str, body: ExtendIn, user: dict = Depends(curren
     except Exception:
         current_deadline = datetime.now(timezone.utc)
     new_deadline = current_deadline + timedelta(minutes=body.additional_mins)
+    now = datetime.now(timezone.utc)
     await db.safety_journeys.update_one(
         {"token": token},
         {"$set": {
@@ -659,7 +660,14 @@ async def extend_checkin(token: str, body: ExtendIn, user: dict = Depends(curren
             "reminder_sent_at":           None,
         }},
     )
-    return {"ok": True, "expected_checkin_at": new_deadline.isoformat()}
+    # A28: server_time rides along so the phone can re-measure how far its own
+    # clock is from the server's and keep the countdown on the server's
+    # deadline, not the phone's idea of the time.
+    return {
+        "ok": True,
+        "expected_checkin_at": new_deadline.isoformat(),
+        "server_time": now.isoformat(),
+    }
 
 
 @router.patch("/journey/status/{token}/destination", status_code=200)
@@ -698,6 +706,24 @@ async def change_destination(token: str, body: ChangeDestinationIn, user: dict =
 # database keep rendering for recipients.
 
 
+def _age_seconds(iso: str | None, now: datetime) -> int | None:
+    """A28: seconds between a stored timestamp and the server's own clock.
+
+    None when there is no timestamp or it cannot be read; never negative, so a
+    reading stamped slightly in the future reads as "just now" rather than as
+    a negative age.
+    """
+    if not iso:
+        return None
+    try:
+        taken = datetime.fromisoformat(iso)
+    except Exception:
+        return None
+    if taken.tzinfo is None:
+        taken = taken.replace(tzinfo=timezone.utc)
+    return max(0, int((now - taken).total_seconds()))
+
+
 @router.get("/journey/{token}/guardian", status_code=200)
 async def get_guardian_view(token: str, user: dict = Depends(current_user)):
     """Sign-in-gated Guardian endpoint (PR-1B full).
@@ -719,6 +745,7 @@ async def get_guardian_view(token: str, user: dict = Depends(current_user)):
     response — just the closed state and when it closed — no full data dump.
     """
     rec, access_level, link = await _guardian_access_check(token, user)
+    now = datetime.now(timezone.utc)
 
     # Destination is location data: disclose only when temp_location is True.
     # This is an application-level check on the link record returned by the DB.
@@ -737,6 +764,7 @@ async def get_guardian_view(token: str, user: dict = Depends(current_user)):
             "status":            rec.get("status"),
             "closed_at":         closed_at,
             "traveller_display": rec.get("user_display"),
+            "server_time":       now.isoformat(),
         }
 
     # Active journey: gate level determined by temp_location permission.
@@ -752,6 +780,9 @@ async def get_guardian_view(token: str, user: dict = Depends(current_user)):
         "expected_checkin_at": rec.get("expected_checkin_at"),
         "status":              rec.get("status"),
         "safe_at":             rec.get("safe_at"),
+        # A28: the recipient's own phone clock may be wrong too, so the server
+        # states its own time. The age below is worked out here, from it.
+        "server_time":         now.isoformat(),
     }
     if show_destination:
         body["destination"] = rec.get("destination")
@@ -768,6 +799,10 @@ async def get_guardian_view(token: str, user: dict = Depends(current_user)):
                     "accuracy":   last_loc.get("accuracy"),
                     "area":       last_loc.get("area"),
                     "updated_at": last_loc.get("updated_at"),
+                    # A28: how old this reading is, worked out by the server
+                    # from the true capture time (A07). Never negative; absent
+                    # when the stored time cannot be read.
+                    "age_seconds": _age_seconds(last_loc.get("updated_at"), now),
                 }
     return body
 
