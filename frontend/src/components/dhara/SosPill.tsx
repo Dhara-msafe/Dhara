@@ -2,19 +2,24 @@ import { Pressable, Text, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { theme } from '../../theme';
+import { UI_V22_ONE_SOS } from '../../uiV22Flags';
+import { useInDesktopFrame } from './desktopFrameContext';
 
 const c = theme.colors;
 
 /** Red SOS pill used in screen headers — routes to the Emergency screen. */
-export function SosPill({ onPress }: { onPress?: () => void }) {
+export function SosPill({ onPress, compact }: { onPress?: () => void; compact?: boolean }) {
   const router = useRouter();
+  // UI_V22_ONE_SOS: inside the desktop frame the sidebar SOS is the one entry.
+  const inDesktopFrame = useInDesktopFrame();
+  if (UI_V22_ONE_SOS && inDesktopFrame) return null;
   return (
     <Pressable
       testID="sos-pill"
       accessibilityRole="button"
       accessibilityLabel="Emergency SOS"
       onPress={onPress || (() => router.push('/emergency'))}
-      style={({ pressed }) => [styles.sos, pressed && { opacity: 0.85 }]}
+      style={({ pressed }) => [styles.sos, compact && styles.sosCompact, pressed && { opacity: 0.85 }]}
     >
       <Ionicons name="warning-outline" size={16} color="#fff" />
       <Text style={styles.sosTxt}>SOS</Text>
@@ -55,6 +60,7 @@ export function Divider() {
 
 const styles = StyleSheet.create({
   sos: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.emergencyRed, paddingHorizontal: 20, height: 48, borderRadius: 999 },
+  sosCompact: { paddingHorizontal: 14 },
   sosTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14, letterSpacing: 0.3 },
   qe: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff', paddingHorizontal: 20, height: 48, borderRadius: 999 },
   qeDark: { backgroundColor: 'rgba(255,255,255,0.14)' },

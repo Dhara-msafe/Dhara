@@ -29,7 +29,7 @@ const frame = readFileSync(join(root, 'src', 'components', 'dhara', 'DesktopFram
 test('flag defaults OFF: only the exact string "true" enables phase 5b', () => {
   assert.match(flags, /export const UI_V22_P5_HOME = process\.env\.EXPO_PUBLIC_UI_V22_P5_HOME === 'true';/);
   assert.match(home, /import \{ UI_V22_P5_HOME(, UI_V22_P8)? \} from '@\/src\/uiV22Flags';/);
-  assert.match(frame, /import \{ UI_V22_P5_HOME(, UI_V22_P6)? \} from '\.\.\/\.\.\/uiV22Flags';/);
+  assert.match(frame, /import \{ UI_V22_P5_HOME(, UI_V22_P6)?(, UI_V22_ONE_SOS)? \} from '\.\.\/\.\.\/uiV22Flags';/);
 });
 
 test('Home: "All help" tile dropped with the flag on; header link kept', () => {

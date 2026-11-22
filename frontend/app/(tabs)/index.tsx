@@ -51,6 +51,8 @@ import { styles } from '@/src/chat/chatStyles';
 // NF-UI-REV-03 (Group D, DHARA UI Revision v2.2.1): presentation-only
 // rollback flag + visible keyboard-focus ring. No API/routing/state changes.
 import { UI_REVISION_V1 } from '@/src/designRevision';
+import { UI_V22_ONE_SOS } from '@/src/uiV22Flags';
+import { SosPill } from '@/src/components/dhara/SosPill';
 import { focusRingStyle } from '@/src/a11yFocus';
 
 const CANCEL_THRESHOLD = -80; // px the user must drag left to cancel
@@ -1928,6 +1930,10 @@ export default function ChatScreen() {
           >
             <Ionicons name="time-outline" size={22} color={theme.colors.brand} />
           </Pressable>
+          {/* UI_V22_ONE_SOS (B-122): SOS sits in the header row, in normal
+              layout, instead of the tab layout's floating pill that covered
+              "New chat". Hidden inside the desktop frame (sidebar SOS). */}
+          {UI_V22_ONE_SOS && <SosPill compact />}
         </View>
       </View>
 
