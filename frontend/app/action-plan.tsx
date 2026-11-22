@@ -10,6 +10,7 @@ import { useScreenSpeech } from '@/src/hooks/useScreenSpeech';
 import { useRightsCard } from '@/src/hooks/useRightsCard';
 
 import { openExternal } from '@/src/outbound';
+import { openPhone } from '@/src/women/helpActions';
 import { UI_V22_P6 } from '@/src/uiV22Flags';
 import { dialLabel, dialHint, DIAL_112_BUTTON } from '@/src/emergencyCopy';
 const c = theme.colors;
@@ -48,6 +49,8 @@ export default function ActionPlan() {
   const needsSafetyGate = SAFETY_GATE_SCENARIOS.has(scenarioKey);
   const [safetyStatus, setSafetyStatus] = useState<SafetyStatus>(needsSafetyGate ? 'unknown' : 'safe');
   const [answered, setAnswered] = useState(false);
+  // v2.2 phase 6 follow-up: status from openPhone(), same line as Emergency.
+  const [dialStatus, setDialStatus] = useState('');
   const { speaking, blocked, error: speechError, listen } = useScreenSpeech();
   const { result, loading, error: cardError, retry } = useRightsCard(scenarioKey, lang);
   const card = result?.card;
@@ -94,15 +97,19 @@ export default function ActionPlan() {
           <View style={styles.safetyGateCard} testID="safety-emergency">
             <Ionicons name="warning" size={28} color="#B91C1C" />
             <Text style={styles.safetyGateTitle}>Get to safety first — help is one tap away</Text>
-            <Pressable style={styles.safetyEmergencyBtn} testID="safety-call-112" onPress={() => openExternal('tel:112').catch(() => {})}
+            <Pressable style={styles.safetyEmergencyBtn} testID="safety-call-112" onPress={UI_V22_P6 ? async () => setDialStatus(await openPhone('112')) : () => openExternal('tel:112').catch(() => {})}
               {...(UI_V22_P6 ? { accessibilityRole: 'button' as const, accessibilityLabel: dialLabel('112'), accessibilityHint: dialHint('112') } : {})}>
               <Ionicons name="call" size={20} color="#fff" />
               <Text style={styles.safetyGateDangerTxt}>{UI_V22_P6 ? DIAL_112_BUTTON : 'Call Police — 112'}</Text>
             </Pressable>
-            <Pressable style={[styles.safetyEmergencyBtn, { backgroundColor: c.darkGold }]} testID="safety-call-1091" onPress={() => openExternal('tel:1091').catch(() => {})}>
+            <Pressable style={[styles.safetyEmergencyBtn, { backgroundColor: c.darkGold }]} testID="safety-call-1091" onPress={UI_V22_P6 ? async () => setDialStatus(await openPhone('1091')) : () => openExternal('tel:1091').catch(() => {})}
+              {...(UI_V22_P6 ? { accessibilityRole: 'button' as const, accessibilityLabel: `${dialLabel('1091')} — Women's Emergency`, accessibilityHint: dialHint('1091') } : {})}>
               <Ionicons name="call" size={20} color="#fff" />
               <Text style={styles.safetyGateDangerTxt}>Women&apos;s Emergency — 1091</Text>
             </Pressable>
+            {UI_V22_P6 && !!dialStatus && (
+              <Text testID="safety-dial-status" style={styles.dialStatus} accessibilityLiveRegion="polite" accessibilityRole="alert" selectable>{dialStatus}</Text>
+            )}
             <Pressable testID="safety-gate-recheck" onPress={() => setSafetyStatus('unknown')}>
               <Text style={styles.safetyGateUnsureTxt}>Actually, I am safe now — show legal steps</Text>
             </Pressable>
@@ -190,6 +197,8 @@ export default function ActionPlan() {
 }
 
 const styles = StyleSheet.create({
+  // v2.2 phase 6 follow-up: dial status line (selectable = number fallback).
+  dialStatus: { fontFamily: theme.fonts.body, fontSize: 14, lineHeight: 20, color: c.ink, textAlign: 'center', marginTop: 4 },
   root: { flex: 1, backgroundColor: c.background },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12, backgroundColor: c.background, borderBottomWidth: 1, borderBottomColor: c.lines },
   iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
