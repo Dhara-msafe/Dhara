@@ -205,6 +205,12 @@ export default function TrustedCircleAndRules() {
     // record itself (see the journey-recovery effect added there) — this
     // screen doesn't need to call the journey API directly.
     resetWizard();
+    // 22 Nov (Vivek): clear the setup steps out of the history. Before, the
+    // journey screen replaced only Step 3, so Steps 1-2 stayed underneath and
+    // Back (during or after the journey) landed on "Step 1 of 3". Step back to
+    // Step 1 (or, if it isn't in the history, replace this screen), then
+    // replace it with the journey screen: history is now <origin> -> journey.
+    router.dismissTo('/women/head-out/destination');
     router.replace('/women/head-out');
   }, [draft, durationMins, remindBeforeMins, autoNotifyOnNoResponse, selectedRecipientIds, starting, resetWizard, router]);
 

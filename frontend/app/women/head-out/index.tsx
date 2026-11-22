@@ -1056,7 +1056,11 @@ export default function HeadOut() {
         <Pressable
           testID="headout-safe-done"
           style={(s) => [styles.button, styles.safeButton, { alignSelf: 'stretch', marginTop: 8 }, focusRingStyle(s)]}
-          onPress={() => { setSafeConfirmed(false); router.replace('/women-shield'); }}
+          // 22 Nov (Vivek): Done returns to where the journey was started
+          // (Home, or Women's Shield). Starting the journey already cleared the
+          // setup steps, so one step back is that screen. Nothing to go back to
+          // (opened straight onto the journey): go Home.
+          onPress={() => { setSafeConfirmed(false); if (router.canGoBack()) router.back(); else router.replace('/(tabs)/home'); }}
           accessibilityRole="button"
           accessibilityLabel="Done"
         >
