@@ -100,3 +100,16 @@ test('no new dial path: every new tap goes through openPhone (Outbound Guard)', 
     assert.ok(s.includes("import { openPhone } from '@/src/women/helpActions';"));
   }
 });
+
+test('follow-up: action plan + visitor 112 buttons use openPhone with a status line (flag on)', () => {
+  const plan = read('app', 'action-plan.tsx');
+  const visitor = read('app', 'visitor', 'intent.tsx');
+  assert.match(plan, /testID="safety-call-112" onPress=\{UI_V22_P6 \? async \(\) => setDialStatus\(await openPhone\('112'\)\) : \(\) => openExternal\('tel:112'\)/);
+  assert.match(plan, /testID="safety-call-1091" onPress=\{UI_V22_P6 \? async \(\) => setDialStatus\(await openPhone\('1091'\)\)/);
+  assert.match(plan, /testID="safety-dial-status"[^\n]*accessibilityLiveRegion="polite"[^\n]*selectable/);
+  assert.match(visitor, /testID="visitor-intent-call-112" onPress=\{UI_V22_P6 \? async \(\) => setDialStatus\(await openPhone\('112'\)\)/);
+  assert.match(visitor, /testID="visitor-dial-status"[^\n]*accessibilityLiveRegion="polite"[^\n]*selectable/);
+  for (const src of [plan, visitor]) {
+    assert.ok(src.includes("import { openPhone } from '@/src/women/helpActions';"));
+  }
+});

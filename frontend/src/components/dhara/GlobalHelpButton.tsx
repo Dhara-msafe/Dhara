@@ -16,11 +16,10 @@ const c = theme.colors;
  * safe to call from outside a specific Stack.Screen — it does not depend on
  * auth state, so it works with no login.
  */
-export function GlobalHelpButton() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const insets = useSafeAreaInsets();
-
+/** True when the Help button must not show on this route (see the notes
+ *  inside). Exported so the bottom dock (UI_V22_DOCK) can tell whether it
+ *  has anything to hold. */
+export function isGlobalHelpHidden(pathname: string | null | undefined): boolean {
   // Don't cover the Emergency screen's own controls with a button that just
   // re-opens the same screen, keep it off the splash/auth-callback route, and
   // keep Home calm/uncluttered — Help lives in the Me tab there instead.
@@ -38,7 +37,14 @@ export function GlobalHelpButton() {
   // on step 3 it covered the "Notify my circle" dropdown (owner finding 10,
   // 21 Nov). The active journey screen (/women/head-out) keeps the button.
   const isHeadOutWizardStep = !!pathname?.startsWith('/women/head-out/');
-  if (pathname === '/emergency' || pathname?.startsWith('/oauth') || (pathname?.startsWith('/women') && !pathname?.startsWith('/women/head-out')) || isHeadOutWizardStep || pathname?.startsWith('/family-journey') || pathname?.startsWith('/guardian') || pathname?.startsWith('/admin-') || isHome || hideScan || isAuthOnboarding) return null;
+  return !!(pathname === '/emergency' || pathname?.startsWith('/oauth') || (pathname?.startsWith('/women') && !pathname?.startsWith('/women/head-out')) || isHeadOutWizardStep || pathname?.startsWith('/family-journey') || pathname?.startsWith('/guardian') || pathname?.startsWith('/admin-') || isHome || hideScan || isAuthOnboarding);
+}
+
+export function GlobalHelpButton({ docked = false }: { docked?: boolean } = {}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const insets = useSafeAreaInsets();
+  if (isGlobalHelpHidden(pathname)) return null;
 
   return (
     <Pressable
@@ -51,7 +57,7 @@ export function GlobalHelpButton() {
       // 140 offset gives ~174px on modern iPhones — clears the full disclaimer
       // without rising into the screen content (the previous 180 was 52px too high
       // and overlapped the "Code phrase" ToolRow on the Women's Shield screen).
-      style={[styles.btn, { bottom: insets.bottom + 140 }]}
+      style={docked ? [styles.btn, styles.btnDocked] : [styles.btn, { bottom: insets.bottom + 140 }]}
     >
       <Ionicons name="alert-circle" size={18} color="#fff" />
       <Text style={styles.txt}>Help</Text>
@@ -77,5 +83,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     zIndex: 999,
   },
+  // UI_V22_DOCK: sits in the bottom dock's row, in normal layout flow.
+  btnDocked: { position: 'relative', right: undefined, bottom: undefined, minHeight: 48, elevation: 0, shadowOpacity: 0 },
   txt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14 },
 });

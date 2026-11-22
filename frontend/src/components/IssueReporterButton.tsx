@@ -29,6 +29,7 @@ import * as Device from 'expo-device';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
 import { theme } from '@/src/theme';
+import { UI_V22_DOCK } from '@/src/uiV22Flags';
 import { useAuth, API_BASE } from '@/src/auth';
 import {
   POSITION_KEY,
@@ -55,8 +56,18 @@ async function persistFabPosition(x: number, y: number): Promise<void> {
 }
 
 /** Off only when explicitly disabled, so every current build has it. */
-export const ISSUE_REPORTER_ENABLED =
-  process.env.EXPO_PUBLIC_ENABLE_ISSUE_REPORTER !== 'false';
+export const ISSUE_REPORTER_ENABLED = UI_V22_DOCK
+  // UI_V22_DOCK: test builds only — must be explicitly 'true', so a
+  // production build (which does not set it) never shows the button.
+  ? process.env.EXPO_PUBLIC_ENABLE_ISSUE_REPORTER === 'true'
+  : process.env.EXPO_PUBLIC_ENABLE_ISSUE_REPORTER !== 'false';
+
+/** Routes where the button never shows (Emergency controls, admin pages).
+ *  Exported so the bottom dock (UI_V22_DOCK) can tell whether it has
+ *  anything to hold. */
+export function isIssueReporterRouteHidden(pathname: string | null | undefined): boolean {
+  return pathname === '/emergency' || !!pathname?.startsWith('/admin-');
+}
 
 const PENDING_KEY = 'issue_reports_pending_v1';
 
@@ -115,7 +126,7 @@ async function postReport(token: string, report: Report): Promise<boolean> {
   return r.ok;
 }
 
-export function IssueReporterButton() {
+export function IssueReporterButton({ docked = false }: { docked?: boolean } = {}) {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const { token } = useAuth();
@@ -310,7 +321,7 @@ export function IssueReporterButton() {
   if (!ISSUE_REPORTER_ENABLED || !token) return null;
   // Never sit on top of the Emergency screen's own controls, or the
   // operator-only admin pages.
-  if (pathname === '/emergency' || pathname?.startsWith('/admin-')) return null;
+  if (isIssueReporterRouteHidden(pathname)) return null;
 
   const reset = () => {
     setCategory(''); setTitle(''); setDescription(''); setResult(null); setPickerOpen(false);
@@ -358,6 +369,20 @@ export function IssueReporterButton() {
 
   return (
     <>
+      {docked ? (
+        // UI_V22_DOCK: a plain button in the bottom dock's row — no drag,
+        // no floating layer, so it cannot cover anything.
+        <Pressable
+          testID="issue-reporter-button"
+          accessibilityRole="button"
+          accessibilityLabel="Report a problem with the app"
+          accessibilityHint="Opens a form to describe an issue for the DHARA team."
+          onPress={() => setOpen(true)}
+          style={[styles.fab, styles.fabDocked]}
+        >
+          <Ionicons name="bug-outline" size={20} color="#fff" />
+        </Pressable>
+      ) : (
       <GestureDetector gesture={pan}>
         <Animated.View
           testID="issue-reporter-button"
@@ -377,6 +402,7 @@ export function IssueReporterButton() {
           <Ionicons name="bug-outline" size={20} color="#fff" />
         </Animated.View>
       </GestureDetector>
+      )}
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
         <View style={styles.backdrop}>
@@ -494,6 +520,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     zIndex: 999,
   },
+  // UI_V22_DOCK: in normal layout flow inside the dock; 48px target.
+  fabDocked: { width: 48, height: 48, elevation: 0, shadowOpacity: 0 },
   backdrop: { flex: 1, backgroundColor: 'rgba(14,39,64,0.45)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: c.surface,
