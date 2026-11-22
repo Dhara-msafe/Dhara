@@ -90,6 +90,69 @@ _POLICY = {
 }
 
 
+# ── Pilot allow-list (A32) ───────────────────────────────────────────────────
+# A named, owner-approved exception for a supervised pilot: the people running
+# the pilot must be able to see a real missed-check-in alert arrive on a
+# guardian's phone, while every other account on the same deployment keeps the
+# profile's own (blocked) behaviour.
+#
+# Deliberately narrow:
+#   * PUSH only. SMS, the dialler, email and external share are untouched —
+#     guardian SMS stays blocked and still waits for DLT registration.
+#   * Only the user ids listed in PILOT_ALERT_USER_IDS.
+#   * The master switch still wins: OUTBOUND_MODE must be "live".
+#   * Only on a real deployment: DEPLOYMENT_ENV must be "production", so a
+#     preview can never reach a real phone through this door.
+#   * Unset or empty (the default) = nothing changes anywhere.
+PILOT_CHANNELS = (PUSH,)
+PILOT_LIST_ENV = "PILOT_ALERT_USER_IDS"
+PILOT_LIST_MAX = 25
+
+
+def pilot_user_ids() -> frozenset:
+    """User ids on the pilot allow-list. Separated by commas or whitespace."""
+    raw = os.environ.get(PILOT_LIST_ENV, "")
+    ids = [p.strip() for p in raw.replace(",", " ").split()]
+    ids = [i for i in ids if i]
+    if len(ids) > PILOT_LIST_MAX:
+        logger.warning(
+            "[outbound_guard] %s has %d entries; only the first %d are used.",
+            PILOT_LIST_ENV, len(ids), PILOT_LIST_MAX,
+        )
+        ids = ids[:PILOT_LIST_MAX]
+    return frozenset(ids)
+
+
+def pilot_override_active() -> bool:
+    """True when the allow-list can let a real push through at all."""
+    return (
+        outbound_live()
+        and os.environ.get("DEPLOYMENT_ENV") == "production"
+        and bool(pilot_user_ids())
+    )
+
+
+def should_send_to(channel: str, user_id: str) -> bool:
+    """Per-recipient version of should_send(). True when the channel is live
+    for everyone, or when this one account is on the pilot allow-list for a
+    channel the allow-list covers."""
+    if should_send(channel):
+        return True
+    if channel not in PILOT_CHANNELS or not user_id:
+        return False
+    if not pilot_override_active():
+        return False
+    return user_id in pilot_user_ids()
+
+
+def split_recipients(channel: str, recipients) -> tuple:
+    """(allowed, blocked) for a list of user ids, keeping their order."""
+    allowed, blocked = [], []
+    for uid in recipients:
+        (allowed if should_send_to(channel, uid) else blocked).append(uid)
+    return allowed, blocked
+
+
 def outbound_mode() -> str:
     return "live" if os.environ.get("OUTBOUND_MODE") == "live" else "simulate"
 
@@ -135,6 +198,13 @@ def policy_snapshot() -> dict:
         "mode": outbound_mode(),
         "profile": outbound_profile(),
         "channels": {c: channel_effective(c) for c in CHANNELS},
+        # A32: counts only — the snapshot is a health endpoint, so it names
+        # no account.
+        "pilot_allowlist": {
+            "active": pilot_override_active(),
+            "channels": list(PILOT_CHANNELS),
+            "count": len(pilot_user_ids()),
+        },
     }
 
 
@@ -189,6 +259,24 @@ def validate_outbound_config() -> str:
             "enabled channels will still SIMULATE until the master switch is live.",
             raw,
         )
+    # A32: say plainly at startup whether the pilot allow-list is doing
+    # anything, so nobody has to guess why a push did or did not arrive.
+    # Counts only — never the account ids.
+    pilot_n = len(pilot_user_ids())
+    if pilot_n:
+        if pilot_override_active():
+            logger.warning(
+                "[outbound_guard] pilot allow-list ACTIVE for %d account(s) on %s "
+                "— every other account keeps the profile's behaviour.",
+                pilot_n, ",".join(PILOT_CHANNELS),
+            )
+        else:
+            logger.warning(
+                "[outbound_guard] %s lists %d account(s) but has NO effect "
+                "(needs OUTBOUND_MODE=live and DEPLOYMENT_ENV=production; "
+                "mode=%s env=%s).",
+                PILOT_LIST_ENV, pilot_n, raw, os.environ.get("DEPLOYMENT_ENV"),
+            )
     logger.warning(
         "[outbound_guard] OUTBOUND_MODE=%s profile=%s", raw, outbound_profile()
     )
