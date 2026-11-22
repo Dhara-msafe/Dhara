@@ -23,6 +23,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '@/src/theme';
+import { UI_V22_P9, headOutBottomGutter } from '@/src/uiV22Flags';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { useAuth } from '@/src/auth';
 import { useHeadOutWizard } from '@/src/women/headOutWizardStore';
@@ -212,8 +213,11 @@ export default function TrustedCircleAndRules() {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Trusted Circle & Rules" subtitle="Step 3 of 3" />
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 110 }]}>
+      <ScreenHeader
+        title={UI_V22_P9 ? 'Head out safely' : 'Trusted Circle & Rules'}
+        subtitle={UI_V22_P9 ? 'Step 3 of 3 — Who can see your journey, and for how long' : 'Step 3 of 3'}
+      />
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + headOutBottomGutter(110) }]}>
 
         {RECIPIENTS_ENABLED && (
           <>

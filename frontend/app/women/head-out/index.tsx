@@ -5,6 +5,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '@/src/theme';
+import { UI_V22_P9, headOutBottomGutter } from '@/src/uiV22Flags';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { getCircle, type Contact } from '@/src/women/api';
 import { useAuth } from '@/src/auth';
@@ -1084,7 +1085,7 @@ export default function HeadOut() {
   return (
     <ScrollView
       style={styles.root}
-      contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
+      contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + headOutBottomGutter(32) }]}
       keyboardShouldPersistTaps="handled"
       testID="head-out-screen"
     >
@@ -1433,6 +1434,19 @@ export default function HeadOut() {
             </View>
       ) : (
             <View style={styles.activeCard} testID="headout-active-card">
+              {/* P9 (v2.2 'On the way'): say plainly when the chosen people
+                  can see the journey. Reads existing state only — shown
+                  only while the server journey exists, someone is picked and
+                  sharing has not been stopped. */}
+              {UI_V22_P9 && journeyToken && hasCircleRecipients && !sharingRevoked && !pendingRevoke && (
+                <View style={styles.sharingOnBanner} testID="headout-sharing-on" accessibilityRole="text">
+                  <View style={styles.sharingOnDot} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.sharingOnTitle}>Sharing is on</Text>
+                    <Text style={styles.sharingOnBody}>The people you chose can see this journey.</Text>
+                  </View>
+                </View>
+              )}
               <View style={styles.activeHeader}>
                 <Ionicons name="navigate-circle-outline" size={26} color={c.navy} />
                 <Text style={styles.activeTitle}>Journey active</Text>
@@ -1813,6 +1827,15 @@ const styles = StyleSheet.create({
   },
   buttonText: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: '#fff' },
   safeButton: { backgroundColor: c.verifiedGreen },
+  // P9 'Sharing is on' banner (v2.2 On the way header, green)
+  sharingOnBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: c.verifiedGreen, borderRadius: 12,
+    paddingVertical: 10, paddingHorizontal: 14, marginBottom: 12, minHeight: 48,
+  },
+  sharingOnDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.85)' },
+  sharingOnTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: '#fff' },
+  sharingOnBody: { fontFamily: theme.fonts.body, fontSize: 13, color: 'rgba(255,255,255,0.92)', marginTop: 1 },
   alertButton: { backgroundColor: c.emergencyRed },
   guardianBtn: { backgroundColor: c.navySoft, borderWidth: 1.5, borderColor: c.navy },
   activeCard: {
@@ -1846,7 +1869,7 @@ const styles = StyleSheet.create({
   gpsRationaleCard: { flexDirection: 'row', gap: 10, backgroundColor: '#EFF6FF', borderRadius: 10, padding: 12, marginTop: 10, alignItems: 'flex-start' },
   gpsRationaleTitle: { fontFamily: theme.fonts.body, fontSize: 13, fontWeight: '600', color: '#1E3A8A', marginBottom: 3 },
   gpsRationaleBody: { fontFamily: theme.fonts.body, fontSize: 12, color: '#1D4ED8', lineHeight: 17 },
-  gpsAllowBtn: { marginTop: 8, backgroundColor: '#1D4ED8', borderRadius: 8, minHeight: 44, justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start' },
+  gpsAllowBtn: { marginTop: 8, backgroundColor: '#1D4ED8', borderRadius: 8, minHeight: UI_V22_P9 ? 48 : 44, justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start' },
   gpsAllowBtnText: { fontFamily: theme.fonts.body, fontSize: 12, color: '#fff', fontWeight: '600' },
   // handle_permissions_contract — permanent denial + Settings redirect
   gpsDeniedCard: { flexDirection: 'row', gap: 10, backgroundColor: '#FEF2F2', borderRadius: 10, padding: 12, marginTop: 10, alignItems: 'flex-start' },
@@ -1929,7 +1952,7 @@ const styles = StyleSheet.create({
   alarmBannerBody: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, lineHeight: 19, marginTop: 2 },
   alarmRetryBtn: {
     alignSelf: 'flex-start', marginTop: 8, paddingVertical: 8, paddingHorizontal: 14,
-    borderRadius: 10, borderWidth: 1.5, borderColor: c.navy, backgroundColor: c.surface, minHeight: 44, justifyContent: 'center',
+    borderRadius: 10, borderWidth: 1.5, borderColor: c.navy, backgroundColor: c.surface, minHeight: UI_V22_P9 ? 48 : 44, justifyContent: 'center',
   },
   alarmRetryTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13.5, color: c.navy },
   alarmOnRow: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'stretch' },
