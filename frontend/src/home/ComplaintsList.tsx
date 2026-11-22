@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { ActivityIndicator, Pressable, Text, View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ComplaintCard } from './ComplaintCard';
@@ -5,8 +6,13 @@ import { isDraftReady, useComplaints } from './complaints';
 import { theme } from '../theme';
 
 const colors = theme.colors;
-export function ComplaintsList({ all = false }: { all?: boolean }) {
+export function ComplaintsList({ all = false, onEmptyChange }: { all?: boolean; onEmptyChange?: (empty: boolean) => void }) {
   const { items, loading, error, retry } = useComplaints();
+  // UI_V22_SWEEP: lets the Complaints screen hide its header "+" while the
+  // list is definitely empty (loaded, no error, no items). Optional; Home
+  // does not pass it.
+  const definitelyEmpty = !loading && !error && items.length === 0;
+  useEffect(() => { onEmptyChange?.(definitelyEmpty); }, [definitelyEmpty, onEmptyChange]);
   const router = useRouter();
   const scope = all ? 'complaints' : 'home';
   const active = items.find(item => !isDraftReady(item));
