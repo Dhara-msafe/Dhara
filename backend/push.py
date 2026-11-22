@@ -11,7 +11,9 @@ import os
 import logging
 import httpx
 
-from services.outbound_guard import outbound_live, record_simulated, should_send, PUSH
+from services.outbound_guard import (
+    outbound_live, record_simulated, should_send, should_send_to, split_recipients, PUSH,
+)
 
 logger = logging.getLogger("push")
 
@@ -26,8 +28,13 @@ _client = httpx.AsyncClient(
 
 
 async def register_device(user_id: str, platform: str, device_token: str) -> dict:
-    """Upsert a device token with the relay. Called by POST /api/register-push."""
-    if not should_send(PUSH):
+    """Upsert a device token with the relay. Called by POST /api/register-push.
+
+    A32: an account on the pilot allow-list registers for real even while the
+    profile disables push for everyone else — without this, the relay would
+    hold no token for them and the allow-list could never deliver anything.
+    """
+    if not should_send_to(PUSH, user_id):
         await record_simulated("push_register", user_id, {"platform": platform})
         return {"status": "simulated"}
     resp = await _client.post(
@@ -49,7 +56,7 @@ async def unregister_device(user_id: str) -> None:
     DB. Same contract as register_device/send_push: callers MUST wrap this
     in try/except — a relay hiccup must never block the deletion itself.
     """
-    if not should_send(PUSH):
+    if not should_send_to(PUSH, user_id):
         await record_simulated("push_unregister", user_id, {})
         return
     resp = await _client.post(
@@ -76,11 +83,16 @@ async def send_push(recipients: list[str], data: dict, idempotency_key: str | No
         return
     if "title" not in data or "message" not in data:
         raise ValueError("data must include title and message")
-    if not should_send(PUSH):
-        await record_simulated("push", ",".join(recipients), {"data": data, "idempotency_key": idempotency_key})
+    # A32: push may be live for everyone (production profile) or for the pilot
+    # allow-list only. Everyone else is recorded as simulated, exactly as
+    # before.
+    allowed, blocked = split_recipients(PUSH, recipients)
+    if blocked:
+        await record_simulated("push", ",".join(blocked), {"data": data, "idempotency_key": idempotency_key})
+    if not allowed:
         return
-    for i in range(0, len(recipients), 100):
-        chunk = recipients[i : i + 100]
+    for i in range(0, len(allowed), 100):
+        chunk = allowed[i : i + 100]
         payload: dict = {"recipients": chunk, "data": data}
         if idempotency_key:
             payload["$idempotency_key"] = f"{idempotency_key}:{i // 100}"
