@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/src/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { consentVersionKey, isCurrentConsent } from '@/src/consentStorage';
 import { theme } from '@/src/theme';
 import { trackEvent } from '@/src/analytics';
 // NF-UI-REV-05 (Group F, DHARA UI Revision v2.2.1): presentation-only
@@ -89,6 +91,14 @@ export default function Login() {
   const onGuestContinue = async () => {
     setError(null);
     clearSessionExpired();
+    // 22 Nov (Vivek): a guest is a new person on this device. If nobody has
+    // consented since the last sign-out, show the privacy notice first; it
+    // starts the guest session after Accept.
+    const given = await AsyncStorage.getItem(consentVersionKey(undefined)).catch(() => null);
+    if (!isCurrentConsent(given, undefined)) {
+      router.push({ pathname: '/consent', params: { next: 'guest' } } as any);
+      return;
+    }
     setGuestLoading(true);
     try {
       await continueAsGuest();

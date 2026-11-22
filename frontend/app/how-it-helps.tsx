@@ -123,7 +123,10 @@ export default function HowItHelps() {
         <Pressable
           testID="how-it-helps-next"
           style={(s) => [styles.nextBtn, focusRingStyle(s)]}
-          onPress={() => router.replace('/login')}
+          // 22 Nov (Vivek): first install goes straight to the privacy notice
+          // (Step 3 of 4). The sign-in page no longer forces it for a device
+          // that is already set up.
+          onPress={() => router.replace('/consent')}
           accessibilityRole="button"
           accessibilityLabel="Next"
         >

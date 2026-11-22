@@ -94,11 +94,23 @@ function ConsentGuard() {
     // 'how-it-helps' added v2.2.1 Stage 4 Group D: new pre-login onboarding
     // screen shown right after /language, same exemption reason as 'language'.
     if (loading || !segments.length || segments[0] === 'language' || segments[0] === 'how-it-helps' || segments[0] === 'consent' || segments[0] === 'emergency' || segments[0] === 'guardian' || segments[0] === 'pay-upi' || segments[0] === 'admin-upi-review' || segments[0] === 'admin-issues') return;
+    // 22 Nov (Vivek): signing in to an existing account, or resetting its
+    // password, needs no new notice. Whoever creates something new on this
+    // device is asked: "Create an account" lands on /signup (redirected below
+    // with next=signup), "Continue as guest" asks in login.tsx, and a signed-in
+    // account that has never consented (e.g. a new Google account) is asked
+    // right after sign-in. First install reaches /consent from How it helps.
+    if (!user && (segments[0] === 'login' || segments[0] === 'forgot-password')) return;
     let active = true;
     void (async () => {
       const stored = await AsyncStorage.getItem(consentVersionKey(user?.id)).catch(() => null);
       if (active && !isCurrentConsent(stored, user?.terms_version)) {
-        router.replace(user?.id ? { pathname: '/consent', params: { mode: 'update' } } : '/consent');
+        // The full notice, never mode=update: update mode (B-81) only shows the
+        // two optional switches and does not record consent, so an account that
+        // never consented went round in circles without seeing the notice.
+        router.replace(!user?.id && segments[0] === 'signup'
+          ? { pathname: '/consent', params: { next: 'signup' } }
+          : '/consent');
       }
     })();
     return () => { active = false; };
