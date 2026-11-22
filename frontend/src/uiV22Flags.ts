@@ -9,6 +9,20 @@
  */
 
 /**
+ * Phase 10: Consent settings and privacy (Settings > Data & privacy), look
+ * only, for what already exists. Optional choices (Analytics, Service
+ * updates) get an "Optional" badge and an Agreed / Not given state chip in
+ * the theme's consentState colours (added in P1 for this phase); consent
+ * history chips use the same colours and say the state in words; section
+ * headers become small-caps labels; tap targets reach 48 px. No change to
+ * what is stored, sent, defaulted or worded in the consent notice. Not in
+ * this phase (own tickets): required-consent withdrawal, screen 58, a 5th
+ * purpose, retention periods, Pro price.
+ * Declared above P8 so it doesn't collide with flags appended at the end.
+ */
+export const UI_V22_P10 = process.env.EXPO_PUBLIC_UI_V22_P10 === 'true';
+
+/**
  * Phase 8: Women's Shield and journey naming.
  * - Women's Shield: safety tools before "Know your rights"
  * - the dead "Safe-journey check-in" switch row is removed (it only stored
