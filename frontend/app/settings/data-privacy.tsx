@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { UI_V22_P10 } from '@/src/uiV22Flags';
 import { useFamilyJourneyEnabled } from '@/src/familyJourney/store';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -79,6 +80,27 @@ const USES = [
   'Your FIR drafts are stored on DHARA\'s servers (encrypted at rest) and are never shared with police, courts, or any third party — DHARA only shows them to you.',
   'We do not sell your data.',
 ];
+
+/** P10: consent state chip colours from theme.consentState (P1 tokens). */
+const CS = theme.consentState;
+function P10OptionalStatus({ on, testID }: { on: boolean; testID: string }) {
+  const tone = on ? CS.agreed : CS.notGiven;
+  return (
+    <View style={styles.p10StatusRow} testID={testID}>
+      <View style={[styles.p10StateChip, { backgroundColor: tone.bg }]}>
+        <Text style={[styles.p10StateChipText, { color: tone.fg }]}>{on ? 'Agreed' : 'Not given'}</Text>
+      </View>
+      <Text style={styles.p10StateNote}>Saved with the date and time in your record</Text>
+    </View>
+  );
+}
+
+/** P10: history chip — state in words AND colour (not ✓/✗ alone). An
+ * optional purpose that is off may never have been given, so it uses the
+ * neutral 'not given' tone, never the red 'withdrawn' one. */
+function p10ChipTone(on: boolean) {
+  return on ? CS.agreed : CS.notGiven;
+}
 
 export default function DataPrivacyScreen() {
   const router = useRouter();
@@ -488,8 +510,12 @@ export default function DataPrivacyScreen() {
                 <Ionicons name="bar-chart-outline" size={20} color={PRIMARY} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.actionTitle}>Analytics</Text>
+                <View style={styles.p10TitleRow}>
+                  <Text style={styles.actionTitle}>Analytics</Text>
+                  {UI_V22_P10 && <View style={styles.p10OptionalBadge}><Text style={styles.p10OptionalBadgeText}>Optional</Text></View>}
+                </View>
                 <Text style={styles.actionSub}>Help improve DHARA using anonymised usage data</Text>
+                {UI_V22_P10 && <P10OptionalStatus on={analytics} testID="consent-analytics-state" />}
               </View>
               {purposesSaving
                 ? <ActivityIndicator size="small" color={PRIMARY} />
@@ -512,8 +538,12 @@ export default function DataPrivacyScreen() {
                 <Ionicons name="notifications-outline" size={20} color={PRIMARY} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.actionTitle}>Service updates</Text>
+                <View style={styles.p10TitleRow}>
+                  <Text style={styles.actionTitle}>Service updates</Text>
+                  {UI_V22_P10 && <View style={styles.p10OptionalBadge}><Text style={styles.p10OptionalBadgeText}>Optional</Text></View>}
+                </View>
                 <Text style={styles.actionSub}>Receive important updates about DHARA features</Text>
+                {UI_V22_P10 && <P10OptionalStatus on={updates} testID="consent-updates-state" />}
               </View>
               {purposesSaving
                 ? <ActivityIndicator size="small" color={PRIMARY} />
@@ -640,10 +670,21 @@ export default function DataPrivacyScreen() {
                       <Text style={styles.historyTime}>{fmtDate(entry.timestamp)}</Text>
                       <View style={[styles.purposeChips, { marginTop: 5 }]}>
                         {entry.purposes?.core !== false && (
-                          <View style={[styles.chip, { backgroundColor: '#EEF2FF' }]}>
-                            <Text style={[styles.chipText, { color: '#3730A3' }]}>Core ✓</Text>
+                          <View style={[styles.chip, { backgroundColor: UI_V22_P10 ? CS.agreed.bg : '#EEF2FF' }]}>
+                            <Text style={[styles.chipText, { color: UI_V22_P10 ? CS.agreed.fg : '#3730A3' }]}>{UI_V22_P10 ? 'Core: agreed' : 'Core ✓'}</Text>
                           </View>
                         )}
+                        {UI_V22_P10 ? (
+                          <>
+                            {([['Analytics', !!entry.purposes?.analytics], ['Updates', !!entry.purposes?.updates]] as const).map(([name, on]) => (
+                              <View key={name} style={[styles.chip, { backgroundColor: p10ChipTone(on).bg }]}>
+                                <Text style={[styles.chipText, { color: p10ChipTone(on).fg }]}>
+                                  {name}: {on ? 'agreed' : 'not given'}
+                                </Text>
+                              </View>
+                            ))}
+                          </>
+                        ) : (<>
                         <View style={[styles.chip,
                           entry.purposes?.analytics
                             ? { backgroundColor: '#F0FDF4' }
@@ -670,6 +711,7 @@ export default function DataPrivacyScreen() {
                             Updates {entry.purposes?.updates ? '✓' : '✗'}
                           </Text>
                         </View>
+                        </>)}
                       </View>
                       {entry.notice_version ? (
                         <Text style={styles.historyVersion}>Notice v{entry.notice_version}</Text>
@@ -778,6 +820,7 @@ const styles = StyleSheet.create({
 
   // ── Accordion ──────────────────────────────────────────────────────────────
   accordionHeader: {
+    minHeight: UI_V22_P10 ? 48 : undefined,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -866,7 +909,9 @@ const styles = StyleSheet.create({
 
   // ── Section header (non-accordion) ─────────────────────────────────────────
   sectionHeader: {
-    fontSize: 13,
+    // P10: v2.2 small-caps section label (same words, presentation only)
+    ...(UI_V22_P10 ? { textTransform: 'uppercase' as const, letterSpacing: 0.8, fontSize: 12 } : null),
+    fontSize: UI_V22_P10 ? 12 : 13,
     fontWeight: '800',
     color: PRIMARY,
     textTransform: 'uppercase',
@@ -1004,9 +1049,17 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   chipText: {
-    fontSize: 11,
+    fontSize: UI_V22_P10 ? 12 : 11,
     fontWeight: '700',
   },
+  // ── P10 (v2.2 consent settings look) ──
+  p10TitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  p10OptionalBadge: { backgroundColor: theme.consentState.notGiven.bg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
+  p10OptionalBadgeText: { fontSize: 11, fontWeight: '700', color: theme.consentState.notGiven.fg },
+  p10StatusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' },
+  p10StateChip: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
+  p10StateChipText: { fontSize: 12, fontWeight: '700' },
+  p10StateNote: { fontSize: 12, color: theme.colors.onSurfaceTertiary },
 
   // ── Consent history ledger (Screen 55) ───────────────────────────────────
   historyRow: {
@@ -1049,6 +1102,8 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   viewAllBtn: {
+    minHeight: UI_V22_P10 ? 48 : undefined,
+    justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 12,
     marginTop: 4,

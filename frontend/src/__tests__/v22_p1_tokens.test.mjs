@@ -97,13 +97,22 @@ test('phase 1 is additive: pre-existing values are unchanged', () => {
   }
 });
 
-test('no screen consumes the new tokens yet (phase 1 renders nothing differently)', () => {
+test('new tokens are consumed only by later phases behind their own flag', () => {
   // The new tokens become live in later phases, each behind its own
-  // EXPO_PUBLIC_UI_V22_P* flag. In phase 1 nothing outside theme.ts and
-  // this test may reference them.
+  // EXPO_PUBLIC_UI_V22_P* flag. Phase 10 (Data & privacy) is the first, and
+  // only, consumer so far; every use there sits behind UI_V22_P10. Any other
+  // file referencing them must be added here deliberately, with its phase.
+  const ALLOWED = new Set([
+    'app/settings/data-privacy.tsx', // P10, behind UI_V22_P10
+    'src/uiV22Flags.ts',             // P10's doc comment names the tokens
+  ]);
   const hits = execSync(
     `grep -rlE "goldTextStrong|consentState|touchTarget" app src --include=*.tsx --include=*.ts | grep -v __tests__ | grep -v src/theme.ts || true`,
     { cwd: join(here, '..', '..'), encoding: 'utf8', shell: '/bin/bash' },
-  ).trim();
-  assert.equal(hits, '', `new tokens must not be consumed in phase 1, found in: ${hits}`);
+  ).trim().split('\n').filter(Boolean);
+  const unexpected = hits.filter(h => !ALLOWED.has(h));
+  assert.deepEqual(unexpected, [], `new tokens consumed outside an approved phase: ${unexpected.join(', ')}`);
+  // The P10 consumer must gate its use on the flag.
+  const dp = readFileSync(join(here, '..', '..', 'app', 'settings', 'data-privacy.tsx'), 'utf8');
+  assert.match(dp, /UI_V22_P10/);
 });
