@@ -15,6 +15,7 @@ import { FJ_SEND_ENABLED } from './flags';
 // rollback flag + visible keyboard-focus ring + missing a11y labels. This
 // file is shared by all Family Journey screens; no logic/copy changes.
 import { UI_REVISION_V1 } from '../designRevision';
+import { UI_V22_SWEEP } from '../uiV22Flags';
 import { focusRingStyle } from '../a11yFocus';
 
 const c = theme.colors;
@@ -29,7 +30,8 @@ export function JourneyHeader({ title, subtitle }: { title: string; subtitle?: s
         <Ionicons name="chevron-back" size={24} color="#fff" />
       </Pressable>
       <View style={{ flex: 1 }}>
-        <Text style={styles.hTitle} numberOfLines={1}>{title}</Text>
+        {/* UI_V22_SWEEP: the title wraps instead of being cut off at 390px. */}
+        <Text style={styles.hTitle} numberOfLines={UI_V22_SWEEP ? 2 : 1}>{title}</Text>
         {subtitle ? <Text style={styles.hSub} numberOfLines={2}>{subtitle}</Text> : null}
       </View>
       <SosPill />

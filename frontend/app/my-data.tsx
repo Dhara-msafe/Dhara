@@ -30,6 +30,8 @@ import * as Sharing from 'expo-sharing';
 // export/fetch/delete logic changes.
 import { UI_REVISION_V1 } from '@/src/designRevision';
 import { focusRingStyle } from '@/src/a11yFocus';
+import { UI_V22_MYDATA } from '@/src/uiV22Flags';
+import { retentionLabel } from '@/src/myDataLabels';
 // B-70: this screen used to hardcode its own grievance address, different
 // from the consent screen and /grievance. It now reads the single source,
 // operatorIdentity.ts (Varuna Moses, grievances@askdhara.in, owner-confirmed
@@ -234,7 +236,7 @@ export default function MyDataScreen() {
           {Object.entries(retention).map(([key, val], i, arr) => (
             <DataRow
               key={key}
-              label={key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+              label={UI_V22_MYDATA ? retentionLabel(key) : key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
               value={val as string}
               last={i === arr.length - 1}
             />
@@ -318,9 +320,10 @@ function DataRow({
   last?: boolean;
 }) {
   return (
-    <View style={[styles.dataRow, last && { borderBottomWidth: 0 }]}>
+    <View style={[styles.dataRow, UI_V22_MYDATA && styles.dataRowWrap, last && { borderBottomWidth: 0 }]}>
       <Text style={styles.dataLabel}>{label}</Text>
-      <Text style={styles.dataValue} numberOfLines={2}>{value}</Text>
+      {/* UI_V22_MYDATA: the full value wraps instead of being cut at 2 lines. */}
+      <Text style={styles.dataValue} numberOfLines={UI_V22_MYDATA ? undefined : 2}>{value}</Text>
     </View>
   );
 }
@@ -406,6 +409,8 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.divider,
     gap: 8,
   },
+  // UI_V22_MYDATA: multi-line values align to the top of the row.
+  dataRowWrap: { alignItems: 'flex-start' },
   dataLabel: {
     fontSize: 13,
     color: theme.colors.onSurfaceSecondary,

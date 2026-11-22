@@ -44,7 +44,7 @@ import { openExternal } from '@/src/outbound';
 // EvidenceWidget, ConfirmButtons, EmergencyOverlay). Zero changes to the
 // FIR wizard's stage/question/upload/recording logic.
 import { UI_REVISION_V1 } from '@/src/designRevision';
-import { UI_V22_P8 } from '@/src/uiV22Flags';
+import { UI_V22_P8, UI_V22_SWEEP } from '@/src/uiV22Flags';
 import { focusRingStyle } from '@/src/a11yFocus';
 // Native location is optional; importing it on web fails in the installed version.
 const Location: typeof import('expo-location') | null =
@@ -1396,9 +1396,10 @@ ${data.bot_message}`);
                     <Text style={styles.moduleEmoji}>{mod.emoji}</Text>
                   </View>
                   <View style={styles.moduleInfo}>
-                    <Text style={[styles.moduleLabel, isSelected && { color: mod.color }]} numberOfLines={1}>{mod.label}</Text>
-                    <Text style={styles.moduleSub} numberOfLines={1}>{mod.sublabel}</Text>
-                    <Text style={[styles.moduleBns, { color: mod.color }]} numberOfLines={1}>{mod.bns}</Text>
+                    {/* UI_V22_SWEEP: two lines at 390px instead of cutting the text off. */}
+                    <Text style={[styles.moduleLabel, isSelected && { color: mod.color }]} numberOfLines={UI_V22_SWEEP ? 2 : 1}>{mod.label}</Text>
+                    <Text style={styles.moduleSub} numberOfLines={UI_V22_SWEEP ? 2 : 1}>{mod.sublabel}</Text>
+                    <Text style={[styles.moduleBns, { color: mod.color }]} numberOfLines={UI_V22_SWEEP ? 2 : 1}>{mod.bns}</Text>
                   </View>
                   {isSelected && (
                     <Ionicons name="checkmark-circle" size={18} color={mod.color} style={styles.moduleCheck} />
