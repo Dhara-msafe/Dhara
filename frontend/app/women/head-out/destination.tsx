@@ -228,6 +228,10 @@ export default function ChooseDestination() {
   const setDraft = useHeadOutWizard(s => s.setDestination);
 
   const [value, setValue] = useState<DestinationValue>(draft);
+  // A36: the map sits inside this scrolling page. While her finger is on
+  // the map the page must not scroll, or the drag moves the page instead
+  // of the pin (tester bug T1).
+  const [mapActive, setMapActive] = useState(false);
   const [tab, setTab] = useState<Tab>('saved');
   // Bumped only on an explicit "jump" (saved place / recent / address pick)
   // so the map recentres — not on every drag, which should stay in view.
@@ -525,7 +529,7 @@ export default function ChooseDestination() {
   return (
     <View style={styles.root}>
       <ScreenHeader title={UI_V22_P9 ? 'Head out safely' : 'Head Out'} subtitle="Step 1 of 3 — Where are you going?" />
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + headOutBottomGutter(110) }]} keyboardShouldPersistTaps="handled">
+      <ScrollView scrollEnabled={!mapActive} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + headOutBottomGutter(110) }]} keyboardShouldPersistTaps="handled">
 
         <Text style={styles.fieldLabel}>Where are you going?</Text>
         <View style={styles.searchRow}>
@@ -720,6 +724,7 @@ export default function ChooseDestination() {
         )}
 
         <DestinationMapPicker
+          onInteractionChange={setMapActive}
           testID="headout-dest-map"
           latitude={value.latitude ?? null}
           longitude={value.longitude ?? null}
