@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../theme';
+import { UI_V22_S2 } from '../../uiV22Flags';
 
 const c = theme.colors;
 
@@ -25,7 +26,9 @@ export function ScreenHeader({ title, subtitle }: { title: string; subtitle?: st
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.navy, paddingHorizontal: 12, paddingBottom: 16 },
-  back: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  // v2.2 (UI_V22_S2): component-specifications.md's "Min 48px target" —
+  // the shared back button was 40x40 across every screen that uses it.
+  back: { width: UI_V22_S2 ? 48 : 40, height: UI_V22_S2 ? 48 : 40, alignItems: 'center', justifyContent: 'center' },
   title: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 22 },
   sub: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 13, marginTop: 2 },
 });
