@@ -156,3 +156,24 @@ export const UI_V22_SWEEP = process.env.EXPO_PUBLIC_UI_V22_SWEEP === 'true';
  * deliberate accent/heading labels (navy, gold, brand) are left alone.
  */
 export const UI_V22_TYPE = process.env.EXPO_PUBLIC_UI_V22_TYPE === 'true';
+
+/**
+ * Step S3 (Safety core, v2.2 design, 23 Nov handover). Visual-only reskin of
+ * Emergency, Record proof (Evidence Locker) and its PIN gate, and the
+ * Women's Shield hub, to the authoritative v2.2 design package
+ * (memory/dhara_redesign/v2_2/editable_screens/). No new functionality:
+ * the real 112 dialler wiring and any app-wide PIN system stay out of scope
+ * per the v2.2 screen manifest (ids 15, 25). Presentation-only, reversible.
+ */
+export const UI_V22_S3 = process.env.EXPO_PUBLIC_UI_V22_S3 === 'true';
+
+/**
+ * Step S4 (Shield tools, v2.2 design, 23 Nov handover). Visual-only reskin
+ * of Silent alert, Safety phrases, Panic lesson, Safety plan, Guardian
+ * share and the Officer card to the v2.2 design package. Silent alert,
+ * Safety phrases, Safety plan and Guardian share share the new dark
+ * "Shield mode" palette (see shieldTheme.ts) introduced by the v2.2 design
+ * for this screen group; Officer card stays on the existing light theme.
+ * Presentation-only, reversible.
+ */
+export const UI_V22_S4 = process.env.EXPO_PUBLIC_UI_V22_S4 === 'true';
