@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardSafeView } from '@/src/components/KeyboardSafeView';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -122,7 +123,7 @@ export default function MissingAttachments() {
   const openMap = (location: MissingLocation) => openExternal(mapUrl(location)).catch(() => setError('Could not open Maps. Please use the coordinates shown.'));
   return <SafeAreaView edges={['top', 'bottom']} style={s.safe} testID="missing-attachments-screen">
     <View style={s.header}><Action id="missing-attachments-back" icon="arrow-back" label="Back" onPress={() => router.back()} disabled={busy} /><Text testID="missing-attachments-title" style={s.title}>Photos & location</Text></View>
-    <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardSafeView style={s.flex} behavior="padding">
       <ScrollView testID="missing-attachments-scroll" contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
         <Text testID="missing-attachments-intro" style={s.body}>Optional details for your written complaint. Nothing is submitted to police. Do not delay calling 112.</Text>
         {!token && <Action id="missing-attachments-login" icon="log-in-outline" label="Sign in to attach photos" onPress={() => router.push('/login')} />}
@@ -164,7 +165,7 @@ export default function MissingAttachments() {
         {busy && <View testID="missing-attachments-busy" style={s.row}><ActivityIndicator color={colors.primary} /><Text style={s.body}>Please wait…</Text></View>}
         <Action id="missing-attachments-done" icon="checkmark" label="Done — return to complaint" onPress={() => router.back()} disabled={busy} />
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardSafeView>
   </SafeAreaView>;
 }
 const s = StyleSheet.create({
