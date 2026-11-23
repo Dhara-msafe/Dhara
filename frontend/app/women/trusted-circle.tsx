@@ -69,10 +69,27 @@ export default function TrustedCircle() {
     setInviteBusyId(ct.id);
     try {
       const perms = draftPerms[ct.id] || DEFAULT_PERMS;
-      await inviteContact(authToken, { name: ct.name, phone: ct.phone, permissions: perms, relationship: ct.relationship });
+      // A43: send the email too. If this contact has no DHARA account, the
+      // server invites them by email instead of leaving them unreachable.
+      const res = await inviteContact(authToken, {
+        name: ct.name, phone: ct.phone, email: ct.email,
+        permissions: perms, relationship: ct.relationship,
+      });
       refreshInvites();
       setExpandedId(null);
-      setStatus(`Invitation sent to ${ct.name} with the permissions you chose.`);
+      // Say what actually happened, so she is never left believing someone
+      // was contacted when nothing went out.
+      if (res.invited_by_email) {
+        setStatus(`Invitation emailed to ${ct.name} at ${ct.email}. They can accept without installing DHARA.`);
+      } else if (res.email_pending) {
+        setStatus(`Saved, but the email to ${ct.name} could not be sent. Tell them to install DHARA, or try again later.`);
+      } else if (res.matched_existing_user) {
+        setStatus(`Invitation sent to ${ct.name} in DHARA with the permissions you chose.`);
+      } else if (ct.email) {
+        setStatus(`Invitation saved for ${ct.name}.`);
+      } else {
+        setStatus(`Invitation saved for ${ct.name}. They have no DHARA account and no email address, so nothing could be sent — add an email address so they can be reached.`);
+      }
     } catch {
       setStatus('Could not send invitation. Try again.');
     } finally {
