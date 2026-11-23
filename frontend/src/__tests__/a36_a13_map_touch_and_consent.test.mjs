@@ -62,7 +62,7 @@ test('the old promise that nobody is alerted automatically is gone', () => {
 });
 
 test('the new sentence says what actually happens', () => {
-  const gpsOn = consentText.slice(consent.indexOf('Planned arrival area only. Radius selection does not activate geofence monitoring. If you start'));
+  const gpsOn = consentText.slice(consentText.indexOf('Planned arrival area only. Radius selection does not activate geofence monitoring. If you start'));
   const line = gpsOn.slice(0, 500);
   assert.match(line, /only while this app is open on your screen/, 'foreground-only must stay: it is still true');
   assert.match(line, /never in the background/);
