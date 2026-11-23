@@ -26,6 +26,7 @@ import { openExternal, composeSms } from '@/src/outbound';
 // NF-UI-REV-09 (Group H, DHARA UI Revision v2.2.1): visible keyboard-focus
 // ring only — a11y labels already present. No logic changes.
 import { focusRingStyle } from '@/src/a11yFocus';
+import { v22SectionLabel } from '@/src/v22SectionLabel';
 const c = theme.colors;
 
 function formatDeadline(startTime: number, durationMins: number): string {
@@ -598,7 +599,7 @@ const styles = StyleSheet.create({
     backgroundColor: c.surfaceTertiary ?? '#F4F4F6', borderRadius: 12,
     borderWidth: 1, borderColor: c.lines, padding: 14, gap: 6,
   },
-  previewLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  previewLabel: v22SectionLabel({ fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.muted, textTransform: 'uppercase', letterSpacing: 0.5 }),
   previewBody: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, lineHeight: 20 },
   sendBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',

@@ -22,6 +22,7 @@ import { theme } from '@/src/theme';
 import { answersKey } from '@/src/missing/support';
 import interviewData from '@/src/content/missing_interview.json';
 import { UI_REVISION_V1 } from '@/src/designRevision';
+import { v22SectionLabel } from '@/src/v22SectionLabel';
 
 type Lang = 'en' | 'hi' | 'mr';
 
@@ -301,7 +302,7 @@ const st = StyleSheet.create({
   // text — both uses are small (11-12px) so the stricter threshold applies.
   progressText:   { fontSize: 12, color: UI_REVISION_V1 ? theme.colors.onSurfaceTertiary : '#999', minWidth: 38, textAlign: 'right' },
 
-  sectionLabel:   { fontSize: 11, fontWeight: '700', color: UI_REVISION_V1 ? theme.colors.onSurfaceTertiary : '#999', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
+  sectionLabel:   v22SectionLabel({ fontSize: 11, fontWeight: '700', color: UI_REVISION_V1 ? theme.colors.onSurfaceTertiary : '#999', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }),
 
   minorBanner:    {
     backgroundColor: '#FFF0F0', borderRadius: 10, padding: 14, marginBottom: 16,

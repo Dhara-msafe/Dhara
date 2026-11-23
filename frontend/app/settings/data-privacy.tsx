@@ -34,6 +34,7 @@ import { focusRingStyle } from '@/src/a11yFocus';
 // grievances@askdhara.in, owner-confirmed 17 Nov). This screen shows the
 // officer's name and opens /grievance, which shows the email.
 import { grievanceOfficerName as GRIEVANCE_OFFICER_NAME, isGrievanceContactPlaceholder, privacyContactEmail } from '@/src/operatorIdentity';
+import { v22SectionLabel } from '@/src/v22SectionLabel';
 // ── Contact constants ─────────────────────────────────────────────────────────
 // SUPPORT_EMAIL is the general privacy / data-controller inbox (Callistus,
 // callistus@askdhara.in). It is imported from operatorIdentity.ts so there
@@ -1025,13 +1026,13 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 10,
   },
-  crLabel: {
+  crLabel: v22SectionLabel({
     fontSize: 11,
     color: theme.colors.onSurfaceTertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
     marginBottom: 2,
-  },
+  }),
   crValue: {
     fontSize: 13,
     fontWeight: '600',

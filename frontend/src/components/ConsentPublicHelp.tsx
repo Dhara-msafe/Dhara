@@ -7,6 +7,7 @@ import { theme } from '../theme';
 import type { ConsentCopy } from '../consentCopy';
 
 import { openExternal } from '@/src/outbound';
+import { v22SectionLabel } from '../v22SectionLabel';
 type Citation = { label: string; url: string };
 type Topic = {
   id: string; title: string; summary: string; law: string; points: string[];
@@ -93,7 +94,7 @@ const styles = StyleSheet.create({
   noticeBox: { flexDirection: 'row', gap: 8, backgroundColor: colors.surfaceSecondary, borderRadius: 10, padding: 12, marginTop: 8 },
   noticeText: { flex: 1, color: colors.onSurfaceSecondary, fontSize: 13, lineHeight: 18 },
   citeWrap: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.divider },
-  citeHeading: { fontSize: 11, fontWeight: '700', color: colors.onSurfaceSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 },
+  citeHeading: v22SectionLabel({ fontSize: 11, fontWeight: '700', color: colors.onSurfaceSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }),
   citeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4, minHeight: 28 },
   citeText: { color: colors.primary, fontSize: 14, textDecorationLine: 'underline', flex: 1 },
   verifiedText: { color: colors.onSurfaceSecondary, fontSize: 11, marginTop: 4, fontStyle: 'italic' },

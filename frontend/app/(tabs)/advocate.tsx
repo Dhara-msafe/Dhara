@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { ADVOCATE_MODE_ENABLED } from '@/src/advocateMode/flags';
+import { v22SectionLabel } from '@/src/v22SectionLabel';
 
 const NAVY = theme.colors.primary;
 const GOLD = theme.colors.gold;
@@ -254,6 +255,6 @@ const s = StyleSheet.create({
     backgroundColor: '#fff', borderRadius: 14,
     borderWidth: 1, borderColor: '#E5E7EB', padding: 18, marginTop: 4,
   },
-  profileLabel: { fontSize: 11, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5 },
+  profileLabel: v22SectionLabel({ fontSize: 11, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5 }),
   profileValue: { fontSize: 14, color: '#1F2937', marginTop: 3, fontWeight: '600' },
 });
