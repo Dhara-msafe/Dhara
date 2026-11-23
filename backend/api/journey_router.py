@@ -25,6 +25,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import HTMLResponse
+from html import escape as html_escape
 from pydantic import BaseModel, Field
 
 import logging
@@ -152,6 +153,100 @@ async def _guardian_access_check(
     return rec, GuardianAccessLevel.HISTORICAL_ONLY, link
 
 
+# ── A45/A46: telling a trusted person who has no app ────────────────────────
+#
+# The app fan-out below reaches people with a DHARA account. These links have
+# none: they accepted from an email and are reached the same way. The alert
+# record is created either way; this only decides how it leaves the building.
+
+_EMAIL_ALERT_TYPES = {"journey_started", "missed_checkin", "journey_completed"}
+
+
+def _email_recipient(link: dict) -> Optional[str]:
+    """The address to write to, or None when this link is not an email one."""
+    if link.get("invitee_user_id"):
+        return None                      # reachable in the app
+    if link.get("status") != "accepted":
+        return None                      # never write to someone who has not agreed
+    if link.get("muted"):
+        return None
+    from services.guardian_email import normalise_email
+    return normalise_email(link.get("contact_email"))
+
+
+async def _email_linked_recipient(link: dict, rec: dict, owner_name: str, type_: str) -> bool:
+    """Send one guardian email. Never raises: a mail failure must not break
+    the journey action that triggered it."""
+    address = _email_recipient(link)
+    if not address or type_ not in _EMAIL_ALERT_TYPES:
+        return False
+    try:
+        from services import guardian_email as ge
+        from services.outbound_guard import EMAIL
+        from mailer import (
+            email_configured, send_email,
+            guardian_journey_started_email, guardian_missed_checkin_email,
+            guardian_journey_safe_email,
+        )
+        if not email_configured() or not ge.may_email(address):
+            return False
+
+        perms = link.get("permissions") or {}
+        if type_ == "journey_started" and not perms.get("journey_updates", True):
+            return False
+
+        # A46 (option 2): the link shows her last known AREA and nothing more,
+        # and only while the journey is open. Sent only to someone she allowed
+        # to see her location.
+        view_url = None
+        if perms.get("temp_location"):
+            token = ge.view_token_for(link["id"])
+            view_url = ge.guardian_view_url(token) if token else None
+
+        contact_name = link.get("contact_name") or ""
+        if type_ == "journey_started":
+            subject, html = guardian_journey_started_email(
+                owner_name=owner_name, contact_name=contact_name,
+                destination=rec.get("destination") or "her destination",
+                expected_time=_local_clock(rec.get("expected_checkin_at")),
+                view_url=view_url,
+            )
+        elif type_ == "missed_checkin":
+            last = rec.get("last_location") if perms.get("temp_location") else None
+            subject, html = guardian_missed_checkin_email(
+                owner_name=owner_name, contact_name=contact_name,
+                expected_time=_local_clock(rec.get("expected_checkin_at")),
+                last_area=(last or {}).get("area"),
+                last_seen_mins=_age_seconds((last or {}).get("updated_at"), datetime.now(timezone.utc)) // 60
+                if last and (last or {}).get("updated_at") else None,
+                view_url=view_url,
+            )
+        else:
+            subject, html = guardian_journey_safe_email(
+                owner_name=owner_name, contact_name=contact_name,
+            )
+        await send_email(to=address, subject=subject, html=html, channel=EMAIL)
+        logger.info("[journey] guardian email sent (%s)", type_)
+        return True
+    except Exception as e:
+        logger.warning("[journey] guardian email failed (%s): %s", type_, e)
+        return False
+
+
+def _local_clock(iso: Optional[str]) -> str:
+    """A time a person can read. IST, because that is where the pilot is."""
+    if not iso:
+        return "the time she set"
+    try:
+        when = datetime.fromisoformat(iso)
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=timezone.utc)
+        ist = when.astimezone(timezone(timedelta(hours=5, minutes=30)))
+        return ist.strftime("%-I:%M %p on %-d %B")
+    except Exception:
+        return "the time she set"
+
+
 async def _notify_linked_recipients(
     user: dict, rec: dict, type_: str, extra_payload: Optional[dict] = None,
     idempotency_suffix: Optional[str] = None,
@@ -217,6 +312,12 @@ async def _notify_linked_recipients(
             )
             if doc:
                 alerted.append(link_id)
+            # A45: the same news by email, for a trusted person with no app.
+            # Independent of `doc`: an alert record is for the app's own
+            # Alerts screen, which an email guardian will never open.
+            await _email_linked_recipient(
+                link, rec, user.get("name") or "A DHARA user", type_,
+            )
         except Exception as e:
             logger.warning("[journey] alert fan-out failed for link %s: %s", link_id, e)
     return alerted
@@ -817,6 +918,104 @@ def _public_details_enabled() -> bool:
     released through the signed-in, per-recipient route above.
     """
     return os.environ.get("GUARDIAN_PUBLIC_PAGE_DETAILS", "").strip().lower() in ("1", "true", "yes")
+
+
+# ── A46 (option 2): what an email guardian can see ──────────────────────────
+#
+# Deliberately the least that is still useful: her name, that she is on a
+# journey or has not checked in, the AREA she was last in, and how long ago.
+# No coordinates, no map, no destination, no history, no account.
+#
+# The address is a capability — anyone holding the link can open it — so it
+# is narrow by design: it shows nothing once the journey is over, nothing if
+# she never allowed location, and nothing at all for an unknown token. The
+# owner can end it by removing that person from her circle, and the whole
+# estate can be ended by rotating GUARDIAN_LINK_SECRET.
+
+def _guardian_email_page(title: str, body: str) -> HTMLResponse:
+    html = (
+        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+        "<meta name=\"robots\" content=\"noindex,nofollow\">"
+        f"<title>{html_escape(title)} · Dhara</title>"
+        "<style>body{margin:0;background:#FDFBF7;font-family:system-ui,-apple-system,"
+        "Segoe UI,Roboto,Arial,sans-serif;color:#12203A}main{max-width:520px;margin:0 auto;"
+        "padding:28px 20px}.card{background:#fff;border-radius:14px;padding:24px;"
+        "box-shadow:0 1px 3px rgba(0,0,0,.06)}h1{font-size:20px;margin:0 0 12px}"
+        "p{font-size:16px;line-height:24px;margin:0 0 12px}.area{font-size:26px;"
+        "font-weight:800;margin:10px 0 2px}.muted{color:#4A5568;font-size:14px;line-height:21px}"
+        "</style></head><body><main><div class=\"card\">"
+        f"<h1>{html_escape(title)}</h1>{body}</div>"
+        "<p class=\"muted\" style=\"padding:16px 4px\">Dhara · MSafe Solutions. This page "
+        "shows an area only, never an exact position, and only while her journey is open."
+        "</p></main></body></html>"
+    )
+    return HTMLResponse(html, headers={"X-Robots-Tag": "noindex, nofollow",
+                                       "Cache-Control": "no-store"})
+
+
+@router.get("/guardian/email/{token}", response_class=HTMLResponse, include_in_schema=False)
+async def guardian_email_view(token: str):
+    """A46: her last known area, for a trusted person reading an email."""
+    from services.guardian_email import hash_token
+
+    nothing = _guardian_email_page(
+        "Nothing to show",
+        "<p>This link is not active. It may have been for a journey that has ended, or "
+        "the person may have changed who she shares with.</p>"
+        "<p class=\"muted\">If you were expecting to see something, contact her directly.</p>",
+    )
+
+    link = await db.trusted_circle_links.find_one({"view_token_hash": hash_token(token)})
+    if not link or link.get("status") != "accepted":
+        return nothing
+    if not (link.get("permissions") or {}).get("temp_location"):
+        return nothing
+
+    rec = await db.safety_journeys.find_one({
+        "user_id":            link["owner_id"],
+        "status":             "in_progress",
+        "sharing_revoked_at": None,
+        "recipient_link_ids": link["id"],
+    })
+    if not rec:
+        return nothing
+
+    owner = html_escape(rec.get("user_display") or link.get("owner_name") or "She")
+    now = datetime.now(timezone.utc)
+    missed = bool(rec.get("missed_checkin_notified_at"))
+    last = rec.get("last_location") or {}
+    area = last.get("area")
+    age_s = _age_seconds(last.get("updated_at"), now) if last.get("updated_at") else None
+
+    if area:
+        if age_s is None or age_s < 120:
+            when = "just now"
+        elif age_s < 3600:
+            when = f"about {age_s // 60} minutes ago"
+        else:
+            when = f"about {age_s // 3600} hours ago"
+        where = (f"<p>Last known area</p><p class=\"area\">{html_escape(area)}</p>"
+                 f"<p class=\"muted\">Updated {html_escape(when)}. "
+                 "An area, not an exact place.</p>")
+    else:
+        where = ("<p>Dhara has no recent location for her. Her phone may be off, out of "
+                 "signal, or the app may be closed.</p>")
+
+    if missed:
+        return _guardian_email_page(
+            f"{owner} has not checked in",
+            f"{where}<p>Please try to contact her. If you cannot reach her and you are "
+            "worried, call the police on 112.</p>"
+            "<p class=\"muted\">Dhara cannot tell whether she is safe, only that she has "
+            "not said so.</p>",
+        )
+    return _guardian_email_page(
+        f"{owner} is on a journey",
+        f"{where}<p class=\"muted\">She is expected to check in by "
+        f"{html_escape(_local_clock(rec.get('expected_checkin_at')))}. If she does not, "
+        "you will get an email.</p>",
+    )
 
 
 @router.get("/journey/status/{token}", response_class=HTMLResponse, include_in_schema=False)

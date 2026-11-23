@@ -36,10 +36,14 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Form
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
+from html import escape
+
 from dependencies import db, current_user, logger
+from services import guardian_email as ge
 
 try:
     from push import send_push
@@ -61,6 +65,9 @@ class PermissionsIn(BaseModel):
 class InviteIn(BaseModel):
     name: str = Field(..., min_length=1, max_length=80)
     phone: str = Field(..., min_length=6, max_length=20)
+    # A43: how to reach a trusted person who does not have DHARA. Optional,
+    # because an invitation to an existing user still works by phone alone.
+    email: Optional[str] = Field(default=None, max_length=254)
     permissions: PermissionsIn = PermissionsIn()
     relationship: Optional[str] = Field(default=None, max_length=30)
 
@@ -107,6 +114,173 @@ def _public_link(link: dict) -> dict:
     }
 
 
+# ── A43/A44: invitation by email, acceptance without the app ────────────────
+
+def _page(title: str, body_html: str, tone: str = "#12203A") -> HTMLResponse:
+    """A small self-contained page for someone who has no app and may be on
+    any phone. No scripts, no tracking, no third-party anything."""
+    html = (
+        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+        "<meta name=\"robots\" content=\"noindex,nofollow\">"
+        f"<title>{escape(title)} · Dhara</title>"
+        "<style>body{margin:0;background:#FDFBF7;font-family:system-ui,-apple-system,"
+        "Segoe UI,Roboto,Arial,sans-serif;color:#12203A}main{max-width:520px;margin:0 auto;"
+        "padding:28px 20px}.card{background:#fff;border-radius:14px;padding:24px;"
+        "box-shadow:0 1px 3px rgba(0,0,0,.06)}h1{font-size:20px;margin:0 0 12px}"
+        "p{font-size:16px;line-height:24px;margin:0 0 14px}.muted{color:#4A5568;font-size:14px;"
+        "line-height:21px}.btn{display:block;text-align:center;text-decoration:none;color:#fff;"
+        "background:#12203A;border:0;border-radius:10px;padding:14px;font-size:16px;"
+        "font-weight:700;width:100%;margin:8px 0;cursor:pointer}.btn.ghost{background:#fff;"
+        "color:#4A5568;border:1px solid #D7D2C8}.area{font-size:22px;font-weight:700;"
+        "margin:6px 0}</style></head><body><main><div class=\"card\">"
+        f"<h1 style=\"color:{tone}\">{escape(title)}</h1>{body_html}</div>"
+        "<p class=\"muted\" style=\"padding:16px 4px\">Dhara · MSafe Solutions. "
+        "This page was opened from a link in an email. It asks for no password and "
+        "no payment.</p></main></body></html>"
+    )
+    return HTMLResponse(html, headers={"X-Robots-Tag": "noindex, nofollow",
+                                       "Cache-Control": "no-store"})
+
+
+async def _send_invite_email(link: dict, invite_token: str) -> bool:
+    """Send the invitation. Returns whether it actually went out."""
+    address = link.get("contact_email")
+    accept_url = ge.invite_url(invite_token)
+    if not accept_url:
+        logger.warning("[trusted_circle] PUBLIC_BASE_URL is not set — invitation email not sent")
+        return False
+    if not ge.may_email(address):
+        logger.info("[trusted_circle] address not on the pilot allow-list — invitation not sent")
+        return False
+    try:
+        from mailer import guardian_invite_email, send_email, email_configured
+        from services.outbound_guard import EMAIL
+        if not email_configured():
+            logger.warning("[trusted_circle] email is not configured — invitation not sent")
+            return False
+        subject, html = guardian_invite_email(
+            owner_name=link.get("owner_name") or "A DHARA user",
+            contact_name=link.get("contact_name") or "",
+            accept_url=f"{accept_url}?r=accept",
+            decline_url=f"{accept_url}?r=decline",
+            shares_location=bool((link.get("permissions") or {}).get("temp_location")),
+        )
+        await send_email(to=address, subject=subject, html=html, channel=EMAIL)
+        return True
+    except Exception as e:
+        logger.warning("[trusted_circle] invitation email failed: %s", e)
+        return False
+
+
+async def _link_by_invite_token(token: str) -> Optional[dict]:
+    return await db.trusted_circle_links.find_one({"invite_token_hash": ge.hash_token(token)})
+
+
+@router.get("/trusted-circle/invitation/email/{token}", response_class=HTMLResponse,
+            include_in_schema=False)
+async def email_invitation_page(token: str, r: Optional[str] = None):
+    """A44: the page the invitation email links to. No app, no account.
+
+    Deliberately identical for an unknown, used or withdrawn token: a page
+    that said "no such invitation" would confirm to a stranger which links
+    are real.
+    """
+    link = await _link_by_invite_token(token)
+    if not link or link.get("status") in ("revoked", "left"):
+        return _page(
+            "This invitation is no longer open",
+            "<p>The link may have been used already, or the person who sent it may have "
+            "changed their mind.</p><p class=\"muted\">Nothing has been shared with you, "
+            "and you do not need to do anything.</p>",
+        )
+
+    owner = escape(link.get("owner_name") or "A DHARA user")
+    shares = bool((link.get("permissions") or {}).get("temp_location"))
+
+    if link.get("status") == "accepted":
+        return _page(
+            "You are already her safety contact",
+            f"<p>You agreed to be {owner}&rsquo;s safety contact. She will email you when "
+            "she starts a journey and if she misses her check-in.</p>"
+            f"<form method=\"post\" action=\"respond\"><input type=\"hidden\" name=\"token\" "
+            f"value=\"{escape(token)}\"><button class=\"btn ghost\" name=\"action\" "
+            "value=\"decline\">Stop contacting me</button></form>",
+        )
+
+    if link.get("status") == "declined":
+        return _page(
+            "You have said no to this",
+            "<p>You will not be contacted about this again.</p>",
+        )
+
+    seeing = (
+        "the area she is in while a journey is running, and when she expects to arrive"
+        if shares else
+        "when she starts a journey and whether she arrives safely"
+    )
+    pre = ""
+    if r in ("accept", "decline"):
+        pre = ("<p class=\"muted\">Confirm your answer below — one tap, so a link opened "
+               "by accident cannot answer for you.</p>")
+    return _page(
+        f"{owner} has asked you to be her safety contact",
+        f"<p>Dhara is an app that watches over her when she travels. If you agree, you "
+        f"will be emailed when she starts a journey and if she does not check in on time. "
+        f"You would see {escape(seeing)}.</p>"
+        "<p>You do not need the app, an account or a password.</p>"
+        f"{pre}"
+        f"<form method=\"post\" action=\"respond\">"
+        f"<input type=\"hidden\" name=\"token\" value=\"{escape(token)}\">"
+        "<button class=\"btn\" name=\"action\" value=\"accept\">Yes, I will be her contact</button>"
+        "<button class=\"btn ghost\" name=\"action\" value=\"decline\">No, do not contact me</button>"
+        "</form>"
+        "<p class=\"muted\">You can stop at any time by using the link in any email we send "
+        "you.</p>",
+    )
+
+
+@router.post("/trusted-circle/invitation/email/respond", response_class=HTMLResponse,
+             include_in_schema=False)
+async def email_invitation_respond(token: str = Form(...), action: str = Form(...)):
+    """A44: her trusted person accepts or declines, from the email, with no
+    account. The answer is a POST, so opening the link cannot answer for them
+    and no mail scanner can accept on their behalf."""
+    link = await _link_by_invite_token(token)
+    if not link or link.get("status") in ("revoked", "left"):
+        return _page("This invitation is no longer open",
+                     "<p>Nothing has been shared with you.</p>")
+
+    now = ge.utc_now_iso()
+    if action == "accept":
+        await db.trusted_circle_links.update_one(
+            {"id": link["id"]},
+            {"$set": {"status": "accepted", "responded_at": now,
+                      "email_consent_at": now, "channel": "email"}},
+        )
+        logger.info("[trusted_circle] an email invitation was accepted")
+        return _page(
+            "Thank you — you are now her safety contact",
+            f"<p>{escape(link.get('owner_name') or 'She')} will be told that you agreed.</p>"
+            "<p>You will get an email when she starts a journey, and a second one if she "
+            "does not check in on time. Nothing else.</p>"
+            "<p class=\"muted\">Every email we send you has a link to stop.</p>",
+        )
+
+    await db.trusted_circle_links.update_one(
+        {"id": link["id"]},
+        {"$set": {"status": "declined", "responded_at": now},
+         "$unset": {"view_token_hash": "", "invite_token_hash": ""}},
+    )
+    logger.info("[trusted_circle] an email invitation was declined")
+    return _page(
+        "Done — you will not be contacted",
+        "<p>We have removed you from her safety contacts. She is told that you declined, "
+        "but not why.</p><p class=\"muted\">Your address is kept only so that the same "
+        "invitation cannot be sent to you again.</p>",
+    )
+
+
 @router.post("/trusted-circle/invite")
 async def invite(body: InviteIn, user: dict = Depends(current_user)):
     norm = _normalize_phone(body.phone)
@@ -133,7 +307,31 @@ async def invite(body: InviteIn, user: dict = Depends(current_user)):
         "created_at": now,
         "responded_at": None,
     }
+    # A43: a trusted person without a DHARA account can be invited by email.
+    # Only when no account matched the phone number: an existing user is
+    # already reachable in the app, and two invitations would be confusing.
+    email = ge.normalise_email(body.email) if not invitee else None
+    invite_token = None
+    if email:
+        invite_token, token_hash = ge.new_token()
+        # The "see her last known area" token is derived from the link id and
+        # a server secret, so every alert email can rebuild the same address
+        # without the plain token ever being stored. Only its hash is kept,
+        # for the lookup when someone opens it.
+        view_token = ge.view_token_for(link_id)
+        doc.update({
+            "contact_email":      email,
+            "channel":            "email",
+            "invite_token_hash":  token_hash,   # the token itself is only ever in the email
+            "view_token_hash":    ge.hash_token(view_token) if view_token else None,
+            "email_invited_at":   ge.utc_now_iso(),
+        })
+
     await db.trusted_circle_links.insert_one(doc)
+
+    emailed = False
+    if email and invite_token:
+        emailed = await _send_invite_email(doc, invite_token)
 
     if invitee:
         try:
@@ -149,7 +347,15 @@ async def invite(body: InviteIn, user: dict = Depends(current_user)):
         except Exception as e:
             logger.warning("[trusted_circle] push failed (non-fatal): %s", e)
 
-    return {"ok": True, "id": link_id, "matched_existing_user": invitee is not None}
+    return {
+        "ok": True,
+        "id": link_id,
+        "matched_existing_user": invitee is not None,
+        # A43: the app tells her what actually happened, so she is not left
+        # believing someone was contacted when nothing went out.
+        "invited_by_email": emailed,
+        "email_pending": bool(email) and not emailed,
+    }
 
 
 @router.get("/trusted-circle/invitations")

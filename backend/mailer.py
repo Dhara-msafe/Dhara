@@ -104,13 +104,18 @@ def email_configured() -> bool:
     return bool(EMAIL_KEY and EMAIL_FROM_NAME)
 
 
-async def send_email(*, to: str, subject: str, html: str) -> str | None:
-    """Internal helper. `html` always comes from a template in this module."""
+async def send_email(*, to: str, subject: str, html: str, channel: str | None = None) -> str | None:
+    """Internal helper. `html` always comes from a template in this module.
+
+    `channel` says which outbound policy governs this message. Account mail
+    (reset, deletion) keeps the reset channel; a guardian alert passes EMAIL,
+    so the two can be switched on and off separately.
+    """
     if not email_configured():
         raise HTTPException(503, "Email is not configured on this server.")
     _assert_safe_email(subject, html)
     from services.outbound_guard import record_simulated, should_send, RESET_EMAIL
-    if not should_send(RESET_EMAIL):
+    if not should_send(channel or RESET_EMAIL):
         # QA / closed-testing-not-live: the message is kept only in this DB's
         # qa_outbox (isolated QA inbox) — nothing is sent.
         return await record_simulated("email", to, {"subject": subject, "html": html})
@@ -202,5 +207,119 @@ def upi_status_email(*, name: str, status: str, message: str) -> tuple[str, str]
         f'<tr><td style="font-size:15px;line-height:22px;padding-top:12px">{escape(message)}</td></tr>'
         '<tr><td style="font-size:14px;line-height:21px;color:#4A5568;padding-top:12px">'
         "Open the Dhara app to see your account.</td></tr>"
+    )
+    return subject, _shell(inner)
+
+
+# ── A43/A45: email to a trusted person who does not have DHARA ───────────────
+#
+# These go to someone who did not sign up: they were named by a DHARA user as
+# someone she trusts. So each one says who added them, what it would mean,
+# and how to refuse — in the first line, not the small print.
+
+
+def guardian_invite_email(*, owner_name: str, contact_name: str,
+                          accept_url: str, decline_url: str,
+                          shares_location: bool) -> tuple[str, str]:
+    """Invitation to be someone's trusted contact, with no app needed."""
+    subject = f"{owner_name} has asked you to be their safety contact on Dhara"
+    shared = (
+        "the area she is in while a journey is running, and the time she expects to arrive"
+        if shares_location else
+        "when she starts a journey and whether she arrives safely"
+    )
+    inner = (
+        '<tr><td style="font-size:22px;font-weight:700;padding-bottom:8px">Dhara</td></tr>'
+        f'<tr><td style="font-size:15px;line-height:22px">Hi {escape(contact_name or "there")}, '
+        f"<b>{escape(owner_name)}</b> uses Dhara, an app that watches over her when she "
+        "travels. She has asked for you to be told if she does not arrive safely.</td></tr>"
+        '<tr><td style="font-size:15px;line-height:22px;padding-top:14px">'
+        f"If you agree, you would be sent an email when she starts a journey and if she "
+        f"misses her check-in. You would see {escape(shared)}. Nothing else, and only while "
+        "a journey is running.</td></tr>"
+        '<tr><td align="center" style="padding:22px 0 6px">'
+        f'<a href="{escape(accept_url)}" style="background:#12203A;color:#FFFFFF;'
+        'text-decoration:none;font-size:16px;font-weight:700;border-radius:10px;'
+        'padding:14px 28px;display:inline-block">Yes, I will be her contact</a></td></tr>'
+        '<tr><td align="center" style="padding-bottom:18px">'
+        f'<a href="{escape(decline_url)}" style="color:#4A5568;font-size:14px">'
+        "No, do not contact me</a></td></tr>"
+        '<tr><td style="font-size:14px;line-height:21px;color:#4A5568">'
+        "You do not need the app, and you do not need an account. If you do nothing, "
+        "you will not be contacted again about this.</td></tr>"
+    )
+    return subject, _shell(inner)
+
+
+def guardian_journey_started_email(*, owner_name: str, contact_name: str,
+                                   destination: str, expected_time: str,
+                                   view_url: str | None) -> tuple[str, str]:
+    subject = f"{owner_name} has started a journey"
+    link = (
+        '<tr><td align="center" style="padding:18px 0">'
+        f'<a href="{escape(view_url)}" style="background:#12203A;color:#FFFFFF;'
+        'text-decoration:none;font-size:15px;font-weight:700;border-radius:10px;'
+        'padding:12px 24px;display:inline-block">See where she is</a></td></tr>'
+    ) if view_url else ""
+    inner = (
+        '<tr><td style="font-size:22px;font-weight:700;padding-bottom:8px">Dhara</td></tr>'
+        f'<tr><td style="font-size:15px;line-height:22px">Hi {escape(contact_name or "there")}, '
+        f"<b>{escape(owner_name)}</b> has started a journey to {escape(destination)} and "
+        f"expects to arrive by {escape(expected_time)}.</td></tr>"
+        f"{link}"
+        '<tr><td style="font-size:14px;line-height:21px;color:#4A5568">'
+        "You do not need to do anything now. If she does not check in on time, "
+        "we will email you again.</td></tr>"
+    )
+    return subject, _shell(inner)
+
+
+def guardian_missed_checkin_email(*, owner_name: str, contact_name: str,
+                                  expected_time: str, last_area: str | None,
+                                  last_seen_mins: int | None,
+                                  view_url: str | None) -> tuple[str, str]:
+    """The one that matters. Plain words, no jargon, what to do first."""
+    subject = f"{owner_name} has not checked in on Dhara"
+    if last_area:
+        ago = f"about {last_seen_mins} minutes ago" if last_seen_mins is not None else "earlier"
+        where = (
+            '<tr><td style="font-size:15px;line-height:22px;padding-top:12px">'
+            f"She was last in <b>{escape(last_area)}</b>, {escape(ago)}.</td></tr>"
+        )
+    else:
+        where = (
+            '<tr><td style="font-size:15px;line-height:22px;padding-top:12px">'
+            "Dhara has no recent location for her.</td></tr>"
+        )
+    link = (
+        '<tr><td align="center" style="padding:18px 0">'
+        f'<a href="{escape(view_url)}" style="background:#B3261E;color:#FFFFFF;'
+        'text-decoration:none;font-size:16px;font-weight:700;border-radius:10px;'
+        'padding:14px 28px;display:inline-block">See her last known area</a></td></tr>'
+    ) if view_url else ""
+    inner = (
+        '<tr><td style="font-size:22px;font-weight:700;padding-bottom:8px">Dhara</td></tr>'
+        f'<tr><td style="font-size:16px;line-height:23px"><b>{escape(owner_name)}</b> set a '
+        f"check-in time of {escape(expected_time)} and has not confirmed that she arrived."
+        "</td></tr>"
+        f"{where}"
+        '<tr><td style="font-size:15px;line-height:22px;padding-top:12px">'
+        "Please try to contact her now. If you cannot reach her and you are worried, "
+        "call the police on 112.</td></tr>"
+        f"{link}"
+        '<tr><td style="font-size:14px;line-height:21px;color:#4A5568">'
+        "This may be nothing — people forget to check in. Dhara cannot tell whether she "
+        "is safe, only that she has not said so.</td></tr>"
+    )
+    return subject, _shell(inner)
+
+
+def guardian_journey_safe_email(*, owner_name: str, contact_name: str) -> tuple[str, str]:
+    subject = f"{owner_name} has arrived safely"
+    inner = (
+        '<tr><td style="font-size:22px;font-weight:700;padding-bottom:8px">Dhara</td></tr>'
+        f'<tr><td style="font-size:15px;line-height:22px">Hi {escape(contact_name or "there")}, '
+        f"<b>{escape(owner_name)}</b> has marked herself safe. Her journey is over and her "
+        "location is no longer being shared.</td></tr>"
     )
     return subject, _shell(inner)
