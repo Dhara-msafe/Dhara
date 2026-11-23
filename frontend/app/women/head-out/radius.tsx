@@ -30,6 +30,10 @@ export default function ArrivalRadius() {
   const draft = useHeadOutWizard((s) => s.destination);
   const setDraft = useHeadOutWizard((s) => s.setDestination);
   const [radiusMeters, setRadiusMeters] = useState(draft.radiusMeters);
+  // A36: the map sits inside this scrolling page. While her finger is on
+  // the map the page must not scroll, or the drag moves the page instead
+  // of the pin (tester bug T1).
+  const [mapActive, setMapActive] = useState(false);
   // Stable no-op for the map — destination pin was set in Step 1 and
   // cannot be changed from this screen; we show the map for radius preview only.
   const noopPositionChange = useCallback(() => {}, []);
@@ -66,7 +70,7 @@ export default function ArrivalRadius() {
   return (
     <View style={styles.root}>
       <ScreenHeader title={UI_V22_P9 ? 'Head out safely' : 'Head Out'} subtitle="Step 2 of 3 — Arrival area" />
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + headOutBottomGutter(110) }]}>
+      <ScrollView scrollEnabled={!mapActive} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + headOutBottomGutter(110) }]}>
         <Text style={styles.destTxt} numberOfLines={2}>{draft.label}</Text>
 
         <Text style={styles.fieldLabel}>Planned arrival area</Text>
@@ -79,6 +83,7 @@ export default function ArrivalRadius() {
         {/* Map preview — shows destination pin + arrival radius circle */}
         <View style={styles.mapSection} testID="headout-radius-map-section">
           <DestinationMapPicker
+            onInteractionChange={setMapActive}
             testID="headout-radius-map"
             latitude={draft.latitude ?? null}
             longitude={draft.longitude ?? null}

@@ -181,3 +181,23 @@ export const UI_V22_S3 = process.env.EXPO_PUBLIC_UI_V22_S3 === 'true';
  * reversible.
  */
 export const UI_V22_S4 = process.env.EXPO_PUBLIC_UI_V22_S4 === 'true';
+
+/**
+ * Keep the focused input visible above the keyboard (client report, 23 Nov).
+ *
+ * Nine screens wrap their content in React Native's KeyboardAvoidingView
+ * with `behavior={Platform.OS === 'ios' ? 'padding' : undefined}`. On
+ * Android `undefined` means the component does nothing at all, so the
+ * keyboard covers the field being typed in and everything below it. That
+ * used to be survivable because `softwareKeyboardLayoutMode: "resize"`
+ * made the window shrink, but the app now runs edge to edge
+ * (`KeyboardProvider preserveEdgeToEdge` in app/_layout.tsx) and an
+ * edge-to-edge window does not resize for the keyboard.
+ *
+ * With the flag on, those screens use the keyboard-controller
+ * KeyboardAvoidingView already shipping on the Ask tab, which handles
+ * Android properly. With it off, every screen keeps exactly today's
+ * component and props. Presentation only: no input, value, submit or
+ * navigation behaviour changes either way.
+ */
+export const UI_INPUT_INSET = process.env.EXPO_PUBLIC_UI_INPUT_INSET === 'true';

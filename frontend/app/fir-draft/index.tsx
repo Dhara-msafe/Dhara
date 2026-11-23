@@ -6,10 +6,11 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import {
   View, Text, TextInput, Pressable, ScrollView, StyleSheet,
-  ActivityIndicator, Platform, Alert, KeyboardAvoidingView, Linking, Image,
+  ActivityIndicator, Platform, Alert, Linking, Image,
   Animated, PanResponder,
   type GestureResponderEvent, type PanResponderGestureState,
 } from 'react-native';
+import { KeyboardSafeView } from '@/src/components/KeyboardSafeView';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -1531,10 +1532,9 @@ ${data.bot_message}`);
           onDismiss={() => { if (playbackBlocked) { setAutoSpeak(false); stopTTS(); } setVoiceNotice(null); }} />
       )}
 
-      <KeyboardAvoidingView
+      <KeyboardSafeView
         style={styles.flex1}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        behavior="translate-with-padding"
       >
         {/* Messages */}
         <ScrollView
@@ -1737,7 +1737,7 @@ ${data.bot_message}`);
             )}
           </View>
         )}
-      </KeyboardAvoidingView>
+      </KeyboardSafeView>
 
       {/* Issue 9: Section Drawer */}
       <FirSectionDrawer

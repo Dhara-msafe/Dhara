@@ -5,8 +5,9 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, Pressable, ScrollView, StyleSheet,
-  ActivityIndicator, KeyboardAvoidingView, Platform,
+  ActivityIndicator,
 } from 'react-native';
+import { KeyboardSafeView } from '@/src/components/KeyboardSafeView';
 import { useLocalSearchParams, router, Redirect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/src/theme';
@@ -97,9 +98,9 @@ export default function NewConsultationScreen() {
   if (advocateGate.status === 'loading') return null;
 
   return (
-    <KeyboardAvoidingView
+    <KeyboardSafeView
       style={[styles.root, { paddingTop: insets.top }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior="padding"
     >
       <ScreenHeader title="New consultation" />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
@@ -170,7 +171,7 @@ export default function NewConsultationScreen() {
           {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Create consultation</Text>}
         </Pressable>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardSafeView>
   );
 }
 
