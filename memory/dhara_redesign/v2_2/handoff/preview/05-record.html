@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Record proof · DHARA design reference</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600&family=Hind:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="dhara.css"></head>
+<body class="">
+<a class="skip" href="#main">Skip to main content</a>
+<div class="shell"><div><header class="topbar"><a class="iconbtn" href="04-emergency.html" aria-label="Back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 5l-7 7 7 7"/></svg></a><div class="title">Record proof</div><a class="iconbtn" href="03-home-ask.html" aria-label="Home"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1z"/></svg></a></header><main id="main"><div class="stack" style="gap:1rem"><h1>Record proof</h1><p class="muted">Saved on this phone. Sharing is your choice.</p>
+<div class="card" style="text-align:center;padding:2rem 1rem"><p class="eyebrow">Design preview state</p><div role="group" aria-label="Preview state" class="grid g2" style="margin:.5rem auto 1.25rem;max-width:30rem"><button class="btn" data-s="idle" aria-pressed="true">Ready</button><button class="btn" data-s="denied" aria-pressed="false">Microphone denied</button><button class="btn" data-s="fail" aria-pressed="false">Save failed</button><button class="btn" data-s="busy" aria-pressed="false">Saving</button></div>
+<div id="status" role="status" class="note" style="margin-bottom:1rem">Choose sound only or sound and video, then press record.</div>
+<div class="grid g2" style="max-width:30rem;margin:0 auto"><button class="btn lg">Sound only</button><button class="btn lg">Sound and video</button></div></div>
+<p class="muted">Recording in the background is not promised. Keep the screen on while recording.</p></div></main></div></div>
+<script>
+const T={idle:'Choose sound only or sound and video, then press record.',denied:'Microphone access is off. Turn it on in your phone settings, or type instead. Nothing was recorded.',fail:'Could not save the recording. Nothing was deleted. Try again, or free up space on your phone.',busy:'Saving your recording to this phone. Keep this screen open.'};
+document.querySelectorAll('[data-s]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-s]').forEach(x=>x.setAttribute('aria-pressed','false'));b.setAttribute('aria-pressed','true');const s=document.getElementById('status');s.textContent=T[b.dataset.s];s.className=b.dataset.s==='idle'?'note':(b.dataset.s==='busy'?'note':'warn')}));</script>
+</body></html>

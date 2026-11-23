@@ -1,0 +1,111 @@
+{
+  "_note": "Reference tokens derived from the design screens. Values not verified against the live app.",
+  "color": {
+    "cream": "#FBF7EE",
+    "ink": "#17212B",
+    "muted": "#505B68",
+    "navy": "#14365A",
+    "navyDeep": "#0E2740",
+    "gold": "#D3B675",
+    "goldText": "#8A6A1E",
+    "goldTextStrong": "#6B4F10",
+    "line": "#E7DFCC",
+    "card": "#FFFFFF",
+    "sand": "#F1ECDD",
+    "red": "#B42318",
+    "redDeep": "#7F1D1D",
+    "green": "#1F6B4A",
+    "greenBg": "#F1F8F4",
+    "redBg": "#FDF0EE"
+  },
+  "semantic": {
+    "agreed": {
+      "fg": "#14522F",
+      "bg": "#E3F1E9"
+    },
+    "notGiven": {
+      "fg": "#3A444F",
+      "bg": "#ECE7DA"
+    },
+    "withdrawn": {
+      "fg": "#7F1D1D",
+      "bg": "#FDF0EE"
+    },
+    "pending": {
+      "fg": "#6B4F10",
+      "bg": "#F6EFD9"
+    },
+    "error": {
+      "fg": "#7F1D1D",
+      "bg": "#FDF0EE"
+    },
+    "disabledBg": "#E3DDCD",
+    "disabledFg": "#505B68",
+    "focusRing": "#14365A"
+  },
+  "typography": {
+    "heading": "Fraunces",
+    "body": "Hind",
+    "scriptFallbacks": [
+      "Noto Sans Devanagari",
+      "Noto Sans Bengali",
+      "Noto Sans Tamil",
+      "Noto Sans Telugu",
+      "Noto Sans Gujarati",
+      "Noto Sans Kannada",
+      "Noto Sans Malayalam",
+      "Noto Sans Gurmukhi",
+      "Noto Sans Oriya",
+      "Noto Naskh Arabic"
+    ],
+    "sizes": {
+      "body": 16,
+      "small": 14,
+      "caption": 13,
+      "h1": 28,
+      "h2": 22,
+      "button": 17
+    },
+    "lineHeight": {
+      "body": 1.4,
+      "heading": 1.15
+    }
+  },
+  "spacing": [
+    4,
+    8,
+    10,
+    12,
+    14,
+    16,
+    20,
+    24,
+    28
+  ],
+  "radius": {
+    "card": 14,
+    "cardLg": 16,
+    "button": 16,
+    "pill": 999,
+    "screen": 28
+  },
+  "elevation": {
+    "sos": "0 6px 18px rgba(180,35,24,.35)"
+  },
+  "touchTarget": {
+    "min": 48
+  },
+  "breakpoints": {
+    "phone": 0,
+    "tablet": 768,
+    "desktop": 1100
+  },
+  "validationWidths": [
+    320,
+    360,
+    390,
+    412,
+    768,
+    1280
+  ]
+}
