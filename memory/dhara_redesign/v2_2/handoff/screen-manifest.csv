@@ -1,0 +1,59 @@
+id,screen,design_file,disposition,change_summary,change_class,png,in_53_reference_set
+1,Splash,Splash.dc.html,revised,Copy: removed unsupported claims; contrast on small text,Copy correction + Visual change,screens/png/Splash.png,yes
+2,Choose language,Main.dc.html,revised,"Native names first, selected state with check + label. Search field does NOT exist in the app (functional addition needing approval). Real route /language",Visual change; search = New functionality requiring approval,screens/png/Main.png,yes
+3,How it helps,Welcome.dc.html,excluded,Not found as its own screen in the app. Keep only if product wants it; needs separate approval,Existing behaviour to preserve (nothing to change),screens/png/Welcome.png,yes
+4,Privacy & consent,Consent.dc.html,revised,"Real controls: 18+ / under 18, Terms of Use, data-processing, two optional (analytics, updates), all unselected. Choosing under 18 leads to screen 58 (proposed). Pending-review note. No badges",Visual change; Existing behaviour to preserve; under-18 route = New functionality,screens/png/Consent.png,yes
+5,Choose state,StatePick.dc.html,revised,Placeholder contrast; targets,Visual change,screens/png/StatePick.png,yes
+6,Home,Home.dc.html,revised,Voice-first action kept; typing alternative labelled; copy corrected,Visual change + Copy correction,screens/png/Home.png,yes
+7,Listening,Listening.dc.html,merged,State inside app/(tabs)/index.tsx (main chat screen). Not a separate screen,Visual change,screens/png/Listening.png,yes
+8,Type instead,Type.dc.html,merged,A button on Home that opens the same chat screen (testID home-type-button). Not a separate screen. Not a pilot candidate,Visual change,screens/png/Type.png,yes
+9,Scan document,Scan.dc.html,retained,Do NOT redirect scan completion to /heard without confirming the OCR workflow,Visual change; Unverified implementation detail,screens/png/Scan.png,yes
+10,DHARA understood,Heard.dc.html,merged,State inside app/(tabs)/index.tsx,Visual change,screens/png/Heard.png,yes
+11,Action plan,ActionPlan.dc.html,retained,Sample content is placeholder,Unverified implementation detail,screens/png/ActionPlan.png,yes
+12,Your rights,Answer.dc.html,merged,State inside app/(tabs)/index.tsx. Sample answers and verified labels are placeholders,Unverified implementation detail,screens/png/Answer.png,yes
+13,Sources,Sources.dc.html,merged,State inside app/(tabs)/index.tsx,Visual change,screens/png/Sources.png,yes
+14,Sign in,Login.dc.html,retained,No phone/OTP introduced; existing sign-in methods and guest access preserved,Existing behaviour to preserve,screens/png/Login.png,yes
+15,Set PIN,Pin.dc.html,excluded,No app-wide PIN exists. The only PIN is a local Evidence Locker lock. Do not add one,New functionality requiring approval,screens/png/Pin.png,yes
+16,Letter saved,Draft.dc.html,merged,Same file as 17 (app/drafts/[type].tsx): form and generated letter are two states,Existing behaviour to preserve,screens/png/Draft.png,yes
+17,Your letter,Letter.dc.html,merged,Same file as 16,Existing behaviour to preserve,screens/png/Letter.png,yes
+18,My files,Files.dc.html,retained,Visual only,Visual change,screens/png/Files.png,yes
+19,Me,Settings.dc.html,retained,"Separate tab route (me.tsx). The merged Me hub in the earlier design is a proposal, not the current app",Visual change,screens/png/Settings.png,yes
+20,All help,Help.dc.html,retained,Text clipping check at 1.5x flagged one item (see A11Y report),Visual change,screens/png/Help.png,yes
+21,Head out,HeadOut.dc.html,revised,Copy corrected; permission handling preserved,Copy correction,screens/png/HeadOut.png,yes
+22,Trusted people,Circle.dc.html,revised,Copy corrected; 48px targets,Copy correction + Visual change,screens/png/Circle.png,yes
+23,On the way,Journey.dc.html,revised,Idle/active states only from app state; sharing expiry and revocation preserved,Copy correction,screens/png/Journey.png,yes
+24,Are you OK?,CheckIn.dc.html,merged,Inline handler (handleCheckInNow) inside Head Out (app/women/head-out/index.tsx). Not its own screen,Visual change,screens/png/CheckIn.png,yes
+25,Emergency,Emergency.dc.html,revised,"No ""Police notified""; dialler, SMS draft, send and confirmed delivery separate. Label now ""Open dialler for 112"" with a visible fallback. The real 112 element has no handler: engineering must wire it and test on a physical device without placing calls. Number to be confirmed per region",Copy correction + Visual change; wiring = New functionality,screens/png/Emergency.png,yes
+26,Record proof,Record.dc.html,revised,"Pause and ""Make the screen dark, keep recording"" removed from the design: neither exists in the app. Local-only storage confirmed in code; the exact words ""Saved to this phone"" were not found, so the design says ""Saved on this phone. Sharing is your choice."" Save-failure state still to be designed",Copy correction + Visual change,screens/png/Record.png,yes
+27,Card for officer,Officer.dc.html,retained,Visual only,Visual change,screens/png/Officer.png,yes
+28,Rights library,Rights.dc.html,revised,Icon runtime error fixed in the design file; search labelled,Visual change,screens/png/Rights.png,yes
+29,One right,RightDetail.dc.html,merged,Inline accordion in app/(tabs)/rights.tsx. Not a separate screen. Not a pilot candidate,Visual change,screens/png/RightDetail.png,yes
+30,Dhara Engine,Engine.dc.html,retained,Sample content is placeholder,Unverified implementation detail,screens/png/Engine.png,yes
+31,File a complaint,FirDraft.dc.html,retained,Fraud-help navigation NOT replaced by Advocate Register,Existing behaviour to preserve,screens/png/FirDraft.png,yes
+32,Ready notices,Notices.dc.html,retained,"Real screen is app/drafts/index.tsx, titled Ready notices",Visual change,screens/png/Notices.png,yes
+33,Women's Shield,WomenShield.dc.html,revised,Glow effects simplified; text contrast raised,Visual change,screens/png/WomenShield.png,yes
+34,Silent alert,SilentAlert.dc.html,revised,"No ""Police notified"" claim",Copy correction,screens/png/SilentAlert.png,yes
+35,Safety phrases,SafetyPhrases.dc.html,revised,Copy corrected,Copy correction,screens/png/SafetyPhrases.png,yes
+36,Panic lesson,PanicLesson.dc.html,retained,Visual only,Visual change,screens/png/PanicLesson.png,yes
+37,Safety plan,SafetyPlan.dc.html,retained,Visual only,Visual change,screens/png/SafetyPlan.png,yes
+38,Guardian share,GuardianShare.dc.html,revised,"Shows not-sharing/idle unless app reports sharing; ""Invited"" not ""Accepted""",Copy correction,screens/png/GuardianShare.png,yes
+39,Family journey,FamilyJourney.dc.html,revised,"Renamed ""Support a family member""; kept separate from legal-case tracking",Copy correction,screens/png/FamilyJourney.png,yes
+40,Family contacts,FamilyContacts.dc.html,revised,Labelled icon buttons; 48px targets,Visual change,screens/png/FamilyContacts.png,yes
+41,Missing person,Missing.dc.html,retained,Visual only,Visual change,screens/png/Missing.png,yes
+42,Person details,MissingInterview.dc.html,retained,Visual only,Visual change,screens/png/MissingInterview.png,yes
+43,Alerts,Alerts.dc.html,revised,Sample alerts removed,Copy correction,screens/png/Alerts.png,yes
+44,My account,Me.dc.html,retained,Same file as 19 (me.tsx),Visual change,screens/png/Me.png,yes
+45,Edit profile,EditProfile.dc.html,revised,Sample personal details removed,Copy correction,screens/png/EditProfile.png,yes
+46,Data privacy,DataPrivacy.dc.html,revised,No blanket on-device or end-to-end claims; reconcile with approved policy (live notice describes cloud storage),Copy correction,screens/png/DataPrivacy.png,yes
+47,Consent settings,ConsentMgmt.dc.html,revised,"""Privacy choices"". Real flow today is /consent?mode=update with two optional toggles. v2.2 adds an approved design for withdrawing the use of my information, with age and Terms confirmed once. Backend pending engineering and legal review",Visual change; Existing behaviour to preserve; required-consent withdrawal = New functionality (approved design),screens/png/ConsentMgmt.png,yes
+48,DHARA Pro,Pro.dc.html,deferred,"Flag EXPO_PUBLIC_PRO_UPGRADE_ENABLED is false in preview. Design shows ""Price to be confirmed"". The backend has a default price (INR 99 / USD 5) from environment variables: confirm it is approved before showing any price",Copy correction; Unverified implementation detail,screens/png/Pro.png,yes
+49,Find advocate,AdvocateRegister.dc.html,deferred,"No feature-flag constant found in app/advocate-register.tsx, only auth checks. Confirm gating before launch",Unverified implementation detail,screens/png/AdvocateRegister.png,yes
+50,Advocate profile,LawyerMode.dc.html,deferred,No feature flag found in app/lawyer-home.tsx. Confirm gating,Unverified implementation detail,screens/png/LawyerMode.png,yes
+51,Case notes,Notetaker.dc.html,deferred,No feature flag found in app/notetaker/index.tsx. Confirm gating,Unverified implementation detail,screens/png/Notetaker.png,yes
+52,IPC lookup,IPCLookup.dc.html,retained,Visual only,Visual change,screens/png/IPCLookup.png,yes
+53,Visitor help,VisitorHelp.dc.html,retained,Visual only,Visual change,screens/png/VisitorHelp.png,yes
+54,Consent record,ConsentReceipt.dc.html,new,"Proposal. Not in the repo. Retention after deletion undecided. Fields match what consent_log stores (time, notice version, language, app version, holder). Backend and legal sufficiency UNVERIFIED",New functionality requiring approval,screens/png/ConsentReceipt.png,no (new)
+55,Consent history,ConsentHistory.dc.html,new,Proposal. Not in the repo. Guest-to-account linking exists server-side (/api/consent/link). History view does not,New functionality requiring approval,screens/png/ConsentHistory.png,no (new)
+56,Withdraw consent,WithdrawConfirm.dc.html,new,"Approved design, not built. Withdraw the use of my information (consequences first; privacy, support and deletion stay available) and the two optional choices. Updates enforcement not found in code. Backend pending engineering and legal review",New functionality (approved design; backend pending),screens/png/WithdrawConfirm.png,no (new)
+57,Download consent record,ConsentDownload.dc.html,new,"Proposal. Not in the repo. The existing Export my data is a summary, not a consent record",New functionality requiring approval,screens/png/ConsentDownload.png,no (new)
+58,Not available under 18,UnderAge.dc.html,new,"Under-18 screen: adults-only message, emergency-number and youth-help placeholders TO BE CONFIRMED per region, no collection. Proposal; backend pending; legal review",New functionality requiring approval,screens/png/UnderAge.png,no (new)

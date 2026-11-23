@@ -10,11 +10,27 @@ measured against them by mistake:
 | **this folder** | **v2.2** (14 Nov) — use this one |
 
 Source: Google Drive `DHARA_editable_screens_v2.2.zip` (58 screens) and
-`EMERGENT_IMPLEMENTATION_PROMPT.md` v2.2. The 15 MB `Handoff_v2.2.zip`
-(the CSVs, tokens and A11Y report) is over the Drive connector's limit and
-is not here yet; until it arrives, the v2.1 copies of those files in
-`../v2_1/handoff/` are the closest available, and `design-tokens.json` is
-identical between v1 and v2.1.
+`EMERGENT_IMPLEMENTATION_PROMPT.md` v2.2.
+
+**The handoff zip has since arrived** and its text part is now in
+`handoff/` — the component specs, the consent and audit documents, the
+acceptance and manifest CSVs, the tokens, the icon SVGs and the responsive
+preview pages. See `handoff/README_IMPORT.md` for what was left in Drive and
+why, and for the four wording corrections made on import. It confirmed that
+the 58 screens here are byte-identical to the zip's, and that
+`design-tokens.json` and `theme.ts` are identical across v1, v2.1 and v2.2.
+
+| Folder | What it holds |
+|---|---|
+| `editable_screens/` | The 58 `.dc.html` screens, `canvas.json`, `support.js` |
+| `handoff/` | Specs, audits, CSVs, tokens, icons, responsive preview |
+| `baseline_2026-11-23/` | The live app **before** the v2.2 work, plus the test and type counts every step must hold |
+
+Read `handoff/component-specifications.md` and `handoff/preview/dhara.css`
+before building any shared UI: they carry the real numbers for buttons,
+cards, chips, the top bar, the tab bar, the SOS pill and the consent rows.
+Note the desktop breakpoint is **1100**, not 1280, and the content column is
+capped at 960px.
 
 ## What v2.2 changed against the v1 screens in this repo
 
