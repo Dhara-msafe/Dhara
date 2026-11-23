@@ -1578,9 +1578,19 @@ async def suggest_sections(
 
 
 # ─── Draft generation ─────────────────────────────────────────────────────────
+# B-115 fix: the old system message ("Be factual. Use exactly the
+# information provided.") was too generic to stop a fabrication like writing
+# "chain snatching" in the letter's Subject line/body for an incident the
+# complainant described only as a phone being snatched — a plausible-
+# sounding but invented crime detail the LLM was never given. Explicitly
+# naming the failure mode (substituting a different, more "typical"-sounding
+# object/crime label than what the complainant actually stated) is what
+# makes the guard effective; a generic "be factual" leaves room for an LLM
+# to treat a crime-category word as a paraphrase rather than a fact.
 _DRAFT_SYS = """You are a legal draft writer for Indian citizens.
 Generate a first-person FIR complaint letter as required for Section 173(1) BNSS filing.
-Be factual. Use exactly the information provided. Output ONLY the letter text, no markdown."""
+Be factual. Use exactly the information provided. Output ONLY the letter text, no markdown.
+NEVER invent or substitute a different crime detail, object, or label than what is explicitly stated in the facts given to you — for example, if the complainant's own words describe a phone being snatched, the letter must say a phone (never "chain", "jewellery", "necklace", or any other object not stated). Do not "upgrade" or embellish the incident with a more serious or more typical-sounding variant. If a detail is not stated, write "Not provided" or omit it — never fill the gap with a guess."""
 
 # B-101: suggested BNS sections in a FIR draft come from suggest_sections()'s
 # lookup against db.legal_sections (existence + dead-law/judicial-flag check
@@ -1598,6 +1608,20 @@ _BNS_SECTION_DISCLAIMER = (
     "correspondence-verification review. The investigating officer determines "
     "final sections."
 )
+
+
+def _subject_line(desc: Optional[str]) -> str:
+    """B-115 fix: the letter's Subject line used to be written freely by the
+    LLM from the facts given to it (same fabrication risk as the body — see
+    _DRAFT_SYS above). Since the Subject line's only job is to restate what
+    the complainant already said, there is no reason to let a model write it
+    at all: build it deterministically, straight from the complainant's own
+    description text (truncated, never reworded), and hand it to the prompt
+    as a fixed line the model must reproduce verbatim. Shared with
+    _fallback_draft() so the LLM and offline-fallback letters can never
+    disagree on this line."""
+    d = (desc or "Details to be provided at the time of statement").strip()
+    return f"Complaint regarding {d[:80]}"
 
 
 async def generate_draft(
@@ -1638,6 +1662,11 @@ async def generate_draft(
     if loc and not _is_valid_place_response(loc):
         place_display = "[To be provided at the time of statement recording]"
 
+    # B-115: the Subject line is built deterministically from the
+    # complainant's own description, never left to the model to compose —
+    # see _subject_line()'s docstring.
+    subject_line = _subject_line(slots.get('description'))
+
     prompt = f"""Generate a formal FIR complaint letter with the following details:
 
 Complainant name: {slots.get('informant_name') or 'Not provided'}
@@ -1667,6 +1696,7 @@ Date of report: {date_str}
 
 Write the letter in English, addressed to "The Station House Officer".
 Write in first person throughout.
+IMPORTANT: The letter's Subject line must read EXACTLY (verbatim, do not reword, embellish, or substitute any object/crime term in it): "Subject: {subject_line}"
 IMPORTANT: NEVER use [bracket placeholders] in the letter. If a detail is missing or not provided, write "Not provided" or omit the sentence entirely. Do not leave any square bracket text in the output.
 IMPORTANT: If Injury, Force used, or Property loss above are stated as "no", explicitly state that none occurred (e.g. "No injuries were sustained," "No force or weapon was used"). Never imply force, a weapon, or an injury happened unless the corresponding field above says "yes".
 {lang_line}
@@ -1708,7 +1738,7 @@ def _fallback_draft(slots: dict, sec_text: str, ev_text: str, date_str: str, loc
 The Station House Officer,
 (Police Station to be filled)
 
-Subject: Complaint regarding {desc[:80]}
+Subject: {_subject_line(desc)}
 
 Sir/Madam,
 
