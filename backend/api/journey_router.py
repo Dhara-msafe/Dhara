@@ -39,7 +39,48 @@ router = APIRouter()
 # ── Config ────────────────────────────────────────────────────────────────────
 _TOKEN_CHARS = string.ascii_letters + string.digits
 _TOKEN_LEN   = 10
-_TTL_HOURS   = 24          # records expire after 24 h
+_TTL_HOURS   = 24          # the share link stops working after 24 h
+
+# ── A12: how long a journey is kept ──────────────────────────────────────────
+#
+# Three different things, three different lifetimes, following what safety
+# apps of this kind do (Life360 keeps precise movement ~30 days and coarse
+# data far longer; Google moved Timeline on-device with auto-delete on):
+#
+#   the live trail        deleted the moment she marks safe or stops sharing
+#                         (already the behaviour — mark_safe / revoke_sharing)
+#   an ordinary journey   JOURNEY_RETENTION_DAYS after its deadline
+#   a journey where her   INCIDENT_RETENTION_DAYS instead: this is the record
+#   circle was alerted    that matters if something happened to her
+#   anonymous counts      kept, because they name nobody (see _record_journey_stat)
+#
+# She can also delete a journey, or all of them, at any time — that is
+# immediate and does not wait for any of these (DELETE endpoints below).
+#
+# Both numbers are settings, not constants in code, because the owner is
+# taking them to the client for approval.
+def _retention_days(name: str, default: int) -> int:
+    try:
+        return max(1, int(os.environ.get(name, default)))
+    except (TypeError, ValueError):
+        logger.warning("[journey] %s is not a number; using %d days.", name, default)
+        return default
+
+
+JOURNEY_RETENTION_DAYS  = _retention_days("JOURNEY_RETENTION_DAYS", 30)
+INCIDENT_RETENTION_DAYS = _retention_days("INCIDENT_RETENTION_DAYS", 90)
+# A migration floor: a record that already exists keeps at least this long
+# after the change lands, so turning deletion on never wipes history the same
+# minute. Only applies to the one-off backfill.
+BACKFILL_MIN_DAYS = 7
+
+
+def _purge_moment(journey_end: datetime, incident: bool = False, now: datetime | None = None) -> datetime:
+    """When this journey should disappear. Measured from the journey's end,
+    never from a moment already past."""
+    now = now or datetime.now(timezone.utc)
+    days = INCIDENT_RETENTION_DAYS if incident else JOURNEY_RETENTION_DAYS
+    return max(journey_end, now) + timedelta(days=days)
 _MAX_LABEL   = 120         # destination label max chars
 
 def _new_token() -> str:
@@ -422,6 +463,11 @@ async def create_journey(body: JourneyIn, user: dict = Depends(current_user)):
         "sharing_revoked_at":  None,   # set by POST .../revoke — owner withdraws sharing without claiming arrival
         "created_at":          now.isoformat(),
         "expires_at":          (now + timedelta(hours=_TTL_HOURS)).isoformat(),
+        # A12: when this record disappears, as a real BSON date — Mongo's TTL
+        # monitor cannot act on the ISO strings this module stores. Pushed out
+        # later if her circle is ever alerted for this journey.
+        "purge_at":            _purge_moment(now + timedelta(minutes=body.duration_mins), now=now),
+        "incident":            False,
         "recipient_link_ids":  body.recipient_link_ids,
         "remind_before_mins":  body.remind_before_mins,
         "reminder_sent_at":    None,
@@ -485,6 +531,9 @@ async def mark_safe(token: str, user: dict = Depends(current_user)):
     rec["status"] = "safe"
     rec["safe_at"] = now.isoformat()
     await _notify_linked_recipients(user, rec, "journey_completed")
+    # A12: the live trail is already gone (above). One anonymous line stays,
+    # so the product can be counted after the journey itself is deleted.
+    await _record_journey_stat(rec, "safe")
     return {"ok": True, "safe_at": now.isoformat()}
 
 
@@ -538,7 +587,48 @@ async def revoke_sharing(token: str, user: dict = Depends(current_user)):
     # now also treats sharing_revoked_at as closed, so no stale location
     # leaks through this notification either.
     await _notify_linked_recipients(user, rec, "sharing_ended")
+    # A12: the trail is gone (above); the anonymous line stays.
+    await _record_journey_stat(rec, "sharing_withdrawn")
     return {"ok": True, "revoked_at": rec["sharing_revoked_at"]}
+
+
+# ── A12: her own control over her history ────────────────────────────────────
+#
+# Immediate, not on any timer. Google Play requires an app with accounts to
+# offer deletion of the data tied to them, and the DPDP Act requires erasure
+# when she withdraws consent. The anonymous counts in journey_stats are not
+# touched: they hold no identifier and cannot be traced back to her.
+
+@router.delete("/journey/status/{token}", status_code=200)
+async def delete_journey(token: str, user: dict = Depends(current_user)):
+    """Delete one of her journeys, now. Also stops any alert for it."""
+    rec = await db.safety_journeys.find_one({"token": token})
+    if not rec:
+        return {"ok": True, "deleted": 0}          # already gone: nothing to say
+    if rec["user_id"] != user["id"]:
+        raise HTTPException(403, "Not your journey")
+    res = await db.safety_journeys.delete_one({"token": token, "user_id": user["id"]})
+    logger.info("[journey] user deleted 1 journey")
+    return {"ok": True, "deleted": res.deleted_count}
+
+
+@router.delete("/journey/history", status_code=200)
+async def delete_journey_history(user: dict = Depends(current_user)):
+    """Delete every journey of hers that is over.
+
+    A journey still in progress is left alone on purpose: deleting it would
+    silently switch off the alarm her circle is relying on. She ends it with
+    "I'm safe" or "Stop sharing" first, then deletes.
+    """
+    res = await db.safety_journeys.delete_many({
+        "user_id": user["id"],
+        "status": {"$ne": "in_progress"},
+    })
+    still_running = await db.safety_journeys.count_documents({
+        "user_id": user["id"], "status": "in_progress",
+    })
+    logger.info("[journey] user deleted %d past journeys", res.deleted_count)
+    return {"ok": True, "deleted": res.deleted_count, "still_running": still_running}
 
 
 class MissedCheckinIn(BaseModel):
@@ -598,6 +688,11 @@ async def report_missed_checkin(
             "alerted_link_ids": [], "selected": selected,
         }
     alerted = await _notify_linked_recipients(user, rec, "missed_checkin")
+    # A12: her circle was alerted, so this journey is kept for
+    # INCIDENT_RETENTION_DAYS instead of the ordinary window, and counted.
+    await mark_journey_incident(token)
+    if not rec.get("incident"):
+        await _record_journey_stat(rec, "missed_checkin")
     return {"ok": True, "alerted_link_ids": alerted, "selected": selected}
 
 
@@ -753,12 +848,17 @@ async def extend_checkin(token: str, body: ExtendIn, user: dict = Depends(curren
         current_deadline = datetime.now(timezone.utc)
     new_deadline = current_deadline + timedelta(minutes=body.additional_mins)
     now = datetime.now(timezone.utc)
+    # A12: the retention window runs from the journey's end, so a later
+    # deadline moves the delete date with it. An incident keeps its longer
+    # window.
+    purge_at = _purge_moment(new_deadline, incident=bool(rec.get("incident")), now=now)
     await db.safety_journeys.update_one(
         {"token": token},
         {"$set": {
             "expected_checkin_at":        new_deadline.isoformat(),
             "missed_checkin_notified_at": None,
             "reminder_sent_at":           None,
+            "purge_at":                   purge_at,
         }},
     )
     # A28: server_time rides along so the phone can re-measure how far its own
@@ -805,6 +905,130 @@ async def change_destination(token: str, body: ChangeDestinationIn, user: dict =
 # an in-app prompt only (head-out/index.tsx). "route_deviation" stays in
 # alerts_router's DISPLAY maps only, so alerts of that type already in the
 # database keep rendering for recipients.
+
+
+async def mark_journey_incident(token: str) -> None:
+    """A12: her circle was alerted for this journey, so keep it longer.
+
+    Called from both alert paths — the deadline worker and the app's own
+    missed-check-in report. Idempotent: the second call finds `incident`
+    already true and changes nothing. Never raises: an alert must go out
+    even if this bookkeeping fails.
+    """
+    try:
+        rec = await db.safety_journeys.find_one({"token": token})
+        if not rec or rec.get("incident"):
+            return
+        try:
+            journey_end = datetime.fromisoformat(rec["expected_checkin_at"])
+        except Exception:
+            journey_end = datetime.now(timezone.utc)
+        await db.safety_journeys.update_one(
+            {"token": token},
+            {"$set": {
+                "incident": True,
+                "purge_at": _purge_moment(journey_end, incident=True),
+            }},
+        )
+    except Exception as e:
+        logger.warning("[journey] could not extend retention for %s: %s", token, e)
+
+
+async def _record_journey_stat(rec: dict, outcome: str) -> None:
+    """A12: one anonymous line for the product's own counting, written when a
+    journey ends.
+
+    It names nobody and locates nobody: no user id, no token, no coordinates,
+    no destination, no recipient. Only how long the journey was planned for,
+    how long it actually ran, and how it ended. That is what makes it safe to
+    keep after the journey itself is deleted.
+
+    Never raises: counting must not be able to break a journey ending.
+    """
+    try:
+        now = datetime.now(timezone.utc)
+        started = rec.get("started_at")
+        planned = rec.get("expected_checkin_at")
+        def _mins(a, b):
+            try:
+                return int((datetime.fromisoformat(b) - datetime.fromisoformat(a)).total_seconds() // 60)
+            except Exception:
+                return None
+        await db.journey_stats.insert_one({
+            "outcome":          outcome,            # safe | missed_checkin | sharing_withdrawn
+            "planned_mins":     _mins(started, planned) if started and planned else None,
+            "actual_mins":      _mins(started, now.isoformat()) if started else None,
+            "had_alert":        bool(rec.get("incident")) or outcome == "missed_checkin",
+            "recipient_count":  len(rec.get("recipient_link_ids") or []),
+            "had_live_location": bool(rec.get("last_location")),
+            "ended_at":         now,
+        })
+    except Exception as e:
+        logger.warning("[journey] stat not recorded (%s): %s", outcome, e)
+
+
+async def ensure_journey_ttl_index(database) -> None:
+    """A12: let Mongo delete journey records once `purge_at` has passed.
+
+    A journey holds her destination and her last known coordinates. Nothing
+    deleted them: an expired journey was refused with 410 but stayed in the
+    database for ever. With `expireAfterSeconds=0` Mongo removes each record
+    at the moment stored in `purge_at` (a real BSON date — the TTL monitor
+    ignores the ISO strings this module stores for its own use).
+
+    Same shape as ensure_error_event_ttl_index in server.py: called once at
+    startup, takes the database explicitly so a test can pass a fake, and
+    never stops the app from booting.
+
+    Records written before this change have no `purge_at`, so Mongo would
+    keep them for ever. backfill_journey_purge_at below gives them one,
+    without deleting anything that already exists for at least
+    BACKFILL_MIN_DAYS.
+    """
+    try:
+        await database.safety_journeys.create_index(
+            "purge_at", expireAfterSeconds=0, name="safety_journeys_ttl",
+        )
+    except Exception as e:
+        logger.warning(f"[startup] safety_journeys TTL index warning: {e}")
+
+
+async def backfill_journey_purge_at(database) -> int:
+    """A12: give older journey records a delete time, once.
+
+    The window runs from each record's own `created_at` (an ISO string, so
+    the date is built in the database itself), with a floor of
+    BACKFILL_MIN_DAYS from now so nothing already stored disappears the
+    moment this is switched on. A record already marked as an incident gets
+    the longer window.
+    """
+    try:
+        # The window runs from each record's own creation, plus a floor of
+        # BACKFILL_MIN_DAYS from now: turning deletion on must never wipe
+        # existing history the same minute, even for records already older
+        # than the retention window.
+        floor_ms = BACKFILL_MIN_DAYS * 24 * 3600 * 1000
+        window_ms = JOURNEY_RETENTION_DAYS * 24 * 3600 * 1000
+        incident_ms = INCIDENT_RETENTION_DAYS * 24 * 3600 * 1000
+        res = await database.safety_journeys.update_many(
+            {"purge_at": {"$exists": False}},
+            [{"$set": {"purge_at": {"$max": [
+                {"$add": ["$$NOW", floor_ms]},
+                {"$add": [
+                    {"$ifNull": [
+                        {"$dateFromString": {"dateString": "$created_at", "onError": None, "onNull": None}},
+                        "$$NOW",
+                    ]},
+                    {"$cond": [{"$eq": [{"$ifNull": ["$incident", False]}, True]}, incident_ms, window_ms]},
+                ]},
+            ]}}}],
+        )
+        if res.modified_count:
+            logger.warning("[startup] A12: gave %d older journey record(s) a delete time.", res.modified_count)
+        return res.modified_count
+    except Exception as e:
+        logger.warning(f"[startup] safety_journeys purge_at backfill warning: {e}")
+        return 0
 
 
 def _age_seconds(iso: str | None, now: datetime) -> int | None:

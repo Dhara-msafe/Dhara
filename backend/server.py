@@ -301,7 +301,11 @@ from api.issues_router   import router as issues_router, ensure_indexes as _ensu
 from api.safety_router   import router as safety_router   # GO1A — saved places
 from api.geocode_router  import router as geocode_router   # GO1A — address search proxy
 from api.geo_router      import router as geo_router        # Google Places (New) autocomplete pilot
-from api.journey_router  import router as journey_router  # S3 Phase 2 — guardian status
+from api.journey_router  import (  # S3 Phase 2 — guardian status
+    router as journey_router,
+    ensure_journey_ttl_index as _ensure_journey_ttl_index,
+    backfill_journey_purge_at as _backfill_journey_purge_at,
+)
 from api.profile_router  import router as profile_router         # P1 — profile photo
 from api.trusted_circle_router import router as trusted_circle_router  # P3 — recipient invitations
 from api.alerts_router   import router as alerts_router           # P3/P4 — safety alerts inbox
@@ -2047,6 +2051,14 @@ async def _startup():
     # traceback) — N-05 (B-43).
     asyncio.create_task(_ensure_issue_indexes())
     asyncio.create_task(ensure_error_event_ttl_index(db))
+
+    # A12: journeys hold a destination and a last known position, and nothing
+    # deleted them — an expired journey was refused but kept for ever. Mongo
+    # now removes each record once its `purge_at` has passed; the backfill
+    # gives that date to records written before this change. Fire-and-forget,
+    # like the others: a database hiccup must never stop the app booting.
+    asyncio.create_task(_ensure_journey_ttl_index(db))
+    asyncio.create_task(_backfill_journey_purge_at(db))
 
     # Fire-and-forget background task, NOT awaited: the corpus migration
     # (see corpus_migration.py) starts automatically the instant this
