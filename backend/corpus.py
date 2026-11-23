@@ -2337,12 +2337,25 @@ def retrieve_state(question: str, state: str, limit: int = 2) -> list[dict]:
 def state_sensitive_topic(question: str):
     """If the question is on a subject where STATE law decides the answer,
     return {"topic", "label", "authority"}. Used to tell the user honestly that
-    the local rule matters — never to invent a local rule."""
+    the local rule matters — never to invent a local rule.
+
+    B-120 fix: match whole words/phrases only (via \\b...\\b), not a bare
+    substring. The old `keyword in question` check let short keywords
+    collide with ordinary, unrelated words -- most visibly "lease" (meant
+    for lease / leave-and-licence tenancies) matching inside the common word
+    "please", so any distress message such as "please help me" wrongly
+    surfaced an unrelated "Rent and tenancy are decided by state law" card
+    alongside the danger response. "rent" similarly collided with "parent"
+    and "different". Word-boundary matching keeps every existing true match
+    (all current keywords already sit on word boundaries) while dropping
+    these false ones.
+    """
+    import re as _re_topic
     q = _norm(question)
     for topic, meta in STATE_SENSITIVE_TOPICS.items():
         for kw in meta["keywords"]:
             k = _norm(kw)
-            if k and k in q:
+            if k and _re_topic.search(r"\b" + _re_topic.escape(k) + r"\b", q):
                 return {"topic": topic, "label": meta["label"], "authority": meta["authority"]}
     return None
 
