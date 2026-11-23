@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -11,6 +12,13 @@ import { getLastLocation, type CachedLocation } from '@/src/safety/locationCache
 import { formatLocationFix } from '@/src/safety/locationPresentation';
 import { UI_REVISION_V1 } from '@/src/designRevision';
 import { focusRingStyle } from '@/src/a11yFocus';
+// Step S4 (Shield tools, v2.2 design, 23 Nov handover): visual-only reskin
+// of this screen (screen-manifest id 37: "retained ... Visual only") to the
+// dark "Shield mode" palette. Presentation-only, reversible; all content
+// (Plus Code card, phone-safety checklist, the 8 journal questions) is
+// unchanged.
+import { UI_V22_S4 } from '@/src/uiV22Flags';
+import { shieldColors, shieldGradient } from '@/src/shieldTheme';
 
 // ─── Failsafe setup checklist data ──────────────────────────────────────────────
 const FAILSAFE_ITEMS = [
@@ -103,8 +111,8 @@ export default function SafetyPlan() {
   const save = async () => { await savePlan(ans); setDone(true); setTimeout(() => router.back(), 1200); };
   const filled = Object.values(ans).filter(v => v && v.trim()).length;
 
-  return (
-    <View style={styles.root}>
+  const body = (
+    <>
       <ScreenHeader title="My safety plan" subtitle="Private · stored only on this phone" />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
 
@@ -131,13 +139,13 @@ export default function SafetyPlan() {
           >
             <View style={styles.plusCodeTopRow}>
               <View style={styles.plusCodeIconWrap}>
-                <Ionicons name="location" size={18} color={c.navy} />
+                <Ionicons name="location" size={18} color={UI_V22_S4 ? shieldColors.text : c.navy} />
               </View>
               <View style={{ flex: 1 }}>
                 <View style={styles.plusCodeLabelRow}>
                   <Text style={styles.plusCodeLabel}>Emergency Plus Code</Text>
                   <View style={styles.offlineBadge}>
-                    <Ionicons name="cloud-offline-outline" size={10} color="#6b7280" />
+                    <Ionicons name="cloud-offline-outline" size={10} color={UI_V22_S4 ? shieldColors.textFaint : '#6b7280'} />
                     <Text style={styles.offlineBadgeTxt}>Works offline</Text>
                   </View>
                 </View>
@@ -150,7 +158,7 @@ export default function SafetyPlan() {
                 <Ionicons
                   name={plusCodeCopied ? 'checkmark-circle' : 'copy-outline'}
                   size={22}
-                  color={plusCodeCopied ? c.verifiedGreen : c.navy}
+                  color={plusCodeCopied ? (UI_V22_S4 ? shieldColors.green : c.verifiedGreen) : (UI_V22_S4 ? shieldColors.text : c.navy)}
                 />
               </View>
             </View>
@@ -168,7 +176,7 @@ export default function SafetyPlan() {
             accessibilityLabel="Location not available. Turn on GPS to get your emergency Plus Code."
           >
             <View style={styles.plusCodeIconWrap}>
-              <Ionicons name="location-outline" size={18} color={c.muted} />
+              <Ionicons name="location-outline" size={18} color={UI_V22_S4 ? shieldColors.textFaint : c.muted} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.locationUnavailableTitle}>Location not available</Text>
@@ -186,12 +194,12 @@ export default function SafetyPlan() {
           accessibilityLabel="Before you head out — phone safety setup"
           accessibilityHint={checklistOpen ? 'Collapse section' : 'Expand to see phone-level safety steps'}
         >
-          <Ionicons name="shield-outline" size={20} color={c.navy} style={{ marginRight: 10 }} />
+          <Ionicons name="shield-outline" size={20} color={UI_V22_S4 ? shieldColors.text : c.navy} style={{ marginRight: 10 }} />
           <Text style={styles.checklistTitle}>Before you head out — phone safety setup</Text>
           <Ionicons
             name={checklistOpen ? 'chevron-up' : 'chevron-down'}
             size={18}
-            color={c.muted}
+            color={UI_V22_S4 ? shieldColors.textMuted : c.muted}
             style={{ marginLeft: 'auto' }}
           />
         </Pressable>
@@ -201,7 +209,7 @@ export default function SafetyPlan() {
             {FAILSAFE_ITEMS.map((item, idx) => (
               <View key={idx} style={styles.checklistItem}>
                 <View style={styles.checklistIconWrap}>
-                  <Ionicons name={item.icon} size={18} color={c.navy} />
+                  <Ionicons name={item.icon} size={18} color={UI_V22_S4 ? shieldColors.gold : c.navy} />
                 </View>
                 <View style={styles.checklistText}>
                   <Text style={styles.checklistItemTitle}>{item.title}</Text>
@@ -227,7 +235,7 @@ export default function SafetyPlan() {
               value={ans[i] || ''}
               onChangeText={v => set(i, v)}
               placeholder="Your answer (optional)"
-              placeholderTextColor={c.muted}
+              placeholderTextColor={UI_V22_S4 ? shieldColors.textFaint : c.muted}
               style={styles.input}
               multiline
               accessibilityLabel={`Answer for question ${i + 1}: ${q}`}
@@ -244,15 +252,32 @@ export default function SafetyPlan() {
           <Text style={styles.saveTxt}>{done ? 'Saved privately' : 'Save my plan'}</Text>
         </Pressable>
       </ScrollView>
-    </View>
+    </>
   );
+
+  if (UI_V22_S4) {
+    return (
+      <LinearGradient colors={shieldGradient.colors} start={shieldGradient.start} end={shieldGradient.end} style={styles.root}>
+        {body}
+      </LinearGradient>
+    );
+  }
+  return <View style={styles.root}>{body}</View>;
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: c.background },
+  root: { flex: 1, backgroundColor: UI_V22_S4 ? 'transparent' : c.background },
 
   // ── F0-B: Plus Code card ──────────────────────────────────────────────────────────────
-  plusCodeCard: {
+  plusCodeCard: UI_V22_S4 ? {
+    backgroundColor: shieldColors.cardBg,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: shieldColors.cardBorder,
+    padding: 16,
+    marginBottom: 12,
+    gap: 8,
+  } : {
     backgroundColor: c.navySoft,
     borderRadius: 16,
     borderWidth: 1.5,
@@ -270,7 +295,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: c.surface,
+    backgroundColor: UI_V22_S4 ? shieldColors.chipBg : c.surface,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -286,13 +311,23 @@ const styles = StyleSheet.create({
   plusCodeLabel: {
     fontFamily: theme.fonts.bodySemiBold,
     fontSize: 12,
-    color: c.navy,
+    color: UI_V22_S4 ? shieldColors.text : c.navy,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
   // B-96: plain notice card shown instead of the Plus Code card when
   // locationCache.ts has no real GPS/server fix (source === 'demo').
-  locationUnavailableCard: {
+  locationUnavailableCard: UI_V22_S4 ? {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: shieldColors.cardBg,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: shieldColors.cardBorder,
+    padding: 16,
+    marginBottom: 12,
+    gap: 12,
+  } : {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: c.surface,
@@ -306,19 +341,19 @@ const styles = StyleSheet.create({
   locationUnavailableTitle: {
     fontFamily: theme.fonts.bodySemiBold,
     fontSize: 14,
-    color: c.navy,
+    color: UI_V22_S4 ? shieldColors.text : c.navy,
   },
   locationUnavailableBody: {
     fontFamily: theme.fonts.body,
     fontSize: 12,
-    color: c.muted,
+    color: UI_V22_S4 ? shieldColors.textMuted : c.muted,
     marginTop: 2,
   },
   offlineBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: UI_V22_S4 ? shieldColors.chipBg : '#f3f4f6',
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -329,12 +364,12 @@ const styles = StyleSheet.create({
     // NF-UI-REV-02: '#6b7280' on this chip's '#f3f4f6' background measured
     // ~4.37:1 — just under the 4.5:1 minimum for small text. c.muted
     // (#505B68) on the same background measures ~6:1.
-    color: UI_REVISION_V1 ? c.muted : '#6b7280',
+    color: UI_V22_S4 ? shieldColors.textFaint : (UI_REVISION_V1 ? c.muted : '#6b7280'),
   },
   plusCodeValue: {
     fontFamily: theme.fonts.displayBold,
     fontSize: 22,
-    color: c.navy,
+    color: UI_V22_S4 ? shieldColors.text : c.navy,
     letterSpacing: 1,
     lineHeight: 28,
     marginBottom: 2,
@@ -342,7 +377,7 @@ const styles = StyleSheet.create({
   plusCodeAge: {
     fontFamily: theme.fonts.body,
     fontSize: 11,
-    color: c.muted,
+    color: UI_V22_S4 ? shieldColors.textMuted : c.muted,
     lineHeight: 15,
   },
   plusCodeCopyBtn: {
@@ -352,13 +387,23 @@ const styles = StyleSheet.create({
   plusCodeHint: {
     fontFamily: theme.fonts.body,
     fontSize: 12,
-    color: c.navy,
+    color: UI_V22_S4 ? shieldColors.textMuted : c.navy,
     lineHeight: 17,
-    opacity: 0.75,
+    opacity: UI_V22_S4 ? 1 : 0.75,
   },
 
   // ── Failsafe checklist ────────────────────────────────────────────────────────────────
-  checklistHeader: {
+  checklistHeader: UI_V22_S4 ? {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: shieldColors.cardBg,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: shieldColors.cardBorder,
+    padding: 16,
+    marginBottom: 4,
+    minHeight: 56,
+  } : {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: c.surface,
@@ -372,11 +417,20 @@ const styles = StyleSheet.create({
   checklistTitle: {
     fontFamily: theme.fonts.bodyBold,
     fontSize: 14,
-    color: c.navy,
+    color: UI_V22_S4 ? shieldColors.text : c.navy,
     flex: 1,
     lineHeight: 20,
   },
-  checklistBody: {
+  checklistBody: UI_V22_S4 ? {
+    backgroundColor: shieldColors.cardBg,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: shieldColors.cardBorder,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
+    marginBottom: 16,
+  } : {
     backgroundColor: c.surface,
     borderRadius: 14,
     borderWidth: 1,
@@ -391,14 +445,14 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: c.lines,
+    borderBottomColor: UI_V22_S4 ? shieldColors.divider : c.lines,
     gap: 12,
   },
   checklistIconWrap: {
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: c.background,
+    backgroundColor: UI_V22_S4 ? shieldColors.chipBg : c.background,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
@@ -408,20 +462,20 @@ const styles = StyleSheet.create({
   checklistItemTitle: {
     fontFamily: theme.fonts.bodyBold,
     fontSize: 13,
-    color: c.ink,
+    color: UI_V22_S4 ? shieldColors.text : c.ink,
     lineHeight: 18,
     marginBottom: 4,
   },
   checklistItemBody: {
     fontFamily: theme.fonts.body,
     fontSize: 13,
-    color: c.muted,
+    color: UI_V22_S4 ? shieldColors.textMuted : c.muted,
     lineHeight: 19,
   },
   checklistFooter: {
     fontFamily: theme.fonts.body,
     fontSize: 12,
-    color: c.muted,
+    color: UI_V22_S4 ? shieldColors.textFaint : c.muted,
     lineHeight: 17,
     marginTop: 12,
     fontStyle: 'italic',
@@ -429,12 +483,16 @@ const styles = StyleSheet.create({
 
   // ── Safety plan questions ───────────────────────────────────────────────────────
   progress: { marginBottom: 18, marginTop: 4 },
-  progressTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.muted, marginBottom: 8 },
-  track: { height: 8, borderRadius: 4, backgroundColor: c.surfaceTertiary, overflow: 'hidden' },
-  fill: { height: 8, borderRadius: 4, backgroundColor: c.gold },
-  qCard: { backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.lines, padding: 16, marginBottom: 12 },
-  q: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink, lineHeight: 22, marginBottom: 10 },
-  input: { backgroundColor: c.background, borderWidth: 1, borderColor: c.lines, borderRadius: 10, padding: 12, fontFamily: theme.fonts.body, fontSize: 15, color: c.ink, minHeight: 48, textAlignVertical: 'top' },
-  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.navy, borderRadius: 12, paddingVertical: 16, marginTop: 8 },
+  progressTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, marginBottom: 8 },
+  track: { height: 8, borderRadius: 4, backgroundColor: UI_V22_S4 ? shieldColors.chipBg : c.surfaceTertiary, overflow: 'hidden' },
+  fill: { height: 8, borderRadius: 4, backgroundColor: UI_V22_S4 ? shieldColors.pink : c.gold },
+  qCard: UI_V22_S4
+    ? { backgroundColor: shieldColors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: shieldColors.cardBorder, padding: 16, marginBottom: 12 }
+    : { backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.lines, padding: 16, marginBottom: 12 },
+  q: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: UI_V22_S4 ? shieldColors.text : c.ink, lineHeight: 22, marginBottom: 10 },
+  input: UI_V22_S4
+    ? { backgroundColor: shieldColors.chipBg, borderWidth: 1, borderColor: shieldColors.cardBorder, borderRadius: 10, padding: 12, fontFamily: theme.fonts.body, fontSize: 15, color: shieldColors.text, minHeight: 48, textAlignVertical: 'top' }
+    : { backgroundColor: c.background, borderWidth: 1, borderColor: c.lines, borderRadius: 10, padding: 12, fontFamily: theme.fonts.body, fontSize: 15, color: c.ink, minHeight: 48, textAlignVertical: 'top' },
+  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: UI_V22_S4 ? shieldColors.lavenderBgDeep : c.navy, borderRadius: 12, paddingVertical: 16, marginTop: 8 },
   saveTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 16 },
 });

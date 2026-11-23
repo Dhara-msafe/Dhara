@@ -267,7 +267,7 @@ export default function CodePhrase() {
           Choose a normal-sounding sentence. When you type it in Ask DHARA, it will
           request microphone permission if not already granted, then immediately begin
           local recording {'—'} and prepare your Silent Alert without anyone noticing.
-          Stored only on this phone, encrypted.
+          Stored in OS-protected device storage (authenticated users) or device memory only (guest).
         </Text>
 
         {Platform.OS === 'web' && (

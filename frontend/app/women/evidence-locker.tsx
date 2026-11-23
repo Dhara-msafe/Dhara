@@ -1203,7 +1203,7 @@ export default function EvidenceLocker() {
     <View style={styles.root} testID="evidence-locker-screen">
       <ScreenHeader title="Evidence locker" subtitle="Local recordings, photos & video · no network needed" />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
-        <Text testID="evidence-storage-notice" style={styles.note}>Saved to this phone. Nobody else gets it unless you choose to share it, anchor it, or back it up. Recording in the background is not promised — keep the screen on while recording. Clearing app data or uninstalling can erase it.</Text>
+        <Text testID="evidence-storage-notice" style={styles.note}>Saved on this phone. Sharing is your choice. Nobody else gets it unless you choose to share it, anchor it, or back it up. Recording in the background is not promised — keep the screen on while recording. Clearing app data or uninstalling can erase it.</Text>
         {/* B5 (Phase 0.5): Change PIN — requires current PIN to proceed */}
         <Pressable
           testID="evidence-change-pin"
