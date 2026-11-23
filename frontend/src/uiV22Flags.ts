@@ -227,3 +227,33 @@ export const UI_V22_S4 = process.env.EXPO_PUBLIC_UI_V22_S4 === 'true';
  * navigation behaviour changes either way.
  */
 export const UI_INPUT_INSET = process.env.EXPO_PUBLIC_UI_INPUT_INSET === 'true';
+
+/**
+ * Batch 3 — step S7 (Files & drafting: My files, File a complaint, The
+ * letter, Letter saved/not sent, Ready notices, Your action plan, Photo of
+ * a paper) needed one real fix out of seven screens. My files, Ready
+ * notices (app/drafts/index.tsx — the manifest corrects the tracking
+ * sheet's route, which had Ready notices and Letter saved/not sent
+ * swapped), Missing-screen-adjacent audits, Your action plan and Photo of
+ * a paper (Scan) were all already on the v2.2 cream/navy/gold theme
+ * (theme.ts) with no overclaiming copy and no stray auto-redirect out of
+ * the scan flow. Letter saved/Your letter are explicitly "existing
+ * behaviour to preserve" (both states of app/drafts/[type].tsx) — no
+ * change. A11Y_CHECK_REPORT.md flagged touch targets under 48px in
+ * FirDraft; the one concrete, verifiable match in the live code is the
+ * "Add more files" attach button (44x44, no hitSlop). With the flag on, it
+ * gets hitSlop={2}, reaching the 48px effective target; off, it's
+ * unchanged.
+ */
+export const UI_V22_S7 = process.env.EXPO_PUBLIC_UI_V22_S7 === 'true';
+
+/**
+ * Step S8 (Missing & alerts: Missing person, Missing interview, Alerts)
+ * needed no code change. Missing person and Missing interview already use
+ * the v2.2 theme tokens (theme.colors.primary/error/background match the
+ * mockups' navy/red/cream exactly). Alerts' manifest item ("Sample alerts
+ * removed") refers to the mockup's own placeholder data — the live
+ * screen (app/alerts/index.tsx) already fetches real alerts/invitations
+ * from the API with an honest "Nothing here yet." empty state, no
+ * hardcoded sample rows. No flag declared.
+ */
