@@ -39,6 +39,10 @@ router = APIRouter()
 _TOKEN_CHARS = string.ascii_letters + string.digits
 _TOKEN_LEN   = 10
 _TTL_HOURS   = 24          # records expire after 24 h
+# A12: how long a record may outlive its own deadline before Mongo deletes it.
+# Small on purpose: a journey record holds her destination and her last
+# coordinates, so it should not sit in the database once the journey is over.
+_PURGE_GRACE_HOURS = 6
 _MAX_LABEL   = 120         # destination label max chars
 
 def _new_token() -> str:
@@ -321,6 +325,11 @@ async def create_journey(body: JourneyIn, user: dict = Depends(current_user)):
         "sharing_revoked_at":  None,   # set by POST .../revoke — owner withdraws sharing without claiming arrival
         "created_at":          now.isoformat(),
         "expires_at":          (now + timedelta(hours=_TTL_HOURS)).isoformat(),
+        # A12: the same moment as a real BSON date. Mongo's TTL monitor can
+        # only act on a date, not on the ISO string above, which every reader
+        # here still parses. When this moment passes, the whole record goes:
+        # coordinates, destination, times and all.
+        "purge_at":            now + timedelta(hours=_TTL_HOURS),
         "recipient_link_ids":  body.recipient_link_ids,
         "remind_before_mins":  body.remind_before_mins,
         "reminder_sent_at":    None,
@@ -652,12 +661,16 @@ async def extend_checkin(token: str, body: ExtendIn, user: dict = Depends(curren
         current_deadline = datetime.now(timezone.utc)
     new_deadline = current_deadline + timedelta(minutes=body.additional_mins)
     now = datetime.now(timezone.utc)
+    # A12: keep the delete time behind the journey. Without this, extending
+    # past the original 24 h would let the record be deleted mid-journey.
+    purge_at = max(new_deadline, now) + timedelta(hours=_PURGE_GRACE_HOURS)
     await db.safety_journeys.update_one(
         {"token": token},
         {"$set": {
             "expected_checkin_at":        new_deadline.isoformat(),
             "missed_checkin_notified_at": None,
             "reminder_sent_at":           None,
+            "purge_at":                   purge_at,
         }},
     )
     # A28: server_time rides along so the phone can re-measure how far its own
@@ -704,6 +717,57 @@ async def change_destination(token: str, body: ChangeDestinationIn, user: dict =
 # an in-app prompt only (head-out/index.tsx). "route_deviation" stays in
 # alerts_router's DISPLAY maps only, so alerts of that type already in the
 # database keep rendering for recipients.
+
+
+async def ensure_journey_ttl_index(database) -> None:
+    """A12: let Mongo delete journey records once `purge_at` has passed.
+
+    A journey holds her destination and her last known coordinates. Nothing
+    deleted them: an expired journey was refused with 410 but stayed in the
+    database for ever. With `expireAfterSeconds=0` Mongo removes each record
+    at the moment stored in `purge_at` (a real BSON date — the TTL monitor
+    ignores the ISO strings this module stores for its own use).
+
+    Same shape as ensure_error_event_ttl_index in server.py: called once at
+    startup, takes the database explicitly so a test can pass a fake, and
+    never stops the app from booting.
+
+    Records written before this change have no `purge_at`, so Mongo would
+    keep them for ever. backfill_journey_purge_at below gives them one.
+    """
+    try:
+        await database.safety_journeys.create_index(
+            "purge_at", expireAfterSeconds=0, name="safety_journeys_ttl",
+        )
+    except Exception as e:
+        logger.warning(f"[startup] safety_journeys TTL index warning: {e}")
+
+
+async def backfill_journey_purge_at(database) -> int:
+    """A12: give older journey records a delete time, once.
+
+    Their `expires_at` is an ISO string, so the date is built from it in the
+    database itself. A record whose string cannot be read falls back to its
+    `created_at`, and one with neither is deleted on the next pass of the TTL
+    monitor rather than kept for ever — those are records this app can no
+    longer act on anyway.
+    """
+    try:
+        res = await database.safety_journeys.update_many(
+            {"purge_at": {"$exists": False}},
+            [{"$set": {"purge_at": {
+                "$ifNull": [
+                    {"$dateFromString": {"dateString": "$expires_at", "onError": None, "onNull": None}},
+                    {"$dateFromString": {"dateString": "$created_at", "onError": "$$NOW", "onNull": "$$NOW"}},
+                ],
+            }}}],
+        )
+        if res.modified_count:
+            logger.warning("[startup] A12: gave %d older journey record(s) a delete time.", res.modified_count)
+        return res.modified_count
+    except Exception as e:
+        logger.warning(f"[startup] safety_journeys purge_at backfill warning: {e}")
+        return 0
 
 
 def _age_seconds(iso: str | None, now: datetime) -> int | None:
