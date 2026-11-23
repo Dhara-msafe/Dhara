@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Card for the officer</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600&amp;family=Hind:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#14365A}a:hover{color:#0E2740}
+a,button{transition:transform .12s ease,background-color .15s ease;-webkit-tap-highlight-color:transparent;cursor:pointer}
+a:active,button:active{transform:scale(.96)}
+a:focus-visible,button:focus-visible{outline:3px solid #7A5B17;outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.rise{animation:rise .35s ease both}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #FBF7EE; color: #17212B; font-family: 'Hind', 'Noto Sans', sans-serif; display: flex; flex-direction: column; padding: 16px 20px 20px; gap: 12px">
+  <div style="display: flex; align-items: center; gap: 8px">
+    <a href="Emergency.dc.html" aria-label="Back" style="width: 48px; height: 48px; border-radius: 24px; border: 1.5px solid #E7DFCC; background: #FFFFFF; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    </a>
+    <a href="Home.dc.html" aria-label="Home" style="width: 48px; height: 48px; border-radius: 24px; border: 1.5px solid #E7DFCC; background: #FFFFFF; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7M6 10v9h12v-9"/></svg>
+    </a>
+    <a href="Emergency.dc.html" style="margin-left: auto; height: 48px; min-width: 56px; justify-content: center; padding: 0 18px; border-radius: 24px; background: #B42318; color: #FFFFFF; font-size: 16px; font-weight: 600; text-decoration: none; display: flex; align-items: center">SOS</a>
+  </div>
+  <p style="margin: 0; font-size: 16px; line-height: 1.4; color: #505B68">Turn your phone and show this. You do not have to speak.</p>
+  <div style="display: flex; gap: 6px; background: #FFFFFF; border: 1.5px solid #E7DFCC; border-radius: 16px; padding: 4px">
+    <sc-for list="{{langs}}" as="l" hint-placeholder-count="2">
+      <button onClick="{{l.pick}}" aria-pressed="{{l.on}}" style="flex: 1; height: 48px; border-radius: 12px; border: none; background: {{l.bg}}; color: {{l.fg}}; font-family: inherit; font-size: 16px; font-weight: 600">{{l.label}}</button>
+    </sc-for>
+    <button onClick="{{bigger}}" aria-label="Change letter size" style="width: 64px; height: 48px; border-radius: 12px; border: 1.5px solid #14365A; background: #FBF7EE; font-family: inherit; font-size: 18px; font-weight: 600; color: #14365A">{{sizeLabel}}</button>
+  </div>
+  <div class="rise" style="flex: 1; background: #FFFFFF; border: 3px solid #14365A; border-radius: 20px; padding: 22px 20px; display: flex; flex-direction: column; gap: 14px; overflow: auto">
+    <p style="margin: 0; font-size: {{fs}}; font-weight: 600; line-height: 1.4; color: #14365A; transition: font-size .2s ease">{{line1}}</p>
+    <p style="margin: 0; font-size: {{fs}}; font-weight: 600; line-height: 1.4; color: #17212B; transition: font-size .2s ease">{{line2}}</p>
+    <p style="margin: 0; font-size: 16px; line-height: 1.45; color: #505B68; border-top: 1.5px solid #E7DFCC; padding-top: 12px">[What the law says about this situation, drawn from the corpus with its section, appears here.]</p>
+  </div>
+  <div style="display: flex; gap: 10px">
+    <button onClick="{{toggleRead}}" style="flex: 1; height: 60px; border-radius: 16px; border: 2px solid #14365A; background: {{readBg}}; color: {{readFg}}; font-family: inherit; font-size: 16px; font-weight: 600">{{readLabel}}</button>
+    <a href="Record.dc.html" style="flex: 1; height: 60px; border-radius: 16px; background: #B42318; color: #FFFFFF; font-size: 16px; font-weight: 600; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px">
+      <span aria-hidden="true" style="width: 14px; height: 14px; border-radius: 7px; background: #FFFFFF"></span>
+      Record now
+    </a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+const s = this.state || {};
+const lang = s.lang || 'hi';
+const size = s.size || 0;
+const reading = !!s.reading;
+const text = {
+hi: ['मैं आपके साथ सहयोग कर रही हूँ।', 'कृपया मुझे बताइए कि क्या हो रहा है और क्यों।'],
+en: ['I am cooperating with you.', 'Please tell me what is happening and why.']
+};
+return {
+langs: [['hi', 'हिन्दी'], ['en', 'English']].map((l) => ({
+label: l[1], on: l[0] === lang,
+bg: l[0] === lang ? '#14365A' : '#FFFFFF', fg: l[0] === lang ? '#FFFFFF' : '#17212B',
+pick: () => this.setState({ lang: l[0] })
+})),
+line1: text[lang][0], line2: text[lang][1],
+fs: ['26px', '32px', '38px'][size],
+sizeLabel: ['A', 'A+', 'A++'][size],
+bigger: () => this.setState({ size: (size + 1) % 3 }),
+readLabel: reading ? 'Stop' : 'Say it aloud for me',
+readBg: reading ? '#14365A' : '#FFFFFF',
+readFg: reading ? '#FFFFFF' : '#14365A',
+toggleRead: () => this.setState({ reading: !reading })
+};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Emergency</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600&amp;family=Hind:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a,button{transition:transform .12s ease,background-color .15s ease;-webkit-tap-highlight-color:transparent;cursor:pointer}
+a:active,button:active{transform:scale(.96)}
+a:focus-visible,button:focus-visible{outline:3px solid #FFFFFF;outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.rise{animation:rise .3s ease both}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #7F1D1D; color: #FFFFFF; font-family: 'Hind', 'Noto Sans', sans-serif; display: flex; flex-direction: column; padding: 16px 20px 20px; gap: 12px">
+  <div style="display: flex; align-items: center; gap: 8px">
+    <a href="Home.dc.html" aria-label="Back" style="width: 48px; height: 48px; border-radius: 24px; border: 1.5px solid #FFFFFF; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>
+    </a>
+    <a href="Home.dc.html" aria-label="Home" style="width: 48px; height: 48px; border-radius: 24px; border: 1.5px solid #FFFFFF; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7M6 10v9h12v-9"></path></svg>
+    </a>
+    <a href="Type.dc.html" style="margin-left: auto; height: 48px; padding: 0 16px; border-radius: 24px; background: #FFFFFF; color: #7F1D1D; font-size: 16px; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 8px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7F1D1D" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+      Hide this screen
+    </a>
+  </div>
+  <div>
+    <h1 style="margin: 0; font-family: 'Fraunces', serif; font-size: 30px; font-weight: 600; color: #FFFFFF">Emergency</h1>
+    <p style="margin: 2px 0 0; font-size: 17px; color: #FFFFFF">Pick one. Each button does one thing.</p>
+  </div>
+  <button onClick="{{call}}" style="min-height: 92px; border-radius: 20px; border: none; background: #FFFFFF; font-family: inherit; display: flex; align-items: center; gap: 16px; padding: 0 20px; text-align: left">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><path d="M6 3h4l1.5 5-2.5 1.5a11 11 0 005.5 5.5L16 12.5l5 1.5v4c0 1-1 2-2 2C10.5 20 4 13.5 4 5c0-1 1-2 2-2z"></path></svg>
+    <span><span style="display: block; font-size: 22px; font-weight: 600; color: #7F1D1D">Open dialler for 112</span><span style="display: block; font-size: 15px; color: #17212B">{{callSub}}</span></span>
+  </button>
+  <button onClick="{{toggleMsg}}" aria-expanded="{{msgOpen}}" style="min-height: 76px; border-radius: 20px; border: 2px solid #FFFFFF; background: #B42318; font-family: inherit; display: flex; align-items: center; gap: 16px; padding: 0 20px; text-align: left">
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><path d="M4 5h16v11H9l-5 4z"></path></svg>
+    <span><span style="display: block; font-size: 19px; font-weight: 600; color: #FFFFFF">Prepare a message to my circle</span><span style="display: block; font-size: 15px; color: #FFFFFF">Opens your SMS app with a draft. You press send.</span></span>
+  </button>
+  <sc-if value="{{msgOpen}}" hint-placeholder-val="{{false}}">
+    <div class="rise" style="background: #FFFFFF; border-radius: 16px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px">
+      <p style="margin: 0; font-size: 13px; font-weight: 600; color: #505B68">To Asha, Ravi · Your message</p>
+      <p style="margin: 0; font-size: 16px; line-height: 1.4; color: #17212B">I need help. I am at [your location]. Please call me or come.</p>
+      <button onClick="{{send}}" style="height: 52px; border-radius: 14px; border: none; background: {{sendBg}}; color: #FFFFFF; font-family: inherit; font-size: 17px; font-weight: 600">{{sendLabel}}</button>
+    </div>
+  </sc-if>
+  <a href="Record.dc.html" style="min-height: 76px; border-radius: 20px; border: 2px solid #FFFFFF; background: #B42318; text-decoration: none; display: flex; align-items: center; gap: 16px; padding: 0 20px; box-sizing: border-box">
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.8" aria-hidden="true" style="flex-shrink: 0"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="3.5" fill="#FFFFFF" stroke="none"></circle></svg>
+    <span><span style="display: block; font-size: 19px; font-weight: 600; color: #FFFFFF">Record now</span><span style="display: block; font-size: 15px; color: #FFFFFF">Sound and video. Saves to this phone.</span></span>
+  </a>
+  <a href="Officer.dc.html" style="min-height: 60px; border-radius: 20px; border: 2px solid #FFFFFF; text-decoration: none; display: flex; align-items: center; gap: 16px; padding: 0 20px; box-sizing: border-box">
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true" style="flex-shrink: 0"><rect x="3" y="6" width="18" height="12" rx="2"></rect><path d="M7 11h6M7 14h4"></path></svg>
+    <span style="font-size: 18px; font-weight: 600; color: #FFFFFF">Show a card to the officer</span>
+  </a>
+  <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px">
+    <a href="Home.dc.html" style="height: 64px; border-radius: 18px; background: #1F6B4A; border: 2px solid #FFFFFF; box-sizing: border-box; color: #FFFFFF; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 20px; font-weight: 600">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+      I am safe now
+    </a>
+    <p style="margin: 0; font-size: 14px; line-height: 1.4; color: #FFFFFF; text-align: center">DHARA does not monitor emergencies and cannot send help for you. You make every call and press every send.</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+const s = this.state || {};
+const msgOpen = !!s.msgOpen;
+const sent = !!s.sent;
+const calling = !!s.calling;
+return {
+callSub: calling ? 'Your phone dialler is opening. Press call there. If it does not open, dial 112 yourself.' : 'Opens your phone dialler with 112. You place the call. If it does not open, dial 112 yourself. Number to be confirmed for your region.',
+call: () => this.setState({ calling: true }),
+msgOpen: msgOpen,
+toggleMsg: () => this.setState({ msgOpen: !msgOpen }),
+sendLabel: sent ? 'Draft opened. Press send in your SMS app.' : 'Open draft in my SMS app',
+sendBg: sent ? '#1F6B4A' : '#14365A',
+send: () => this.setState({ sent: true })
+};
+}
+}
+</script>
+</body>
+</html>

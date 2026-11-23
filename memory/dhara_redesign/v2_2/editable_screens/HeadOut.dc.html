@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Head Out</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600&amp;family=Hind:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#14365A}a:hover{color:#0E2740}
+a,button{transition:transform .12s ease,background-color .15s ease;-webkit-tap-highlight-color:transparent;cursor:pointer}
+a:active,button:active{transform:scale(.95)}
+a:focus-visible,button:focus-visible{outline:3px solid #7A5B17;outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.rise{animation:rise .35s ease both}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #FBF7EE; color: #17212B; font-family: 'Hind', 'Noto Sans', sans-serif; display: flex; flex-direction: column; padding: 16px 20px 20px; gap: 12px">
+  <div style="display: flex; align-items: center; gap: 8px">
+    <a href="Help.dc.html" aria-label="Back" style="width: 48px; height: 48px; border-radius: 24px; border: 1.5px solid #E7DFCC; background: #FFFFFF; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    </a>
+    <a href="Home.dc.html" aria-label="Home" style="width: 48px; height: 48px; border-radius: 24px; border: 1.5px solid #E7DFCC; background: #FFFFFF; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7M6 10v9h12v-9"/></svg>
+    </a>
+    <a href="Emergency.dc.html" style="margin-left: auto; height: 48px; min-width: 56px; justify-content: center; padding: 0 18px; border-radius: 24px; background: #B42318; color: #FFFFFF; font-size: 16px; font-weight: 600; text-decoration: none; display: flex; align-items: center">SOS</a>
+  </div>
+  <div>
+    <h1 style="margin: 0; font-family: 'Fraunces', serif; font-size: 28px; font-weight: 600; line-height: 1.2; color: #14365A">Going out?</h1>
+    <p style="margin: 2px 0 0; font-size: 16px; color: #505B68">Three taps. Then your people can see you get there.</p>
+  </div>
+  <section style="background: #FFFFFF; border: 1.5px solid #E7DFCC; border-radius: 16px; padding: 12px 14px">
+    <h2 style="margin: 0 0 8px; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 10px"><span style="width: 28px; height: 28px; border-radius: 14px; background: #14365A; color: #FFFFFF; font-size: 15px; display: flex; align-items: center; justify-content: center">1</span>Where are you going?</h2>
+    <div style="display: flex; gap: 8px; flex-wrap: wrap">
+      <sc-for list="{{places}}" as="o" hint-placeholder-count="4">
+        <button onClick="{{o.pick}}" aria-pressed="{{o.on}}" style="height: 48px; padding: 0 18px; border-radius: 24px; border: 2px solid {{o.bd}}; background: {{o.bg}}; color: {{o.fg}}; font-family: inherit; font-size: 16px; font-weight: 600">{{o.label}}</button>
+      </sc-for>
+    </div>
+  </section>
+  <section style="background: #FFFFFF; border: 1.5px solid #E7DFCC; border-radius: 16px; padding: 12px 14px">
+    <h2 style="margin: 0 0 8px; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 10px"><span style="width: 28px; height: 28px; border-radius: 14px; background: #14365A; color: #FFFFFF; font-size: 15px; display: flex; align-items: center; justify-content: center">2</span>Who can see your journey?</h2>
+    <div style="display: flex; justify-content: space-between">
+      <sc-for list="{{people}}" as="p" hint-placeholder-count="3">
+        <button onClick="{{p.toggle}}" aria-pressed="{{p.on}}" style="width: 76px; background: none; border: none; padding: 0; font-family: inherit; display: flex; flex-direction: column; align-items: center; gap: 4px">
+          <span style="width: 60px; height: 60px; border-radius: 30px; background: {{p.bg}}; color: {{p.fg}}; font-size: 22px; font-weight: 600; display: flex; align-items: center; justify-content: center; border: 3px solid {{p.bd}}; box-sizing: border-box; transition: background-color .15s ease">{{p.initial}}</span>
+          <span style="font-size: 14px; font-weight: 600; color: {{p.name_fg}}; line-height: 1.2">{{p.name}}<br>{{p.rel}}</span>
+        </button>
+      </sc-for>
+      <a href="Circle.dc.html" style="width: 76px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 4px">
+        <span style="width: 60px; height: 60px; border-radius: 30px; background: #FBF7EE; display: flex; align-items: center; justify-content: center; border: 2px dashed #14365A; box-sizing: border-box"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>
+        <span style="font-size: 14px; font-weight: 600; text-align: center; line-height: 1.2">Add or<br>change</span>
+      </a>
+    </div>
+  </section>
+  <section style="background: #FFFFFF; border: 1.5px solid #E7DFCC; border-radius: 16px; padding: 12px 14px">
+    <h2 style="margin: 0 0 8px; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 10px"><span style="width: 28px; height: 28px; border-radius: 14px; background: #14365A; color: #FFFFFF; font-size: 15px; display: flex; align-items: center; justify-content: center">3</span>For how long?</h2>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+      <sc-for list="{{times}}" as="o" hint-placeholder-count="3">
+        <button onClick="{{o.pick}}" aria-pressed="{{o.on}}" style="height: 48px; border-radius: 24px; border: 2px solid {{o.bd}}; background: {{o.bg}}; color: {{o.fg}}; font-family: inherit; font-size: 16px; font-weight: 600">{{o.label}}</button>
+      </sc-for>
+    </div>
+  </section>
+  <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px">
+    <p aria-live="polite" style="margin: 0; font-size: 16px; line-height: 1.4; font-weight: 600; color: {{sumFg}}; text-align: center">{{summary}}</p>
+    <sc-if value="{{ready}}" hint-placeholder-val="{{true}}">
+      <a href="Journey.dc.html" style="height: 64px; border-radius: 18px; background: #1F6B4A; color: #FFFFFF; font-size: 20px; font-weight: 600; text-decoration: none; display: flex; align-items: center; justify-content: center">Start sharing</a>
+    </sc-if>
+    <sc-if value="{{notReady}}" hint-placeholder-val="{{false}}">
+      <div style="height: 64px; border-radius: 18px; border: 2px dashed #505B68; box-sizing: border-box; color: #505B68; font-size: 17px; font-weight: 600; display: flex; align-items: center; justify-content: center">Tap a person in step 2</div>
+    </sc-if>
+    <p style="margin: 0; font-size: 14px; line-height: 1.4; color: #505B68; text-align: center">You can stop any time. DHARA does not watch your journey.</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+const s = this.state || {};
+const place = s.place || 'Home';
+const time = s.time || '1 hour';
+const sel = s.sel || {};
+const chip = (list, cur, key) => list.map((l) => ({
+label: l, on: l === cur,
+bg: l === cur ? '#14365A' : '#FFFFFF',
+fg: l === cur ? '#FFFFFF' : '#17212B',
+bd: l === cur ? '#14365A' : '#E7DFCC',
+pick: () => { const o = {}; o[key] = l; this.setState(o); }
+}));
+const all = [['Contact name', 'From your circle'], ['Contact name 2', 'From your circle'], ['Contact name 3', 'From your circle']];
+const chosen = all.filter((p) => sel[p[0]]).map((p) => p[0]);
+const names = chosen.length === 0 ? '' : (chosen.length === 1 ? chosen[0] : chosen.slice(0, -1).join(', ') + ' and ' + chosen[chosen.length - 1]);
+const where = place === 'Other place' ? 'your journey' : 'your journey to ' + place.toLowerCase();
+return {
+places: chip(['Home', 'College', 'Work', 'Other place'], place, 'place'),
+times: chip(['30 min', '1 hour', '2 hours'], time, 'time'),
+people: all.map((p) => {
+const on = !!sel[p[0]];
+return {
+name: p[0], rel: p[1], initial: p[0].charAt(0), on: on,
+bg: on ? '#1F6B4A' : '#FFFFFF', fg: on ? '#FFFFFF' : '#505B68',
+bd: on ? '#1F6B4A' : '#E7DFCC', name_fg: on ? '#1F6B4A' : '#505B68',
+toggle: () => { const nx = Object.assign({}, sel); nx[p[0]] = !on; this.setState({ sel: nx }); }
+};
+}),
+ready: chosen.length > 0, notReady: chosen.length === 0,
+summary: chosen.length ? names + ' will see ' + where + ' for ' + time + '.' : 'Nobody is picked yet.',
+sumFg: chosen.length ? '#14365A' : '#B42318'
+};
+}
+}
+</script>
+</body>
+</html>

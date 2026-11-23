@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Are you OK?</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600&amp;family=Hind:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a,button{transition:transform .12s ease,background-color .15s ease;-webkit-tap-highlight-color:transparent;cursor:pointer}
+a:active,button:active{transform:scale(.96)}
+a:focus-visible,button:focus-visible{outline:3px solid #D3B675;outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.rise{animation:rise .35s ease both}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #0E2740; color: #FFFFFF; font-family: 'Hind', 'Noto Sans', sans-serif; display: flex; flex-direction: column; padding: 16px 20px 20px; gap: 14px">
+  <div style="display: flex; align-items: center; gap: 8px">
+    <a href="Journey.dc.html" aria-label="Back" style="width: 48px; height: 48px; border-radius: 24px; border: 1.5px solid #FFFFFF; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    </a>
+    <a href="Home.dc.html" aria-label="Home" style="width: 48px; height: 48px; border-radius: 24px; border: 1.5px solid #FFFFFF; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7M6 10v9h12v-9"/></svg>
+    </a>
+  </div>
+  <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center">
+    <h1 style="margin: 0; font-family: 'Fraunces', serif; font-size: 40px; font-weight: 600; line-height: 1.15; color: #FFFFFF">क्या आप ठीक हैं?</h1>
+    <p style="margin: 0; font-size: 20px; color: #D3B675">Are you OK?</p>
+    <div style="position: relative; width: 150px; height: 150px; margin-top: 10px">
+      <svg width="150" height="150" viewBox="0 0 150 150" aria-hidden="true" style="transform: rotate(-90deg)">
+        <circle cx="75" cy="75" r="66" fill="none" stroke="#14365A" stroke-width="10"/>
+        <circle cx="75" cy="75" r="66" fill="none" stroke="{{ringColor}}" stroke-width="10" stroke-linecap="round" stroke-dasharray="414.7" stroke-dashoffset="{{offset}}" style="transition: stroke-dashoffset 1s linear"/>
+      </svg>
+      <div style="position: absolute; left: 0; top: 0; width: 150px; height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center">
+        <span style="font-family: 'Fraunces', serif; font-size: 48px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums">{{left}}</span>
+        <span style="font-size: 14px; color: #FFFFFF">seconds</span>
+      </div>
+    </div>
+    <p aria-live="polite" style="margin: 0; font-size: 16px; line-height: 1.45; color: #FFFFFF; max-width: 300px">{{note}}</p>
+  </div>
+  <a href="Journey.dc.html" style="height: 84px; border-radius: 20px; background: #1F6B4A; border: 2px solid #FFFFFF; box-sizing: border-box; color: #FFFFFF; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 24px; font-weight: 600">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+    हाँ, ठीक हूँ · I am OK
+  </a>
+  <a href="Emergency.dc.html" style="height: 72px; border-radius: 20px; background: #B42318; border: 2px solid #FFFFFF; box-sizing: border-box; color: #FFFFFF; text-decoration: none; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 600">I need help</a>
+  <button onClick="{{later}}" style="height: 52px; border: none; background: none; font-family: inherit; font-size: 16px; font-weight: 600; color: #FFFFFF; text-decoration: underline">Ask me again in one minute</button>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+componentDidMount() {
+this.timer = setInterval(() => {
+const s = this.state || {};
+const left = s.left === undefined ? 60 : s.left;
+if (left > 0) this.setState({ left: left - 1 });
+}, 1000);
+}
+componentWillUnmount() {
+clearInterval(this.timer);
+}
+renderVals() {
+const s = this.state || {};
+const left = s.left === undefined ? 60 : s.left;
+return {
+left: left,
+offset: String(Math.round(414.7 * (1 - left / 60))),
+ringColor: left > 15 ? '#D3B675' : '#FFFFFF',
+note: left > 0 ? 'If you do not answer, DHARA will get a message ready for your circle. You press send.' : 'No answer. A message for your circle is ready in your SMS app.',
+later: () => this.setState({ left: 60 })
+};
+}
+}
+</script>
+</body>
+</html>
