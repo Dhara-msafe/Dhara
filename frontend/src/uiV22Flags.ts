@@ -159,21 +159,25 @@ export const UI_V22_TYPE = process.env.EXPO_PUBLIC_UI_V22_TYPE === 'true';
 
 /**
  * Step S3 (Safety core, v2.2 design, 23 Nov handover). Visual-only reskin of
- * Emergency, Record proof (Evidence Locker) and its PIN gate, and the
- * Women's Shield hub, to the authoritative v2.2 design package
- * (memory/dhara_redesign/v2_2/editable_screens/). No new functionality:
- * the real 112 dialler wiring and any app-wide PIN system stay out of scope
- * per the v2.2 screen manifest (ids 15, 25). Presentation-only, reversible.
+ * the Officer card (id 27, cream/navy light theme), Emergency (id 25) and
+ * Record proof + its PIN gate (id 26), to the authoritative v2.2 design
+ * package (memory/dhara_redesign/v2_2/editable_screens/). No new
+ * functionality: the real 112 dialler wiring and any app-wide PIN system
+ * stay out of scope per the v2.2 screen manifest (ids 15, 25). Three
+ * screens originally scoped into this group by the generic handover doc
+ * — Silent alert (id 34), Safety phrases (id 35) and Guardian share
+ * (id 38) — turned out to be "Copy correction" only per screen-manifest.csv
+ * (the authoritative scope document); they were fixed directly with no
+ * flag, so they are not behind UI_V22_S3/S4 at all. Presentation-only,
+ * reversible.
  */
 export const UI_V22_S3 = process.env.EXPO_PUBLIC_UI_V22_S3 === 'true';
 
 /**
  * Step S4 (Shield tools, v2.2 design, 23 Nov handover). Visual-only reskin
- * of Silent alert, Safety phrases, Panic lesson, Safety plan, Guardian
- * share and the Officer card to the v2.2 design package. Silent alert,
- * Safety phrases, Safety plan and Guardian share share the new dark
- * "Shield mode" palette (see shieldTheme.ts) introduced by the v2.2 design
- * for this screen group; Officer card stays on the existing light theme.
- * Presentation-only, reversible.
+ * of Panic lesson (id 36), Safety plan (id 37) and Women's Shield (id 33)
+ * to the new dark "Shield mode" palette (see shieldTheme.ts) that the
+ * v2.2 design introduces for this screen group. Presentation-only,
+ * reversible.
  */
 export const UI_V22_S4 = process.env.EXPO_PUBLIC_UI_V22_S4 === 'true';
