@@ -20,6 +20,7 @@ import { openExternal } from '@/src/outbound';
 import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
 import { UI_REVISION_V1 } from '@/src/designRevision';
 import { focusRingStyle } from '@/src/a11yFocus';
+import { v22SectionLabel } from '@/src/v22SectionLabel';
 const NAVY   = theme.colors.primary;
 const GOLD   = theme.colors.gold;
 const CUTOFF = '2024-07-01';
@@ -864,10 +865,10 @@ const rc = StyleSheet.create({
   secBoxWithheld: { backgroundColor: '#EEF2FF' },
   // NF-UI-REV-02: '#9CA3AF' measured below 4.5:1 on every secBox background
   // variant used here (default/deleted/withheld) — MUTED_TEXT clears it.
-  secLabel: {
+  secLabel: v22SectionLabel({
     fontSize: 10, color: MUTED_TEXT, fontWeight: '600',
     textTransform: 'uppercase', marginBottom: 3,
-  },
+  }),
   secNum:        { fontSize: 20, fontWeight: '800', color: NAVY, textAlign: 'center' },
   offence:       { fontSize: 13, color: '#374151', lineHeight: 19, marginBottom: 6 },
   explainBox: {

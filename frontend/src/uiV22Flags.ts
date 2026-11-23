@@ -146,3 +146,13 @@ export const UI_V22_MYDATA = process.env.EXPO_PUBLIC_UI_V22_MYDATA === 'true';
  *   lines instead of being cut off.
  */
 export const UI_V22_SWEEP = process.env.EXPO_PUBLIC_UI_V22_SWEEP === 'true';
+
+/**
+ * One section-label style (v2.2 design, 23 Nov). The app had 24 different
+ * styles for the same small uppercase label above a group (10-14px, weights
+ * 700/800, letter-spacing 0.4-1.5, five colours). The design uses one:
+ * 12px Hind bold, muted, slight letter-spacing. With the flag on, the quiet
+ * labels share that one style; each site keeps its own margins, and the
+ * deliberate accent/heading labels (navy, gold, brand) are left alone.
+ */
+export const UI_V22_TYPE = process.env.EXPO_PUBLIC_UI_V22_TYPE === 'true';

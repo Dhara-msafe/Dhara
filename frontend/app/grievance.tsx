@@ -27,6 +27,7 @@ import { goBackOr } from '@/src/goBackOr';
 // reads the single source, operatorIdentity.ts (Varuna Moses,
 // grievances@askdhara.in, owner-confirmed 17 Nov).
 import { grievanceOfficerName, grievanceContactEmail, isGrievanceContactPlaceholder } from '@/src/operatorIdentity';
+import { v22SectionLabel } from '@/src/v22SectionLabel';
 
 const CATEGORIES = [
   { key: 'data_access',     label: 'Access my data',       icon: 'eye-outline',           desc: 'Request a copy of all data held about you' },
@@ -320,14 +321,14 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   newBtnText: { fontSize: 15, fontWeight: '700', color: theme.colors.brand },
-  listHeading: {
+  listHeading: v22SectionLabel({
     fontSize: 12,
     fontWeight: '700',
     color: theme.colors.onSurfaceTertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginTop: theme.spacing.sm,
-  },
+  }),
   ticketCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,

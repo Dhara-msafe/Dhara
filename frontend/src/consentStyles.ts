@@ -3,6 +3,7 @@ import { theme } from './theme';
 // NF-UI-REV-12 (Group J, DHARA UI Revision v2.2.1): presentation-only
 // rollback flag. No consent-logic changes.
 import { UI_REVISION_V1 } from './designRevision';
+import { v22SectionLabel } from './v22SectionLabel';
 
 const colors = theme.colors;
 export const consentStyles = StyleSheet.create({
@@ -14,14 +15,14 @@ export const consentStyles = StyleSheet.create({
   // ── Title area ─────────────────────────────────────────────────────────────
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
   logoBox: { width: 40, height: 40 },
-  stepEyebrow: {
+  stepEyebrow: v22SectionLabel({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.6,
     textTransform: 'uppercase',
     color: colors.muted,
     marginBottom: 8,
-  },
+  }),
   title: {
     fontFamily: theme.fonts.display,
     fontSize: 28,
@@ -31,14 +32,14 @@ export const consentStyles = StyleSheet.create({
   intro: { fontSize: 16, color: colors.muted, lineHeight: 24, marginBottom: 20 },
 
   // ── Section labels (eyebrow style) ────────────────────────────────────────
-  sectionLabel: {
+  sectionLabel: v22SectionLabel({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.6,
     textTransform: 'uppercase',
     color: colors.muted,
     marginBottom: 10,
-  },
+  }),
   sectionHeading: { fontSize: 18, fontWeight: '700', color: colors.navy, marginTop: 24, marginBottom: 12 },
 
   // ── Checkbox-style rows (required items) ──────────────────────────────────
@@ -100,14 +101,14 @@ export const consentStyles = StyleSheet.create({
   linkText: { flexShrink: 1, fontSize: 15, lineHeight: 22, fontWeight: '700', color: colors.primary, textDecorationLine: 'underline' },
 
   // ── Optional section ──────────────────────────────────────────────────────
-  optionalHeading: {
+  optionalHeading: v22SectionLabel({
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     color: colors.muted,
     marginBottom: 10,
-  },
+  }),
   toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 56, paddingVertical: 12, gap: 16, borderBottomWidth: 1, borderBottomColor: colors.divider },
   toggleLabel: { flex: 1, fontSize: 15, lineHeight: 23, color: colors.onSurfaceSecondary },
 

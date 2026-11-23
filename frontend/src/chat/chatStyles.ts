@@ -8,6 +8,7 @@ import { theme } from '../theme';
 // rollback flag — gates touch-target/contrast fixes below so they can be
 // instantly reverted. See src/designRevision.ts.
 import { UI_REVISION_V1 } from '../designRevision';
+import { v22SectionLabel } from '../v22SectionLabel';
 
 export const styles = StyleSheet.create({
   safe: {
@@ -196,10 +197,10 @@ export const styles = StyleSheet.create({
   firResumeSection: {
     marginTop: 8, marginHorizontal: 12, marginBottom: 4,
   },
-  firResumeSectionTitle: {
+  firResumeSectionTitle: v22SectionLabel({
     fontSize: 12, fontWeight: '700', color: theme.colors.onSurfaceSecondary,
     textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginLeft: 2,
-  },
+  }),
   firResumeCard: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: theme.colors.surface,
@@ -254,7 +255,7 @@ export const styles = StyleSheet.create({
       elevation: 3,
     } : { borderBottomWidth: 0 }),
   },
-  chatDividerLabel: {
+  chatDividerLabel: v22SectionLabel({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.2,
@@ -263,7 +264,7 @@ export const styles = StyleSheet.create({
     // onSurfaceSecondary (#505B68) on the same background clears ~6:1.
     color: UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : theme.colors.onSurfaceTertiary,
     textTransform: 'uppercase',
-  },
+  }),
 
   // ── Collapsed reports strip (when chat is active) ────────────────────────
   reportStrip: {

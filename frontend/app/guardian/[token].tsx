@@ -23,6 +23,7 @@ import { useAuth } from '@/src/auth';
 import { API_BASE } from '@/src/apiBase';
 
 import { openExternal } from '@/src/outbound';
+import { v22SectionLabel } from '@/src/v22SectionLabel';
 const c = theme.colors;
 
 // Auto-refresh interval for active journeys (30 s)
@@ -458,10 +459,10 @@ const styles = StyleSheet.create({
   safeTxt: { color: c.verifiedGreen },
 
   fieldRow:   { gap: 2, marginVertical: 2 },
-  fieldLabel: {
+  fieldLabel: v22SectionLabel({
     fontFamily: theme.fonts.bodyBold, fontSize: 11, color: c.muted,
     textTransform: 'uppercase', letterSpacing: 0.5,
-  },
+  }),
   fieldValue: { fontFamily: theme.fonts.bodyMedium, fontSize: 16, color: c.ink },
 
   divider: { height: 1, backgroundColor: c.lines, marginVertical: 8 },

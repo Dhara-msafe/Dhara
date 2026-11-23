@@ -8,6 +8,7 @@ import { theme } from '@/src/theme';
 import { trackEvent } from '@/src/analytics';
 import { focusRingStyle } from '@/src/a11yFocus';
 import { LANGUAGES } from '@/src/languages';
+import { v22SectionLabel } from '@/src/v22SectionLabel';
 
 // Mirrors backend /api/reference/languages — hardcoded so the screen works
 // before login and without a network round-trip.
@@ -185,14 +186,14 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.md,
     backgroundColor: theme.colors.cream,
   },
-  eyebrow: {
+  eyebrow: v22SectionLabel({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.6,
     textTransform: 'uppercase',
     color: theme.colors.muted,
     marginBottom: 8,
-  },
+  }),
   title: {
     fontFamily: theme.fonts.display,
     fontSize: 28,

@@ -13,6 +13,7 @@ import { openExternal } from '@/src/outbound';
 // NF-UI-REV-10 (Group I, DHARA UI Revision v2.2.1): visible keyboard-focus
 // ring + missing a11y labels. No alert/ack logic changes.
 import { focusRingStyle } from '@/src/a11yFocus';
+import { v22SectionLabel } from '@/src/v22SectionLabel';
 const c = theme.colors;
 
 const PRIMARY_MSG: Record<string, (owner: string) => string> = {
@@ -172,7 +173,7 @@ const styles = StyleSheet.create({
   noteBox: { flexDirection: 'row', gap: 8, backgroundColor: c.surfaceSecondary, borderRadius: 12, padding: 12, marginBottom: 16 },
   noteTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12, color: c.navy, lineHeight: 17 },
   card: { backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.border, padding: 16, marginBottom: 14 },
-  cardLabel: { fontFamily: theme.fonts.bodySemiBold, fontSize: 11, color: c.muted, marginTop: 8, textTransform: 'uppercase', letterSpacing: 0.4 },
+  cardLabel: v22SectionLabel({ fontFamily: theme.fonts.bodySemiBold, fontSize: 11, color: c.muted, marginTop: 8, textTransform: 'uppercase', letterSpacing: 0.4 }),
   cardVal: { fontFamily: theme.fonts.bodyMedium, fontSize: 15, color: c.ink, marginTop: 2 },
   linkRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
   linkTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy },
