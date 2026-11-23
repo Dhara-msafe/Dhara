@@ -7,8 +7,9 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, Pressable, TextInput, ScrollView, StyleSheet,
-  ActivityIndicator, Platform, Alert, KeyboardAvoidingView,
+  ActivityIndicator, Platform, Alert,
 } from 'react-native';
+import { KeyboardSafeView } from '@/src/components/KeyboardSafeView';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth, API_BASE } from '@/src/auth';
@@ -282,9 +283,9 @@ export default function VoterFormScreen() {
 
   return (
     <SafeAreaView style={st.safe} edges={['top']}>
-      <KeyboardAvoidingView
+      <KeyboardSafeView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
         keyboardVerticalOffset={80}
       >
         <ScrollView contentContainerStyle={st.scrollContent} keyboardShouldPersistTaps="handled">
@@ -383,7 +384,7 @@ export default function VoterFormScreen() {
             </Pressable>
           )}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardSafeView>
     </SafeAreaView>
   );
 }
