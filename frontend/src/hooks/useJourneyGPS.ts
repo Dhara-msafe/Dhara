@@ -25,7 +25,7 @@ import { cacheLocation } from '@/src/safety/locationCache';
 import { buildLocationUploadBody } from '@/src/safety/locationUploadBody';
 import { useLocationUploadQueue } from '@/src/safety/locationUploadQueue';
 import {
-  uploadOutcome, newestFor, afterSettled, usableFor, RETRY_INTERVAL_MS,
+  uploadOutcome, journeyIsClosed, newestFor, afterSettled, usableFor, RETRY_INTERVAL_MS,
   type UploadOutcome,
 } from '@/src/safety/locationUploadRetry';
 
@@ -64,6 +64,10 @@ const INITIAL: GPSState = {
  * @param journeyToken  - the backend journey token (from POST /api/journey/status)
  * @param enabled       - start tracking only when true (session active)
  * @param onPermDenied  - optional callback if user permanently blocks location
+ * @param opts.onJourneyClosed - A14: the server says this journey is over
+ *        (gone, expired, or already completed / sharing withdrawn). Called
+ *        once per journey; the screen clears the local journey so the phone
+ *        stops tracking something the server is no longer watching.
  * @param opts.keepRetryingHeld - A10b: keep sending readings already held on
  *        the phone even while `enabled` is false. Set while the check-in has
  *        been missed: no new readings are taken, but the last real one she
@@ -73,7 +77,7 @@ export function useJourneyGPS(
   journeyToken: string | null,
   enabled: boolean,
   onPermDenied?: () => void,
-  opts?: { keepRetryingHeld?: boolean },
+  opts?: { keepRetryingHeld?: boolean; onJourneyClosed?: () => void },
 ): GPSState {
   const keepRetryingHeld = opts?.keepRetryingHeld ?? false;
   const { token: authToken, user } = useAuth();
@@ -103,6 +107,28 @@ export function useJourneyGPS(
     return 'Unknown area';
   }, []);
 
+  // A14: the 25-second throttle below is per journey. Without this reset, a
+  // journey started within 25 seconds of the last one would have its first
+  // position skipped, which is the one her circle waits for.
+  useEffect(() => { lastSent.current = 0; }, [journeyToken]);
+
+  // ── A14: the server has closed this journey ───────────────────────────────
+  // Told once per journey token, so a retry round cannot fire it repeatedly.
+  const closedToken = useRef<string | null>(null);
+  const onJourneyClosedRef = useRef(opts?.onJourneyClosed);
+  onJourneyClosedRef.current = opts?.onJourneyClosed;
+
+  const noteJourneyClosed = useCallback((token: string) => {
+    try {
+      const q = useLocationUploadQueue.getState();
+      const kept = q.queue.filter((e) => e.journeyToken !== token);
+      if (kept.length !== q.queue.length) useLocationUploadQueue.setState({ queue: kept });
+    } catch { /* non-blocking */ }
+    if (closedToken.current === token) return;
+    closedToken.current = token;
+    try { onJourneyClosedRef.current?.(); } catch { /* the screen's problem, not ours */ }
+  }, []);
+
   // ── A10: one PATCH to the server, with a verdict on what to do next ───────
   const sendReading = useCallback(async (
     lat: number, lng: number, accuracy: number, area: string, capturedAtMs: number,
@@ -121,11 +147,17 @@ export function useJourneyGPS(
       });
       let body: unknown = null;
       try { body = await resp.json(); } catch { /* no JSON body */ }
+      // A14: the server has closed this journey. Stop uploading to it, let
+      // go of anything still held for it, and tell the screen once.
+      if (journeyIsClosed(resp.status, body)) {
+        noteJourneyClosed(journeyToken);
+        return 'superseded';
+      }
       return uploadOutcome(resp.status, body);
     } catch {
       return uploadOutcome(null);   // no answer: offline, timeout
     }
-  }, [authToken, journeyToken]);
+  }, [authToken, journeyToken, noteJourneyClosed]);
 
   // ── Send one location update to backend ────────────────────────────────────
   // A10: a reading the server did not take is no longer thrown away. It is
