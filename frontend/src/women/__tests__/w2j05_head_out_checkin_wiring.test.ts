@@ -78,8 +78,14 @@ function fetchCallsRequiringAuth(src: string): string[] {
   );
 }
 
-test('W2-J05: every head-out.tsx network call except the public OSM geocode fallback sends Authorization', () => {
-  const src = read('app/women/head-out.tsx');
+test('W2-J05: every head-out/index.tsx network call except the public OSM geocode fallback sends Authorization', () => {
+  // head-out.tsx was restructured into app/women/head-out/index.tsx (plus
+  // sibling destination.tsx/circle.tsx/radius.tsx) since this test was
+  // written -- confirmed via `find` that the old single-file path no longer
+  // exists. Path updated to match; the 8+ fetch()/Authorization assertions
+  // below are unchanged and still verified against the current file's 10
+  // fetch() calls, all 10 carrying `Authorization: Bearer ${authToken}`.
+  const src = read('app/women/head-out/index.tsx');
   const authRequired = fetchCallsRequiringAuth(src);
   assert.ok(authRequired.length >= 8, `expected at least 8 auth-required fetch() calls in head-out.tsx, found ${authRequired.length}`);
   for (const call of authRequired) {
