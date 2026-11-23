@@ -158,6 +158,32 @@ export const UI_V22_SWEEP = process.env.EXPO_PUBLIC_UI_V22_SWEEP === 'true';
 export const UI_V22_TYPE = process.env.EXPO_PUBLIC_UI_V22_TYPE === 'true';
 
 /**
+ * Batch 2 — step S5 (Home & Ask: Home, Listening, Type instead, DHARA
+ * understood, Your rights/Answer, Sources) needed NO code change: manifest
+ * ids 6/7/8/10/12/13 are either already correct (Home's voice-first action
+ * and labelled typing alternative) or are states merged into
+ * app/(tabs)/index.tsx whose citation/verification handling already matches
+ * what COPY_AND_CAPABILITY_AUDIT.csv calls for (DRAFT fallback, staleness
+ * warning, IPC->BNS notice — not placeholder overclaims). No flag declared.
+ */
+
+/**
+ * Step S6 (Rights & browse), one real fix of the four screens. Manifest ids
+ * 28 (Rights library) and 29 (One right/RightDetail, inline accordion in
+ * app/(tabs)/rights.tsx) needed no change — the mockup's search box doesn't
+ * exist in the app (building it would be new functionality, out of scope)
+ * and its "icon runtime error" was in the design file itself, not the app.
+ * Id 30 (Dhara Engine) is placeholder sample content, audited clean, no
+ * overclaiming copy. Id 20 (All help) is the one real item:
+ * A11Y_CHECK_REPORT.md flags text clipping at 1.5x font scale on 4 screens
+ * including Help, noting the fixed-width mockup canvases aren't responsive
+ * and "this is expected to need real layout work in the app". With the flag
+ * on, the help-card grid drops its numberOfLines clamp on title/sub so text
+ * wraps instead of being cut with an ellipsis when the system font is
+ * scaled up; the card grows to fit instead of a fixed minHeight.
+ */
+export const UI_V22_S6 = process.env.EXPO_PUBLIC_UI_V22_S6 === 'true';
+ /**
  * Step S3 (Safety core, v2.2 design, 23 Nov handover). Visual-only reskin of
  * the Officer card (id 27, cream/navy light theme), Emergency (id 25) and
  * Record proof + its PIN gate (id 26), to the authoritative v2.2 design
