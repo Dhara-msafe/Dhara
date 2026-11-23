@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>4 Privacy & consent</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=Hind:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}*{box-sizing:border-box}a{text-decoration:none}button{cursor:pointer;font-family:inherit;border:none}
+button:active,a:active{transform:scale(.97)}
+a:focus-visible,button:focus-visible{outline:3px solid #14365A;outline-offset:2px}
+.sc>*{flex-shrink:0}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="width:390px;height:844px;background:#FBF7EE;color:#17212B;font-family:'Hind',sans-serif;display:flex;flex-direction:column">
+
+  <div style="padding:16px 20px 0;display:flex;align-items:center;gap:12px">
+    <a href="Welcome.dc.html" aria-label="Back" style="width:48px;height:48px;border-radius:24px;background:#fff;border:1.5px solid #E7DFCC;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 5l-7 7 7 7"></path></svg></a>
+    <div style="flex:1"></div>
+    <div style="font-size:13px;color:#505B68;font-weight:500">Step 3 of 4</div>
+  </div>
+
+  <div style="display:flex;gap:4px;padding:12px 20px 0" aria-hidden="true">
+    <div style="flex:1;height:3px;border-radius:2px;background:#B8964A"></div>
+    <div style="flex:1;height:3px;border-radius:2px;background:#B8964A"></div>
+    <div style="flex:1;height:3px;border-radius:2px;background:#B8964A"></div>
+    <div style="flex:1;height:3px;border-radius:2px;background:#E7DFCC"></div>
+  </div>
+
+  <div style="padding:20px 20px 0">
+    <h1 style="margin:0;font-family:'Fraunces',serif;font-size:28px;font-weight:600;color:#14365A;line-height:1.15">Your privacy</h1>
+    <p style="margin:8px 0 0;font-size:15px;color:#505B68;line-height:1.4">Nothing is ticked for you. Choose what you agree to.</p>
+  </div>
+
+  <div class="sc" style="flex:1;overflow:auto;padding:16px 20px 8px;display:flex;flex-direction:column;gap:10px">
+
+    <div style="font-size:12px;font-weight:700;color:#505B68;letter-spacing:.5px;text-transform:uppercase">Required to use DHARA</div>
+
+    <sc-for list="{{required}}" as="c" hint-placeholder-count="4">
+      <button role="{{c.role}}" aria-checked="{{c.on}}" onClick="{{c.toggle}}" style="display:flex;gap:14px;align-items:flex-start;padding:14px 16px;border-radius:14px;background:{{c.bg}};border:2px solid {{c.bd}};text-align:left;min-height:64px;width:100%">
+        <span style="width:28px;height:28px;border-radius:{{c.rad}};border:2px solid {{c.boxBd}};background:{{c.boxBg}};display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">
+          <sc-if value="{{c.on}}" hint-placeholder-val="{{false}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg></sc-if>
+        </span>
+        <span style="display:block"><span style="display:block;font-size:16px;font-weight:600;color:#14365A">{{c.title}}</span><span style="display:block;font-size:14px;color:#505B68;margin-top:3px;line-height:1.35">{{c.sub}}</span></span>
+      </button>
+    </sc-for>
+
+    <div style="font-size:12px;font-weight:700;color:#505B68;letter-spacing:.5px;text-transform:uppercase;margin-top:8px">Optional. You can say no.</div>
+
+    <sc-for list="{{optional}}" as="c" hint-placeholder-count="2">
+      <button role="checkbox" aria-checked="{{c.on}}" onClick="{{c.toggle}}" style="display:flex;gap:14px;align-items:flex-start;padding:14px 16px;border-radius:14px;background:{{c.bg}};border:2px solid {{c.bd}};text-align:left;min-height:64px;width:100%">
+        <span style="width:28px;height:28px;border-radius:8px;border:2px solid {{c.boxBd}};background:{{c.boxBg}};display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">
+          <sc-if value="{{c.on}}" hint-placeholder-val="{{false}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg></sc-if>
+        </span>
+        <span style="display:block"><span style="display:block;font-size:16px;font-weight:600;color:#14365A">{{c.title}}</span><span style="display:block;font-size:14px;color:#505B68;margin-top:3px;line-height:1.35">{{c.sub}}</span></span>
+      </button>
+    </sc-for>
+
+    <!-- Consent record -->
+    <div style="display:flex;gap:12px;background:#fff;border:1.5px solid #E7DFCC;border-radius:14px;padding:14px 16px;margin-top:6px">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:2px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path><path d="M14 2v6h6M9 13h6M9 17h4"></path></svg>
+      <div style="font-size:14px;line-height:1.45;color:#17212B"><span style="font-weight:600;color:#14365A">You get a record.</span> DHARA saves the date, time, notice version, your language and each choice you make here. You can change the two optional choices later in Privacy choices.</div>
+    </div>
+
+    <!-- Framework statement (not a certification) -->
+    <div style="display:flex;gap:12px;background:#F1ECDD;border:1.5px solid #E0D5B8;border-radius:14px;padding:14px 16px">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:2px"><path d="M12 3l8 4v5c0 4.5-3.2 7.3-8 9-4.8-1.7-8-4.5-8-9V7z"></path></svg>
+      <div style="font-size:14px;line-height:1.45;color:#17212B"><span style="font-weight:600;color:#14365A">Pending legal and implementation review.</span> This flow is intended to support rights under India's DPDP Act 2023 and Canada's PIPEDA. It is not a certification and has not been confirmed as sufficient.</div>
+    </div>
+
+    <a href="Settings.dc.html" style="min-height:48px;display:flex;align-items:center;font-size:15px;font-weight:600;color:#7A5B17;text-decoration:underline">Read the full privacy policy and terms</a>
+  </div>
+
+  <div style="padding:10px 20px 28px">
+    <a href="{{ctaHref}}" aria-disabled="{{ctaDisabled}}" style="height:58px;border-radius:16px;background:{{ctaBg}};color:{{ctaFg}};font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;pointer-events:{{ctaPe}}">
+      {{ctaLabel}}
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{ctaFg}}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+    </a>
+    <p style="margin:8px 0 0;text-align:center;font-size:13px;color:#505B68;min-height:18px">{{ctaHelp}}</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals(){
+  const s = this.state || {};
+  const row = (key, title, sub, radio) => {
+    const on = !!s[key];
+    return { title, sub, on, role: radio ? 'radio' : 'checkbox', rad: radio ? '14px' : '8px',
+      bg: on ? '#F1F8F4' : '#FFFFFF', bd: on ? '#1F6B4A' : '#C9BFA6',
+      boxBd: on ? '#1F6B4A' : '#7A7F87', boxBg: on ? '#1F6B4A' : '#FFFFFF',
+      toggle: () => this.setState(radio ? (key === 'age18' ? { age18: !on, under18: false } : { under18: !on, age18: false }) : { [key]: !on }) };
+  };
+  // Labels follow the real app (consentStrings.ts, English). Nothing is selected by default.
+  const required = [
+    row('age18', 'I am 18 years or older', '', true),
+    row('under18', 'I am under 18', '', true),
+    row('terms', 'I agree to the Terms of Use', 'You can read them before you agree.'),
+    row('proc', 'I agree to Dhara using my information as described above to answer my questions and prepare my complaint draft', '')
+  ];
+  const optional = [
+    row('analytics', 'Help improve Dhara by sharing anonymous usage information', 'Dhara works the same if you leave this off.'),
+    row('updates', 'Send me legal awareness tips and updates by SMS or WhatsApp', '')
+  ];
+  const under = !!s.under18;
+  const ok = !!(s.age18 && s.terms && s.proc);
+  return {
+    required, optional,
+    ctaHref: under ? 'UnderAge.dc.html' : (ok ? 'ConsentReceipt.dc.html' : '#'),
+    ctaDisabled: !(ok || under), ctaPe: (ok || under) ? 'auto' : 'none',
+    ctaBg: (ok || under) ? '#14365A' : '#E3DDCD', ctaFg: (ok || under) ? '#FFFFFF' : '#505B68',
+    ctaLabel: under ? 'Continue' : (ok ? 'Agree and continue' : 'Complete the required choices'),
+    ctaHelp: under ? 'Design intent: nothing else is asked of you. Behaviour pending engineering.' : (ok ? 'Your choices are saved with the date and time.' : 'Nothing is saved until you press the button.')
+  };
+}
+}
+</script>
+</body>
+</html>

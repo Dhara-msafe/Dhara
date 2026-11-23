@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Type what happened</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&amp;family=Hind:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+*{box-sizing:border-box}
+a{text-decoration:none}
+button{cursor:pointer;font-family:inherit}
+button:active,a:active{transform:scale(.98)}
+@media (prefers-reduced-motion:reduce){*{transition:none}}
+</style>
+</helmet>
+<div style="width:390px;height:844px;box-sizing:border-box;background:#FBF7EE;color:#17212B;font-family:'Hind','Noto Sans',sans-serif;display:flex;flex-direction:column">
+  <div style="display:flex;align-items:center;gap:8px;padding:14px 16px 6px">
+    <a href="Home.dc.html" aria-label="Back" style="width:48px;height:48px;border-radius:24px;border:1.5px solid #E7DFCC;background:#fff;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></a>
+    <div style="flex:1;font-size:15px;font-weight:600;color:#14365A">Type · Step 1 of 3</div>
+    <a href="Home.dc.html" aria-label="Home" style="width:48px;height:48px;border-radius:24px;border:1.5px solid #E7DFCC;background:#fff;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7M6 10v9h12v-9"/></svg></a>
+    <a href="Emergency.dc.html" style="height:48px;min-width:56px;justify-content:center;padding:0 15px;border-radius:24px;background:#B42318;color:#fff;font-size:15px;font-weight:700;display:flex;align-items:center">SOS</a>
+  </div>
+  <div aria-hidden="true" style="display:flex;gap:6px;padding:2px 20px 0"><span style="flex:1;height:5px;border-radius:3px;background:#14365A"></span><span style="flex:1;height:5px;border-radius:3px;background:#E7DFCC"></span><span style="flex:1;height:5px;border-radius:3px;background:#E7DFCC"></span></div>
+
+  <div style="flex:1;display:flex;flex-direction:column;padding:18px 20px 16px;gap:14px">
+    <label for="story" style="font-family:'Fraunces',serif;font-size:27px;font-weight:600;line-height:1.2;color:#14365A">Write what happened</label>
+    <p style="margin:-8px 0 0;font-size:15.5px;color:#566270">A few words are enough. Any language is fine.</p>
+    <textarea id="story" value="{{text}}" onChange="{{onText}}" placeholder="Example: My landlord did not return my deposit" style="height:150px;box-sizing:border-box;border-radius:16px;border:2px solid #14365A;background:#fff;padding:14px 16px;font-family:inherit;font-size:18px;line-height:1.45;color:#17212B;resize:none;box-shadow:0 4px 14px rgba(20,54,90,.05)"></textarea>
+    <div style="font-size:13px;color:#505B68;text-align:right;margin-top:-6px">{{count}}</div>
+    <p style="margin:2px 0 0;font-size:14.5px;font-weight:600;color:#566270">Or tap one to start</p>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <sc-for list="{{chips}}" as="c" hint-placeholder-count="3">
+        <button onClick="{{c.pick}}" style="min-height:52px;border-radius:14px;border:1.5px solid #ECE4D2;background:#fff;font-size:15.5px;font-weight:500;color:#17212B;text-align:left;padding:10px 16px;display:flex;align-items:center;gap:11px"><span aria-hidden="true" style="width:7px;height:7px;border-radius:4px;background:#D3B675;flex-shrink:0"></span>{{c.label}}</button>
+      </sc-for>
+    </div>
+    <div style="margin-top:auto;display:flex;gap:11px">
+      <a href="Listening.dc.html" aria-label="Speak instead" style="width:62px;height:62px;border-radius:18px;border:2px solid #14365A;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21"/></svg></a>
+      <sc-if value="{{ready}}" hint-placeholder-val="{{false}}">
+        <a href="Heard.dc.html" style="flex:1;height:62px;border-radius:18px;background:#1F6B4A;color:#fff;display:flex;align-items:center;justify-content:center;gap:9px;font-size:19px;font-weight:600;box-shadow:0 10px 24px rgba(31,107,74,.26)">Next <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      </sc-if>
+      <sc-if value="{{notReady}}" hint-placeholder-val="{{true}}">
+        <div style="flex:1;height:62px;border-radius:18px;background:#E7DFCC;color:#6B5A2E;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600">Write something first</div>
+      </sc-if>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+constructor(props){super(props);this.state={text:''};}
+renderVals(){
+const t=this.state.text;
+const starts=['My landlord did not return my deposit','My employer has not paid me','Money was taken from my bank account'];
+return {
+text:t,
+count:t.length+' letters',
+ready:t.trim().length>2,
+notReady:t.trim().length<=2,
+onText:(e)=>this.setState({text:e.target.value}),
+chips:starts.map(label=>({label,pick:()=>this.setState({text:label})}))
+};
+}
+}
+</script>
+</body>
+</html>

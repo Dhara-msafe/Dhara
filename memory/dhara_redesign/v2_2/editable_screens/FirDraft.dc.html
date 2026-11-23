@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>File a complaint</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&amp;family=Hind:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+*{box-sizing:border-box}
+a{text-decoration:none}
+button{cursor:pointer;font-family:inherit}
+button:active,a:active{transform:scale(.98)}
+.chip{height:42px;padding:0 15px;border-radius:21px;border:1.5px solid #E7DFCC;background:#fff;font-size:15px;font-weight:600;color:#14365A}
+@media (prefers-reduced-motion:reduce){*{transition:none}}
+</style>
+</helmet>
+<div style="width:390px;height:844px;box-sizing:border-box;background:#FBF7EE;color:#17212B;font-family:'Hind','Noto Sans',sans-serif;display:flex;flex-direction:column">
+  <div style="display:flex;align-items:center;gap:8px;padding:14px 16px 6px">
+    <a href="Engine.dc.html" aria-label="Back" style="width:48px;height:48px;border-radius:24px;border:1.5px solid #E7DFCC;background:#fff;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></a>
+    <div style="flex:1;font-size:15px;font-weight:600;color:#14365A">File a complaint · Step 1 of 4</div>
+    <a href="Emergency.dc.html" style="height:48px;min-width:56px;justify-content:center;padding:0 15px;border-radius:24px;background:#B42318;color:#fff;font-size:15px;font-weight:700;display:flex;align-items:center">SOS</a>
+  </div>
+  <div aria-hidden="true" style="display:flex;gap:6px;padding:2px 20px 0"><span style="flex:1;height:5px;border-radius:3px;background:#14365A"></span><span style="flex:1;height:5px;border-radius:3px;background:#E7DFCC"></span><span style="flex:1;height:5px;border-radius:3px;background:#E7DFCC"></span><span style="flex:1;height:5px;border-radius:3px;background:#E7DFCC"></span></div>
+
+  <div style="flex:1;overflow:auto;padding:14px 18px 10px">
+    <h1 style="margin:0 2px;font-family:'Fraunces',serif;font-size:25px;font-weight:600;line-height:1.2;color:#14365A">What kind of complaint?</h1>
+    <p style="margin:6px 2px 14px;font-size:15px;color:#566270">Pick the closest one. You can add details next.</p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">
+      <sc-for list="{{crimes}}" as="c" hint-placeholder-count="6">
+        <button onClick="{{c.pick}}" aria-pressed="{{c.on}}" style="min-height:104px;border-radius:17px;border:1.5px solid {{c.border}};background:{{c.bg}};display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:15px;text-align:left;position:relative;box-shadow:{{c.ring}}">
+          <span style="width:40px;height:40px;border-radius:12px;background:{{c.tint}};display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-size:19px;font-weight:600;color:{{c.ink}}" aria-hidden="true">{{c.g}}</span>
+          <span style="font-size:14.5px;font-weight:600;color:#17212B;line-height:1.25">{{c.name}}</span>
+          <sc-if value="{{c.on}}" hint-placeholder-val="{{false}}"><span style="position:absolute;top:12px;right:12px;width:22px;height:22px;border-radius:11px;background:#1F6B4A;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></sc-if>
+        </button>
+      </sc-for>
+    </div>
+
+    <div style="margin:22px 2px 10px;font-size:13px;font-weight:700;color:#505B68;letter-spacing:.4px;text-transform:uppercase">Draft language</div>
+    <div style="display:flex;gap:9px;flex-wrap:wrap">
+      <sc-for list="{{langs}}" as="L" hint-placeholder-count="4">
+        <button onClick="{{L.pick}}" aria-pressed="{{L.on}}" class="chip" style="border-color:{{L.border}};background:{{L.bg}};color:{{L.fg}}">{{L.name}}</button>
+      </sc-for>
+    </div>
+
+    <div style="margin-top:18px;display:flex;align-items:center;gap:11px;background:#F3E9CE;border-radius:14px;padding:13px 15px">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7A5B17" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+      <div style="font-size:14px;line-height:1.4;color:#7A5B17">DHARA writes the draft. You read, edit, and decide when to take it to the police.</div>
+    </div>
+  </div>
+
+  <div style="padding:10px 18px 18px;background:#fff;border-top:1.5px solid #ECE4D2">
+    <a href="Letter.dc.html" style="height:60px;border-radius:17px;background:#1F6B4A;color:#fff;display:flex;align-items:center;justify-content:center;gap:10px;font-size:18px;font-weight:600;box-shadow:0 10px 24px rgba(31,107,74,.26)">Continue <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+constructor(props){super(props);this.state={crime:'theft',lang:'en'};}
+renderVals(){
+const s=this.state;
+const cr=[
+ {id:'theft',name:'Theft or robbery',g:'§',tint:'#EAF0F6',ink:'#14365A'},
+ {id:'assault',name:'Hurt or assault',g:'§',tint:'#F8DDE2',ink:'#B42318'},
+ {id:'posh',name:'Workplace harassment',g:'W',tint:'#FBEFD9',ink:'#B07A14'},
+ {id:'cyber',name:'Online / money fraud',g:'₹',tint:'#F3E9CE',ink:'#7A5B17'},
+ {id:'dv',name:'Domestic violence',g:'F',tint:'#EDEAF6',ink:'#5A4B9E'},
+ {id:'other',name:'Something else',g:'+',tint:'#EAF1EC',ink:'#1F6B4A'}
+];
+const lg=[{id:'en',name:'English'},{id:'hi',name:'हिन्दी'},{id:'mr',name:'मराठी'},{id:'ta',name:'தமிழ்'}];
+const on='#1F6B4A',onBg='#EAF1EC',onFg='#17543A',off='#E7DFCC',offBg='#fff',offFg='#14365A';
+return {
+crimes:cr.map(c=>({
+  name:c.name, g:c.g, tint:c.tint, ink:c.ink, on:s.crime===c.id,
+  border:s.crime===c.id?'#1F6B4A':'#ECE4D2',
+  bg:s.crime===c.id?'#F4FAF6':'#fff',
+  ring:s.crime===c.id?'0 0 0 2.5px rgba(31,107,74,.15)':'0 3px 10px rgba(20,54,90,.04)',
+  pick:()=>this.setState({crime:c.id})
+})),
+langs:lg.map(l=>({
+  name:l.name, on:s.lang===l.id,
+  border:s.lang===l.id?on:off, bg:s.lang===l.id?onBg:offBg, fg:s.lang===l.id?onFg:offFg,
+  pick:()=>this.setState({lang:l.id})
+}))
+};
+}
+}
+</script>
+</body>
+</html>

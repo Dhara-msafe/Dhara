@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Know your rights</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&amp;family=Hind:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+*{box-sizing:border-box}
+a{text-decoration:none}
+button{cursor:pointer;font-family:inherit}
+button:active,a:active{transform:scale(.99)}
+.rise{animation:rise .3s ease both}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;background:none;border:none}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="width:390px;height:844px;box-sizing:border-box;background:#FBF7EE;color:#17212B;font-family:'Hind','Noto Sans',sans-serif;display:flex;flex-direction:column">
+  <div style="display:flex;align-items:center;gap:8px;padding:14px 16px 6px">
+    <a href="Home.dc.html" aria-label="Home" style="width:48px;height:48px;border-radius:24px;border:1.5px solid #E7DFCC;background:#fff;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7M6 10v9h12v-9"></path></svg></a>
+    <div style="flex:1;font-family:'Fraunces',serif;font-size:21px;font-weight:600;color:#14365A">Know your rights</div>
+    <a href="Emergency.dc.html" style="height:48px;min-width:56px;justify-content:center;padding:0 15px;border-radius:24px;background:#B42318;color:#fff;font-size:15px;font-weight:700;display:flex;align-items:center">SOS</a>
+  </div>
+
+  <div style="flex:1;overflow:auto;padding:4px 18px 10px">
+    <div style="display:flex;align-items:center;gap:10px;height:50px;background:#fff;border:1.5px solid #ECE4D2;border-radius:15px;padding:0 15px;margin-bottom:14px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#505B68" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4-4"></path></svg>
+      <input aria-label="Search a right or a problem" value="{{q}}" onChange="{{onQ}}" placeholder="Search a right or a problem" style="flex:1;border:none;outline:none;background:transparent;font-size:15.5px;color:#17212B;font-family:inherit">
+    </div>
+
+    <a href="Shield.dc.html" style="display:flex;align-items:center;gap:13px;border-radius:18px;background:linear-gradient(140deg,#B42318,#8E1C13);padding:16px;margin-bottom:16px;box-shadow:0 10px 24px rgba(180,35,24,.22)">
+      <span style="width:46px;height:46px;border-radius:14px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v6c0 4-3 6.5-7 8-4-1.5-7-4-7-8V6z"></path></svg></span>
+      <div style="flex:1"><div style="font-size:12px;color:rgba(255,255,255,.85);font-weight:700;letter-spacing:.3px;text-transform:uppercase">For women</div><div style="font-size:17px;font-weight:600;color:#fff">Women's Shield — safety &amp; rights</div></div>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+    </a>
+
+    <div style="font-size:13px;font-weight:700;color:#505B68;letter-spacing:.4px;text-transform:uppercase;margin:0 2px 10px">Browse by topic</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <sc-for list="{{cats}}" as="c" hint-placeholder-count="6">
+        <div style="background:#fff;border:{{c.border}};border-radius:16px;overflow:hidden">
+          <button onClick="{{c.toggle}}" aria-expanded="{{c.open}}" style="width:100%;min-height:62px;border:none;background:#fff;display:flex;align-items:center;gap:13px;padding:10px 15px;text-align:left">
+            <span style="width:42px;height:42px;border-radius:13px;background:{{c.tint}};display:flex;align-items:center;justify-content:center;flex-shrink:0;color:{{c.ink}};font-family:'Fraunces',serif;font-size:21px;font-weight:600" aria-hidden="true">{{c.icon}}</span>
+            <span style="flex:1;font-size:16.5px;font-weight:600;color:#17212B">{{c.name}}</span>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#505B68" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="transform:rotate({{c.rot}});transition:transform .2s"><path d="M6 9l6 6 6-6"></path></svg>
+          </button>
+          <sc-if value="{{c.open}}" hint-placeholder-val="{{false}}">
+            <div class="rise" style="padding:0 15px 12px">
+              <sc-for list="{{c.items}}" as="r" hint-placeholder-count="3">
+                <a href="RightDetail.dc.html" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:12px;background:#FBF7EE;margin-top:8px"><span aria-hidden="true" style="width:6px;height:6px;border-radius:3px;background:#D3B675;flex-shrink:0"></span><span style="flex:1;font-size:15px;color:#3A444F">{{r.t}}</span><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></a>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+    <div style="height:8px"></div>
+  </div>
+
+  <div style="display:flex;align-items:center;padding:6px 10px 10px;background:#fff;border-top:1.5px solid #ECE4D2">
+    <a href="Home.dc.html" class="tab" style="color:#505B68"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#505B68" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21"></path></svg><span style="font-size:11px;font-weight:600">Ask</span></a>
+    <div class="tab" style="color:#14365A"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l8 3.5v4.5c0 4-3 6.5-8 8-5-1.5-8-4-8-8V7.5z"></path></svg><span style="font-size:11px;font-weight:700">Rights</span></div>
+    <a href="Files.dc.html" class="tab" style="color:#505B68"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#505B68" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2z"></path></svg><span style="font-size:11px;font-weight:600">My files</span></a>
+    <a href="Settings.dc.html" class="tab" style="color:#505B68"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#505B68" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"></path></svg><span style="font-size:11px;font-weight:600">Me</span></a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+constructor(props){super(props);this.state={open:0,q:''};}
+renderVals(){
+const s=this.state;
+const cats=[
+ {name:'Police & FIR',tint:'#EAF0F6',ink:'#14365A',icon:'§',items:[{t:'Police must register your FIR'},{t:'Zero FIR — file anywhere'},{t:'Your rights if arrested'}]},
+ {name:'Rent & home',tint:'#EAF1EC',ink:'#1F6B4A',icon:'⌂',items:[{t:'Getting your deposit back'},{t:'Illegal eviction'},{t:'Rent agreement basics'}]},
+ {name:'Work & pay',tint:'#FBEFD9',ink:'#B07A14',icon:'W',items:[{t:'Unpaid salary'},{t:'Wrongful termination'},{t:'POSH at the workplace'}]},
+ {name:'Money & fraud',tint:'#F3E9CE',ink:'#7A5B17',icon:'₹',items:[{t:'Online fraud — first hour'},{t:'Cheque bounce'},{t:'Loan recovery harassment'}]},
+ {name:'Family',tint:'#EDEAF6',ink:'#5A4B9E',icon:'F',items:[{t:'Domestic violence protection'},{t:'Maintenance & custody'},{t:'Dowry'}]},
+ {name:'Consumer',tint:'#E8F1F2',ink:'#2E7D8F',icon:'C',items:[{t:'Defective product or service'},{t:'Refund rights'},{t:'File a consumer complaint'}]}
+];
+const q=(s.q||'').toLowerCase().trim();
+const vis=cats.map((c,i)=>({...c,i})).filter(c=>!q||c.name.toLowerCase().includes(q)||c.items.some(it=>it.t.toLowerCase().includes(q)));
+return {
+q:s.q,
+onQ:(e)=>this.setState({q:e.target.value}),
+cats:vis.map((c)=>({
+  name:c.name, tint:c.tint, ink:c.ink, icon:c.icon,
+  open:s.open===c.i,
+  rot:s.open===c.i?'180deg':'0deg',
+  border:s.open===c.i?'1.5px solid #D3B675':'1.5px solid #ECE4D2',
+  items:c.items,
+  toggle:()=>this.setState({open:s.open===c.i?-1:c.i})
+}))
+};
+}
+}
+</script>
+</body>
+</html>

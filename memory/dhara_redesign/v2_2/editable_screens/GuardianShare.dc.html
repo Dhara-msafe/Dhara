@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>38 Guardian share</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=Hind:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}*{box-sizing:border-box}a{text-decoration:none}button{cursor:pointer;font-family:inherit}
+@keyframes dFadeIn{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes dLivePulse{0%,100%{opacity:1}50%{opacity:.4}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</helmet>
+<div style="width:390px;height:844px;background:linear-gradient(180deg,#2D1B4E 0%,#1A0E30 100%);color:#fff;font-family:'Hind',sans-serif;display:flex;flex-direction:column;position:relative">
+
+  <!-- nav -->
+  <div style="padding:16px 20px 0;display:flex;align-items:center;gap:12px">
+    <a href="WomenShield.dc.html" aria-label="Back" style="width:48px;height:48px;border-radius:24px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"></path></svg></a>
+    <div style="flex:1;font-family:'Fraunces',serif;font-size:20px;font-weight:600">Guardian share</div>
+    <a href="Home.dc.html" aria-label="Home" style="width:48px;height:48px;border-radius:24px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1z"></path></svg></a>
+  </div>
+
+  <div style="flex:1;overflow:auto;padding:14px 20px 84px">
+
+    <h1 style="margin:0 0 6px;font-family:'Fraunces',serif;font-size:24px;font-weight:700;animation:dFadeIn .4s ease-out">Share your location</h1>
+    <p style="margin:0 0 20px;font-size:14px;color:rgba(255,255,255,.78);line-height:1.5;animation:dFadeIn .4s ease-out .05s both">Choose who can see your location and for how long. Sharing stops when you end it or when the time you choose runs out.</p>
+
+    <!-- Live indicator -->
+    <div style="display:flex;align-items:center;gap:10px;background:rgba(233,30,99,.12);border:1px solid rgba(233,30,99,.25);border-radius:14px;padding:14px 16px;margin-bottom:20px;animation:dFadeIn .4s ease-out .1s both">
+      <div style="width:10px;height:10px;border-radius:5px;background:#E91E63;animation:dLivePulse 1.5s ease-in-out infinite;flex-shrink:0"></div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:600;color:#F48FB1">Not sharing yet</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.78)">Nobody can see your location</div>
+      </div>
+      <div style="font-size:20px;font-weight:700;font-family:'Fraunces',serif;color:#E91E63">Off</div>
+    </div>
+
+    <!-- Map placeholder -->
+    <div style="width:100%;height:160px;border-radius:16px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);margin-bottom:20px;display:flex;align-items:center;justify-content:center;animation:dFadeIn .4s ease-out .15s both;overflow:hidden;position:relative">
+      <div style="position:absolute;inset:0;background:linear-gradient(135deg,rgba(45,27,78,.8),rgba(26,14,48,.8))"></div>
+      <div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:6px">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#E91E63" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+        <div style="font-size:12px;color:rgba(255,255,255,.78)">Map appears when you start sharing</div>
+      </div>
+    </div>
+
+    <!-- Guardians -->
+    <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.78);text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px;animation:dFadeIn .4s ease-out .2s both">People you can share with</div>
+
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <sc-for list="{{guardians}}" as="g" hint-placeholder-count="3">
+        <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:12px 14px;animation:dFadeIn .4s ease-out {{g.d}} both">
+          <div style="width:40px;height:40px;border-radius:12px;background:{{g.bg}};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;font-weight:700;color:#fff">{{g.init}}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:14px;font-weight:600">{{g.name}}</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.78)">{{g.rel}}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px">
+            <div style="width:6px;height:6px;border-radius:3px;background:#4CAF50"></div>
+            <div style="font-size:11px;color:rgba(255,255,255,.78)">Invited</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- Add guardian -->
+    <a href="Circle.dc.html" style="margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;height:48px;border-radius:14px;border:1px dashed rgba(255,255,255,.2);color:rgba(255,255,255,.78);font-size:14px;font-weight:600;animation:dFadeIn .4s ease-out .4s both">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
+      Add more guardians
+    </a>
+
+    <!-- Timer options -->
+    <div style="margin-top:16px;display:flex;gap:8px;animation:dFadeIn .4s ease-out .45s both">
+      <button style="flex:1;height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:rgba(255,255,255,.78);font-size:13px;font-weight:600">30 min</button>
+      <button style="flex:1;height:44px;border-radius:12px;border:1px solid rgba(233,30,99,.3);background:rgba(233,30,99,.15);color:#E91E63;font-size:13px;font-weight:600">1 hour</button>
+      <button style="flex:1;height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:rgba(255,255,255,.78);font-size:13px;font-weight:600">Until I stop</button>
+    </div>
+
+    <!-- Stop button -->
+    <button style="margin-top:14px;width:100%;height:52px;border-radius:16px;border:1px solid rgba(180,35,24,.4);background:rgba(180,35,24,.15);color:#EF5350;font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;animation:dFadeIn .4s ease-out .5s both">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF5350" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg>
+      Stop sharing (shown only while sharing)
+    </button>
+  </div>
+
+  <a href="Emergency.dc.html" aria-label="SOS" style="position:absolute;right:16px;bottom:28px;height:48px;padding:0 16px;border-radius:24px;background:#B42318;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;box-shadow:0 6px 18px rgba(180,35,24,.35)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a9 9 0 00-9 9c0 5 4 8 9 11 5-3 9-6 9-11a9 9 0 00-9-9z"></path></svg>SOS</a>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals(){
+return {guardians:[
+ {name:"Contact name",rel:"From your circle",init:"+",bg:"linear-gradient(135deg,#E91E63,#AD1457)",d:".25s"},
+ {name:"Contact name",rel:"From your circle",init:"+",bg:"linear-gradient(135deg,#5A4B9E,#3D2E7E)",d:".3s"},
+ {name:"Contact name",rel:"From your circle",init:"+",bg:"linear-gradient(135deg,#1F6B4A,#145A3A)",d:".35s"}
+]};
+}
+}
+</script>
+</body>
+</html>

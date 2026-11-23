@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The letter</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600&amp;family=Hind:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#14365A}a:hover{color:#0E2740}
+a,button{transition:transform .12s ease,background-color .15s ease;-webkit-tap-highlight-color:transparent;cursor:pointer}
+a:active,button:active{transform:scale(.96)}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid #7A5B17;outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.rise{animation:rise .35s ease both}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #FBF7EE; color: #17212B; font-family: 'Hind', 'Noto Sans', sans-serif; display: flex; flex-direction: column; padding: 16px 20px 20px; gap: 12px">
+  <div style="display: flex; align-items: center; gap: 8px">
+    <a href="Draft.dc.html" aria-label="Back" style="width: 48px; height: 48px; border-radius: 24px; border: 1.5px solid #E7DFCC; background: #FFFFFF; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    </a>
+    <a href="Home.dc.html" aria-label="Home" style="width: 48px; height: 48px; border-radius: 24px; border: 1.5px solid #E7DFCC; background: #FFFFFF; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7M6 10v9h12v-9"/></svg>
+    </a>
+    <h1 style="margin: 0 0 0 6px; font-family: 'Fraunces', serif; font-size: 22px; font-weight: 600; color: #14365A">Your letter</h1>
+    <a href="Emergency.dc.html" style="margin-left: auto; height: 48px; min-width: 56px; justify-content: center; padding: 0 18px; border-radius: 24px; background: #B42318; color: #FFFFFF; font-size: 16px; font-weight: 600; text-decoration: none; display: flex; align-items: center">SOS</a>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+    <label style="display: flex; flex-direction: column; gap: 4px; font-size: 14px; font-weight: 600; color: #505B68">Your name
+      <input type="text" value="{{name}}" onChange="{{setName}}" placeholder="Type your name" style="height: 52px; border-radius: 14px; border: 2px solid #14365A; background: #FFFFFF; padding: 0 12px; font-family: inherit; font-size: 17px; color: #17212B; box-sizing: border-box; min-width: 0">
+    </label>
+    <label style="display: flex; flex-direction: column; gap: 4px; font-size: 14px; font-weight: 600; color: #505B68">Deposit amount (₹)
+      <input type="tel" inputMode="numeric" value="{{amount}}" onChange="{{setAmount}}" placeholder="Amount" style="height: 52px; border-radius: 14px; border: 2px solid #14365A; background: #FFFFFF; padding: 0 12px; font-family: inherit; font-size: 17px; color: #17212B; box-sizing: border-box; min-width: 0; font-variant-numeric: tabular-nums">
+    </label>
+  </div>
+  <div style="flex: 1; overflow: auto; background: #FFFFFF; border: 1.5px solid #E7DFCC; border-radius: 6px; padding: 20px 18px; box-shadow: 0 4px 14px rgba(14,39,64,0.08); font-size: 15px; line-height: 1.6">
+    <p style="margin: 0 0 10px; color: #505B68">[Date]</p>
+    <p style="margin: 0 0 10px">To,<br>[Landlord's name]<br>[Landlord's address]</p>
+    <p style="margin: 0 0 10px; font-weight: 600">Subject: Return of my deposit</p>
+    <p style="margin: 0 0 10px">I lived in your house at [address] and left it on [date]. My deposit of <span style="font-weight: 600; background: #FFF6DC; padding: 0 4px; border-radius: 4px">₹ {{amountShown}}</span> has not been returned to me.</p>
+    <p style="margin: 0 0 10px; color: #505B68">[Wording about the law, drawn from the corpus, goes here.]</p>
+    <p style="margin: 0 0 10px">Please return the deposit within [number] days of this letter.</p>
+    <p style="margin: 0">Yours sincerely,<br><span style="font-weight: 600; background: #FFF6DC; padding: 0 4px; border-radius: 4px">{{nameShown}}</span></p>
+  </div>
+  <sc-if value="{{shared}}" hint-placeholder-val="{{false}}">
+    <div class="rise" style="background: #FFFFFF; border: 2px solid #7A5B17; border-radius: 16px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px">
+      <p style="margin: 0; font-size: 15px; line-height: 1.4"><span style="font-weight: 600">You are sending this, not DHARA.</span> Pick how:</p>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+        <button style="height: 52px; border-radius: 14px; border: 1.5px solid #E7DFCC; background: #FBF7EE; font-family: inherit; font-size: 15px; font-weight: 600; color: #14365A">Print</button>
+        <button style="height: 52px; border-radius: 14px; border: 1.5px solid #E7DFCC; background: #FBF7EE; font-family: inherit; font-size: 15px; font-weight: 600; color: #14365A">Message</button>
+        <button onClick="{{closeShare}}" style="height: 52px; border-radius: 14px; border: 1.5px solid #E7DFCC; background: #FFFFFF; font-family: inherit; font-size: 15px; font-weight: 600; color: #17212B">Not now</button>
+      </div>
+    </div>
+  </sc-if>
+  <sc-if value="{{notShared}}" hint-placeholder-val="{{true}}">
+    <div style="display: flex; gap: 10px">
+      <button onClick="{{toggleRead}}" style="flex: 1; height: 60px; border-radius: 16px; border: 2px solid #14365A; background: {{readBg}}; color: {{readFg}}; font-family: inherit; font-size: 16px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4h3l5 4V6L7 10z"/><path d="M16 9a4 4 0 010 6"/></svg>
+        {{readLabel}}
+      </button>
+      <button onClick="{{openShare}}" style="flex: 1; height: 60px; border-radius: 16px; border: none; background: #1F6B4A; color: #FFFFFF; font-family: inherit; font-size: 16px; font-weight: 600">I will send it myself</button>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+const s = this.state || {};
+const name = s.name || '';
+const amount = s.amount || '';
+const reading = !!s.reading;
+const shared = !!s.shared;
+return {
+name: name, amount: amount,
+nameShown: name.trim() ? name : '[Your name]',
+amountShown: amount ? Number(amount).toLocaleString('en-IN') : '[amount]',
+setName: (e) => this.setState({ name: e.target.value }),
+setAmount: (e) => this.setState({ amount: String(e.target.value).replace(/[^0-9]/g, '').slice(0, 8) }),
+readLabel: reading ? 'Stop reading' : 'Read to me',
+readBg: reading ? '#14365A' : '#FFFFFF',
+readFg: reading ? '#FFFFFF' : '#14365A',
+toggleRead: () => this.setState({ reading: !reading }),
+shared: shared, notShared: !shared,
+openShare: () => this.setState({ shared: true, reading: false }),
+closeShare: () => this.setState({ shared: false })
+};
+}
+}
+</script>
+</body>
+</html>
