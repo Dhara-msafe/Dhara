@@ -32,6 +32,7 @@ import { classifyFact } from '@/src/voice/factClassifier';
 import { VoiceNotice } from '@/src/components/VoiceNotice';
 import { trackEvent } from '@/src/analytics';
 import { dateValidationError } from '@/src/dateValidation';
+import { splitBold, stripBold } from '@/src/chat/boldMarkdown';
 import { theme } from '@/src/theme';
 import FirSectionDrawer, { SectionItem, DroppedSection } from '@/src/components/FirSectionDrawer';
 import { MarqueeBanner } from '@/src/components/MarqueeBanner';
@@ -1186,7 +1187,11 @@ ${data.bot_message}`);
   // Keep forward-declared refs current
   useEffect(() => { autoSpeakRef.current = autoSpeak; }, [autoSpeak]);
 
-  const speak = useCallback(async (msgId: string, text: string, userInitiated: boolean = true) => {
+  const speak = useCallback(async (msgId: string, rawText: string, userInitiated: boolean = true) => {
+    // B-119: bot messages carry **bold** markdown markers for the on-screen
+    // bubble; TTS has no notion of "bold", so strip them here rather than
+    // reading the literal asterisks aloud.
+    const text = stripBold(rawText);
     if (speakingIdRef.current === msgId && speakerRef.current?.playbackBlocked) {
       speakerRef.current.retryPlayback();
       return;
@@ -1765,7 +1770,16 @@ function MessageBubble({
           <Text textBreakStrategy="simple" style={[styles.bubbleText, isBot ? styles.bubbleTextBot : styles.bubbleTextUser]}>
             {/* trailing space gives Android's shrink-to-fit measure a few px of
                 slack so the last Devanagari word never wraps out of view */}
-            {isBot ? text : `${text} `}
+            {isBot
+              // B-119: bot messages carry **bold** markdown (fir_engine.py's
+              // _tm()/_tp() strings); render those spans bold instead of
+              // showing the literal asterisks.
+              ? splitBold(text).map((seg, i) => (
+                  seg.bold
+                    ? <Text key={i} style={styles.bubbleTextBold}>{seg.text}</Text>
+                    : seg.text
+                ))
+              : `${text} `}
           </Text>
         </View>
         {/* TTS speaker button on bot messages */}
@@ -2418,6 +2432,8 @@ const styles = StyleSheet.create({
   bubbleBot: { backgroundColor: NAVY, borderBottomLeftRadius: 4 },
   bubbleUser: { backgroundColor: CREAM, borderBottomRightRadius: 4 },
   bubbleText: { fontSize: 14, lineHeight: 20 },
+  // B-119: inline bold span for **...** segments inside a bot bubble.
+  bubbleTextBold: { fontWeight: '700' },
   bubbleTextBot: { color: '#fff' },
   bubbleTextUser: { color: NAVY },
 
