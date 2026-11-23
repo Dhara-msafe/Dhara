@@ -183,3 +183,47 @@ export const UI_V22_TYPE = process.env.EXPO_PUBLIC_UI_V22_TYPE === 'true';
  * scaled up; the card grows to fit instead of a fixed minHeight.
  */
 export const UI_V22_S6 = process.env.EXPO_PUBLIC_UI_V22_S6 === 'true';
+ /**
+ * Step S3 (Safety core, v2.2 design, 23 Nov handover). Visual-only reskin of
+ * the Officer card (id 27, cream/navy light theme), Emergency (id 25) and
+ * Record proof + its PIN gate (id 26), to the authoritative v2.2 design
+ * package (memory/dhara_redesign/v2_2/editable_screens/). No new
+ * functionality: the real 112 dialler wiring and any app-wide PIN system
+ * stay out of scope per the v2.2 screen manifest (ids 15, 25). Three
+ * screens originally scoped into this group by the generic handover doc
+ * — Silent alert (id 34), Safety phrases (id 35) and Guardian share
+ * (id 38) — turned out to be "Copy correction" only per screen-manifest.csv
+ * (the authoritative scope document); they were fixed directly with no
+ * flag, so they are not behind UI_V22_S3/S4 at all. Presentation-only,
+ * reversible.
+ */
+export const UI_V22_S3 = process.env.EXPO_PUBLIC_UI_V22_S3 === 'true';
+
+/**
+ * Step S4 (Shield tools, v2.2 design, 23 Nov handover). Visual-only reskin
+ * of Panic lesson (id 36), Safety plan (id 37) and Women's Shield (id 33)
+ * to the new dark "Shield mode" palette (see shieldTheme.ts) that the
+ * v2.2 design introduces for this screen group. Presentation-only,
+ * reversible.
+ */
+export const UI_V22_S4 = process.env.EXPO_PUBLIC_UI_V22_S4 === 'true';
+
+/**
+ * Keep the focused input visible above the keyboard (client report, 23 Nov).
+ *
+ * Nine screens wrap their content in React Native's KeyboardAvoidingView
+ * with `behavior={Platform.OS === 'ios' ? 'padding' : undefined}`. On
+ * Android `undefined` means the component does nothing at all, so the
+ * keyboard covers the field being typed in and everything below it. That
+ * used to be survivable because `softwareKeyboardLayoutMode: "resize"`
+ * made the window shrink, but the app now runs edge to edge
+ * (`KeyboardProvider preserveEdgeToEdge` in app/_layout.tsx) and an
+ * edge-to-edge window does not resize for the keyboard.
+ *
+ * With the flag on, those screens use the keyboard-controller
+ * KeyboardAvoidingView already shipping on the Ask tab, which handles
+ * Android properly. With it off, every screen keeps exactly today's
+ * component and props. Presentation only: no input, value, submit or
+ * navigation behaviour changes either way.
+ */
+export const UI_INPUT_INSET = process.env.EXPO_PUBLIC_UI_INPUT_INSET === 'true';

@@ -9,7 +9,8 @@
  * E. No LLM / AI call is ever made from this screen.
  */
 import React, { useState, useCallback, useRef } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { KeyboardSafeView } from '@/src/components/KeyboardSafeView';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -538,9 +539,9 @@ export default function IpcBnsLookup() {
         </View>
       </View>
 
-      <KeyboardAvoidingView
+      <KeyboardSafeView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
       >
         <ScrollView
           style={{ flex: 1 }}
@@ -678,7 +679,7 @@ export default function IpcBnsLookup() {
             </Text>
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardSafeView>
       <DisclaimerBanner testID="ipc-bns-disclaimer" />
     </SafeAreaView>
   );

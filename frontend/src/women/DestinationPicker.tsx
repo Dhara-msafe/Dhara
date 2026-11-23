@@ -1111,9 +1111,13 @@ export function DestinationPicker({ value, onChange, authToken, testID, apiBase,
         <Ionicons name="information-circle-outline" size={15} color={c.muted} />
         <Text style={styles.disclosureTxt}>
           {gpsForegroundEnabled
-            // GPS feature is on for this journey: say so accurately — foreground-only,
-            // not yet running, never background, never an automatic alert.
-            ? `Planned arrival area only. Radius selection does not activate geofence monitoring. If you start this journey, DHARA will share your location only while this app is open on your screen — never in the background, and no one is alerted automatically. ${ADDRESS_SOURCE_DISCLOSURE}`
+            // A13: GPS is on for this journey. Say what actually happens.
+            // The old wording promised "no one is alerted automatically",
+            // which the app itself contradicts: a missed check-in creates an
+            // alert for the people she chose, and from A32 their phone can be
+            // notified. What is still true is foreground-only sharing, and
+            // that DHARA sends no text message of its own.
+            ? `Planned arrival area only. Radius selection does not activate geofence monitoring. If you start this journey, DHARA will share your location only while this app is open on your screen — never in the background. If you miss your check-in, the people you chose are alerted in DHARA automatically. DHARA does not send them a text message. ${ADDRESS_SOURCE_DISCLOSURE}`
             // Default (feature off): no GPS capability exists for this journey at all.
             : `Planned arrival area only. Radius selection does not activate geofence monitoring or any location tracking. ${ADDRESS_SOURCE_DISCLOSURE}`}
         </Text>

@@ -5,8 +5,9 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, Pressable, FlatList, ActivityIndicator,
-  StyleSheet, TextInput, Modal, KeyboardAvoidingView, Platform,
+  StyleSheet, TextInput, Modal,
 } from 'react-native';
+import { KeyboardSafeView } from '@/src/components/KeyboardSafeView';
 import { useFocusEffect, router, Redirect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/src/theme';
@@ -142,8 +143,8 @@ export default function MatterListScreen() {
 
       {/* Create matter modal */}
       <Modal visible={showCreate} transparent animationType="slide">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        <KeyboardSafeView
+          behavior="padding"
           style={styles.modalWrap}
         >
           <View style={styles.modalSheet}>
@@ -183,7 +184,7 @@ export default function MatterListScreen() {
               </Pressable>
             </View>
           </View>
-        </KeyboardAvoidingView>
+        </KeyboardSafeView>
       </Modal>
     </View>
   );

@@ -10,6 +10,17 @@ import { QuickExit } from '@/src/components/dhara/SosPill';
 import { openPhone } from '@/src/women/helpActions';
 import { setEvidenceAutoRecord } from '@/src/women/evidenceAutoRecord';
 import { focusRingStyle } from '@/src/a11yFocus';
+// Step S3 (Safety core, v2.2 design, 23 Nov handover): visual-only — the
+// background used the legacy `emergencyDeep` (#7A160F) constant, which
+// predates the v2.2 design package; Emergency.dc.html's authoritative
+// background is `redDeep` (#7F1D1D, design-tokens.json). Screen-manifest
+// id 25 is "Copy correction + Visual change" — the copy (no "Police
+// notified", "Open dialler for 112" label, visible number fallback) was
+// already correct, and the real 112 handler was already wired
+// unconditionally by an earlier, separate fix (see the comment on
+// call-112 below) — "wiring = New functionality" in the manifest is not
+// reopened here. This only recalibrates the one token mismatch.
+import { UI_V22_S3 } from '@/src/uiV22Flags';
 
 const c = theme.colors;
 
@@ -109,7 +120,7 @@ export default function Emergency() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: c.emergencyDeep, paddingHorizontal: 20 },
+  root: { flex: 1, backgroundColor: UI_V22_S3 ? c.redDeep : c.emergencyDeep, paddingHorizontal: 20 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
   dangerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
   danger: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 16, letterSpacing: 0.4, flexShrink: 1 },
