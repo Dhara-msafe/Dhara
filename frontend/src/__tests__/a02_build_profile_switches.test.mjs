@@ -38,6 +38,7 @@ const TEST_BUILDS_ON = [
   'EXPO_PUBLIC_UI_V22_S7',
   'EXPO_PUBLIC_UI_V22_S10',
   'EXPO_PUBLIC_UI_V22_S12',
+  'EXPO_PUBLIC_UI_V22_S2',
   // With the dock on, the bug-report button is shown only when this is
   // explicitly "true" (src/components/IssueReporterButton.tsx).
   'EXPO_PUBLIC_ENABLE_ISSUE_REPORTER',

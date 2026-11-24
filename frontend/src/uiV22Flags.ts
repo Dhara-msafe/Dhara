@@ -334,3 +334,28 @@ export const UI_V22_S10 = process.env.EXPO_PUBLIC_UI_V22_S10 === 'true';
  * instead.
  */
 export const UI_V22_S12 = process.env.EXPO_PUBLIC_UI_V22_S12 === 'true';
+
+/**
+ * Step S2 (Infra PR B — shared chrome: header, buttons, chips, cards,
+ * bottom tabs; components/theme). Audited every shared-chrome component
+ * against component-specifications.md ("Min 48px target" for Button; Top
+ * bar/SOS entries) before any per-screen v2.2 batch touched them:
+ *
+ * - ScreenHeader.tsx (back + title, used by 25+ screens across the app,
+ *   including women/*, notetaker/*, alerts/*, invite/*): the back button
+ *   was 40x40, below the 48px minimum. This is the one real gap, and
+ *   fixing it here — once, in the shared component — is why this infra
+ *   step was meant to come before the per-screen batches.
+ * - AppTabBar.tsx (bottom tabs): already compliant — each tab's
+ *   `minHeight` is 52, the raised Ask button is 60x60. No change.
+ * - SosPill.tsx (SOS pill, Quick exit pill, Chip, Divider): SOS and Quick
+ *   exit are already 48px tall. The icon+label `Chip` here is a nav/filter
+ *   chip (globe/language pill style), not the consent "Status chip" in
+ *   component-specifications.md (Agreed/Not given/Withdrawn/Pending/
+ *   Failed) — that one lives in the Consent screens (S13, on hold for
+ *   legal sign-off), out of scope here. No change.
+ *
+ * Presentation-only, reversible: with the flag off, ScreenHeader keeps
+ * today's 40x40 back button exactly as before.
+ */
+export const UI_V22_S2 = process.env.EXPO_PUBLIC_UI_V22_S2 === 'true';
