@@ -3,9 +3,12 @@ import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator } from '
 import { crossAlert } from '@/src/utils/crossAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { tabBackTarget } from '@/src/tabBackTarget';
+import { UI_V22_ONE_SOS } from '@/src/uiV22Flags';
+import { focusRingStyle } from '@/src/a11yFocus';
 
 type Session = { id: string; title: string; updated_at: string; language: string };
 
@@ -14,6 +17,7 @@ export default function History() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { from } = useLocalSearchParams<{ from?: string }>();
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -43,8 +47,13 @@ export default function History() {
     return (
       <SafeAreaView style={styles.safe} edges={['top']} testID="history-screen">
         <View style={styles.header}>
-          <Text style={styles.h1}>Your Conversations</Text>
-          <Text style={styles.h2}>Every question you&apos;ve asked, saved.</Text>
+          <View style={styles.titleRow}>
+            <Pressable testID="history-back" onPress={() => router.navigate(tabBackTarget(from) as any)} hitSlop={8} style={(s) => [styles.backBtn, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
+              <Ionicons name="chevron-back" size={24} color={theme.colors.primary} />
+            </Pressable>
+            <Text style={styles.h1}>Your Conversations</Text>
+          </View>
+          <Text style={[styles.h2, styles.h2Indented]}>Every question you&apos;ve asked, saved.</Text>
         </View>
         <View style={styles.empty}>
           <Ionicons name="lock-closed-outline" size={64} color={theme.colors.brandSecondary} />
@@ -61,8 +70,13 @@ export default function History() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']} testID="history-screen">
       <View style={styles.header}>
-        <Text style={styles.h1}>Your Conversations</Text>
-        <Text style={styles.h2}>Every question you&apos;ve asked, saved.</Text>
+        <View style={styles.titleRow}>
+          <Pressable testID="history-back" onPress={() => router.navigate(tabBackTarget(from) as any)} hitSlop={8} style={(s) => [styles.backBtn, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
+              <Ionicons name="chevron-back" size={24} color={theme.colors.primary} />
+            </Pressable>
+          <Text style={styles.h1}>Your Conversations</Text>
+        </View>
+        <Text style={[styles.h2, styles.h2Indented]}>Every question you&apos;ve asked, saved.</Text>
       </View>
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={theme.colors.brand} /></View>
@@ -100,8 +114,16 @@ export default function History() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.surface },
+  // 22 Nov (Vivek): this hidden tab had no way back. The arrow goes to the
+  // screen that opened it (src/tabBackTarget.ts), Me by default.
+  // Keeps the heading clear of the floating top-right SOS, which only shows
+  // when UI_V22_ONE_SOS is off (release builds have one SOS, at the bottom).
+  titleRow: { flexDirection: 'row', alignItems: 'center', paddingRight: UI_V22_ONE_SOS ? 0 : 92 },
+  backBtn: { width: 36, height: 40, marginLeft: -8, alignItems: 'flex-start', justifyContent: 'center' },
+  // Subtitle starts under the heading text, not under the arrow.
+  h2Indented: { marginLeft: 28 },
   header: { padding: theme.spacing.xl, paddingBottom: theme.spacing.md, borderBottomWidth: 1, borderBottomColor: theme.colors.divider },
-  h1: { fontFamily: theme.fonts.display, fontSize: 28, color: theme.colors.brand, fontWeight: '700' },
+  h1: { flexShrink: 1, fontFamily: theme.fonts.display, fontSize: 28, color: theme.colors.brand, fontWeight: '700' },
   h2: { color: theme.colors.onSurfaceSecondary, marginTop: 4 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: theme.spacing.xl },

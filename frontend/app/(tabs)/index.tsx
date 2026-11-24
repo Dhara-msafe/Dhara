@@ -1923,7 +1923,7 @@ export default function ChatScreen() {
           <Pressable
             testID="history-header-btn"
             style={(s) => [styles.historyHeaderBtn, focusRingStyle(s)]}
-            onPress={() => router.push('/(tabs)/history')}
+            onPress={() => router.push('/(tabs)/history?from=ask' as any)}
             hitSlop={6}
             accessibilityRole="button"
             accessibilityLabel="Chat history"
