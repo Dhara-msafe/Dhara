@@ -257,3 +257,105 @@ export const UI_V22_S7 = process.env.EXPO_PUBLIC_UI_V22_S7 === 'true';
  * from the API with an honest "Nothing here yet." empty state, no
  * hardcoded sample rows. No flag declared.
  */
+
+/**
+ * Batch 4 — step S9 (Me & settings: Me, Me and settings, Edit profile, Data
+ * privacy) needed NO code change. Me (manifest ids 19/44, app/(tabs)/me.tsx)
+ * is already on the v2.2 theme tokens — its background/navy/error colours
+ * match Me.dc.html and Settings.dc.html exactly — with no sample data and no
+ * overclaiming copy. Edit profile (id45, "Sample personal details removed")
+ * already uses the signed-in user's real name/email with safe fallbacks, no
+ * hardcoded sample. Data privacy (id46, "no blanket on-device or end-to-end
+ * claims") already says "stored on DHARA's servers (encrypted at rest)",
+ * the qualified wording the manifest calls for. "Me and settings"
+ * (app/(tabs)/settings.tsx) has no screen-manifest entry of its own — the
+ * manifest's "Settings.dc.html" design file maps to id19 (Me/me.tsx), not to
+ * this route — and was audited clean of any overclaiming copy regardless.
+ * No flag declared.
+ */
+
+/**
+ * Step S10 (Entry: DHARA splash, How DHARA helps, Choose language, Choose
+ * state), one real fix of the four screens. Splash (id1, app/index.tsx) is a
+ * logo-and-spinner screen with no footnote/tagline text at all, so the
+ * mockup's copy/contrast findings (Splash.dc.html has a CTA and a footer
+ * line the live screen never built) don't apply — building them would be
+ * new functionality. How DHARA helps (id3, excluded) was already built
+ * fresh from Welcome.dc.html in an earlier stage with the corrected,
+ * non-overclaiming copy (see the file's own header comment). Choose state
+ * (id5, app/state.tsx) already has a selected-row checkmark, the shared
+ * #505B68 placeholder-contrast token, and its one sub-48px touch target
+ * (the skip/cancel button) already raised to 48px by the pre-existing
+ * UI_REVISION_V1 flag. Choose language (id2, app/language.tsx) already
+ * shows native names first and already has a working search field (the
+ * manifest's claim that search "does NOT exist in the app" doesn't match
+ * the live code — nothing to add there). The one real gap: Main.dc.html's
+ * selected row shows both the "Selected" text label AND a small filled
+ * checkmark badge; the live row only has the text. With the flag on, a
+ * checkmark-circle icon renders next to "Selected" on the active row,
+ * matching the design and reinforcing the state beyond color/text alone.
+ */
+export const UI_V22_S10 = process.env.EXPO_PUBLIC_UI_V22_S10 === 'true';
+
+/**
+ * Batch 5 — step S11 (Family & visitor: Family journey, Family contacts,
+ * Visitor help) needed NO code change. Family journey (manifest id39,
+ * "Renamed 'Support a family member'") is already titled that in
+ * JourneyHeader, and keeps itself explicitly separate from legal-case
+ * tracking — no "court updates" content anywhere. Family contacts (id40,
+ * "Labelled icon buttons; 48px targets") already has accessibilityLabels on
+ * every icon button in the shared src/familyJourney/ui.tsx chrome, and its
+ * touch targets are already raised to 48px by the pre-existing
+ * UI_REVISION_V1 flag (same pattern as Batch 4's Choose state skip button).
+ * Visitor help (id53, "Visual only") is already on the shared theme tokens
+ * (theme.colors.primary === navy) with its touch targets likewise already
+ * raised via UI_REVISION_V1. No flag declared.
+ */
+
+/**
+ * Step S12 (Advocate: Find advocate, Advocate profile, Case notes, IPC
+ * lookup), one real fix of the four screens. Find advocate (id49), Advocate
+ * profile (id50) and Case notes/Notetaker (id51) are all manifest
+ * disposition "deferred" — the manifest's own change_summary for each says
+ * only to confirm feature-flag gating before launch, not to make a visual
+ * change. All three already redirect to Home when ADVOCATE_MODE_ENABLED is
+ * off (see the B-97/B-87/B-121 comments in lawyer-home.tsx,
+ * advocate-register.tsx and notetaker/index.tsx), so that open question is
+ * already answered — no further work, and no visual redesign is in scope
+ * for a "deferred" screen this batch. The copy audit's "Advocate ratings,
+ * cases won, Bar Council verification -> Removed" concern is also already
+ * satisfied: lawyer-home.tsx's verified/pending badge reads a real
+ * `/api/advocate/profile/:id` fetch, not sample data, and nowhere shows a
+ * rating or a "cases won" count. IPC lookup (id52, "retained... Visual
+ * only") is the one real gap: its `safe` container hardcodes the legacy
+ * off-brand `#FDFBF7`, one hex away from the v2.2 cream token
+ * (`theme.colors.background`, `#FBF7EE`) that IPCLookup.dc.html and every
+ * other v2.2 screen use. With the flag on, it reads the shared token
+ * instead.
+ */
+export const UI_V22_S12 = process.env.EXPO_PUBLIC_UI_V22_S12 === 'true';
+
+/**
+ * Step S2 (Infra PR B — shared chrome: header, buttons, chips, cards,
+ * bottom tabs; components/theme). Audited every shared-chrome component
+ * against component-specifications.md ("Min 48px target" for Button; Top
+ * bar/SOS entries) before any per-screen v2.2 batch touched them:
+ *
+ * - ScreenHeader.tsx (back + title, used by 25+ screens across the app,
+ *   including women/*, notetaker/*, alerts/*, invite/*): the back button
+ *   was 40x40, below the 48px minimum. This is the one real gap, and
+ *   fixing it here — once, in the shared component — is why this infra
+ *   step was meant to come before the per-screen batches.
+ * - AppTabBar.tsx (bottom tabs): already compliant — each tab's
+ *   `minHeight` is 52, the raised Ask button is 60x60. No change.
+ * - SosPill.tsx (SOS pill, Quick exit pill, Chip, Divider): SOS and Quick
+ *   exit are already 48px tall. The icon+label `Chip` here is a nav/filter
+ *   chip (globe/language pill style), not the consent "Status chip" in
+ *   component-specifications.md (Agreed/Not given/Withdrawn/Pending/
+ *   Failed) — that one lives in the Consent screens (S13, on hold for
+ *   legal sign-off), out of scope here. No change.
+ *
+ * Presentation-only, reversible: with the flag off, ScreenHeader keeps
+ * today's 40x40 back button exactly as before.
+ */
+export const UI_V22_S2 = process.env.EXPO_PUBLIC_UI_V22_S2 === 'true';

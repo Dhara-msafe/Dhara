@@ -9,6 +9,7 @@ import { trackEvent } from '@/src/analytics';
 import { focusRingStyle } from '@/src/a11yFocus';
 import { LANGUAGES } from '@/src/languages';
 import { v22SectionLabel } from '@/src/v22SectionLabel';
+import { UI_V22_S10 } from '@/src/uiV22Flags';
 
 // Mirrors backend /api/reference/languages — hardcoded so the screen works
 // before login and without a network round-trip.
@@ -127,7 +128,19 @@ export default function LanguageSelect() {
                 <Text style={[styles.native, active && styles.nativeActive]}>{item.native}</Text>
                 <Text style={styles.name}>{item.name}</Text>
               </View>
-              {active && <Text style={styles.selectedLabel}>Selected</Text>}
+              {active && (
+                <View style={styles.selectedWrap}>
+                  <Text style={styles.selectedLabel}>Selected</Text>
+                  {UI_V22_S10 && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={20}
+                      color="#8A6A1E"
+                      testID={`lang-${item.code}-check`}
+                    />
+                  )}
+                </View>
+              )}
             </Pressable>
           );
         }}
@@ -255,6 +268,7 @@ const styles = StyleSheet.create({
   nativeActive: { color: theme.colors.navy },
   // English translation: textSecondary on surface — 6.81:1 ✅; weight 500 for Indic script legibility
   name: { color: theme.dhara.textSecondary, fontSize: 13, marginTop: 2, fontWeight: '500' },
+  selectedWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   selectedLabel: {
     fontFamily: theme.fonts.bodyBold,
     fontSize: 13,

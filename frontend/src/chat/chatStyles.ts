@@ -10,6 +10,12 @@ import { theme } from '../theme';
 import { UI_REVISION_V1 } from '../designRevision';
 import { v22SectionLabel } from '../v22SectionLabel';
 
+// B-122: the single source of truth for the centered web chat column's cap,
+// so anything else that needs to line up with this column's edges (e.g. the
+// global SOS overlay in app/(tabs)/_layout.tsx) can reference the same
+// number instead of a second, driftable copy of "800".
+export const WEB_CHAT_MAX_WIDTH = 800;
+
 export const styles = StyleSheet.create({
   safe: {
     flex: 1,
@@ -23,7 +29,7 @@ export const styles = StyleSheet.create({
   webContentWrap: {
     flex: 1,
     width: '100%',
-    ...(Platform.OS === 'web' ? { maxWidth: 800, backgroundColor: theme.colors.surface } : {}),
+    ...(Platform.OS === 'web' ? { maxWidth: WEB_CHAT_MAX_WIDTH, backgroundColor: theme.colors.surface } : {}),
   },
   header: {
     flexDirection: 'row',

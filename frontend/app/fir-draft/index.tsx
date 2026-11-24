@@ -25,7 +25,7 @@ import {
 import { whisperTranscribeFile } from '@/src/voice/stt';
 import { ChunkedSpeaker } from '@/src/voice/tts';
 import { createBrowserTtsPlayer } from '@/src/voice/browserPlayer';
-import { splitInlineBold, stripInlineMarkdown } from '@/src/fir/inlineMarkdown';
+import { stripInlineMarkdown } from '@/src/fir/inlineMarkdown';
 import { claimMic, MIC_BUSY_MESSAGE, withMicLease, isMicHeldByEvidenceLocker, TTS_BLOCKED_BY_LOCKER_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
 import { canSpeakNow, noteSpeakIntent, VOICE_COMPANION_ENABLED, VOICE_OFF_HINT } from '@/src/voice/speechGate';
 import { VoiceStateMachine } from '@/src/voice/core/voiceStateMachine';
@@ -34,6 +34,7 @@ import { classifyFact } from '@/src/voice/factClassifier';
 import { VoiceNotice } from '@/src/components/VoiceNotice';
 import { trackEvent } from '@/src/analytics';
 import { dateValidationError } from '@/src/dateValidation';
+import { splitBold, stripBold } from '@/src/chat/boldMarkdown';
 import { theme } from '@/src/theme';
 import FirSectionDrawer, { SectionItem, DroppedSection } from '@/src/components/FirSectionDrawer';
 import { MarqueeBanner } from '@/src/components/MarqueeBanner';
@@ -1191,7 +1192,11 @@ ${data.bot_message}`);
   // Keep forward-declared refs current
   useEffect(() => { autoSpeakRef.current = autoSpeak; }, [autoSpeak]);
 
-  const speak = useCallback(async (msgId: string, text: string, userInitiated: boolean = true) => {
+  const speak = useCallback(async (msgId: string, rawText: string, userInitiated: boolean = true) => {
+    // B-119: bot messages carry **bold** markdown markers for the on-screen
+    // bubble; TTS has no notion of "bold", so strip them here rather than
+    // reading the literal asterisks aloud.
+    const text = stripBold(rawText);
     if (speakingIdRef.current === msgId && speakerRef.current?.playbackBlocked) {
       speakerRef.current.retryPlayback();
       return;
@@ -1760,8 +1765,10 @@ ${data.bot_message}`);
 
 /** B-75: render **bold** markers in bot text as bold (see src/fir/inlineMarkdown). */
 function renderInlineBold(text: string): React.ReactNode {
-  return splitInlineBold(text).map((seg, i) =>
-    seg.bold ? <Text key={i} style={{ fontWeight: '700' }}>{seg.text}</Text> : seg.text,
+  // B-119: shared splitBold (src/chat/boldMarkdown) so the chat bubble and
+  // the TTS path (stripBold) agree on what counts as a **bold** span.
+  return splitBold(text).map((seg, i) =>
+    seg.bold ? <Text key={i} style={styles.bubbleTextBold}>{seg.text}</Text> : seg.text,
   );
 }
 
@@ -2448,6 +2455,8 @@ const styles = StyleSheet.create({
   bubbleBot: { backgroundColor: NAVY, borderBottomLeftRadius: 4 },
   bubbleUser: { backgroundColor: CREAM, borderBottomRightRadius: 4 },
   bubbleText: { fontSize: 14, lineHeight: 20 },
+  // B-119: inline bold span for **...** segments inside a bot bubble.
+  bubbleTextBold: { fontWeight: '700' },
   bubbleTextBot: { color: '#fff' },
   bubbleTextUser: { color: NAVY },
 
