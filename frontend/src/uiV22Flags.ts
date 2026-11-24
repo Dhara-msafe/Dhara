@@ -296,3 +296,41 @@ export const UI_V22_S7 = process.env.EXPO_PUBLIC_UI_V22_S7 === 'true';
  * matching the design and reinforcing the state beyond color/text alone.
  */
 export const UI_V22_S10 = process.env.EXPO_PUBLIC_UI_V22_S10 === 'true';
+
+/**
+ * Batch 5 — step S11 (Family & visitor: Family journey, Family contacts,
+ * Visitor help) needed NO code change. Family journey (manifest id39,
+ * "Renamed 'Support a family member'") is already titled that in
+ * JourneyHeader, and keeps itself explicitly separate from legal-case
+ * tracking — no "court updates" content anywhere. Family contacts (id40,
+ * "Labelled icon buttons; 48px targets") already has accessibilityLabels on
+ * every icon button in the shared src/familyJourney/ui.tsx chrome, and its
+ * touch targets are already raised to 48px by the pre-existing
+ * UI_REVISION_V1 flag (same pattern as Batch 4's Choose state skip button).
+ * Visitor help (id53, "Visual only") is already on the shared theme tokens
+ * (theme.colors.primary === navy) with its touch targets likewise already
+ * raised via UI_REVISION_V1. No flag declared.
+ */
+
+/**
+ * Step S12 (Advocate: Find advocate, Advocate profile, Case notes, IPC
+ * lookup), one real fix of the four screens. Find advocate (id49), Advocate
+ * profile (id50) and Case notes/Notetaker (id51) are all manifest
+ * disposition "deferred" — the manifest's own change_summary for each says
+ * only to confirm feature-flag gating before launch, not to make a visual
+ * change. All three already redirect to Home when ADVOCATE_MODE_ENABLED is
+ * off (see the B-97/B-87/B-121 comments in lawyer-home.tsx,
+ * advocate-register.tsx and notetaker/index.tsx), so that open question is
+ * already answered — no further work, and no visual redesign is in scope
+ * for a "deferred" screen this batch. The copy audit's "Advocate ratings,
+ * cases won, Bar Council verification -> Removed" concern is also already
+ * satisfied: lawyer-home.tsx's verified/pending badge reads a real
+ * `/api/advocate/profile/:id` fetch, not sample data, and nowhere shows a
+ * rating or a "cases won" count. IPC lookup (id52, "retained... Visual
+ * only") is the one real gap: its `safe` container hardcodes the legacy
+ * off-brand `#FDFBF7`, one hex away from the v2.2 cream token
+ * (`theme.colors.background`, `#FBF7EE`) that IPCLookup.dc.html and every
+ * other v2.2 screen use. With the flag on, it reads the shared token
+ * instead.
+ */
+export const UI_V22_S12 = process.env.EXPO_PUBLIC_UI_V22_S12 === 'true';

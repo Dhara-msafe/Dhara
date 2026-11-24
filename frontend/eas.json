@@ -35,6 +35,7 @@
         "EXPO_PUBLIC_UI_V22_S6": "true",
         "EXPO_PUBLIC_UI_V22_S7": "true",
         "EXPO_PUBLIC_UI_V22_S10": "true",
+        "EXPO_PUBLIC_UI_V22_S12": "true",
         "EXPO_PUBLIC_UI_INPUT_INSET": "true",
         "EXPO_PUBLIC_ENABLE_ISSUE_REPORTER": "true",
         "EXPO_PUBLIC_HEADOUT_DEMO": "false"
@@ -73,6 +74,7 @@
         "EXPO_PUBLIC_UI_V22_S6": "true",
         "EXPO_PUBLIC_UI_V22_S7": "true",
         "EXPO_PUBLIC_UI_V22_S10": "true",
+        "EXPO_PUBLIC_UI_V22_S12": "true",
         "EXPO_PUBLIC_UI_INPUT_INSET": "true",
         "EXPO_PUBLIC_ENABLE_ISSUE_REPORTER": "true",
         "EXPO_PUBLIC_HEADOUT_DEMO": "false"
@@ -107,6 +109,7 @@
         "EXPO_PUBLIC_UI_V22_S6": "true",
         "EXPO_PUBLIC_UI_V22_S7": "true",
         "EXPO_PUBLIC_UI_V22_S10": "true",
+        "EXPO_PUBLIC_UI_V22_S12": "true",
         "EXPO_PUBLIC_UI_INPUT_INSET": "true",
         "EXPO_PUBLIC_ENABLE_ISSUE_REPORTER": "true",
         "EXPO_PUBLIC_HEADOUT_DEMO": "false"

@@ -22,6 +22,7 @@ import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
 import { UI_REVISION_V1 } from '@/src/designRevision';
 import { focusRingStyle } from '@/src/a11yFocus';
 import { v22SectionLabel } from '@/src/v22SectionLabel';
+import { UI_V22_S12 } from '@/src/uiV22Flags';
 const NAVY   = theme.colors.primary;
 const GOLD   = theme.colors.gold;
 const CUTOFF = '2024-07-01';
@@ -687,7 +688,9 @@ export default function IpcBnsLookup() {
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FDFBF7' },
+  // v2.2 (UI_V22_S12): '#FDFBF7' was one hex off the shared cream token
+  // every other v2.2 screen (and IPCLookup.dc.html itself) uses.
+  safe: { flex: 1, backgroundColor: UI_V22_S12 ? theme.colors.background : '#FDFBF7' },
   header: {
     backgroundColor: NAVY, flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16, gap: 12,
