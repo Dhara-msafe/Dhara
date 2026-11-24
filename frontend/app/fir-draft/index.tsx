@@ -1964,12 +1964,12 @@ function TextInputArea({
               </View>
             );
           })}
-          {/* Add more button */}
+          {/* Add more button.
+              v2.2 step S7 (manifest id31, File a complaint): A11Y_CHECK_REPORT.md
+              flagged touch targets under 48px in FirDraft. This button is
+              44x44 with no hitSlop; with the flag on, hitSlop={2} brings
+              its effective target to 48x48. */}
           {onAttach && (
-            {/* v2.2 step S7 (manifest id31, File a complaint): A11Y_CHECK_REPORT.md
-                flagged touch targets under 48px in FirDraft. This button is
-                44x44 with no hitSlop; with the flag on, hitSlop={2} brings
-                its effective target to 48x48. */}
             <Pressable style={(s) => [styles.attachAddBtn, focusRingStyle(s)]} onPress={onAttach} hitSlop={UI_V22_S7 ? 2 : undefined} accessibilityRole="button" accessibilityLabel="Add more files">
               <Ionicons name="add" size={18} color={NAVY} />
             </Pressable>
