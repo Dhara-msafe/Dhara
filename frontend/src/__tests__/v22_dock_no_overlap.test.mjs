@@ -69,8 +69,18 @@ test('Help hide rules unchanged (now a shared predicate)', () => {
   assert.match(help, /if \(isGlobalHelpHidden\(pathname\)\) return null;/);
 });
 
-test('bug button: production hidden when the flag is on (explicit opt-in)', () => {
-  assert.match(bug, /export const ISSUE_REPORTER_ENABLED = UI_V22_DOCK\s*\n[^\n]*\n[^\n]*\n\s*\? process\.env\.EXPO_PUBLIC_ENABLE_ISSUE_REPORTER === 'true'\s*\n\s*: process\.env\.EXPO_PUBLIC_ENABLE_ISSUE_REPORTER !== 'false';/);
+test('bug button: explicit opt-in, so production never ships it', () => {
+  // This used to depend on UI_V22_DOCK: with the dock off it fell back to
+  // `!== 'false'`, so an ABSENT variable counted as ON. A production build
+  // sets neither flag and therefore shipped the bug button to real users.
+  assert.match(
+    bug,
+    /export const ISSUE_REPORTER_ENABLED = process\.env\.EXPO_PUBLIC_ENABLE_ISSUE_REPORTER === 'true';/,
+  );
+  assert.ok(
+    !/EXPO_PUBLIC_ENABLE_ISSUE_REPORTER !== 'false'/.test(bug),
+    'the absent-means-on fallback must not come back',
+  );
 });
 
 test('desktop with the flag on: no floating Help pill, bug button kept', () => {
