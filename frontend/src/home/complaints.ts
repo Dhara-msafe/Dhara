@@ -22,7 +22,17 @@ const LABELS: Record<string, string> = {
 };
 export function complaintProgress(item: Complaint) {
   const index = STAGES.indexOf(item.stage);
-  return { label: LABELS[item.stage] || 'Interview in progress', step: isDraftReady(item) ? 6 : item.stage === 'gps_confirm' ? 3 : Math.max(1, index + 1), total: 6 };
+  // B-118 fix: `label` used to come only from `LABELS[item.stage]`, with no
+  // regard for `isDraftReady(item)` -- unlike `step` right beside it, which
+  // already checks isDraftReady() first. item.status can reach 'completed'
+  // (isDraftReady() true) while item.stage is still an earlier value such as
+  // 'draft', so the Home "For you right now" card ended up showing a
+  // correct "DRAFT READY" tag (home.tsx reads isDraftReady() directly) right
+  // above a stale "Preparing your draft" body line (home.tsx reads
+  // primaryProgress.label) for the very same case. Checking isDraftReady()
+  // first here keeps label and step -- and the tag and body text on screen
+  // -- always in agreement.
+  return { label: isDraftReady(item) ? LABELS.completed : (LABELS[item.stage] || 'Interview in progress'), step: isDraftReady(item) ? 6 : item.stage === 'gps_confirm' ? 3 : Math.max(1, index + 1), total: 6 };
 }
 
 export function useComplaints() {
