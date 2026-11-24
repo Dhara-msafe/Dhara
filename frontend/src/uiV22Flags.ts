@@ -257,3 +257,42 @@ export const UI_V22_S7 = process.env.EXPO_PUBLIC_UI_V22_S7 === 'true';
  * from the API with an honest "Nothing here yet." empty state, no
  * hardcoded sample rows. No flag declared.
  */
+
+/**
+ * Batch 4 — step S9 (Me & settings: Me, Me and settings, Edit profile, Data
+ * privacy) needed NO code change. Me (manifest ids 19/44, app/(tabs)/me.tsx)
+ * is already on the v2.2 theme tokens — its background/navy/error colours
+ * match Me.dc.html and Settings.dc.html exactly — with no sample data and no
+ * overclaiming copy. Edit profile (id45, "Sample personal details removed")
+ * already uses the signed-in user's real name/email with safe fallbacks, no
+ * hardcoded sample. Data privacy (id46, "no blanket on-device or end-to-end
+ * claims") already says "stored on DHARA's servers (encrypted at rest)",
+ * the qualified wording the manifest calls for. "Me and settings"
+ * (app/(tabs)/settings.tsx) has no screen-manifest entry of its own — the
+ * manifest's "Settings.dc.html" design file maps to id19 (Me/me.tsx), not to
+ * this route — and was audited clean of any overclaiming copy regardless.
+ * No flag declared.
+ */
+
+/**
+ * Step S10 (Entry: DHARA splash, How DHARA helps, Choose language, Choose
+ * state), one real fix of the four screens. Splash (id1, app/index.tsx) is a
+ * logo-and-spinner screen with no footnote/tagline text at all, so the
+ * mockup's copy/contrast findings (Splash.dc.html has a CTA and a footer
+ * line the live screen never built) don't apply — building them would be
+ * new functionality. How DHARA helps (id3, excluded) was already built
+ * fresh from Welcome.dc.html in an earlier stage with the corrected,
+ * non-overclaiming copy (see the file's own header comment). Choose state
+ * (id5, app/state.tsx) already has a selected-row checkmark, the shared
+ * #505B68 placeholder-contrast token, and its one sub-48px touch target
+ * (the skip/cancel button) already raised to 48px by the pre-existing
+ * UI_REVISION_V1 flag. Choose language (id2, app/language.tsx) already
+ * shows native names first and already has a working search field (the
+ * manifest's claim that search "does NOT exist in the app" doesn't match
+ * the live code — nothing to add there). The one real gap: Main.dc.html's
+ * selected row shows both the "Selected" text label AND a small filled
+ * checkmark badge; the live row only has the text. With the flag on, a
+ * checkmark-circle icon renders next to "Selected" on the active row,
+ * matching the design and reinforcing the state beyond color/text alone.
+ */
+export const UI_V22_S10 = process.env.EXPO_PUBLIC_UI_V22_S10 === 'true';
