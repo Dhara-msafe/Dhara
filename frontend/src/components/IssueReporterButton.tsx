@@ -12,8 +12,11 @@
  * metadata are sent. The notice under the description asks the user not to
  * include personal details, and the server stores no email, phone or location.
  *
- * Flag: EXPO_PUBLIC_ENABLE_ISSUE_REPORTER. Default ON (the app is testers-only
- * until the final release); set it to "false" to hide the button everywhere.
+ * Flag: EXPO_PUBLIC_ENABLE_ISSUE_REPORTER. Default OFF — it must be set to
+ * "true" to appear. It used to default ON, on the assumption that the app was
+ * testers-only until release. That assumption ended with the Play Store
+ * release, and the old default meant a production build (which sets no flags)
+ * shipped the floating bug button to real users.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -29,7 +32,6 @@ import * as Device from 'expo-device';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
 import { theme } from '@/src/theme';
-import { UI_V22_DOCK } from '@/src/uiV22Flags';
 import { useAuth, API_BASE } from '@/src/auth';
 import {
   POSITION_KEY,
@@ -55,12 +57,15 @@ async function persistFabPosition(x: number, y: number): Promise<void> {
   } catch {}
 }
 
-/** Off only when explicitly disabled, so every current build has it. */
-export const ISSUE_REPORTER_ENABLED = UI_V22_DOCK
-  // UI_V22_DOCK: test builds only — must be explicitly 'true', so a
-  // production build (which does not set it) never shows the button.
-  ? process.env.EXPO_PUBLIC_ENABLE_ISSUE_REPORTER === 'true'
-  : process.env.EXPO_PUBLIC_ENABLE_ISSUE_REPORTER !== 'false';
+/**
+ * On only when explicitly enabled.
+ *
+ * This used to be `!== 'false'` whenever UI_V22_DOCK was off, which meant an
+ * ABSENT variable counted as on. A production build sets neither flag, so it
+ * took that branch and shipped the bug button. development, internal_qa and
+ * closed_testing all set it to 'true' explicitly, so testers are unaffected.
+ */
+export const ISSUE_REPORTER_ENABLED = process.env.EXPO_PUBLIC_ENABLE_ISSUE_REPORTER === 'true';
 
 /** Routes where the button never shows (Emergency controls, admin pages).
  *  Exported so the bottom dock (UI_V22_DOCK) can tell whether it has
