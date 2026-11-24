@@ -6,6 +6,7 @@ import { theme } from '@/src/theme';
 import { AppTabBar } from '@/src/components/AppTabBar';
 import { SosPill } from '@/src/components/dhara/SosPill';
 import { UI_V22_ONE_SOS } from '@/src/uiV22Flags';
+import { WEB_CHAT_MAX_WIDTH } from '@/src/chat/chatStyles';
 import { useAuth } from '@/src/auth';
 import { addNotificationTapListener } from '@/src/push';
 
@@ -81,10 +82,23 @@ export default function TabsLayout() {
           <Tabs.Screen name="history" options={hidden} />
         </Tabs>
         {/* Global persistent SOS — visible on every tab screen except Home
-            (moved there into the Me tab, see me.tsx), never scrolls away. */}
+            (moved there into the Me tab, see me.tsx), never scrolls away.
+            B-122: on web this used to anchor to the raw browser-window edge
+            (`right: 16` against the full-width screen), while the chat
+            header's New Chat / History buttons anchor to the edge of the
+            centered, width-capped chat column (webContentWrap, capped at
+            WEB_CHAT_MAX_WIDTH). Those are two different "right edges" on
+            web — at window widths where the column's edge happens to land
+            near the real window edge (common half-screen-snapped desktop
+            widths), the SOS pill sat on top of the header buttons. Fixed by
+            giving the overlay the *same* centered, capped frame as the chat
+            column, so its own right edge always lines up with the header's,
+            at every window width, on every platform. */}
         {!onHome && !UI_V22_ONE_SOS && (
-          <View style={[styles.sosOverlay, { top: insets.top + 10 }]} pointerEvents="box-none">
-            <SosPill />
+          <View style={[styles.sosOverlayFrame, { top: insets.top + 10 }]} pointerEvents="box-none">
+            <View style={styles.sosOverlayInner} pointerEvents="box-none">
+              <SosPill />
+            </View>
           </View>
         )}
       </View>
@@ -95,5 +109,24 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.background },
   content: { flex: 1, minHeight: 0 },
-  sosOverlay: { position: 'absolute', right: 16, zIndex: 50 },
+  // B-122: an outer full-width frame that centers its child on web (same
+  // pattern as chatStyles' `safe`), so the inner, width-capped box below
+  // lines up with the chat column rather than the raw viewport.
+  sosOverlayFrame: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 50,
+    ...(Platform.OS === 'web' ? { alignItems: 'center' } : {}),
+  },
+  // The inner box mirrors webContentWrap's own cap, then right-aligns the
+  // pill within it with the same 16px inset the old flat `right: 16` used —
+  // so native (which never hits the web branch, and is narrower than the
+  // cap anyway) renders pixel-identical to before.
+  sosOverlayInner: {
+    width: '100%',
+    alignItems: 'flex-end',
+    paddingRight: 16,
+    ...(Platform.OS === 'web' ? { maxWidth: WEB_CHAT_MAX_WIDTH } : {}),
+  },
 });
