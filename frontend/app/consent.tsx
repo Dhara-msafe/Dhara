@@ -1,6 +1,6 @@
 /** Explicit age, terms and core-data consent. Optional purposes default to off. */
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, Switch, ActivityIndicator, Image } from 'react-native';
+import { View, Text, ScrollView, Pressable, Switch, ActivityIndicator, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -48,6 +48,12 @@ const PLACEHOLDERS: Record<string, string> = {
 const showGrievanceLine = !isGrievanceContactPlaceholder();
 const fillPlaceholders = (text: string) => Object.entries(PLACEHOLDERS)
   .reduce((s, [key, value]) => s.split(key).join(value), text);
+
+// B-64 (24 Nov): on web the built-in Switch is already a real switch that
+// reports on/off. Adding role + state on top wraps it in a second "switch"
+// with no state, so screen readers heard 4 switches for 2 (one never saying
+// on or off). Phones keep the explicit props (harmless repeats there).
+const SWITCH_A11Y_PROPS = Platform.OS !== 'web';
 
 export default function ConsentScreen() {
   const router = useRouter();
@@ -290,13 +296,13 @@ export default function ConsentScreen() {
         <View style={styles.toggleRow}>
           <Text testID="consent-analytics-label" style={styles.toggleLabel}>{strings.optional_analytics}</Text>
           <Switch testID="consent-analytics-switch" accessibilityLabel={strings.optional_analytics} disabled={saving} value={analytics} onValueChange={setAnalytics}
-            {...(UI_V22_P4 ? { accessibilityRole: 'switch' as const, accessibilityState: { checked: analytics, disabled: saving } } : {})}
+            {...(UI_V22_P4 ? (SWITCH_A11Y_PROPS ? { accessibilityRole: 'switch' as const, accessibilityState: { checked: analytics, disabled: saving } } : {}) : {})}
             trackColor={{ false: colors.border, true: colors.primary }} thumbColor={colors.onBrandPrimary} />
         </View>
         <View style={styles.toggleRow}>
           <Text testID="consent-updates-label" style={styles.toggleLabel}>{strings.optional_updates}</Text>
           <Switch testID="consent-updates-switch" accessibilityLabel={strings.optional_updates} disabled={saving} value={updates} onValueChange={setUpdates}
-            {...(UI_V22_P4 ? { accessibilityRole: 'switch' as const, accessibilityState: { checked: updates, disabled: saving } } : {})}
+            {...(UI_V22_P4 ? (SWITCH_A11Y_PROPS ? { accessibilityRole: 'switch' as const, accessibilityState: { checked: updates, disabled: saving } } : {}) : {})}
             trackColor={{ false: colors.border, true: colors.primary }} thumbColor={colors.onBrandPrimary} />
         </View>
         {!isUpdateMode && <Text testID="consent-disclaimer" style={styles.note}>{strings.disclaimer}</Text>}
