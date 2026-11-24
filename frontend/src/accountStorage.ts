@@ -22,6 +22,7 @@
  *    account is deleted.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { getActiveUserIdSync, whenAuthHydrated } from './auth';
 
 export const PER_ACCOUNT_STORES = [
@@ -59,13 +60,54 @@ export async function accountKey(base: PerAccountStore): Promise<string | null> 
   return uid ? accountKeyFor(base, uid) : null;
 }
 
+/**
+ * DEL-LOCAL-01 (24 Nov): other features keep their own per-account copies
+ * under `<base>_<uid>` (or `<base>:<uid>`). D-09 says deleting an account
+ * removes its copies on the phone, so these go too. Keep in step with the
+ * files named; b_del_local_01 test fails if a key name there changes.
+ *
+ * Deliberately NOT here (needs an owner decision): Evidence Locker recordings,
+ * their encryption key, manifest, notes and PIN. src/women/evidenceGC.ts
+ * records the rule that recordings are never deleted automatically, only
+ * when the person knowingly discards them. Also not here: unsent FIR answers
+ * (fir_draft_pending_input_v1:<sessionId>), keyed by FIR session, not account.
+ */
+const accountDeletionAsyncKeys = (uid: string): string[] => [
+  `ws_safety_plan_${uid}`,                 // src/women/api.ts PLAN_KEY
+  `ws_trusted_circle_${uid}`,              // src/women/api.ts CIRCLE_KEY (names, phone numbers)
+  `ws_checkin_enabled_${uid}`,             // src/women/api.ts CHECKIN_KEY
+  `ws_silent_alert_evidence_pref_${uid}`,  // src/women/api.ts SILENT_EVIDENCE_KEY
+  `ws_discreet_${uid}`,                    // app/women-shield.tsx, app/_layout.tsx
+  `ws_shake_opt_in_${uid}`,                // app/women/code-phrase.tsx, app/_layout.tsx
+  `missing_answers_${uid}`,                // src/missing/support.ts
+  `missing_support_${uid}`,                // src/missing/support.ts
+  `dhara_myfiles_states_${uid}`,           // app/(tabs)/myfiles.tsx
+  `fj_enabled_v1_${uid}`,                  // src/familyJourney/store.ts
+  `fj_journey_v1_${uid}`,                  // src/familyJourney/store.ts
+  `lang_onboarded_v1_${uid}`,              // src/components/LanguageOnboardModal.tsx
+  `gk_consent_version:${uid}`,             // src/consentStorage.ts
+  `gk_consent_prefs:${uid}`,               // src/consentStorage.ts
+];
+const accountDeletionSecureKeys = (uid: string): string[] => [
+  `ws_code_phrase_v2_${uid}`,              // src/women/codePhraseStore.ts
+  `ws_hide_screen_v2_${uid}`,              // src/women/codePhraseStore.ts
+];
+
 /** Removes every per-account copy belonging to `uid` (account deletion). */
 export async function clearAccountLocalData(uid: string | null | undefined): Promise<void> {
   if (!uid) return;
   try {
-    await AsyncStorage.multiRemove(PER_ACCOUNT_STORES.map((b) => accountKeyFor(b, uid)));
+    await AsyncStorage.multiRemove([
+      ...PER_ACCOUNT_STORES.map((b) => accountKeyFor(b, uid)),
+      ...accountDeletionAsyncKeys(uid),
+    ]);
   } catch {
     // Best-effort: the server copy is already gone; a leftover local copy is
     // only readable by this (now deleted) account id, which can never sign in.
+  }
+  for (const key of accountDeletionSecureKeys(uid)) {
+    // Phones: secure store. Web has no secure store (the call throws), and the
+    // code phrase is not kept there on web, so failures are ignored.
+    try { await SecureStore.deleteItemAsync(key); } catch { /* best-effort */ }
   }
 }
