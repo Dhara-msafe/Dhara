@@ -141,9 +141,19 @@ export default function ActionPlan() {
         {/* Your right card */}
         <View style={styles.rightCard}>
           <Text style={styles.rightLabel}>{tr('ap.yourright', lang)}</Text>
-          <Text testID="action-plan-verdict" style={styles.rightTitle}>{card?.verdict || (loading ? 'Loading your rights…' : cardError || 'No released rights card is available yet.')}</Text>
+          <Text testID="action-plan-verdict" style={styles.rightTitle}>{card?.verdict || (loading ? 'Loading your rights…' : cardError || "We couldn't load your rights card")}</Text>
           {!!card?.why && <Text testID="action-plan-explanation" style={styles.rightBody}>{card.why}</Text>}
-          {!!cardError && <Pressable testID="action-plan-retry" style={styles.listenBtn} onPress={retry}><Text style={styles.listenBtnTxt}>Try again</Text></Pressable>}
+          {/* A missing card used to render the bare sentence "No released rights
+              card is available yet." with no way forward, and Try again only
+              appeared when cardError was set. On a screen reached from "If a
+              woman is arrested" that is a dead end. Both the absent and the
+              failed case now say what happened and offer the same retry. */}
+          {!card && !loading && !cardError && (
+            <Text testID="action-plan-empty-help" style={styles.rightBody}>
+              Your rights for this situation aren't ready on this device yet. Try again, or use All help to reach a helpline now.
+            </Text>
+          )}
+          {(!!cardError || (!card && !loading)) && <Pressable testID="action-plan-retry" style={styles.listenBtn} onPress={retry}><Text style={styles.listenBtnTxt}>Try again</Text></Pressable>}
           {!!card && <View style={styles.badgeRow}>
             {card.law.map((law, index) => <View key={index} style={styles.badge}><Ionicons name="book-outline" size={13} color={c.onBrandPrimary} /><Text testID={`action-plan-law-${index}`} style={styles.badgeTxt}>{law.act} {law.section}</Text></View>)}
           </View>}
