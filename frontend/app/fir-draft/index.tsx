@@ -45,7 +45,7 @@ import { openExternal } from '@/src/outbound';
 // EvidenceWidget, ConfirmButtons, EmergencyOverlay). Zero changes to the
 // FIR wizard's stage/question/upload/recording logic.
 import { UI_REVISION_V1 } from '@/src/designRevision';
-import { UI_V22_P8, UI_V22_SWEEP } from '@/src/uiV22Flags';
+import { UI_V22_P8, UI_V22_SWEEP, UI_V22_S7 } from '@/src/uiV22Flags';
 import { focusRingStyle } from '@/src/a11yFocus';
 // Native location is optional; importing it on web fails in the installed version.
 const Location: typeof import('expo-location') | null =
@@ -1959,7 +1959,11 @@ function TextInputArea({
           })}
           {/* Add more button */}
           {onAttach && (
-            <Pressable style={(s) => [styles.attachAddBtn, focusRingStyle(s)]} onPress={onAttach} accessibilityRole="button" accessibilityLabel="Add more files">
+            {/* v2.2 step S7 (manifest id31, File a complaint): A11Y_CHECK_REPORT.md
+                flagged touch targets under 48px in FirDraft. This button is
+                44x44 with no hitSlop; with the flag on, hitSlop={2} brings
+                its effective target to 48x48. */}
+            <Pressable style={(s) => [styles.attachAddBtn, focusRingStyle(s)]} onPress={onAttach} hitSlop={UI_V22_S7 ? 2 : undefined} accessibilityRole="button" accessibilityLabel="Add more files">
               <Ionicons name="add" size={18} color={NAVY} />
             </Pressable>
           )}
