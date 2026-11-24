@@ -956,6 +956,28 @@ def _has_date_conflict(narrative: str, extracted_date: Optional[str]) -> Optiona
     return None
 
 
+def _fmt_date_human(date_str: Optional[str]) -> Optional[str]:
+    """B-119 fix: extract_slots_llm() is instructed (see _make_extract_sys())
+    to put incident_date in ISO form (date.today().isoformat(), e.g.
+    "2026-11-15") when the narrative says 'today'/'yesterday'. That raw ISO
+    string was then dropped straight into the "I calculated the incident
+    happened on **...**" confirmation message instead of the human-readable
+    "DD Month YYYY" form every other date message in this file already uses
+    (see the parsed_fmt/today_fmt lines above) -- so the person saw a
+    year-first numeric date instead of a plain-language one. Parses with the
+    same format list _has_date_conflict() tries, and returns the original
+    string unparsed (rather than raising or blanking the message) if nothing
+    matches, so a confirm message is never left without a date."""
+    if not date_str:
+        return date_str
+    for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%Y/%m/%d"):
+        try:
+            return datetime.strptime(date_str.strip(), fmt).date().strftime("%d %B %Y")
+        except ValueError:
+            continue
+    return date_str
+
+
 # ─── Incident type keyword fallback classifier ────────────────────────────────
 
 _INCIDENT_KW_MAP: dict[str, list[str]] = {
@@ -2157,9 +2179,9 @@ async def _dispatch(
         t_low = narrative.lower()
         if extracted.get("incident_date") and not date_conflict_msg:
             if any(kw in t_low for kw in _RELATIVE_DATE_KW.get("today", [])):
-                relative_date_display = f"today, {extracted['incident_date']}"
+                relative_date_display = f"today, {_fmt_date_human(extracted['incident_date'])}"
             elif any(kw in t_low for kw in _RELATIVE_DATE_KW.get("yesterday", [])):
-                relative_date_display = f"yesterday, {extracted['incident_date']}"
+                relative_date_display = f"yesterday, {_fmt_date_human(extracted['incident_date'])}"
 
         sf_all = list(set(list(session.get("safety_flags", [])) + _detect_safety_flags(narrative)))
         probe_queue = _build_probe_queue(
