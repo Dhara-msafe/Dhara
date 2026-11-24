@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Me and settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600&amp;family=Hind:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#14365A}a:hover{color:#0E2740}
+a,button{transition:transform .12s ease,background-color .15s ease;-webkit-tap-highlight-color:transparent;cursor:pointer}
+a:active,button:active{transform:scale(.97)}
+a:focus-visible,button:focus-visible{outline:3px solid #7A5B17;outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.rise{animation:rise .3s ease both}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #FBF7EE; color: #17212B; font-family: 'Hind', 'Noto Sans', sans-serif; display: flex; flex-direction: column; padding: 16px 20px 20px; gap: 12px">
+  <div style="display: flex; align-items: center; gap: 8px">
+    <a href="Home.dc.html" aria-label="Back" style="width: 48px; height: 48px; border-radius: 24px; border: 1.5px solid #E7DFCC; background: #FFFFFF; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    </a>
+    <a href="Home.dc.html" aria-label="Home" style="width: 48px; height: 48px; border-radius: 24px; border: 1.5px solid #E7DFCC; background: #FFFFFF; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7M6 10v9h12v-9"/></svg>
+    </a>
+    <h1 style="margin: 0 0 0 6px; font-family: 'Fraunces', serif; font-size: 24px; font-weight: 600; color: #14365A">Me</h1>
+    <a href="Emergency.dc.html" style="margin-left: auto; height: 48px; min-width: 56px; justify-content: center; padding: 0 18px; border-radius: 24px; background: #B42318; color: #FFFFFF; font-size: 16px; font-weight: 600; text-decoration: none; display: flex; align-items: center">SOS</a>
+  </div>
+  <div style="flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 12px">
+    <section style="background: #FFFFFF; border: 1.5px solid #E7DFCC; border-radius: 16px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px">
+      <h2 style="margin: 0; font-size: 15px; font-weight: 600; color: #505B68">How DHARA talks to you</h2>
+      <a href="Main.dc.html" style="min-height: 48px; display: flex; align-items: center; text-decoration: none; gap: 10px">
+        <span style="flex: 1; font-size: 17px; font-weight: 500; color: #17212B">Language</span>
+        <span style="font-size: 17px; font-weight: 600">हिन्दी</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#505B68" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+      </a>
+      <div>
+        <div style="font-size: 17px; font-weight: 500; margin-bottom: 6px">Voice speed</div>
+        <div style="display: flex; gap: 6px; background: #FBF7EE; border-radius: 14px; padding: 4px">
+          <sc-for list="{{speeds}}" as="o" hint-placeholder-count="3">
+            <button onClick="{{o.pick}}" aria-pressed="{{o.on}}" style="flex: 1; height: 44px; border-radius: 10px; border: none; background: {{o.bg}}; color: {{o.fg}}; font-family: inherit; font-size: 15px; font-weight: 600">{{o.label}}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div>
+        <div style="font-size: 17px; font-weight: 500; margin-bottom: 6px">Letter size</div>
+        <div style="display: flex; gap: 6px; background: #FBF7EE; border-radius: 14px; padding: 4px">
+          <sc-for list="{{sizes}}" as="o" hint-placeholder-count="3">
+            <button onClick="{{o.pick}}" aria-pressed="{{o.on}}" style="flex: 1; height: 44px; border-radius: 10px; border: none; background: {{o.bg}}; color: {{o.fg}}; font-family: inherit; font-size: {{o.fs}}; font-weight: 600">{{o.label}}</button>
+          </sc-for>
+        </div>
+        <p style="margin: 8px 0 0; font-size: {{sample}}; line-height: 1.4; transition: font-size .2s ease">This is how answers will look.</p>
+      </div>
+      <button onClick="{{toggleQuiet}}" role="switch" aria-checked="{{quiet}}" style="min-height: 52px; border: none; background: none; padding: 0; font-family: inherit; display: flex; align-items: center; gap: 12px; text-align: left">
+        <span style="flex: 1"><span style="display: block; font-size: 17px; font-weight: 500; color: #17212B">Quiet mode</span><span style="display: block; font-size: 14px; color: #505B68">No sound. Safe to use near others.</span></span>
+        <span style="width: 56px; height: 32px; border-radius: 16px; background: {{swBg}}; position: relative; flex-shrink: 0; transition: background-color .2s ease"><span style="position: absolute; top: 3px; left: {{swLeft}}; width: 26px; height: 26px; border-radius: 13px; background: #FFFFFF; transition: left .2s ease"></span></span>
+      </button>
+    </section>
+    <section style="background: #FFFFFF; border: 1.5px solid #E7DFCC; border-radius: 16px; overflow: hidden">
+      <a href="Circle.dc.html" style="min-height: 60px; display: flex; align-items: center; gap: 12px; padding: 0 16px; text-decoration: none; border-bottom: 1.5px solid #E7DFCC">
+        <span style="flex: 1; font-size: 17px; font-weight: 500; color: #17212B">My trusted people</span>
+        <span style="font-size: 15px; color: #505B68">3</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#505B68" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+      </a>
+      <a href="Pin.dc.html" style="min-height: 60px; display: flex; align-items: center; gap: 12px; padding: 0 16px; text-decoration: none; border-bottom: 1.5px solid #E7DFCC">
+        <span style="flex: 1; font-size: 17px; font-weight: 500; color: #17212B">Change my PIN</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#505B68" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+      </a>
+      <a href="ConsentMgmt.dc.html" style="min-height: 60px; display: flex; align-items: center; gap: 12px; padding: 0 16px; text-decoration: none">
+        <span style="flex: 1; font-size: 17px; font-weight: 500; color: #17212B">What I agreed to</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#505B68" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+      </a>
+    </section>
+    <sc-if value="{{idle}}" hint-placeholder-val="{{true}}">
+      <button onClick="{{ask}}" style="min-height: 60px; border-radius: 16px; border: 1.5px solid #B42318; background: #FFFFFF; font-family: inherit; font-size: 17px; font-weight: 600; color: #B42318">Delete everything DHARA has of mine</button>
+    </sc-if>
+    <sc-if value="{{asking}}" hint-placeholder-val="{{false}}">
+      <div class="rise" style="border-radius: 16px; border: 2px solid #B42318; background: #FFFFFF; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px">
+        <p style="margin: 0; font-size: 16px; line-height: 1.4"><span style="font-weight: 600">Are you sure?</span> Your files, proof and letters will be removed. This cannot be undone.</p>
+        <div style="display: flex; gap: 10px">
+          <button onClick="{{cancel}}" style="flex: 1; height: 56px; border-radius: 14px; border: 2px solid #14365A; background: #FFFFFF; font-family: inherit; font-size: 17px; font-weight: 600; color: #14365A">No, keep them</button>
+          <button onClick="{{confirm}}" style="flex: 1; height: 56px; border-radius: 14px; border: none; background: #B42318; font-family: inherit; font-size: 17px; font-weight: 600; color: #FFFFFF">Yes, delete</button>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{deleted}}" hint-placeholder-val="{{false}}">
+      <div class="rise" style="border-radius: 16px; border: 2px solid #1F6B4A; background: #FFFFFF; padding: 14px 16px; font-size: 16px; line-height: 1.4">Your request is saved. Everything will be removed. You can keep asking questions without an account.</div>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+const s = this.state || {};
+const speed = s.speed || 'Normal';
+const size = s.size || 'A';
+const quiet = !!s.quiet;
+const del = s.del || 'idle';
+const seg = (list, cur, key, fs) => list.map((l, i) => ({
+label: l, on: l === cur,
+bg: l === cur ? '#14365A' : '#FBF7EE',
+fg: l === cur ? '#FFFFFF' : '#17212B',
+fs: fs ? fs[i] : '15px',
+pick: () => { const o = {}; o[key] = l; this.setState(o); }
+}));
+return {
+speeds: seg(['Slow', 'Normal', 'Fast'], speed, 'speed'),
+sizes: seg(['A', 'A+', 'A++'], size, 'size', ['15px', '18px', '21px']),
+sample: size === 'A' ? '16px' : (size === 'A+' ? '19px' : '22px'),
+quiet: quiet,
+swBg: quiet ? '#1F6B4A' : '#505B68',
+swLeft: quiet ? '27px' : '3px',
+toggleQuiet: () => this.setState({ quiet: !quiet }),
+idle: del === 'idle', asking: del === 'ask', deleted: del === 'done',
+ask: () => this.setState({ del: 'ask' }),
+cancel: () => this.setState({ del: 'idle' }),
+confirm: () => this.setState({ del: 'done' })
+};
+}
+}
+</script>
+</body>
+</html>

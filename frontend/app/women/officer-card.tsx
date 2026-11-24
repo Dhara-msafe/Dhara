@@ -9,6 +9,7 @@ import { useRightsCard } from '@/src/hooks/useRightsCard';
 import { useScreenSpeech } from '@/src/hooks/useScreenSpeech';
 import { openPhone } from '@/src/women/helpActions';
 import { UI_REVISION_V1 } from '@/src/designRevision';
+import { UI_V22_S3 } from '@/src/uiV22Flags';
 
 const c = theme.colors;
 
@@ -62,14 +63,14 @@ export default function OfficerCard() {
           onPress={() => router.back()}
           style={styles.back}
           {...(UI_REVISION_V1 ? { accessibilityRole: 'button' as const, accessibilityLabel: 'Close officer card' } : {})}
-        ><Ionicons name="close" size={26} color="#fff" /></Pressable>
+        ><Ionicons name="close" size={26} color={UI_V22_S3 ? c.navy : '#fff'} /></Pressable>
         <Text style={styles.barTitle}>Officer card</Text>
         <Pressable
           testID="officer-silent-toggle"
           onPress={() => setSilent((v) => !v)}
           style={[styles.silentBtn, silent && styles.silentBtnOn]}
         >
-          <Ionicons name={silent ? 'volume-mute' : 'volume-high-outline'} size={16} color={silent ? c.navy : '#fff'} />
+          <Ionicons name={silent ? 'volume-mute' : 'volume-high-outline'} size={16} color={silent ? c.navy : (UI_V22_S3 ? c.navy : '#fff')} />
           <Text style={[styles.silentTxt, silent && { color: c.navy }]}>Silent</Text>
         </Pressable>
       </View>
@@ -88,18 +89,18 @@ export default function OfficerCard() {
               </View>
             ) : null}
             {card.law?.map((l: any, i: number) => (
-              <View key={i} style={styles.lawChip}><Ionicons name="book-outline" size={15} color="#fff" /><Text style={styles.lawTxt}>{l.act} {l.section}</Text></View>
+              <View key={i} style={styles.lawChip}><Ionicons name="book-outline" size={15} color={UI_V22_S3 ? c.navy : '#fff'} /><Text style={styles.lawTxt}>{l.act} {l.section}</Text></View>
             ))}
             {card.why ? <Text style={styles.why}>{card.why}</Text> : null}
 
             <View style={styles.actionRow}>
               <Pressable style={styles.actionBtn} onPress={() => setShowSource((v) => !v)} testID="officer-show-source">
-                <Ionicons name="document-text-outline" size={16} color="#fff" />
+                <Ionicons name="document-text-outline" size={16} color={UI_V22_S3 ? c.navy : '#fff'} />
                 <Text style={styles.actionTxt}>Show source</Text>
               </Pressable>
               {card.if_refused ? (
                 <Pressable style={styles.actionBtn} onPress={() => setShowRefused((v) => !v)} testID="officer-what-if-refused">
-                  <Ionicons name="help-circle-outline" size={16} color="#fff" />
+                  <Ionicons name="help-circle-outline" size={16} color={UI_V22_S3 ? c.navy : '#fff'} />
                   <Text style={styles.actionTxt}>What if they refuse?</Text>
                 </Pressable>
               ) : null}
@@ -164,34 +165,50 @@ export default function OfficerCard() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: c.navy },
+  root: { flex: 1, backgroundColor: UI_V22_S3 ? c.cream : c.navy },
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 44, paddingHorizontal: 12, paddingBottom: 10 },
-  back: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  barTitle: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 17 },
-  kicker: { color: c.gold, fontFamily: theme.fonts.bodyBold, fontSize: 13, letterSpacing: 1.5, marginBottom: 14 },
-  big: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 32, lineHeight: 42 },
-  lawChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, alignSelf: 'flex-start', marginTop: 16 },
-  lawTxt: { color: '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 15 },
-  why: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 17, lineHeight: 26, marginTop: 18 },
+  back: UI_V22_S3
+    ? { width: 48, height: 48, borderRadius: 24, borderWidth: 1.5, borderColor: c.lines, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' }
+    : { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  barTitle: { color: UI_V22_S3 ? c.navy : '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 17 },
+  kicker: { color: UI_V22_S3 ? c.navy : c.gold, fontFamily: theme.fonts.bodyBold, fontSize: 13, letterSpacing: 1.5, marginBottom: 14 },
+  big: { color: UI_V22_S3 ? c.navy : '#fff', fontFamily: theme.fonts.displayBold, fontSize: 32, lineHeight: 42 },
+  lawChip: UI_V22_S3
+    ? { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.sand, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, alignSelf: 'flex-start', marginTop: 16 }
+    : { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, alignSelf: 'flex-start', marginTop: 16 },
+  lawTxt: { color: UI_V22_S3 ? c.navy : '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 15 },
+  why: { color: UI_V22_S3 ? c.muted : c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 17, lineHeight: 26, marginTop: 18 },
   pendingChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.gold, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, alignSelf: 'flex-start', marginTop: 18 },
   pendingTxt: { color: c.navy, fontFamily: theme.fonts.bodySemiBold, fontSize: 13 },
   askBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.gold, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 20, alignSelf: 'flex-start', marginTop: 20 },
   askTxt: { color: c.navy, fontFamily: theme.fonts.bodyBold, fontSize: 16 },
   hlRow: { flexDirection: 'row', gap: 12, marginTop: 34 },
-  hl: { flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
-  hlNum: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 22 },
-  hlName: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 11, marginTop: 2 },
-  silentBtn: { flexDirection: 'row', alignItems: 'center', minHeight: 44, gap: 5, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
+  hl: UI_V22_S3
+    ? { flex: 1, backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.lines, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }
+    : { flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  hlNum: { color: UI_V22_S3 ? c.navy : '#fff', fontFamily: theme.fonts.displayBold, fontSize: 22 },
+  hlName: { color: UI_V22_S3 ? c.muted : c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 11, marginTop: 2 },
+  silentBtn: UI_V22_S3
+    ? { flexDirection: 'row', alignItems: 'center', minHeight: 44, gap: 5, backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.lines, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 }
+    : { flexDirection: 'row', alignItems: 'center', minHeight: 44, gap: 5, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
   silentBtnOn: { backgroundColor: c.gold },
-  silentTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 12 },
-  originalBox: { backgroundColor: 'rgba(255,255,255,0.08)', borderLeftWidth: 3, borderLeftColor: c.gold, borderRadius: 10, padding: 14, marginTop: 14 },
-  originalLabel: { color: c.gold, fontFamily: theme.fonts.bodyBold, fontSize: 11, letterSpacing: 1 },
-  originalTxt: { color: '#fff', fontFamily: theme.fonts.body, fontSize: 15, lineHeight: 22, marginTop: 6 },
+  silentTxt: { color: UI_V22_S3 ? c.navy : '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 12 },
+  originalBox: UI_V22_S3
+    ? { backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.lines, borderLeftWidth: 3, borderLeftColor: c.gold, borderRadius: 10, padding: 14, marginTop: 14 }
+    : { backgroundColor: 'rgba(255,255,255,0.08)', borderLeftWidth: 3, borderLeftColor: c.gold, borderRadius: 10, padding: 14, marginTop: 14 },
+  originalLabel: { color: UI_V22_S3 ? c.goldText : c.gold, fontFamily: theme.fonts.bodyBold, fontSize: 11, letterSpacing: 1 },
+  originalTxt: { color: UI_V22_S3 ? c.ink : '#fff', fontFamily: theme.fonts.body, fontSize: 15, lineHeight: 22, marginTop: 6 },
   actionRow: { flexDirection: 'row', gap: 10, marginTop: 20, flexWrap: 'wrap' },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10 },
-  actionTxt: { color: '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 13 },
-  revealBox: { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 14, marginTop: 10 },
-  revealTxt: { color: '#fff', fontFamily: theme.fonts.body, fontSize: 14, lineHeight: 20 },
-  scenarioBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 12, padding: 12, marginBottom: 14 },
-  scenarioTxt: { flex: 1, color: c.gold, fontFamily: theme.fonts.bodySemiBold, fontSize: 14, lineHeight: 20 },
+  actionBtn: UI_V22_S3
+    ? { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.lines, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10 }
+    : { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10 },
+  actionTxt: { color: UI_V22_S3 ? c.navy : '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 13 },
+  revealBox: UI_V22_S3
+    ? { backgroundColor: c.sand, borderRadius: 12, padding: 14, marginTop: 10 }
+    : { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 14, marginTop: 10 },
+  revealTxt: { color: UI_V22_S3 ? c.ink : '#fff', fontFamily: theme.fonts.body, fontSize: 14, lineHeight: 20 },
+  scenarioBox: UI_V22_S3
+    ? { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.sand, borderRadius: 12, padding: 12, marginBottom: 14 }
+    : { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 12, padding: 12, marginBottom: 14 },
+  scenarioTxt: { flex: 1, color: UI_V22_S3 ? c.goldText : c.gold, fontFamily: theme.fonts.bodySemiBold, fontSize: 14, lineHeight: 20 },
 });

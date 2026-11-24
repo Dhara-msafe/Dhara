@@ -6,10 +6,11 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import {
   View, Text, TextInput, Pressable, ScrollView, StyleSheet,
-  ActivityIndicator, Platform, Alert, KeyboardAvoidingView, Linking, Image,
+  ActivityIndicator, Platform, Alert, Linking, Image,
   Animated, PanResponder,
   type GestureResponderEvent, type PanResponderGestureState,
 } from 'react-native';
+import { KeyboardSafeView } from '@/src/components/KeyboardSafeView';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,15 +25,16 @@ import {
 import { whisperTranscribeFile } from '@/src/voice/stt';
 import { ChunkedSpeaker } from '@/src/voice/tts';
 import { createBrowserTtsPlayer } from '@/src/voice/browserPlayer';
-import { splitInlineBold, stripInlineMarkdown } from '@/src/fir/inlineMarkdown';
+import { stripInlineMarkdown } from '@/src/fir/inlineMarkdown';
 import { claimMic, MIC_BUSY_MESSAGE, withMicLease, isMicHeldByEvidenceLocker, TTS_BLOCKED_BY_LOCKER_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
-import { canSpeakNow, noteSpeakIntent, VOICE_COMPANION_ENABLED } from '@/src/voice/speechGate';
+import { canSpeakNow, noteSpeakIntent, VOICE_COMPANION_ENABLED, VOICE_OFF_HINT } from '@/src/voice/speechGate';
 import { VoiceStateMachine } from '@/src/voice/core/voiceStateMachine';
 import { needsConfirmation } from '@/src/voice/core/voicePolicy';
 import { classifyFact } from '@/src/voice/factClassifier';
 import { VoiceNotice } from '@/src/components/VoiceNotice';
 import { trackEvent } from '@/src/analytics';
 import { dateValidationError } from '@/src/dateValidation';
+import { splitBold, stripBold } from '@/src/chat/boldMarkdown';
 import { theme } from '@/src/theme';
 import FirSectionDrawer, { SectionItem, DroppedSection } from '@/src/components/FirSectionDrawer';
 import { MarqueeBanner } from '@/src/components/MarqueeBanner';
@@ -44,7 +46,7 @@ import { openExternal } from '@/src/outbound';
 // EvidenceWidget, ConfirmButtons, EmergencyOverlay). Zero changes to the
 // FIR wizard's stage/question/upload/recording logic.
 import { UI_REVISION_V1 } from '@/src/designRevision';
-import { UI_V22_P8, UI_V22_SWEEP } from '@/src/uiV22Flags';
+import { UI_V22_P8, UI_V22_SWEEP, UI_V22_S7 } from '@/src/uiV22Flags';
 import { focusRingStyle } from '@/src/a11yFocus';
 // Native location is optional; importing it on web fails in the installed version.
 const Location: typeof import('expo-location') | null =
@@ -1190,7 +1192,11 @@ ${data.bot_message}`);
   // Keep forward-declared refs current
   useEffect(() => { autoSpeakRef.current = autoSpeak; }, [autoSpeak]);
 
-  const speak = useCallback(async (msgId: string, text: string, userInitiated: boolean = true) => {
+  const speak = useCallback(async (msgId: string, rawText: string, userInitiated: boolean = true) => {
+    // B-119: bot messages carry **bold** markdown markers for the on-screen
+    // bubble; TTS has no notion of "bold", so strip them here rather than
+    // reading the literal asterisks aloud.
+    const text = stripBold(rawText);
     if (speakingIdRef.current === msgId && speakerRef.current?.playbackBlocked) {
       speakerRef.current.retryPlayback();
       return;
@@ -1203,7 +1209,7 @@ ${data.bot_message}`);
     // Talk to DHARA speech gate (inert when voice-companion flag is OFF).
     if (userInitiated) noteSpeakIntent();
     if (!canSpeakNow()) {
-      if (userInitiated) setVoiceNotice('Voice is off. Showing the answer as text — turn voice back on to hear it.');
+      if (userInitiated) setVoiceNotice(`Voice is off. ${VOICE_OFF_HINT}`);
       return;
     }
 
@@ -1531,10 +1537,9 @@ ${data.bot_message}`);
           onDismiss={() => { if (playbackBlocked) { setAutoSpeak(false); stopTTS(); } setVoiceNotice(null); }} />
       )}
 
-      <KeyboardAvoidingView
+      <KeyboardSafeView
         style={styles.flex1}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        behavior="translate-with-padding"
       >
         {/* Messages */}
         <ScrollView
@@ -1737,7 +1742,7 @@ ${data.bot_message}`);
             )}
           </View>
         )}
-      </KeyboardAvoidingView>
+      </KeyboardSafeView>
 
       {/* Issue 9: Section Drawer */}
       <FirSectionDrawer
@@ -1760,8 +1765,10 @@ ${data.bot_message}`);
 
 /** B-75: render **bold** markers in bot text as bold (see src/fir/inlineMarkdown). */
 function renderInlineBold(text: string): React.ReactNode {
-  return splitInlineBold(text).map((seg, i) =>
-    seg.bold ? <Text key={i} style={{ fontWeight: '700' }}>{seg.text}</Text> : seg.text,
+  // B-119: shared splitBold (src/chat/boldMarkdown) so the chat bubble and
+  // the TTS path (stripBold) agree on what counts as a **bold** span.
+  return splitBold(text).map((seg, i) =>
+    seg.bold ? <Text key={i} style={styles.bubbleTextBold}>{seg.text}</Text> : seg.text,
   );
 }
 
@@ -1959,7 +1966,11 @@ function TextInputArea({
           })}
           {/* Add more button */}
           {onAttach && (
-            <Pressable style={(s) => [styles.attachAddBtn, focusRingStyle(s)]} onPress={onAttach} accessibilityRole="button" accessibilityLabel="Add more files">
+            {/* v2.2 step S7 (manifest id31, File a complaint): A11Y_CHECK_REPORT.md
+                flagged touch targets under 48px in FirDraft. This button is
+                44x44 with no hitSlop; with the flag on, hitSlop={2} brings
+                its effective target to 48x48. */}
+            <Pressable style={(s) => [styles.attachAddBtn, focusRingStyle(s)]} onPress={onAttach} hitSlop={UI_V22_S7 ? 2 : undefined} accessibilityRole="button" accessibilityLabel="Add more files">
               <Ionicons name="add" size={18} color={NAVY} />
             </Pressable>
           )}
@@ -2444,6 +2455,8 @@ const styles = StyleSheet.create({
   bubbleBot: { backgroundColor: NAVY, borderBottomLeftRadius: 4 },
   bubbleUser: { backgroundColor: CREAM, borderBottomRightRadius: 4 },
   bubbleText: { fontSize: 14, lineHeight: 20 },
+  // B-119: inline bold span for **...** segments inside a bot bubble.
+  bubbleTextBold: { fontWeight: '700' },
   bubbleTextBot: { color: '#fff' },
   bubbleTextUser: { color: NAVY },
 

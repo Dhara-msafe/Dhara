@@ -17,11 +17,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
+import { ageMinutes } from '@/src/safety/serverClock';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { useAuth } from '@/src/auth';
 import { API_BASE } from '@/src/apiBase';
 
 import { openExternal } from '@/src/outbound';
+import { v22SectionLabel } from '@/src/v22SectionLabel';
 const c = theme.colors;
 
 // Auto-refresh interval for active journeys (30 s)
@@ -35,6 +37,9 @@ type LiveLocation = {
   accuracy?: number;
   area?: string;
   updated_at?: string;
+  /** A28: how old this reading is, worked out by the server from the true
+   *  capture time. Absent from older servers. */
+  age_seconds?: number;
 };
 
 type GuardianData =
@@ -77,10 +82,15 @@ function _fmt(iso: string | null | undefined): string {
   } catch { return iso.slice(0, 16); }
 }
 
-function _ageMinutes(iso?: string): number | null {
-  if (!iso) return null;
-  const diff = Date.now() - new Date(iso).getTime();
-  return Math.floor(diff / 60_000);
+/** A28: the server's own answer when it sends one, so a wrong clock on the
+ *  recipient's phone cannot make a stale position look fresh (or the
+ *  reverse). Falls back to this device's clock for an older server. */
+function _ageMinutes(loc?: LiveLocation): number | null {
+  return ageMinutes({
+    serverAgeSeconds: loc?.age_seconds,
+    capturedAtIso: loc?.updated_at,
+    nowMs: Date.now(),
+  });
 }
 
 function _mapsUrl(lat: number, lng: number): string {
@@ -307,7 +317,7 @@ export default function GuardianScreen() {
                     <Ionicons name="location" size={18} color={c.emergencyRed} />
                     <Text style={styles.locationTitle}>Live location</Text>
                     {(() => {
-                      const age = _ageMinutes(data.last_location.updated_at);
+                      const age = _ageMinutes(data.last_location);
                       return age !== null && (
                         <Text style={[styles.locationAge, age > 5 && styles.locationAgeStale]}>
                           {age === 0 ? 'just now' : `${age} min ago`}
@@ -449,10 +459,10 @@ const styles = StyleSheet.create({
   safeTxt: { color: c.verifiedGreen },
 
   fieldRow:   { gap: 2, marginVertical: 2 },
-  fieldLabel: {
+  fieldLabel: v22SectionLabel({
     fontFamily: theme.fonts.bodyBold, fontSize: 11, color: c.muted,
     textTransform: 'uppercase', letterSpacing: 0.5,
-  },
+  }),
   fieldValue: { fontFamily: theme.fonts.bodyMedium, fontSize: 16, color: c.ink },
 
   divider: { height: 1, backgroundColor: c.lines, marginVertical: 8 },

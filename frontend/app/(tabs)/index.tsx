@@ -25,7 +25,7 @@ import { theme } from '@/src/theme';
 import { trackEvent } from '@/src/analytics';
 import { getConfiguredSTT, whisperTranscribeFile, sttErrorToMessage, MAX_AUDIO_BYTES, AUDIO_TOO_LARGE_MESSAGE } from '@/src/voice/stt';
 import { claimMic, MIC_BUSY_MESSAGE, withMicLease, isMicHeldByEvidenceLocker, TTS_BLOCKED_BY_LOCKER_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
-import { canSpeakNow, noteAudioInterruption, noteSpeakIntent, VOICE_COMPANION_ENABLED } from '@/src/voice/speechGate';
+import { canSpeakNow, noteAudioInterruption, noteSpeakIntent, VOICE_COMPANION_ENABLED, VOICE_OFF_HINT } from '@/src/voice/speechGate';
 import { VoiceStateMachine } from '@/src/voice/core/voiceStateMachine';
 import { needsConfirmation } from '@/src/voice/core/voicePolicy';
 import { classifyFact } from '@/src/voice/factClassifier';
@@ -43,7 +43,7 @@ import { activateCover } from '@/src/women/coverState';
 import { SosEmergencyBanner, EmergencyCallShortcut } from '@/src/chat/EmergencyBanners';
 import { getBasicSuggestions, getProSuggestions, TOPIC_SUGGESTIONS } from '@/src/chat/suggestions';
 import {
-  stripStreamMarkdown, nextStepFor, detectFirIntent, splitVerdict, generateId,
+  stripStreamMarkdown, nextStepFor, detectFirIntent, civilComplaintAction, splitVerdict, generateId,
   isIpcCitation, looksLikeDanger,
 } from '@/src/chat/messageUtils';
 import type { Citation, Msg } from '@/src/chat/types';
@@ -494,7 +494,7 @@ export default function ChatScreen() {
       setMessages((prev) => [
         ...prev,
         { id: userId, role: 'user', content: q },
-        { id: assistantId, role: 'assistant', content: '', mode: modeToSend, firIntent: detectFirIntent(q) },
+        { id: assistantId, role: 'assistant', content: '', mode: modeToSend, firIntent: detectFirIntent(q), civilAction: civilComplaintAction(q) },
       ]);
       setInput('');
       setStreaming(true);
@@ -917,7 +917,7 @@ export default function ChatScreen() {
       // Talk to DHARA speech gate (inert when voice-companion flag is OFF).
       if (userInitiated) noteSpeakIntent();
       if (!canSpeakNow()) {
-        if (userInitiated) notify('Voice is off', 'Showing the answer as text. Turn voice back on to hear it.');
+        if (userInitiated) notify('Voice is off', VOICE_OFF_HINT);
         return;
       }
 
@@ -2323,6 +2323,27 @@ export default function ChatScreen() {
                     >
                       <Ionicons name={step.icon} size={18} color={theme.colors.onBrandSecondary} />
                       <Text style={styles.nextStepText}>{step.label}</Text>
+                      <Ionicons name="chevron-forward" size={16} color={theme.colors.onBrandSecondary} />
+                    </Pressable>
+                  );
+                })()}
+                {(() => {
+                  // FIR is for crimes (owner, 22 Nov): a non-criminal complaint
+                  // question gets its matching notice / steps instead — unless
+                  // the answer's own next-step button already goes there.
+                  if (m.role !== 'assistant' || m.firIntent || !m.civilAction) return null;
+                  const act = m.civilAction;
+                  if (nextStepFor(m.citations)?.route === act.route) return null;
+                  return (
+                    <Pressable
+                      testID={`civil-action-${m.id}`}
+                      style={(s) => [styles.nextStep, focusRingStyle(s)]}
+                      onPress={() => router.push(act.route as any)}
+                      accessibilityRole="button"
+                      accessibilityLabel={act.label}
+                    >
+                      <Ionicons name={act.icon as any} size={18} color={theme.colors.onBrandSecondary} />
+                      <Text style={styles.nextStepText}>{act.label}</Text>
                       <Ionicons name="chevron-forward" size={16} color={theme.colors.onBrandSecondary} />
                     </Pressable>
                   );

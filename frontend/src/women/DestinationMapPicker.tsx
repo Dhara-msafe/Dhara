@@ -70,6 +70,15 @@ export interface Props {
   userLocation?: { latitude: number; longitude: number; accuracy: number | null } | null;
   /** Bump to recentre the map on the live position. */
   followUserKey?: number;
+  /**
+   * A36: true while a finger is on the map, false when it lifts.
+   *
+   * This map lives inside a scrolling page. Without this, the page takes the
+   * drag and scrolls instead of moving the pin, which is tester bug T1: she
+   * cannot place her destination at all. The parent turns page scrolling off
+   * while this is true.
+   */
+  onInteractionChange?: (active: boolean) => void;
   testID?: string;
   /** Map height in px. Defaults to 220 (the original embedded-preview size)
    * so every existing call site is unaffected; pass a larger value for a
@@ -87,6 +96,7 @@ export function DestinationMapPicker({
   recenterKey,
   userLocation,
   followUserKey,
+  onInteractionChange,
   testID,
   mapHeight = 220,
 }: Props) {
@@ -165,8 +175,21 @@ export function DestinationMapPicker({
     longitudeDelta: DELTA,
   };
 
+  // A36: onTouchStart / onTouchEnd fire for touches anywhere in this view,
+  // including ones the map itself handles, so the page can be frozen for as
+  // long as she is working with the map.
+  const touch = (active: boolean) => () => {
+    try { onInteractionChange?.(active); } catch { /* never block a touch */ }
+  };
+
   return (
-    <View style={styles.wrap} testID={testID ?? 'destination-map-picker'}>
+    <View
+      style={styles.wrap}
+      testID={testID ?? 'destination-map-picker'}
+      onTouchStart={touch(true)}
+      onTouchEnd={touch(false)}
+      onTouchCancel={touch(false)}
+    >
       <MapView
         ref={mapRef}
         testID="destination-map-picker-mapview"
@@ -191,7 +214,8 @@ export function DestinationMapPicker({
           testID="destination-map-picker-marker"
           coordinate={markerCoord}
           draggable
-          onDragEnd={handleDragEnd}
+          onDragStart={touch(true)}
+          onDragEnd={(e: any) => { handleDragEnd(e); onInteractionChange?.(false); }}
           title="Planned destination"
           description="Planned arrival area — drag or tap map to adjust"
           pinColor="#1A3F74"

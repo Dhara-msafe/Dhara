@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, TextInput, Pressable, ScrollView, StyleSheet,
-  ActivityIndicator, Platform, KeyboardAvoidingView,
+  ActivityIndicator, Platform,
 } from 'react-native';
+import { KeyboardSafeView } from '@/src/components/KeyboardSafeView';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -168,7 +169,7 @@ export default function ClientIntake() {
   );
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardSafeView style={{ flex: 1 }} behavior="padding">
       <SafeAreaView style={s.safe}>
         {/* Header */}
         <View style={s.header}>
@@ -243,7 +244,7 @@ export default function ClientIntake() {
           <Text style={s.privacy}>🔒 Your information is encrypted and only visible to your advocate.</Text>
         </ScrollView>
       </SafeAreaView>
-    </KeyboardAvoidingView>
+    </KeyboardSafeView>
   );
 }
 

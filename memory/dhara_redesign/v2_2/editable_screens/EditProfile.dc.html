@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>45 Edit profile</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=Hind:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}*{box-sizing:border-box}a{text-decoration:none}button{cursor:pointer;font-family:inherit}
+@keyframes dFadeIn{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</helmet>
+<div style="width:390px;height:844px;background:#FBF7EE;color:#17212B;font-family:'Hind',sans-serif;display:flex;flex-direction:column;position:relative">
+
+  <!-- nav -->
+  <div style="padding:16px 20px 0;display:flex;align-items:center;gap:12px">
+    <a href="Me.dc.html" aria-label="Back" style="width:48px;height:48px;border-radius:24px;background:#fff;border:1px solid #ECE4D2;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"></path></svg></a>
+    <div style="flex:1;font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:#14365A">Edit profile</div>
+    <a href="Home.dc.html" aria-label="Home" style="width:48px;height:48px;border-radius:24px;background:#fff;border:1px solid #ECE4D2;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1z"></path></svg></a>
+  </div>
+
+  <div style="flex:1;overflow:auto;padding:14px 20px 84px">
+
+    <!-- Avatar -->
+    <div style="display:flex;justify-content:center;margin-bottom:24px;animation:dFadeIn .4s ease-out">
+      <div style="position:relative">
+        <div style="width:88px;height:88px;border-radius:26px;background:linear-gradient(135deg,#14365A,#0E2740);display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-size:30px;font-weight:700;color:#D3B675">+</div>
+        <div style="position:absolute;bottom:-4px;right:-4px;width:32px;height:32px;border-radius:10px;background:#fff;border:2px solid #FBF7EE;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></div>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <sc-for list="{{fields}}" as="f" hint-placeholder-count="5">
+        <div style="animation:dFadeIn .4s ease-out {{f.d}} both">
+          <label style="display:block;font-size:12px;font-weight:600;color:#505B68;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">{{f.label}}</label>
+          <div style="width:100%;min-height:48px;border-radius:14px;border:1px solid #ECE4D2;background:#fff;padding:12px 16px;font-size:15px;color:#17212B;display:flex;align-items:center">{{f.val}}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- Security note -->
+    <div style="margin-top:20px;display:flex;gap:10px;background:rgba(20,54,90,.05);border:1px solid rgba(20,54,90,.08);border-radius:14px;padding:14px 16px;animation:dFadeIn .4s ease-out .4s both">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="1.8" stroke-linecap="round" style="flex-shrink:0;margin-top:2px"><path d="M12 3l8 4v5c0 4.5-3.2 7.3-8 9-4.8-1.7-8-4.5-8-9V7z"></path></svg>
+      <div style="font-size:13px;color:#505B68;line-height:1.5">Every field here is optional. What DHARA keeps and why is listed in Privacy &amp; data, where you can export or delete it.</div>
+    </div>
+
+    <!-- Save button -->
+    <button style="margin-top:18px;width:100%;height:52px;border-radius:16px;border:none;background:linear-gradient(135deg,#14365A,#0E2740);color:#fff;font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(20,54,90,.25);animation:dFadeIn .4s ease-out .45s both">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D3B675" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+      Save changes
+    </button>
+  </div>
+
+  <a href="Emergency.dc.html" aria-label="SOS" style="position:absolute;right:16px;bottom:28px;height:48px;padding:0 16px;border-radius:24px;background:#B42318;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;box-shadow:0 6px 18px rgba(180,35,24,.35)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a9 9 0 00-9 9c0 5 4 8 9 11 5-3 9-6 9-11a9 9 0 00-9-9z"></path></svg>SOS</a>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals(){
+return {fields:[
+ {label:"Full name",val:"Your name",d:".08s"},
+ {label:"Phone number",val:"Phone number (optional)",d:".12s"},
+ {label:"Email",val:"Email (optional)",d:".16s"},
+ {label:"State",val:"Your state",d:".2s"},
+ {label:"App PIN",val:"Change in Settings",d:".24s"}
+]};
+}
+}
+</script>
+</body>
+</html>

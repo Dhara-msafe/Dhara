@@ -5,9 +5,10 @@
 import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, ScrollView, Pressable,
-  StyleSheet, Modal, FlatList, KeyboardAvoidingView, Platform,
+  StyleSheet, Modal, FlatList, Platform,
   ActivityIndicator, Alert, Linking,
 } from 'react-native';
+import { KeyboardSafeView } from '@/src/components/KeyboardSafeView';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -384,7 +385,7 @@ export default function LookupScreen() {
         <Text style={styles.headerSub}>Search Indian court cases via eCourtsIndia</Text>
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardSafeView style={{ flex: 1 }} behavior="padding">
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
@@ -631,7 +632,7 @@ export default function LookupScreen() {
             </View>
           )}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardSafeView>
 
       {/* Pickers */}
       <SheetPicker

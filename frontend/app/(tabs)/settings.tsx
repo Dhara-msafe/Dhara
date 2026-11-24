@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, Platform, Switch, Animated, Linking, TextInput, ActivityIndicator } from 'react-native';
 import { crossAlert } from '@/src/utils/crossAlert';
 import Slider from '@react-native-community/slider';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth, API_BASE, Language, TtsVoiceMode } from '@/src/auth';
 import { clearAccountLocalData } from '@/src/accountStorage';
 import { theme } from '@/src/theme';
@@ -13,12 +13,17 @@ import { getPushPermissionState, enablePushNotifications, PushPermissionState } 
 import { t } from '@/src/i18n';
 import { formatDateDMY } from '@/src/dateFormat';
 import { UI_V22_P6 } from '@/src/uiV22Flags';
+import { VOICE_COMPANION_ENABLED, isVoiceReadAloudOn, setVoiceReadAloud } from '@/src/voice/speechGate';
 
 // Batch FREE-V1-001: Pro upgrade / Stripe / Razorpay payment UI gated off for v1.
 const PRO_UPGRADE_ENABLED = process.env.EXPO_PUBLIC_PRO_UPGRADE_ENABLED === 'true';
 
 export default function Settings() {
   const { user, token, logout, language, setLanguage, autoSpeak, setAutoSpeak, ttsVolume, setTtsVolume, ttsVoiceMode, setTtsVoiceMode, refreshUser, forceLogout, clearSessionExpired, logoutAfterAccountDeletion } = useAuth();
+  // Voice gate switch (22 Nov): the control "Voice is off" points to. Reads
+  // the gate on focus so a Listen tap elsewhere (which records consent) shows.
+  const [voiceOn, setVoiceOn] = useState(isVoiceReadAloudOn());
+  useFocusEffect(useCallback(() => { setVoiceOn(isVoiceReadAloudOn()); }, []));
   const router = useRouter();
   const [langs, setLangs] = useState<Language[]>([]);
   const [showLang, setShowLang] = useState(false);
@@ -316,6 +321,30 @@ export default function Settings() {
           </View>
           <Ionicons name="chevron-forward" size={20} color={theme.colors.onSurfaceTertiary} />
         </Pressable>
+
+        {VOICE_COMPANION_ENABLED && (
+          <View style={styles.row} testID="row-voice-read-aloud">
+            <Ionicons name={voiceOn ? 'mic-outline' : 'mic-off-outline'} size={22} color={theme.colors.brand} />
+            <View style={{ flex: 1, marginLeft: theme.spacing.md }}>
+              <Text style={styles.rowTitle}>Voice: read answers aloud</Text>
+              <Text style={styles.rowValue}>
+                {voiceOn
+                  ? 'On · DHARA can speak answers (never on Women\u2019s Shield screens)'
+                  : 'Off · answers show as text only'}
+              </Text>
+            </View>
+            <Switch
+              testID="voice-read-aloud-switch"
+              accessibilityLabel="Voice: read answers aloud"
+              accessibilityRole="switch"
+              accessibilityState={{ checked: voiceOn }}
+              value={voiceOn}
+              onValueChange={(v) => { setVoiceOn(v); void setVoiceReadAloud(v); }}
+              trackColor={{ true: theme.colors.brandSecondary, false: theme.colors.borderStrong }}
+              thumbColor={theme.colors.surface}
+            />
+          </View>
+        )}
 
         <View style={styles.row} testID="row-auto-speak">
           <Ionicons name="volume-high-outline" size={22} color={theme.colors.brand} />

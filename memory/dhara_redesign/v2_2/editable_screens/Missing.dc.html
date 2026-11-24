@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>41 Missing person</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=Hind:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}*{box-sizing:border-box}a{text-decoration:none}button{cursor:pointer;font-family:inherit}
+@keyframes dFadeIn{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes dPulse{0%,100%{opacity:1}50%{opacity:.5}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</helmet>
+<div style="width:390px;height:844px;background:#FBF7EE;color:#17212B;font-family:'Hind',sans-serif;display:flex;flex-direction:column;position:relative">
+
+  <!-- nav -->
+  <div style="padding:16px 20px 0;display:flex;align-items:center;gap:12px">
+    <a href="FamilyJourney.dc.html" aria-label="Back" style="width:48px;height:48px;border-radius:24px;background:#fff;border:1px solid #ECE4D2;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"></path></svg></a>
+    <div style="flex:1;font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:#14365A">Missing person</div>
+    <a href="Home.dc.html" aria-label="Home" style="width:48px;height:48px;border-radius:24px;background:#fff;border:1px solid #ECE4D2;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1z"></path></svg></a>
+  </div>
+
+  <div style="flex:1;overflow:auto;padding:14px 20px 84px">
+
+    <!-- Urgent banner -->
+    <div style="display:flex;align-items:center;gap:10px;background:rgba(180,35,24,.08);border:1px solid rgba(180,35,24,.2);border-radius:14px;padding:14px 16px;margin-bottom:18px;animation:dFadeIn .4s ease-out">
+      <div style="width:10px;height:10px;border-radius:5px;background:#B42318;animation:dPulse 1.5s ease-in-out infinite;flex-shrink:0"></div>
+      <div style="font-size:13px;color:#7F1D1D;line-height:1.4;font-weight:500">Report within the first 24 hours. Police cannot refuse to file a missing person complaint.</div>
+    </div>
+
+    <h1 style="margin:0 0 6px;font-family:'Fraunces',serif;font-size:24px;font-weight:700;color:#14365A;animation:dFadeIn .4s ease-out .05s both">Report a missing person</h1>
+    <p style="margin:0 0 20px;font-size:14px;color:#505B68;line-height:1.5;animation:dFadeIn .4s ease-out .08s both">DHARA will guide you through collecting details and filing the report.</p>
+
+    <!-- Steps -->
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <sc-for list="{{steps}}" as="s" hint-placeholder-count="4">
+        <a href="{{s.href}}" style="display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #ECE4D2;border-radius:16px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.03);animation:dFadeIn .4s ease-out {{s.d}} both">
+          <div style="width:44px;height:44px;border-radius:14px;background:{{s.bg}};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{s.ic}}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{s.ipath}}"></path></svg>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:15px;font-weight:600;color:#14365A;margin-bottom:2px">{{s.title}}</div>
+            <div style="font-size:13px;color:#505B68;line-height:1.4">{{s.desc}}</div>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#505B68" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"></path></svg>
+        </a>
+      </sc-for>
+    </div>
+
+    <!-- Info card -->
+    <div style="margin-top:18px;display:flex;gap:10px;background:rgba(20,54,90,.06);border:1px solid rgba(20,54,90,.1);border-radius:14px;padding:14px 16px;animation:dFadeIn .4s ease-out .4s both">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14365A" stroke-width="1.8" stroke-linecap="round" style="flex-shrink:0;margin-top:2px"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zM12 16v-4M12 8h.01"></path></svg>
+      <div style="font-size:13px;color:#505B68;line-height:1.5">Under Section 166A IPC, a police officer who fails to register an FIR for a missing person can be punished with up to 2 years imprisonment.</div>
+    </div>
+  </div>
+
+  <a href="Emergency.dc.html" aria-label="SOS" style="position:absolute;right:16px;bottom:28px;height:48px;padding:0 16px;border-radius:24px;background:#B42318;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;box-shadow:0 6px 18px rgba(180,35,24,.35)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a9 9 0 00-9 9c0 5 4 8 9 11 5-3 9-6 9-11a9 9 0 00-9-9z"></path></svg>SOS</a>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals(){
+return {steps:[
+ {title:"Gather details",desc:"Name, age, photo, last seen location and clothing",href:"MissingInterview.dc.html",bg:"rgba(180,35,24,.08)",ic:"#B42318",ipath:"M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2",d:".12s"},
+ {title:"File police report",desc:"DHARA generates the complaint. No waiting period required",href:"FirDraft.dc.html",bg:"rgba(20,54,90,.06)",ic:"#14365A",ipath:"M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z",d:".18s"},
+ {title:"Alert your network",desc:"Share details with your trusted circle instantly",href:"Alerts.dc.html",bg:"rgba(90,75,158,.08)",ic:"#5A4B9E",ipath:"M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0",d:".24s"},
+ {title:"Track progress",desc:"Monitor FIR status and investigation updates",href:"FamilyJourney.dc.html",bg:"rgba(31,107,74,.06)",ic:"#1F6B4A",ipath:"M22 11.08V12a10 10 0 11-5.93-9.14",d:".3s"}
+]};
+}
+}
+</script>
+</body>
+</html>

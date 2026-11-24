@@ -34,11 +34,23 @@ test('only an explicit resume request clears the interruption', () => {
   assert.equal(resumed.interruptedNotResumed, false);
 });
 
-test("entering Women's Shield forces Quiet on and never clears it", () => {
+// 22 Nov (owner GO): the Shield blocks speech only WHILE the user is in it.
+// The old rule ("forces Quiet on and never clears it") left voice off for
+// good after one visit with no way back.
+test("entering Women's Shield blocks speech while there and does not touch Quiet", () => {
   const s = reduceGate({ ...base, quiet: false }, { type: 'enter_womens_shield' });
-  assert.equal(s.quiet, true);
   assert.equal(s.inWomensShield, true);
-  // a resume request does not turn Quiet back off
+  assert.equal(s.quiet, false, 'Quiet is the user\'s choice only');
+  // a resume request does not lift the Shield while still inside it
   const after = reduceGate(s, { type: 'resume_requested' });
-  assert.equal(after.quiet, true);
+  assert.equal(after.inWomensShield, true);
+});
+
+test("leaving Women's Shield restores the previous voice state exactly", () => {
+  for (const quiet of [false, true]) {
+    const before = { ...base, quiet };
+    const inside = reduceGate(before, { type: 'enter_womens_shield' });
+    const left = reduceGate(inside, { type: 'leave_womens_shield' });
+    assert.deepEqual(left, before);
+  }
 });

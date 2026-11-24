@@ -8,7 +8,7 @@ import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
 import { SosPill } from '@/src/components/dhara/SosPill';
 import { UI_REVISION_V1 } from '@/src/designRevision';
-import { UI_V22_P8 } from '@/src/uiV22Flags';
+import { UI_V22_P8, UI_V22_S6 } from '@/src/uiV22Flags';
 import { focusRingStyle } from '@/src/a11yFocus';
 
 const c = theme.colors;
@@ -142,8 +142,15 @@ export default function AllHelp() {
                 <Pressable key={card.title} style={(s) => [styles.card, focusRingStyle(s)]} onPress={() => router.push(card.route as any)} accessibilityRole="button" accessibilityLabel={`${card.title}. ${card.sub}`}>
                   {card.isNew && <View style={styles.newBadge}><Text style={styles.newTxt}>{tr('common.new', lang)}</Text></View>}
                   <Ionicons name={card.icon} size={24} color={c.navy} />
-                  <Text style={styles.cardTitle} numberOfLines={2}>{card.title}</Text>
-                  <Text style={styles.cardSub} numberOfLines={2}>{card.sub}</Text>
+                  {/* v2.2 step S6 (manifest id20, All help): A11Y_CHECK_REPORT.md
+                      flagged text clipping at 1.5x font scale — the fixed
+                      numberOfLines={2} clamp cut off the title/sub with an
+                      ellipsis once the system font is scaled up. With the flag
+                      on, the text wraps fully instead of being clipped; the
+                      card's minHeight below is a floor, not a cap, so it grows
+                      to fit. */}
+                  <Text style={styles.cardTitle} numberOfLines={UI_V22_S6 ? undefined : 2}>{card.title}</Text>
+                  <Text style={styles.cardSub} numberOfLines={UI_V22_S6 ? undefined : 2}>{card.sub}</Text>
                 </Pressable>
               ))}
             </View>

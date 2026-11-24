@@ -21,6 +21,9 @@ import {
 import { formatLocationFix } from '@/src/safety/locationPresentation';
 import { useLocationUpload } from '@/src/hooks/useLocationUpload';
 import { useLocationUploadQueue } from '@/src/safety/locationUploadQueue';
+import {
+  clockOffsetMs, secondsLeft, graceSecondsLeft, hasExpired,
+} from '@/src/safety/serverClock';
 import { ActiveJourneyMap } from '@/src/women/ActiveJourneyMap';
 import { DestinationMapPicker } from '@/src/women/DestinationMapPicker';
 import { isValidCoord, isValidRadius, haversineMeters, distanceToPolylineMeters } from '@/src/utils/mapValidation';
@@ -131,6 +134,15 @@ interface HeadOutSession {
   pendingRevoke?: boolean;
   /** Server journey token, persisted so a remount never creates a second journey. */
   journeyToken?: string | null;
+  /** A28: the check-in deadline as the SERVER holds it. The countdown follows
+   * this, so a wrong phone clock or a time-zone change mid-journey cannot make
+   * the screen disagree with the moment her circle is actually alerted.
+   * Undefined until the server confirms the journey (or for older sessions),
+   * and the phone's own deadline is used until then. */
+  serverDeadlineAt?: string | null;
+  /** A28: milliseconds to add to this phone's clock to get the server's,
+   * measured when that deadline arrived. */
+  clockOffsetMs?: number;
 }
 
 function formatCountdown(secs: number): string {
@@ -307,6 +319,7 @@ export default function HeadOut() {
     createInFlightRef.current = true;
     setCreatingJourney(true);
     try {
+      const sentAt = Date.now();
       const r = await fetch(`${API_BASE}/api/journey/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
@@ -339,7 +352,18 @@ export default function HeadOut() {
       }
       setJourneyToken(data.token);
       setCreateFailures(0);
-      const updated = { ...latest, journeyToken: data.token };
+      // A28: from here the countdown follows the server's deadline, measured
+      // against the server's clock rather than this phone's.
+      const updated = {
+        ...latest,
+        journeyToken: data.token,
+        serverDeadlineAt: data.expected_checkin_at ?? null,
+        clockOffsetMs: clockOffsetMs({
+          serverTimeIso: data.server_time,
+          sentAtMs: sentAt,
+          receivedAtMs: Date.now(),
+        }),
+      };
       setSession(updated);
       AsyncStorage.setItem(SESSION_KEY, JSON.stringify(updated)).catch(() => {});
       return true;
@@ -373,18 +397,25 @@ export default function HeadOut() {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     if (!session) { setSecsLeft(0); setExpired(false); setGraceSecsLeft(null); return; }
 
+    // A28: the deadline the server holds wins; the phone's own is the
+    // fallback until the server has confirmed the journey.
+    const clock = {
+      serverDeadlineAt: session.serverDeadlineAt,
+      clockOffsetMs: session.clockOffsetMs,
+      localDeadlineMs: session.startTime + session.durationMins * 60 * 1000,
+    };
+
     const tick = () => {
-      const deadline = session.startTime + session.durationMins * 60 * 1000;
-      const left = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
-      setSecsLeft(left);
-      if (left > 0) {
+      const now = Date.now();
+      if (!hasExpired(clock, now)) {
+        setSecsLeft(secondsLeft(clock, now));
         setExpired(false);
         setGraceSecsLeft(null);
         return;
       }
+      setSecsLeft(0);
       setExpired(true);
-      const graceDeadline = deadline + GRACE_MINUTES * 60 * 1000;
-      const graceLeft = Math.max(0, Math.floor((graceDeadline - Date.now()) / 1000));
+      const graceLeft = graceSecondsLeft(clock, GRACE_MINUTES * 60 * 1000, now);
       setGraceSecsLeft(graceLeft);
       if (graceLeft === 0 && timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     };
@@ -454,6 +485,28 @@ export default function HeadOut() {
 
   // A35: keep trying a pending "I'm safe" until the server confirms. Starts
   // straight away when the screen reopens with a pending one saved.
+  // A14: the server closed this journey (it expired, was completed, or
+  // sharing was withdrawn — from another device, say). The phone must stop
+  // tracking something nobody is watching, and she must be told why her
+  // journey ended, rather than the screen simply emptying.
+  const [closedByServer, setClosedByServer] = useState(false);
+
+  const handleJourneyClosedByServer = useCallback(() => {
+    setClosedByServer(true);
+    setJourneyToken(null);
+    setSession(null);
+    setExpired(false);
+    setSharingRevoked(false);
+    setRouteInfo(null);
+    setCreateFailures(0);
+    // Not marked "safe": the server ended the journey, she did not say so.
+    try { useLocationUploadQueue.getState().clearAll(); } catch { /* non-blocking */ }
+    AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
+  }, []);
+
+  // A14: a new journey clears the notice from the last one.
+  useEffect(() => { if (session) setClosedByServer(false); }, [session]);
+
   const pendingSafe = !!session?.pendingSafe;
   useEffect(() => {
     if (!pendingSafe || !authToken || !journeyToken) return;
@@ -629,13 +682,24 @@ export default function HeadOut() {
     setExtending(true);
     setExtendError(null);
     try {
+      const extendSentAt = Date.now();
       const r = await fetch(`${API_BASE}/api/journey/status/${journeyToken}/extend`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
         body: JSON.stringify({ additional_mins: additionalMins }),
       });
       if (!r.ok) throw new Error();
-      const updated = { ...session, durationMins: session.durationMins + additionalMins };
+      const data = await r.json().catch(() => ({} as any));
+      // A28: take the server's new deadline and re-measure the offset, so the
+      // countdown lands on the same moment the server will act on.
+      const updated = {
+        ...session,
+        durationMins: session.durationMins + additionalMins,
+        serverDeadlineAt: data?.expected_checkin_at ?? session.serverDeadlineAt ?? null,
+        clockOffsetMs: data?.server_time
+          ? clockOffsetMs({ serverTimeIso: data.server_time, sentAtMs: extendSentAt, receivedAtMs: Date.now() })
+          : session.clockOffsetMs,
+      };
       await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(updated)).catch(() => {});
       setSession(updated);
       setArrivedDismissedAt(Date.now());   // the prompt that led here shouldn't immediately reappear
@@ -698,7 +762,13 @@ export default function HeadOut() {
     // Backdate the session so the timer reads 0 — the real expired logic fires
     // unchanged. Nothing is persisted to AsyncStorage so the session restores
     // normally if the user refreshes.
-    setSession({ ...session, startTime: Date.now() - (session.durationMins * 60000 + 10000) });
+    // A28: the demo moves the phone's own deadline, so the server's deadline
+    // has to go with it or the countdown would ignore the simulated expiry.
+    setSession({
+      ...session,
+      startTime: Date.now() - (session.durationMins * 60000 + 10000),
+      serverDeadlineAt: null,
+    });
   }, [session]);
 
   // "Check in now" (post-expiry): handleExtendTime ADDS minutes to the
@@ -800,7 +870,10 @@ export default function HeadOut() {
     // A10b: when the check-in time passes, tracking stops but her circle has
     // just been alerted, so a reading still waiting on this phone must still
     // be sent. Same conditions as above, without `!expired`.
-    { keepRetryingHeld: GO1B_GPS_ENABLED && !!session && locationConsentGiven && !session.pendingSafe },
+    {
+      keepRetryingHeld: GO1B_GPS_ENABLED && !!session && locationConsentGiven && !session.pendingSafe,
+      onJourneyClosed: handleJourneyClosedByServer,
+    },
   );
   // Demo simulator: when HEADOUT_DEMO_ENABLED and a demo control button has
   // been pressed, replace the GPS values with the simulated point. Every
@@ -1174,6 +1247,20 @@ export default function HeadOut() {
                 {creatingJourney ? ALARM_COPY.not_active.retrying : ALARM_COPY.not_active.retry}
               </Text>
             </Pressable>
+          </View>
+        </View>
+      )}
+
+      {/* A14: the server ended this journey, so the phone stopped sending. */}
+      {closedByServer && (
+        <View style={styles.alarmOffBanner} testID="headout-journey-closed" accessibilityRole="alert">
+          <Ionicons name="information-circle-outline" size={20} color={c.emergencyRed} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.alarmBannerTitle, { color: c.emergencyRed }]}>This journey has ended</Text>
+            <Text style={styles.alarmBannerBody}>
+              DHARA&apos;s server closed it, so your location is no longer being shared and no one will
+              be alerted for it. Start a new journey if you are still on your way.
+            </Text>
           </View>
         </View>
       )}

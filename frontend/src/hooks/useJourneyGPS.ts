@@ -1,20 +1,39 @@
 /**
- * useJourneyGPS — GO1B Live GPS tracking during Head Out sessions
+ * useJourneyGPS — live location during a Head Out journey (GO1B)
  * ---------------------------------------------------------------
- * Foreground tracking: uses expo-location watchPositionAsync.
- *   Works in Expo Go and web preview (web returns mock position).
+ * FOREGROUND ONLY. expo-location watchPositionAsync, which runs while DHARA
+ * is open on her screen and stops when it is not. There is NO background
+ * tracking in this app: no expo-task-manager, no startLocationUpdatesAsync,
+ * no background location permission. (A15: this header used to describe a
+ * background path that has never existed. If background tracking is built,
+ * the consent wording on the radius step has to change with it.)
  *
- * Background tracking: uses expo-location startLocationUpdatesAsync
- *   with expo-task-manager. CANNOT be tested in Expo Go — requires
- *   a development or production build. Gated behind
- *   EXPO_PUBLIC_GPS_BACKGROUND=false.
+ * In the web preview expo-location is not used at all: the hook reports
+ * "GPS not available in web preview" and sends nothing. Only a real build
+ * produces readings.
  *
- * Privacy design:
- *   - Device does the reverse-geocoding (area/city name) — no third-party
- *     geocoding API; only area name + rough coords sent to backend.
- *   - Backend throttles to max 1 update per 30 s.
- *   - Location log limited to last 20 fixes on server.
- *   - All data expires with the parent journey (24 h TTL).
+ * What the phone sends, and when:
+ *   - a reading at most every 25 s (lastSent below), and only after ~50 m of
+ *     movement, since that is what watchPositionAsync is asked for;
+ *   - with its true capture time and source, so the server can store when it
+ *     was taken rather than when it arrived (A06, A07);
+ *   - a reading the server does not take is held on the phone and the newest
+ *     one retried every 30 s, through a missed check-in (A10, A10b);
+ *   - when the server says the journey is closed, sending stops and the
+ *     screen is told (A14).
+ *
+ * Privacy:
+ *   - the device does the reverse geocoding, so no third party is asked
+ *     where she is; the server gets an area name and coordinates;
+ *   - the server ignores a second reading arriving within 25 s, and never
+ *     lets an older reading replace a newer one;
+ *   - the journey's location log is cleared when she marks herself safe or
+ *     stops sharing.
+ *
+ * Not true yet, despite what older comments claimed: journeys are NOT
+ * deleted automatically. There is no expiry index on safety_journeys; a
+ * journey past its expires_at is refused (410) but still stored. That is
+ * task A12.
  */
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { Platform } from 'react-native';
@@ -25,7 +44,7 @@ import { cacheLocation } from '@/src/safety/locationCache';
 import { buildLocationUploadBody } from '@/src/safety/locationUploadBody';
 import { useLocationUploadQueue } from '@/src/safety/locationUploadQueue';
 import {
-  uploadOutcome, newestFor, afterSettled, usableFor, RETRY_INTERVAL_MS,
+  uploadOutcome, journeyIsClosed, newestFor, afterSettled, usableFor, RETRY_INTERVAL_MS,
   type UploadOutcome,
 } from '@/src/safety/locationUploadRetry';
 
@@ -64,6 +83,10 @@ const INITIAL: GPSState = {
  * @param journeyToken  - the backend journey token (from POST /api/journey/status)
  * @param enabled       - start tracking only when true (session active)
  * @param onPermDenied  - optional callback if user permanently blocks location
+ * @param opts.onJourneyClosed - A14: the server says this journey is over
+ *        (gone, expired, or already completed / sharing withdrawn). Called
+ *        once per journey; the screen clears the local journey so the phone
+ *        stops tracking something the server is no longer watching.
  * @param opts.keepRetryingHeld - A10b: keep sending readings already held on
  *        the phone even while `enabled` is false. Set while the check-in has
  *        been missed: no new readings are taken, but the last real one she
@@ -73,7 +96,7 @@ export function useJourneyGPS(
   journeyToken: string | null,
   enabled: boolean,
   onPermDenied?: () => void,
-  opts?: { keepRetryingHeld?: boolean },
+  opts?: { keepRetryingHeld?: boolean; onJourneyClosed?: () => void },
 ): GPSState {
   const keepRetryingHeld = opts?.keepRetryingHeld ?? false;
   const { token: authToken, user } = useAuth();
@@ -103,6 +126,28 @@ export function useJourneyGPS(
     return 'Unknown area';
   }, []);
 
+  // A14: the 25-second throttle below is per journey. Without this reset, a
+  // journey started within 25 seconds of the last one would have its first
+  // position skipped, which is the one her circle waits for.
+  useEffect(() => { lastSent.current = 0; }, [journeyToken]);
+
+  // ── A14: the server has closed this journey ───────────────────────────────
+  // Told once per journey token, so a retry round cannot fire it repeatedly.
+  const closedToken = useRef<string | null>(null);
+  const onJourneyClosedRef = useRef(opts?.onJourneyClosed);
+  onJourneyClosedRef.current = opts?.onJourneyClosed;
+
+  const noteJourneyClosed = useCallback((token: string) => {
+    try {
+      const q = useLocationUploadQueue.getState();
+      const kept = q.queue.filter((e) => e.journeyToken !== token);
+      if (kept.length !== q.queue.length) useLocationUploadQueue.setState({ queue: kept });
+    } catch { /* non-blocking */ }
+    if (closedToken.current === token) return;
+    closedToken.current = token;
+    try { onJourneyClosedRef.current?.(); } catch { /* the screen's problem, not ours */ }
+  }, []);
+
   // ── A10: one PATCH to the server, with a verdict on what to do next ───────
   const sendReading = useCallback(async (
     lat: number, lng: number, accuracy: number, area: string, capturedAtMs: number,
@@ -121,11 +166,17 @@ export function useJourneyGPS(
       });
       let body: unknown = null;
       try { body = await resp.json(); } catch { /* no JSON body */ }
+      // A14: the server has closed this journey. Stop uploading to it, let
+      // go of anything still held for it, and tell the screen once.
+      if (journeyIsClosed(resp.status, body)) {
+        noteJourneyClosed(journeyToken);
+        return 'superseded';
+      }
       return uploadOutcome(resp.status, body);
     } catch {
       return uploadOutcome(null);   // no answer: offline, timeout
     }
-  }, [authToken, journeyToken]);
+  }, [authToken, journeyToken, noteJourneyClosed]);
 
   // ── Send one location update to backend ────────────────────────────────────
   // A10: a reading the server did not take is no longer thrown away. It is

@@ -83,6 +83,11 @@ class VerifyDeletionOTPIn(BaseModel):
 class AuthOut(BaseModel):
     token: str
     user: dict
+    # True only when this call created the account (register, first Google
+    # sign-in). The app then saves the language the person used during
+    # onboarding to the new profile instead of the "en" default. Additive:
+    # older app versions ignore it.
+    is_new: bool = False
 
 class AcceptTermsIn(BaseModel):
     terms_version: str = TERMS_VERSION
@@ -157,7 +162,7 @@ async def register(body: RegisterIn):
         "accepted_at": now,
         "source": "register",
     })
-    return {"token": make_token(uid), "user": public_user(doc)}
+    return {"token": make_token(uid), "user": public_user(doc), "is_new": True}
 
 INVALID_LOGIN_MSG = (
     "Email or password is incorrect. If you signed up with Google, "
@@ -325,7 +330,7 @@ async def google_auth_session(body: GoogleSessionIn):
         }
         await db.users.insert_one(user)
 
-    return {"token": make_token(uid, user.get("token_version", 0)), "user": public_user(user)}
+    return {"token": make_token(uid, user.get("token_version", 0)), "user": public_user(user), "is_new": not bool(existing)}
 
 
 # ---- Password reset via emailed one-time code (OTP) ----

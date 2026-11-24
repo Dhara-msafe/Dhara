@@ -7,34 +7,12 @@ import { useAuth, Language } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { trackEvent } from '@/src/analytics';
 import { focusRingStyle } from '@/src/a11yFocus';
+import { LANGUAGES } from '@/src/languages';
+import { v22SectionLabel } from '@/src/v22SectionLabel';
+import { UI_V22_S10 } from '@/src/uiV22Flags';
 
 // Mirrors backend /api/reference/languages — hardcoded so the screen works
 // before login and without a network round-trip.
-const LANGUAGES: Language[] = [
-  { code: 'en', name: 'English', native: 'English', tts: 'en-IN' },
-  { code: 'hi', name: 'Hindi', native: 'हिन्दी', tts: 'hi-IN' },
-  { code: 'bn', name: 'Bengali', native: 'বাংলা', tts: 'bn-IN' },
-  { code: 'ta', name: 'Tamil', native: 'தமிழ்', tts: 'ta-IN' },
-  { code: 'te', name: 'Telugu', native: 'తెలుగు', tts: 'te-IN' },
-  { code: 'mr', name: 'Marathi', native: 'मराठी', tts: 'mr-IN' },
-  { code: 'gu', name: 'Gujarati', native: 'ગુજરાતી', tts: 'gu-IN' },
-  { code: 'kn', name: 'Kannada', native: 'ಕನ್ನಡ', tts: 'kn-IN' },
-  { code: 'ml', name: 'Malayalam', native: 'മലയാളം', tts: 'ml-IN' },
-  { code: 'pa', name: 'Punjabi', native: 'ਪੰਜਾਬੀ', tts: 'pa-IN' },
-  { code: 'or', name: 'Odia', native: 'ଓଡ଼ିଆ', tts: 'or-IN' },
-  { code: 'as', name: 'Assamese', native: 'অসমীয়া', tts: 'as-IN' },
-  { code: 'ur', name: 'Urdu', native: 'اردو', tts: 'ur-IN' },
-  { code: 'sd', name: 'Sindhi', native: 'سنڌي', tts: 'sd-IN' },
-  { code: 'ks', name: 'Kashmiri', native: 'कॉशुर', tts: 'ks-IN' },
-  { code: 'ne', name: 'Nepali', native: 'नेपाली', tts: 'ne-NP' },
-  { code: 'sa', name: 'Sanskrit', native: 'संस्कृतम्', tts: 'sa-IN' },
-  { code: 'kok', name: 'Konkani', native: 'कोंकणी', tts: 'kok-IN' },
-  { code: 'mai', name: 'Maithili', native: 'मैथिली', tts: 'mai-IN' },
-  { code: 'mni', name: 'Manipuri', native: 'মৈতৈলোন্', tts: 'mni-IN' },
-  { code: 'sat', name: 'Santali', native: 'ᱥᱟᱱᱛᱟᱲᱤ', tts: 'sat-IN' },
-  { code: 'doi', name: 'Dogri', native: 'डोगरी', tts: 'doi-IN' },
-  { code: 'brx', name: 'Bodo', native: "बर'", tts: 'brx-IN' },
-];
 
 export default function LanguageSelect() {
   const { language, setLanguage, user } = useAuth();
@@ -150,7 +128,19 @@ export default function LanguageSelect() {
                 <Text style={[styles.native, active && styles.nativeActive]}>{item.native}</Text>
                 <Text style={styles.name}>{item.name}</Text>
               </View>
-              {active && <Text style={styles.selectedLabel}>Selected</Text>}
+              {active && (
+                <View style={styles.selectedWrap}>
+                  <Text style={styles.selectedLabel}>Selected</Text>
+                  {UI_V22_S10 && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={20}
+                      color="#8A6A1E"
+                      testID={`lang-${item.code}-check`}
+                    />
+                  )}
+                </View>
+              )}
             </Pressable>
           );
         }}
@@ -209,14 +199,14 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.md,
     backgroundColor: theme.colors.cream,
   },
-  eyebrow: {
+  eyebrow: v22SectionLabel({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.6,
     textTransform: 'uppercase',
     color: theme.colors.muted,
     marginBottom: 8,
-  },
+  }),
   title: {
     fontFamily: theme.fonts.display,
     fontSize: 28,
@@ -278,6 +268,7 @@ const styles = StyleSheet.create({
   nativeActive: { color: theme.colors.navy },
   // English translation: textSecondary on surface — 6.81:1 ✅; weight 500 for Indic script legibility
   name: { color: theme.dhara.textSecondary, fontSize: 13, marginTop: 2, fontWeight: '500' },
+  selectedWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   selectedLabel: {
     fontFamily: theme.fonts.bodyBold,
     fontSize: 13,

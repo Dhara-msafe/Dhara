@@ -148,6 +148,22 @@ async def case_by_cnr(cnr: str) -> CourtDataResult:
         normaliser=lambda p: _normalise_case(p.get("data", p), cnr),
         caller=f"case_by_cnr:{cnr[:4]}…",
     )
+    # B-125 fix: the eCourts partner API returns 200 OK with an all-null
+    # payload for some syntactically valid but non-existent/unresolvable
+    # CNRs, instead of a 404. _fetch() has no way to tell that apart from a
+    # real case, so it returned status="ok" with a normalised-but-empty
+    # case dict (every key present, just None/[] except the CNR itself) --
+    # and the frontend rendered a blank-looking case card with no error
+    # message at all (the reported "invalid CNR shows no error message").
+    # Re-check an "ok" result here and convert a meaningfully-empty one to
+    # "not_found", so the UI shows "No matching case was found." instead.
+    if result.is_ok() and _is_empty_case(result.data):
+        return CourtDataResult(
+            status="not_found",
+            error_id=result.error_id,
+            message="No matching case was found.",
+            http_hint=404,
+        )
     if result.is_ok():
         await _cache_put(cnr, result.data)
     return result
@@ -328,6 +344,22 @@ def _normalise_search(payload: dict, page: int) -> dict:
     if isinstance(rows, dict):
         rows = rows.get("results", [])
     return {"results": [_normalise_case(x) for x in (rows or [])], "page": page}
+
+
+def _is_empty_case(data: Any) -> bool:
+    """True when a normalised case dict carries nothing a citizen could
+    actually use (B-125) -- i.e. the partner API answered 200 OK but every
+    field except the CNR itself (which _normalise_case() always fills in
+    from cnr_hint when the response omits it) came back None/empty."""
+    if not isinstance(data, dict):
+        return True
+    return not any(
+        data.get(k) for k in (
+            "case_status", "court_name", "case_type", "filing_date",
+            "next_hearing_date", "district", "state",
+            "petitioners", "respondents",
+        )
+    )
 
 
 def _bad_input(msg: str) -> CourtDataResult:

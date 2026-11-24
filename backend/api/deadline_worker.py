@@ -84,6 +84,17 @@ async def _run_once(db) -> int:
             logger.debug("[deadline] journey %s already claimed — skipping", journey_token)
             continue
 
+        # A12: her circle is about to be told she has not checked in. That
+        # makes this journey the record that matters if something happened,
+        # so it is kept for INCIDENT_RETENTION_DAYS instead of the ordinary
+        # window, and counted once, anonymously.
+        try:
+            from api.journey_router import mark_journey_incident, _record_journey_stat
+            await mark_journey_incident(journey_token)
+            await _record_journey_stat(rec, "missed_checkin")
+        except Exception as e:
+            logger.warning("[deadline] retention bookkeeping failed for %s: %s", journey_token, e)
+
         # Resolve the owner for alert attribution.
         owner = await db.users.find_one(
             {"id": owner_id}, {"_id": 0, "id": 1, "name": 1}

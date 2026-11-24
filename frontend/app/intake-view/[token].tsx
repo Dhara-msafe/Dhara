@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { goBackOr } from '@/src/goBackOr';
+import { v22SectionLabel } from '@/src/v22SectionLabel';
 
 const NAVY = theme.colors.primary;
 const GOLD = theme.colors.gold;
@@ -131,7 +132,7 @@ const s = StyleSheet.create({
   analysisText: { fontSize: 14, color: '#374151', lineHeight: 22, fontFamily: 'monospace' },
   accordionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   transcriptItem: { borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 10, marginTop: 8 },
-  transcriptLabel: { fontSize: 11, fontWeight: '700', color: '#9CA3AF', marginBottom: 4, textTransform: 'uppercase' },
+  transcriptLabel: v22SectionLabel({ fontSize: 11, fontWeight: '700', color: '#9CA3AF', marginBottom: 4, textTransform: 'uppercase' }),
   transcriptText: { fontSize: 14, color: '#374151', lineHeight: 21 },
   exportBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: NAVY, borderRadius: 12, paddingVertical: 13 },
   exportBtnText: { fontSize: 15, fontWeight: '700', color: NAVY },

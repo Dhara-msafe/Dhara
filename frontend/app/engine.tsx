@@ -23,6 +23,7 @@ import { draftByType } from '@/src/drafts';
 // labels. No routing/API/logic changes.
 import { UI_REVISION_V1 } from '@/src/designRevision';
 import { focusRingStyle } from '@/src/a11yFocus';
+import { v22SectionLabel } from '@/src/v22SectionLabel';
 
 const c = theme.colors;
 
@@ -148,7 +149,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
   loadingWrap: { paddingVertical: 30, alignItems: 'center' },
   section: { marginBottom: 8 },
-  sectionTitle: {
+  sectionTitle: v22SectionLabel({
     fontFamily: theme.fonts.bodyBold,
     fontSize: 13,
     // NF-UI-REV-05: onSurfaceTertiary on this cream background measured
@@ -158,7 +159,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginBottom: 12,
     textTransform: 'uppercase',
-  },
+  }),
   continueCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.navySoft, borderRadius: 14, padding: 14, marginBottom: 10 },
   continueIcon: { width: 38, height: 38, borderRadius: 10, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' },
   continueTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink },

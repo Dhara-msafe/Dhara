@@ -10,6 +10,7 @@ import { UI_REVISION_V1 } from '@/src/designRevision';
 import { focusRingStyle } from '@/src/a11yFocus';
 
 import { openExternal } from '@/src/outbound';
+import { v22SectionLabel } from '@/src/v22SectionLabel';
 type Citation = { label: string; url: string };
 type Topic = {
   id: string; icon: string; title: string; summary: string; law: string; points: string[];
@@ -252,7 +253,7 @@ const styles = StyleSheet.create({
   noticeBox: { flexDirection: 'row', gap: theme.spacing.sm, backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md, padding: theme.spacing.md, marginBottom: theme.spacing.md },
   noticeText: { flex: 1, color: theme.colors.onSurfaceSecondary, fontSize: 12.5, lineHeight: 18 },
   citeWrap: { marginTop: theme.spacing.sm, paddingTop: theme.spacing.sm, borderTopWidth: 1, borderTopColor: theme.colors.divider },
-  citeHeading: { fontSize: 11, fontWeight: '700', color: theme.colors.onSurfaceSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 },
+  citeHeading: v22SectionLabel({ fontSize: 11, fontWeight: '700', color: theme.colors.onSurfaceSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }),
   // 44px-minimum tap target via hitSlop above; visual row height stays
   // compact so the citation list doesn't balloon (NF-UI-REV-02).
   citeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4, minHeight: 28 },

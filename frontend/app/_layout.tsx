@@ -29,7 +29,7 @@ import { consentVersionKey, isCurrentConsent } from "@/src/consentStorage";
 import { GuestRecoveryModal } from "@/src/women/GuestRecoveryModal";
 import { theme } from "@/src/theme";
 import { EvidenceRecorderProvider } from "@/src/women/EvidenceRecorderProvider";
-import { initSpeechGate } from "@/src/voice/speechGate";
+import { initSpeechGate, enterWomensShield, leaveWomensShield, isWomensShieldRoute } from "@/src/voice/speechGate";
 import { usePreventScreenCapture } from "expo-screen-capture";
 import { useShakeDetector } from "@/src/women/shakeActivation";
 import {
@@ -396,6 +396,17 @@ export default function RootLayout() {
   // Talk to DHARA — load persisted Quiet + attach lifecycle listeners. Inert
   // (canSpeakNow() returns true) while the voice-companion flag is OFF.
   useEffect(() => { void initSpeechGate(); }, []);
+
+  // Voice (22 Nov, owner GO): no DHARA speech WHILE the user is on a Women's
+  // Shield screen — the hub and every /women/* screen. Driven by the route
+  // because /women/* has no shared layout. In memory only: leaving restores
+  // the previous voice state; nothing is saved.
+  const inWomensShieldRoute = isWomensShieldRoute(pathname);
+  useEffect(() => {
+    if (!inWomensShieldRoute) return;
+    void enterWomensShield();
+    return () => leaveWomensShield();
+  }, [inWomensShieldRoute]);
 
   // GC DISABLED (user instruction, Jun 2026):
   // The automatic 30-day guest evidence cleanup has been permanently disabled.

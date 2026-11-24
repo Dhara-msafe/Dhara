@@ -16,6 +16,7 @@ import { loadVisitorSession, VisitorSession, getStateLocalLang, HINDI_LANG, STAT
 import { API_BASE, useAuth } from '@/src/auth';
 import { whisperTranscribeFile, sttErrorToMessage } from '@/src/voice/stt';
 import { claimMic, MIC_BUSY_MESSAGE, withMicLease, isMicHeldByEvidenceLocker, type MicLease } from '@/src/voice/micArbiterGuard';
+import { v22SectionLabel } from '@/src/v22SectionLabel';
 
 const C = theme.colors;
 
@@ -429,7 +430,7 @@ const s = StyleSheet.create({
   bubble:          { borderRadius: 14, padding: 14, marginBottom: 10, maxWidth: '90%' },
   bubbleTourist:   { backgroundColor: C.navySoft, alignSelf: 'flex-end' },
   bubbleOfficial:  { backgroundColor: '#F0FFF4', alignSelf: 'flex-start', borderWidth: 1, borderColor: '#A7F3D0' },
-  bubbleLabel:     { fontSize: 10, fontWeight: '700', color: C.onSurfaceTertiary, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  bubbleLabel:     v22SectionLabel({ fontSize: 10, fontWeight: '700', color: C.onSurfaceTertiary, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }),
   bubbleOriginal:  { fontSize: 14, color: C.onSurface, lineHeight: 20 },
   bubbleDivider:   { height: 1, backgroundColor: C.divider, marginVertical: 6 },
   bubbleTranslated:{ fontSize: 14, color: C.primary, fontWeight: '600', lineHeight: 20 },

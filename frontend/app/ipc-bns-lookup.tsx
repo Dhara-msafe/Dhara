@@ -9,7 +9,8 @@
  * E. No LLM / AI call is ever made from this screen.
  */
 import React, { useState, useCallback, useRef } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { KeyboardSafeView } from '@/src/components/KeyboardSafeView';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +21,8 @@ import { openExternal } from '@/src/outbound';
 import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
 import { UI_REVISION_V1 } from '@/src/designRevision';
 import { focusRingStyle } from '@/src/a11yFocus';
+import { v22SectionLabel } from '@/src/v22SectionLabel';
+import { UI_V22_S12 } from '@/src/uiV22Flags';
 const NAVY   = theme.colors.primary;
 const GOLD   = theme.colors.gold;
 const CUTOFF = '2024-07-01';
@@ -537,9 +540,9 @@ export default function IpcBnsLookup() {
         </View>
       </View>
 
-      <KeyboardAvoidingView
+      <KeyboardSafeView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
       >
         <ScrollView
           style={{ flex: 1 }}
@@ -677,7 +680,7 @@ export default function IpcBnsLookup() {
             </Text>
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardSafeView>
       <DisclaimerBanner testID="ipc-bns-disclaimer" />
     </SafeAreaView>
   );
@@ -685,7 +688,9 @@ export default function IpcBnsLookup() {
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FDFBF7' },
+  // v2.2 (UI_V22_S12): '#FDFBF7' was one hex off the shared cream token
+  // every other v2.2 screen (and IPCLookup.dc.html itself) uses.
+  safe: { flex: 1, backgroundColor: UI_V22_S12 ? theme.colors.background : '#FDFBF7' },
   header: {
     backgroundColor: NAVY, flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16, gap: 12,
@@ -864,10 +869,10 @@ const rc = StyleSheet.create({
   secBoxWithheld: { backgroundColor: '#EEF2FF' },
   // NF-UI-REV-02: '#9CA3AF' measured below 4.5:1 on every secBox background
   // variant used here (default/deleted/withheld) — MUTED_TEXT clears it.
-  secLabel: {
+  secLabel: v22SectionLabel({
     fontSize: 10, color: MUTED_TEXT, fontWeight: '600',
     textTransform: 'uppercase', marginBottom: 3,
-  },
+  }),
   secNum:        { fontSize: 20, fontWeight: '800', color: NAVY, textAlign: 'center' },
   offence:       { fontSize: 13, color: '#374151', lineHeight: 19, marginBottom: 6 },
   explainBox: {

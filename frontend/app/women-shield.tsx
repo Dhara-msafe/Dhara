@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Switch } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -10,7 +11,7 @@ import { tr } from '@/src/ui18n';
 import { SosPill, Divider } from '@/src/components/dhara/SosPill';
 import { fetchFlags, fetchHelplines, safetyRoute, setCheckin as persistCheckin, getCheckin, getCircle, type Helpline } from '@/src/women/api';
 import { loadVisibleRecordings, releaseRecordings } from '@/src/women/evidenceStore'; // Fix (S1-2): count only visible (non-segment) items
-import { enterWomensShield, leaveWomensShield } from '@/src/voice/speechGate';
+import { noteQuickExit } from '@/src/voice/speechGate';
 import { activateCover } from '@/src/women/coverState';
 
 // openPhone is reserved for when tap-to-call is activated on helpline rows
@@ -18,9 +19,15 @@ import { activateCover } from '@/src/women/coverState';
 // ring only — no contrast/touch-target gaps found on this screen. No logic
 // changes.
 import { focusRingStyle } from '@/src/a11yFocus';
-import { UI_V22_P6, UI_V22_P8 } from '@/src/uiV22Flags';
+import { UI_V22_P6, UI_V22_P8, UI_V22_S4 } from '@/src/uiV22Flags';
 import { dialLabel, dialHint, DIAL_LIST_NOTE } from '@/src/emergencyCopy';
 import { openPhone } from '@/src/women/helpActions';
+// Step S4 (Shield tools, v2.2 design, 23 Nov handover): visual-only reskin
+// of the body sections below the (already-dark) header to the dark "Shield
+// mode" palette (screen-manifest id 33: "Glow effects simplified; text
+// contrast raised"). Coexists with UI_V22_P6/P8, which only affect content
+// order and the dialler CTAs, never color. Presentation-only, reversible.
+import { shieldColors, shieldGradient } from '@/src/shieldTheme';
 const PRIVACY_COVER_ENABLED = process.env.EXPO_PUBLIC_PRIVACY_COVER_V1 === 'true';
 
 const HEAD_OUT_ENABLED = process.env.EXPO_PUBLIC_SAFETY_SESSION_V1 === 'true';
@@ -102,8 +109,8 @@ export default function WomenShield() {
     useCallback(() => {
       let alive = true;
       const scope = user?.id || 'device';
-      // Talk to DHARA — entering the Shield forces Quiet on (no spoken replies here).
-      void enterWomensShield();
+      // Voice: the no-speech scope for this screen is set by the root layout
+      // from the route (hub + /women/*), so it also covers the sub-screens.
       (async () => {
         const [circle, items] = await Promise.all([getCircle(), loadVisibleRecordings(scope)]);
         if (!alive) { releaseRecordings(items); return; }
@@ -111,7 +118,7 @@ export default function WomenShield() {
         setLockerCount(items.length);
         releaseRecordings(items);
       })();
-      return () => { alive = false; leaveWomensShield(); };
+      return () => { alive = false; };
     }, [user?.id])
   );
 
@@ -163,11 +170,12 @@ export default function WomenShield() {
   // jump to google.com showed a blank "refused to connect" page whenever the
   // app runs inside a frame (Emergent preview, embeds).
   const quickExit = () => {
+    noteQuickExit();   // voice: nothing speaks after a Quick exit until the next tap
     router.replace('/(tabs)/home');
   };
 
-  return (
-    <View style={styles.root}>
+  const body = (
+    <>
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
@@ -215,7 +223,7 @@ export default function WomenShield() {
             the render tree (not merely hidden) when discreet=true.           */}
         {(!prefsLoading && discreet) && (
           <View testID="ws-discreet-cover" style={styles.discreetCover}>
-            <Ionicons name="lock-closed" size={44} color={c.muted} style={{ marginBottom: 14 }} />
+            <Ionicons name="lock-closed" size={44} color={UI_V22_S4 ? shieldColors.textFaint : c.muted} style={{ marginBottom: 14 }} />
             <Text style={styles.discreetCoverTitle}>Sensitive screen hidden.</Text>
             <Text style={styles.discreetCoverNote}>
               {'This hides this screen. It does not change phone notifications or erase browsing history.'}
@@ -248,11 +256,11 @@ export default function WomenShield() {
                 "Head out safely" below is the real journey check-in. */}
             {!UI_V22_P8 && <>
             <View style={styles.toolRow}>
-              <View style={styles.toolIcon}><Ionicons name="navigate-outline" size={20} color={c.navy} /></View>
+              <View style={styles.toolIcon}><Ionicons name="navigate-outline" size={20} color={UI_V22_S4 ? shieldColors.text : c.navy} /></View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.toolTitle}>{tr('ws.checkin', lang)}</Text>
               </View>
-              <Switch testID="ws-checkin-switch" accessibilityLabel={tr('ws.checkin', lang)} value={checkin} onValueChange={onCheckin} trackColor={{ true: c.navy, false: c.surfaceTertiary }} thumbColor="#fff" />
+              <Switch testID="ws-checkin-switch" accessibilityLabel={tr('ws.checkin', lang)} value={checkin} onValueChange={onCheckin} trackColor={{ true: (UI_V22_S4 ? shieldColors.lavenderBgDeep : c.navy), false: (UI_V22_S4 ? shieldColors.chipBg : c.surfaceTertiary) }} thumbColor="#fff" />
             </View>
             <Divider />
             </>}
@@ -271,9 +279,9 @@ export default function WomenShield() {
             </>}
           </View>
           <Pressable style={(s) => [styles.lessonRow, focusRingStyle(s)]} onPress={() => router.push('/women/panic-lesson')} accessibilityRole="button" accessibilityLabel="Learn the 20-second panic trigger for 112">
-            <Ionicons name="school-outline" size={18} color={c.darkGold} />
+            <Ionicons name="school-outline" size={18} color={UI_V22_S4 ? shieldColors.gold : c.darkGold} />
             <Text style={styles.lessonTxt}>Learn the 20-second panic trigger for 112</Text>
-            <Ionicons name="chevron-forward" size={18} color={c.onSurfaceTertiary} />
+            <Ionicons name="chevron-forward" size={18} color={UI_V22_S4 ? shieldColors.textFaint : c.onSurfaceTertiary} />
           </Pressable>
         </View>
 
@@ -285,7 +293,7 @@ export default function WomenShield() {
           <View style={styles.grid}>
             {RIGHTS.map(r => (
               <Pressable key={r.key} style={(s) => [styles.rightCard, focusRingStyle(s)]} onPress={() => openScenario(r.scenario)} testID={`ws-${r.key}`} accessibilityRole="button" accessibilityLabel={tr(r.key, lang)}>
-                <View style={styles.rightIcon}><Ionicons name={r.icon} size={18} color={c.darkGold} /></View>
+                <View style={styles.rightIcon}><Ionicons name={r.icon} size={18} color={UI_V22_S4 ? shieldColors.gold : c.darkGold} /></View>
                 <Text style={styles.rightTxt} numberOfLines={2}>{tr(r.key, lang)}</Text>
               </Pressable>
             ))}
@@ -304,11 +312,11 @@ export default function WomenShield() {
                 "Head out safely" below is the real journey check-in. */}
             {!UI_V22_P8 && <>
             <View style={styles.toolRow}>
-              <View style={styles.toolIcon}><Ionicons name="navigate-outline" size={20} color={c.navy} /></View>
+              <View style={styles.toolIcon}><Ionicons name="navigate-outline" size={20} color={UI_V22_S4 ? shieldColors.text : c.navy} /></View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.toolTitle}>{tr('ws.checkin', lang)}</Text>
               </View>
-              <Switch testID="ws-checkin-switch" accessibilityLabel={tr('ws.checkin', lang)} value={checkin} onValueChange={onCheckin} trackColor={{ true: c.navy, false: c.surfaceTertiary }} thumbColor="#fff" />
+              <Switch testID="ws-checkin-switch" accessibilityLabel={tr('ws.checkin', lang)} value={checkin} onValueChange={onCheckin} trackColor={{ true: (UI_V22_S4 ? shieldColors.lavenderBgDeep : c.navy), false: (UI_V22_S4 ? shieldColors.chipBg : c.surfaceTertiary) }} thumbColor="#fff" />
             </View>
             <Divider />
             </>}
@@ -327,9 +335,9 @@ export default function WomenShield() {
             </>}
           </View>
           <Pressable style={(s) => [styles.lessonRow, focusRingStyle(s)]} onPress={() => router.push('/women/panic-lesson')} accessibilityRole="button" accessibilityLabel="Learn the 20-second panic trigger for 112">
-            <Ionicons name="school-outline" size={18} color={c.darkGold} />
+            <Ionicons name="school-outline" size={18} color={UI_V22_S4 ? shieldColors.gold : c.darkGold} />
             <Text style={styles.lessonTxt}>Learn the 20-second panic trigger for 112</Text>
-            <Ionicons name="chevron-forward" size={18} color={c.onSurfaceTertiary} />
+            <Ionicons name="chevron-forward" size={18} color={UI_V22_S4 ? shieldColors.textFaint : c.onSurfaceTertiary} />
           </Pressable>
         </View>
 
@@ -355,7 +363,7 @@ export default function WomenShield() {
               <Text testID="ws-campus-dial-status" style={styles.hlNote} accessibilityLiveRegion="polite" accessibilityRole="alert" selectable>{campusDialStatus}</Text>
             )}
             <View style={styles.lessonRow}>
-              <Ionicons name="information-circle-outline" size={18} color={c.darkGold} />
+              <Ionicons name="information-circle-outline" size={18} color={UI_V22_S4 ? shieldColors.gold : c.darkGold} />
               <Text style={styles.lessonTxt}>Campus security numbers vary by institution — check your campus app or notice boards</Text>
             </View>
           </View>
@@ -373,13 +381,13 @@ export default function WomenShield() {
               <Pressable key={h.num} style={(s) => [styles.hlCard, focusRingStyle(s)]} testID={`hl-${h.num}`}
                 onPress={async () => setDialStatus(await openPhone(h.num))}
                 accessibilityRole="button" accessibilityLabel={`${dialLabel(h.num)} — ${h.label}`} accessibilityHint={dialHint(h.num)}>
-                {h.verified && <Ionicons name="checkmark-circle" size={13} color={c.verifiedGreen} style={styles.hlVerified} />}
+                {h.verified && <Ionicons name="checkmark-circle" size={13} color={UI_V22_S4 ? shieldColors.green : c.verifiedGreen} style={styles.hlVerified} />}
                 <Text style={styles.hlNum} selectable>{h.num}</Text>
                 <Text style={styles.hlLabel} numberOfLines={1}>{h.label}</Text>
               </Pressable>
             ) : (
               <View key={h.num} style={styles.hlCard} testID={`hl-${h.num}`} accessibilityLabel={`${h.num} — ${h.label}. Calling not yet active.`}>
-                {h.verified && <Ionicons name="checkmark-circle" size={13} color={c.verifiedGreen} style={styles.hlVerified} />}
+                {h.verified && <Ionicons name="checkmark-circle" size={13} color={UI_V22_S4 ? shieldColors.green : c.verifiedGreen} style={styles.hlVerified} />}
                 <Text style={styles.hlNum}>{h.num}</Text>
                 <Text style={styles.hlLabel} numberOfLines={1}>{h.label}</Text>
               </View>
@@ -405,8 +413,17 @@ export default function WomenShield() {
         </View>
         </>}
       </ScrollView>
-    </View>
+    </>
   );
+
+  if (UI_V22_S4) {
+    return (
+      <LinearGradient colors={shieldGradient.colors} start={shieldGradient.start} end={shieldGradient.end} style={styles.root}>
+        {body}
+      </LinearGradient>
+    );
+  }
+  return <View style={styles.root}>{body}</View>;
 }
 
 // onPress is optional: when omitted, this renders as a plain, non-interactive
@@ -417,7 +434,7 @@ export default function WomenShield() {
 function ToolRow({ icon, title, sub, action, onPress }: { icon: any; title: string; sub: string; action?: string; onPress?: () => void }) {
   const content = (
     <>
-      <View style={styles.toolIcon}><Ionicons name={icon} size={20} color={c.navy} /></View>
+      <View style={styles.toolIcon}><Ionicons name={icon} size={20} color={UI_V22_S4 ? shieldColors.text : c.navy} /></View>
       <View style={{ flex: 1 }}>
         <Text style={styles.toolTitle}>{title}</Text>
         <Text style={styles.toolSub}>{sub}</Text>
@@ -447,7 +464,7 @@ function ToolRow({ icon, title, sub, action, onPress }: { icon: any; title: stri
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: c.background },
+  root: { flex: 1, backgroundColor: UI_V22_S4 ? 'transparent' : c.background },
   header: { backgroundColor: c.navy, paddingHorizontal: 20, paddingBottom: 18 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   hideBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, height: 30, borderRadius: 15 },
@@ -464,39 +481,47 @@ const styles = StyleSheet.create({
   discreetSub: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 12, marginTop: 2 },
 
   section: { paddingHorizontal: 20, marginTop: 24 },
-  h2: { fontFamily: theme.fonts.displayBold, fontSize: 22, color: c.ink },
-  h2sub: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, marginTop: 2, marginBottom: 14 },
+  h2: { fontFamily: theme.fonts.displayBold, fontSize: 22, color: UI_V22_S4 ? shieldColors.text : c.ink },
+  h2sub: { fontFamily: theme.fonts.body, fontSize: 13, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, marginTop: 2, marginBottom: 14 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
-  rightCard: { width: '47.5%', flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.lines, padding: 12, minHeight: 64 },
-  rightIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: c.goldMuted, alignItems: 'center', justifyContent: 'center' },
-  rightTxt: { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.ink },
+  rightCard: UI_V22_S4
+    ? { width: '47.5%', flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: shieldColors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: shieldColors.cardBorder, padding: 12, minHeight: 64 }
+    : { width: '47.5%', flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.lines, padding: 12, minHeight: 64 },
+  rightIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: UI_V22_S4 ? shieldColors.goldBg : c.goldMuted, alignItems: 'center', justifyContent: 'center' },
+  rightTxt: { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: UI_V22_S4 ? shieldColors.text : c.ink },
 
-  toolCard: { backgroundColor: c.surface, borderRadius: 18, borderWidth: 1, borderColor: c.lines, paddingHorizontal: 16 },
+  toolCard: UI_V22_S4
+    ? { backgroundColor: shieldColors.cardBg, borderRadius: 18, borderWidth: 1, borderColor: shieldColors.cardBorder, paddingHorizontal: 16 }
+    : { backgroundColor: c.surface, borderRadius: 18, borderWidth: 1, borderColor: c.lines, paddingHorizontal: 16 },
   toolRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16 },
-  toolIcon: { width: 40, height: 40, borderRadius: 11, backgroundColor: c.navySoft, alignItems: 'center', justifyContent: 'center' },
-  toolTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink },
-  toolSub: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 2 },
-  toolAction: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.navy },
+  toolIcon: { width: 40, height: 40, borderRadius: 11, backgroundColor: UI_V22_S4 ? shieldColors.chipBg : c.navySoft, alignItems: 'center', justifyContent: 'center' },
+  toolTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: UI_V22_S4 ? shieldColors.text : c.ink },
+  toolSub: { fontFamily: theme.fonts.body, fontSize: 12, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, marginTop: 2 },
+  toolAction: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: UI_V22_S4 ? shieldColors.gold : c.navy },
 
   hlGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
-  hlCard: { width: '31%', backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.lines, paddingVertical: 16, alignItems: 'center', position: 'relative' },
+  hlCard: UI_V22_S4
+    ? { width: '31%', backgroundColor: shieldColors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: shieldColors.cardBorder, paddingVertical: 16, alignItems: 'center', position: 'relative' }
+    : { width: '31%', backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.lines, paddingVertical: 16, alignItems: 'center', position: 'relative' },
   hlVerified: { position: 'absolute', top: 8, right: 8 },
-  hlNote: { marginTop: 10, fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18 },
-  lessonRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.goldMuted, borderRadius: 14, padding: 14, marginTop: 14 },
-  lessonTxt: { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.ink },
-  hlNum: { fontFamily: theme.fonts.displayBold, fontSize: 22, color: c.navy },
-  hlLabel: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 2 },
+  hlNote: { marginTop: 10, fontFamily: theme.fonts.body, fontSize: 13, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, lineHeight: 18 },
+  lessonRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: UI_V22_S4 ? shieldColors.goldBg : c.goldMuted, borderRadius: 14, padding: 14, marginTop: 14 },
+  lessonTxt: { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: UI_V22_S4 ? shieldColors.text : c.ink },
+  hlNum: { fontFamily: theme.fonts.displayBold, fontSize: 22, color: UI_V22_S4 ? shieldColors.text : c.navy },
+  hlLabel: { fontFamily: theme.fonts.body, fontSize: 12, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, marginTop: 2 },
 
-  planCard: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: c.goldMuted, borderRadius: 18, borderWidth: 1, borderColor: c.goldSoft, padding: 18 },
-  planTitle: { fontFamily: theme.fonts.displayBold, fontSize: 18, color: c.ink },
-  planSub: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, marginTop: 4, lineHeight: 18 },
-  planBtn: { backgroundColor: c.navy, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 22 },
+  planCard: UI_V22_S4
+    ? { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: shieldColors.goldBg, borderRadius: 18, borderWidth: 1, borderColor: shieldColors.tipBorder, padding: 18 }
+    : { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: c.goldMuted, borderRadius: 18, borderWidth: 1, borderColor: c.goldSoft, padding: 18 },
+  planTitle: { fontFamily: theme.fonts.displayBold, fontSize: 18, color: UI_V22_S4 ? shieldColors.text : c.ink },
+  planSub: { fontFamily: theme.fonts.body, fontSize: 13, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, marginTop: 4, lineHeight: 18 },
+  planBtn: { backgroundColor: UI_V22_S4 ? shieldColors.lavenderBgDeep : c.navy, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 22 },
   planBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 15 },
 
   // D1 — discreet cover styles
   discreetCover: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 36, paddingVertical: 60 },
-  discreetCoverTitle: { fontFamily: theme.fonts.displayBold, fontSize: 22, color: c.ink, textAlign: 'center', marginBottom: 12 },
-  discreetCoverNote: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, textAlign: 'center', lineHeight: 21, marginBottom: 32 },
-  revealBtn: { backgroundColor: c.navy, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 36 },
+  discreetCoverTitle: { fontFamily: theme.fonts.displayBold, fontSize: 22, color: UI_V22_S4 ? shieldColors.text : c.ink, textAlign: 'center', marginBottom: 12 },
+  discreetCoverNote: { fontFamily: theme.fonts.body, fontSize: 14, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, textAlign: 'center', lineHeight: 21, marginBottom: 32 },
+  revealBtn: { backgroundColor: UI_V22_S4 ? shieldColors.lavenderBgDeep : c.navy, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 36 },
   revealBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 16 },
 });

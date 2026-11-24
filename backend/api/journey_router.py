@@ -25,6 +25,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import HTMLResponse
+from html import escape as html_escape
 from pydantic import BaseModel, Field
 
 import logging
@@ -38,7 +39,48 @@ router = APIRouter()
 # ── Config ────────────────────────────────────────────────────────────────────
 _TOKEN_CHARS = string.ascii_letters + string.digits
 _TOKEN_LEN   = 10
-_TTL_HOURS   = 24          # records expire after 24 h
+_TTL_HOURS   = 24          # the share link stops working after 24 h
+
+# ── A12: how long a journey is kept ──────────────────────────────────────────
+#
+# Three different things, three different lifetimes, following what safety
+# apps of this kind do (Life360 keeps precise movement ~30 days and coarse
+# data far longer; Google moved Timeline on-device with auto-delete on):
+#
+#   the live trail        deleted the moment she marks safe or stops sharing
+#                         (already the behaviour — mark_safe / revoke_sharing)
+#   an ordinary journey   JOURNEY_RETENTION_DAYS after its deadline
+#   a journey where her   INCIDENT_RETENTION_DAYS instead: this is the record
+#   circle was alerted    that matters if something happened to her
+#   anonymous counts      kept, because they name nobody (see _record_journey_stat)
+#
+# She can also delete a journey, or all of them, at any time — that is
+# immediate and does not wait for any of these (DELETE endpoints below).
+#
+# Both numbers are settings, not constants in code, because the owner is
+# taking them to the client for approval.
+def _retention_days(name: str, default: int) -> int:
+    try:
+        return max(1, int(os.environ.get(name, default)))
+    except (TypeError, ValueError):
+        logger.warning("[journey] %s is not a number; using %d days.", name, default)
+        return default
+
+
+JOURNEY_RETENTION_DAYS  = _retention_days("JOURNEY_RETENTION_DAYS", 30)
+INCIDENT_RETENTION_DAYS = _retention_days("INCIDENT_RETENTION_DAYS", 90)
+# A migration floor: a record that already exists keeps at least this long
+# after the change lands, so turning deletion on never wipes history the same
+# minute. Only applies to the one-off backfill.
+BACKFILL_MIN_DAYS = 7
+
+
+def _purge_moment(journey_end: datetime, incident: bool = False, now: datetime | None = None) -> datetime:
+    """When this journey should disappear. Measured from the journey's end,
+    never from a moment already past."""
+    now = now or datetime.now(timezone.utc)
+    days = INCIDENT_RETENTION_DAYS if incident else JOURNEY_RETENTION_DAYS
+    return max(journey_end, now) + timedelta(days=days)
 _MAX_LABEL   = 120         # destination label max chars
 
 def _new_token() -> str:
@@ -152,6 +194,100 @@ async def _guardian_access_check(
     return rec, GuardianAccessLevel.HISTORICAL_ONLY, link
 
 
+# ── A45/A46: telling a trusted person who has no app ────────────────────────
+#
+# The app fan-out below reaches people with a DHARA account. These links have
+# none: they accepted from an email and are reached the same way. The alert
+# record is created either way; this only decides how it leaves the building.
+
+_EMAIL_ALERT_TYPES = {"journey_started", "missed_checkin", "journey_completed"}
+
+
+def _email_recipient(link: dict) -> Optional[str]:
+    """The address to write to, or None when this link is not an email one."""
+    if link.get("invitee_user_id"):
+        return None                      # reachable in the app
+    if link.get("status") != "accepted":
+        return None                      # never write to someone who has not agreed
+    if link.get("muted"):
+        return None
+    from services.guardian_email import normalise_email
+    return normalise_email(link.get("contact_email"))
+
+
+async def _email_linked_recipient(link: dict, rec: dict, owner_name: str, type_: str) -> bool:
+    """Send one guardian email. Never raises: a mail failure must not break
+    the journey action that triggered it."""
+    address = _email_recipient(link)
+    if not address or type_ not in _EMAIL_ALERT_TYPES:
+        return False
+    try:
+        from services import guardian_email as ge
+        from services.outbound_guard import EMAIL
+        from mailer import (
+            email_configured, send_email,
+            guardian_journey_started_email, guardian_missed_checkin_email,
+            guardian_journey_safe_email,
+        )
+        if not email_configured() or not ge.may_email(address):
+            return False
+
+        perms = link.get("permissions") or {}
+        if type_ == "journey_started" and not perms.get("journey_updates", True):
+            return False
+
+        # A46 (option 2): the link shows her last known AREA and nothing more,
+        # and only while the journey is open. Sent only to someone she allowed
+        # to see her location.
+        view_url = None
+        if perms.get("temp_location"):
+            token = ge.view_token_for(link["id"])
+            view_url = ge.guardian_view_url(token) if token else None
+
+        contact_name = link.get("contact_name") or ""
+        if type_ == "journey_started":
+            subject, html = guardian_journey_started_email(
+                owner_name=owner_name, contact_name=contact_name,
+                destination=rec.get("destination") or "her destination",
+                expected_time=_local_clock(rec.get("expected_checkin_at")),
+                view_url=view_url,
+            )
+        elif type_ == "missed_checkin":
+            last = rec.get("last_location") if perms.get("temp_location") else None
+            subject, html = guardian_missed_checkin_email(
+                owner_name=owner_name, contact_name=contact_name,
+                expected_time=_local_clock(rec.get("expected_checkin_at")),
+                last_area=(last or {}).get("area"),
+                last_seen_mins=_age_seconds((last or {}).get("updated_at"), datetime.now(timezone.utc)) // 60
+                if last and (last or {}).get("updated_at") else None,
+                view_url=view_url,
+            )
+        else:
+            subject, html = guardian_journey_safe_email(
+                owner_name=owner_name, contact_name=contact_name,
+            )
+        await send_email(to=address, subject=subject, html=html, channel=EMAIL)
+        logger.info("[journey] guardian email sent (%s)", type_)
+        return True
+    except Exception as e:
+        logger.warning("[journey] guardian email failed (%s): %s", type_, e)
+        return False
+
+
+def _local_clock(iso: Optional[str]) -> str:
+    """A time a person can read. IST, because that is where the pilot is."""
+    if not iso:
+        return "the time she set"
+    try:
+        when = datetime.fromisoformat(iso)
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=timezone.utc)
+        ist = when.astimezone(timezone(timedelta(hours=5, minutes=30)))
+        return ist.strftime("%-I:%M %p on %-d %B")
+    except Exception:
+        return "the time she set"
+
+
 async def _notify_linked_recipients(
     user: dict, rec: dict, type_: str, extra_payload: Optional[dict] = None,
     idempotency_suffix: Optional[str] = None,
@@ -217,6 +353,12 @@ async def _notify_linked_recipients(
             )
             if doc:
                 alerted.append(link_id)
+            # A45: the same news by email, for a trusted person with no app.
+            # Independent of `doc`: an alert record is for the app's own
+            # Alerts screen, which an email guardian will never open.
+            await _email_linked_recipient(
+                link, rec, user.get("name") or "A DHARA user", type_,
+            )
         except Exception as e:
             logger.warning("[journey] alert fan-out failed for link %s: %s", link_id, e)
     return alerted
@@ -321,6 +463,11 @@ async def create_journey(body: JourneyIn, user: dict = Depends(current_user)):
         "sharing_revoked_at":  None,   # set by POST .../revoke — owner withdraws sharing without claiming arrival
         "created_at":          now.isoformat(),
         "expires_at":          (now + timedelta(hours=_TTL_HOURS)).isoformat(),
+        # A12: when this record disappears, as a real BSON date — Mongo's TTL
+        # monitor cannot act on the ISO strings this module stores. Pushed out
+        # later if her circle is ever alerted for this journey.
+        "purge_at":            _purge_moment(now + timedelta(minutes=body.duration_mins), now=now),
+        "incident":            False,
         "recipient_link_ids":  body.recipient_link_ids,
         "remind_before_mins":  body.remind_before_mins,
         "reminder_sent_at":    None,
@@ -384,6 +531,9 @@ async def mark_safe(token: str, user: dict = Depends(current_user)):
     rec["status"] = "safe"
     rec["safe_at"] = now.isoformat()
     await _notify_linked_recipients(user, rec, "journey_completed")
+    # A12: the live trail is already gone (above). One anonymous line stays,
+    # so the product can be counted after the journey itself is deleted.
+    await _record_journey_stat(rec, "safe")
     return {"ok": True, "safe_at": now.isoformat()}
 
 
@@ -437,7 +587,48 @@ async def revoke_sharing(token: str, user: dict = Depends(current_user)):
     # now also treats sharing_revoked_at as closed, so no stale location
     # leaks through this notification either.
     await _notify_linked_recipients(user, rec, "sharing_ended")
+    # A12: the trail is gone (above); the anonymous line stays.
+    await _record_journey_stat(rec, "sharing_withdrawn")
     return {"ok": True, "revoked_at": rec["sharing_revoked_at"]}
+
+
+# ── A12: her own control over her history ────────────────────────────────────
+#
+# Immediate, not on any timer. Google Play requires an app with accounts to
+# offer deletion of the data tied to them, and the DPDP Act requires erasure
+# when she withdraws consent. The anonymous counts in journey_stats are not
+# touched: they hold no identifier and cannot be traced back to her.
+
+@router.delete("/journey/status/{token}", status_code=200)
+async def delete_journey(token: str, user: dict = Depends(current_user)):
+    """Delete one of her journeys, now. Also stops any alert for it."""
+    rec = await db.safety_journeys.find_one({"token": token})
+    if not rec:
+        return {"ok": True, "deleted": 0}          # already gone: nothing to say
+    if rec["user_id"] != user["id"]:
+        raise HTTPException(403, "Not your journey")
+    res = await db.safety_journeys.delete_one({"token": token, "user_id": user["id"]})
+    logger.info("[journey] user deleted 1 journey")
+    return {"ok": True, "deleted": res.deleted_count}
+
+
+@router.delete("/journey/history", status_code=200)
+async def delete_journey_history(user: dict = Depends(current_user)):
+    """Delete every journey of hers that is over.
+
+    A journey still in progress is left alone on purpose: deleting it would
+    silently switch off the alarm her circle is relying on. She ends it with
+    "I'm safe" or "Stop sharing" first, then deletes.
+    """
+    res = await db.safety_journeys.delete_many({
+        "user_id": user["id"],
+        "status": {"$ne": "in_progress"},
+    })
+    still_running = await db.safety_journeys.count_documents({
+        "user_id": user["id"], "status": "in_progress",
+    })
+    logger.info("[journey] user deleted %d past journeys", res.deleted_count)
+    return {"ok": True, "deleted": res.deleted_count, "still_running": still_running}
 
 
 class MissedCheckinIn(BaseModel):
@@ -497,6 +688,11 @@ async def report_missed_checkin(
             "alerted_link_ids": [], "selected": selected,
         }
     alerted = await _notify_linked_recipients(user, rec, "missed_checkin")
+    # A12: her circle was alerted, so this journey is kept for
+    # INCIDENT_RETENTION_DAYS instead of the ordinary window, and counted.
+    await mark_journey_incident(token)
+    if not rec.get("incident"):
+        await _record_journey_stat(rec, "missed_checkin")
     return {"ok": True, "alerted_link_ids": alerted, "selected": selected}
 
 
@@ -651,15 +847,28 @@ async def extend_checkin(token: str, body: ExtendIn, user: dict = Depends(curren
     except Exception:
         current_deadline = datetime.now(timezone.utc)
     new_deadline = current_deadline + timedelta(minutes=body.additional_mins)
+    now = datetime.now(timezone.utc)
+    # A12: the retention window runs from the journey's end, so a later
+    # deadline moves the delete date with it. An incident keeps its longer
+    # window.
+    purge_at = _purge_moment(new_deadline, incident=bool(rec.get("incident")), now=now)
     await db.safety_journeys.update_one(
         {"token": token},
         {"$set": {
             "expected_checkin_at":        new_deadline.isoformat(),
             "missed_checkin_notified_at": None,
             "reminder_sent_at":           None,
+            "purge_at":                   purge_at,
         }},
     )
-    return {"ok": True, "expected_checkin_at": new_deadline.isoformat()}
+    # A28: server_time rides along so the phone can re-measure how far its own
+    # clock is from the server's and keep the countdown on the server's
+    # deadline, not the phone's idea of the time.
+    return {
+        "ok": True,
+        "expected_checkin_at": new_deadline.isoformat(),
+        "server_time": now.isoformat(),
+    }
 
 
 @router.patch("/journey/status/{token}/destination", status_code=200)
@@ -698,6 +907,148 @@ async def change_destination(token: str, body: ChangeDestinationIn, user: dict =
 # database keep rendering for recipients.
 
 
+async def mark_journey_incident(token: str) -> None:
+    """A12: her circle was alerted for this journey, so keep it longer.
+
+    Called from both alert paths — the deadline worker and the app's own
+    missed-check-in report. Idempotent: the second call finds `incident`
+    already true and changes nothing. Never raises: an alert must go out
+    even if this bookkeeping fails.
+    """
+    try:
+        rec = await db.safety_journeys.find_one({"token": token})
+        if not rec or rec.get("incident"):
+            return
+        try:
+            journey_end = datetime.fromisoformat(rec["expected_checkin_at"])
+        except Exception:
+            journey_end = datetime.now(timezone.utc)
+        await db.safety_journeys.update_one(
+            {"token": token},
+            {"$set": {
+                "incident": True,
+                "purge_at": _purge_moment(journey_end, incident=True),
+            }},
+        )
+    except Exception as e:
+        logger.warning("[journey] could not extend retention for %s: %s", token, e)
+
+
+async def _record_journey_stat(rec: dict, outcome: str) -> None:
+    """A12: one anonymous line for the product's own counting, written when a
+    journey ends.
+
+    It names nobody and locates nobody: no user id, no token, no coordinates,
+    no destination, no recipient. Only how long the journey was planned for,
+    how long it actually ran, and how it ended. That is what makes it safe to
+    keep after the journey itself is deleted.
+
+    Never raises: counting must not be able to break a journey ending.
+    """
+    try:
+        now = datetime.now(timezone.utc)
+        started = rec.get("started_at")
+        planned = rec.get("expected_checkin_at")
+        def _mins(a, b):
+            try:
+                return int((datetime.fromisoformat(b) - datetime.fromisoformat(a)).total_seconds() // 60)
+            except Exception:
+                return None
+        await db.journey_stats.insert_one({
+            "outcome":          outcome,            # safe | missed_checkin | sharing_withdrawn
+            "planned_mins":     _mins(started, planned) if started and planned else None,
+            "actual_mins":      _mins(started, now.isoformat()) if started else None,
+            "had_alert":        bool(rec.get("incident")) or outcome == "missed_checkin",
+            "recipient_count":  len(rec.get("recipient_link_ids") or []),
+            "had_live_location": bool(rec.get("last_location")),
+            "ended_at":         now,
+        })
+    except Exception as e:
+        logger.warning("[journey] stat not recorded (%s): %s", outcome, e)
+
+
+async def ensure_journey_ttl_index(database) -> None:
+    """A12: let Mongo delete journey records once `purge_at` has passed.
+
+    A journey holds her destination and her last known coordinates. Nothing
+    deleted them: an expired journey was refused with 410 but stayed in the
+    database for ever. With `expireAfterSeconds=0` Mongo removes each record
+    at the moment stored in `purge_at` (a real BSON date — the TTL monitor
+    ignores the ISO strings this module stores for its own use).
+
+    Same shape as ensure_error_event_ttl_index in server.py: called once at
+    startup, takes the database explicitly so a test can pass a fake, and
+    never stops the app from booting.
+
+    Records written before this change have no `purge_at`, so Mongo would
+    keep them for ever. backfill_journey_purge_at below gives them one,
+    without deleting anything that already exists for at least
+    BACKFILL_MIN_DAYS.
+    """
+    try:
+        await database.safety_journeys.create_index(
+            "purge_at", expireAfterSeconds=0, name="safety_journeys_ttl",
+        )
+    except Exception as e:
+        logger.warning(f"[startup] safety_journeys TTL index warning: {e}")
+
+
+async def backfill_journey_purge_at(database) -> int:
+    """A12: give older journey records a delete time, once.
+
+    The window runs from each record's own `created_at` (an ISO string, so
+    the date is built in the database itself), with a floor of
+    BACKFILL_MIN_DAYS from now so nothing already stored disappears the
+    moment this is switched on. A record already marked as an incident gets
+    the longer window.
+    """
+    try:
+        # The window runs from each record's own creation, plus a floor of
+        # BACKFILL_MIN_DAYS from now: turning deletion on must never wipe
+        # existing history the same minute, even for records already older
+        # than the retention window.
+        floor_ms = BACKFILL_MIN_DAYS * 24 * 3600 * 1000
+        window_ms = JOURNEY_RETENTION_DAYS * 24 * 3600 * 1000
+        incident_ms = INCIDENT_RETENTION_DAYS * 24 * 3600 * 1000
+        res = await database.safety_journeys.update_many(
+            {"purge_at": {"$exists": False}},
+            [{"$set": {"purge_at": {"$max": [
+                {"$add": ["$$NOW", floor_ms]},
+                {"$add": [
+                    {"$ifNull": [
+                        {"$dateFromString": {"dateString": "$created_at", "onError": None, "onNull": None}},
+                        "$$NOW",
+                    ]},
+                    {"$cond": [{"$eq": [{"$ifNull": ["$incident", False]}, True]}, incident_ms, window_ms]},
+                ]},
+            ]}}}],
+        )
+        if res.modified_count:
+            logger.warning("[startup] A12: gave %d older journey record(s) a delete time.", res.modified_count)
+        return res.modified_count
+    except Exception as e:
+        logger.warning(f"[startup] safety_journeys purge_at backfill warning: {e}")
+        return 0
+
+
+def _age_seconds(iso: str | None, now: datetime) -> int | None:
+    """A28: seconds between a stored timestamp and the server's own clock.
+
+    None when there is no timestamp or it cannot be read; never negative, so a
+    reading stamped slightly in the future reads as "just now" rather than as
+    a negative age.
+    """
+    if not iso:
+        return None
+    try:
+        taken = datetime.fromisoformat(iso)
+    except Exception:
+        return None
+    if taken.tzinfo is None:
+        taken = taken.replace(tzinfo=timezone.utc)
+    return max(0, int((now - taken).total_seconds()))
+
+
 @router.get("/journey/{token}/guardian", status_code=200)
 async def get_guardian_view(token: str, user: dict = Depends(current_user)):
     """Sign-in-gated Guardian endpoint (PR-1B full).
@@ -719,6 +1070,7 @@ async def get_guardian_view(token: str, user: dict = Depends(current_user)):
     response — just the closed state and when it closed — no full data dump.
     """
     rec, access_level, link = await _guardian_access_check(token, user)
+    now = datetime.now(timezone.utc)
 
     # Destination is location data: disclose only when temp_location is True.
     # This is an application-level check on the link record returned by the DB.
@@ -737,6 +1089,7 @@ async def get_guardian_view(token: str, user: dict = Depends(current_user)):
             "status":            rec.get("status"),
             "closed_at":         closed_at,
             "traveller_display": rec.get("user_display"),
+            "server_time":       now.isoformat(),
         }
 
     # Active journey: gate level determined by temp_location permission.
@@ -752,6 +1105,9 @@ async def get_guardian_view(token: str, user: dict = Depends(current_user)):
         "expected_checkin_at": rec.get("expected_checkin_at"),
         "status":              rec.get("status"),
         "safe_at":             rec.get("safe_at"),
+        # A28: the recipient's own phone clock may be wrong too, so the server
+        # states its own time. The age below is worked out here, from it.
+        "server_time":         now.isoformat(),
     }
     if show_destination:
         body["destination"] = rec.get("destination")
@@ -768,6 +1124,10 @@ async def get_guardian_view(token: str, user: dict = Depends(current_user)):
                     "accuracy":   last_loc.get("accuracy"),
                     "area":       last_loc.get("area"),
                     "updated_at": last_loc.get("updated_at"),
+                    # A28: how old this reading is, worked out by the server
+                    # from the true capture time (A07). Never negative; absent
+                    # when the stored time cannot be read.
+                    "age_seconds": _age_seconds(last_loc.get("updated_at"), now),
                 }
     return body
 
@@ -782,6 +1142,104 @@ def _public_details_enabled() -> bool:
     released through the signed-in, per-recipient route above.
     """
     return os.environ.get("GUARDIAN_PUBLIC_PAGE_DETAILS", "").strip().lower() in ("1", "true", "yes")
+
+
+# ── A46 (option 2): what an email guardian can see ──────────────────────────
+#
+# Deliberately the least that is still useful: her name, that she is on a
+# journey or has not checked in, the AREA she was last in, and how long ago.
+# No coordinates, no map, no destination, no history, no account.
+#
+# The address is a capability — anyone holding the link can open it — so it
+# is narrow by design: it shows nothing once the journey is over, nothing if
+# she never allowed location, and nothing at all for an unknown token. The
+# owner can end it by removing that person from her circle, and the whole
+# estate can be ended by rotating GUARDIAN_LINK_SECRET.
+
+def _guardian_email_page(title: str, body: str) -> HTMLResponse:
+    html = (
+        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+        "<meta name=\"robots\" content=\"noindex,nofollow\">"
+        f"<title>{html_escape(title)} · Dhara</title>"
+        "<style>body{margin:0;background:#FDFBF7;font-family:system-ui,-apple-system,"
+        "Segoe UI,Roboto,Arial,sans-serif;color:#12203A}main{max-width:520px;margin:0 auto;"
+        "padding:28px 20px}.card{background:#fff;border-radius:14px;padding:24px;"
+        "box-shadow:0 1px 3px rgba(0,0,0,.06)}h1{font-size:20px;margin:0 0 12px}"
+        "p{font-size:16px;line-height:24px;margin:0 0 12px}.area{font-size:26px;"
+        "font-weight:800;margin:10px 0 2px}.muted{color:#4A5568;font-size:14px;line-height:21px}"
+        "</style></head><body><main><div class=\"card\">"
+        f"<h1>{html_escape(title)}</h1>{body}</div>"
+        "<p class=\"muted\" style=\"padding:16px 4px\">Dhara · MSafe Solutions. This page "
+        "shows an area only, never an exact position, and only while her journey is open."
+        "</p></main></body></html>"
+    )
+    return HTMLResponse(html, headers={"X-Robots-Tag": "noindex, nofollow",
+                                       "Cache-Control": "no-store"})
+
+
+@router.get("/guardian/email/{token}", response_class=HTMLResponse, include_in_schema=False)
+async def guardian_email_view(token: str):
+    """A46: her last known area, for a trusted person reading an email."""
+    from services.guardian_email import hash_token
+
+    nothing = _guardian_email_page(
+        "Nothing to show",
+        "<p>This link is not active. It may have been for a journey that has ended, or "
+        "the person may have changed who she shares with.</p>"
+        "<p class=\"muted\">If you were expecting to see something, contact her directly.</p>",
+    )
+
+    link = await db.trusted_circle_links.find_one({"view_token_hash": hash_token(token)})
+    if not link or link.get("status") != "accepted":
+        return nothing
+    if not (link.get("permissions") or {}).get("temp_location"):
+        return nothing
+
+    rec = await db.safety_journeys.find_one({
+        "user_id":            link["owner_id"],
+        "status":             "in_progress",
+        "sharing_revoked_at": None,
+        "recipient_link_ids": link["id"],
+    })
+    if not rec:
+        return nothing
+
+    owner = html_escape(rec.get("user_display") or link.get("owner_name") or "She")
+    now = datetime.now(timezone.utc)
+    missed = bool(rec.get("missed_checkin_notified_at"))
+    last = rec.get("last_location") or {}
+    area = last.get("area")
+    age_s = _age_seconds(last.get("updated_at"), now) if last.get("updated_at") else None
+
+    if area:
+        if age_s is None or age_s < 120:
+            when = "just now"
+        elif age_s < 3600:
+            when = f"about {age_s // 60} minutes ago"
+        else:
+            when = f"about {age_s // 3600} hours ago"
+        where = (f"<p>Last known area</p><p class=\"area\">{html_escape(area)}</p>"
+                 f"<p class=\"muted\">Updated {html_escape(when)}. "
+                 "An area, not an exact place.</p>")
+    else:
+        where = ("<p>Dhara has no recent location for her. Her phone may be off, out of "
+                 "signal, or the app may be closed.</p>")
+
+    if missed:
+        return _guardian_email_page(
+            f"{owner} has not checked in",
+            f"{where}<p>Please try to contact her. If you cannot reach her and you are "
+            "worried, call the police on 112.</p>"
+            "<p class=\"muted\">Dhara cannot tell whether she is safe, only that she has "
+            "not said so.</p>",
+        )
+    return _guardian_email_page(
+        f"{owner} is on a journey",
+        f"{where}<p class=\"muted\">She is expected to check in by "
+        f"{html_escape(_local_clock(rec.get('expected_checkin_at')))}. If she does not, "
+        "you will get an email.</p>",
+    )
 
 
 @router.get("/journey/status/{token}", response_class=HTMLResponse, include_in_schema=False)

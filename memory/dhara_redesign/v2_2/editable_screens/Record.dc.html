@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Record proof</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600&amp;family=Hind:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a,button{transition:transform .12s ease,background-color .15s ease;-webkit-tap-highlight-color:transparent;cursor:pointer}
+a:active,button:active{transform:scale(.96)}
+a:focus-visible,button:focus-visible{outline:3px solid #D3B675;outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.rise{animation:rise .35s ease both}
+@keyframes bar{0%,100%{transform:scaleY(.2)}50%{transform:scaleY(1)}}
+.bar{animation:bar .8s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.blink{animation:blink 1.2s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: {{bg}}; color: #FFFFFF; font-family: 'Hind', 'Noto Sans', sans-serif; display: flex; flex-direction: column; padding: 16px 20px 20px; gap: 14px; transition: background-color .3s ease">
+  <sc-if value="{{dark}}" hint-placeholder-val="{{false}}">
+    <button onClick="{{show}}" aria-label="Screen is hidden, still recording. Tap to show" style="flex: 1; border: none; background: #000000; font-family: inherit; color: #505B68; font-size: 14px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 24px">Tap anywhere to show the screen</button>
+  </sc-if>
+  <sc-if value="{{lit}}" hint-placeholder-val="{{true}}">
+    <div style="display: flex; align-items: center; gap: 8px">
+      <a href="Emergency.dc.html" aria-label="Back" style="width: 48px; height: 48px; border-radius: 24px; border: 1.5px solid #FFFFFF; display: flex; align-items: center; justify-content: center">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+      </a>
+      <a href="Home.dc.html" aria-label="Home" style="width: 48px; height: 48px; border-radius: 24px; border: 1.5px solid #FFFFFF; display: flex; align-items: center; justify-content: center">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7M6 10v9h12v-9"/></svg>
+      </a>
+      <a href="Emergency.dc.html" style="margin-left: auto; height: 48px; min-width: 56px; justify-content: center; padding: 0 18px; border-radius: 24px; background: #B42318; color: #FFFFFF; font-size: 16px; font-weight: 600; text-decoration: none; display: flex; align-items: center">SOS</a>
+    </div>
+    <sc-if value="{{recording}}" hint-placeholder-val="{{true}}">
+      <div style="flex: 1; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 10px">
+          <span class="{{dotClass}}" style="width: 16px; height: 16px; border-radius: 8px; background: #B42318; border: 2px solid #FFFFFF"></span>
+          <h1 style="margin: 0; font-family: 'Fraunces', serif; font-size: 26px; font-weight: 600; color: #FFFFFF">{{title}}</h1>
+        </div>
+        <div style="text-align: center; font-family: 'Fraunces', serif; font-size: 64px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums">{{clock}}</div>
+        <div aria-hidden="true" style="height: 110px; display: flex; align-items: center; justify-content: center; gap: 6px">
+          <sc-for list="{{bars}}" as="b" hint-placeholder-count="15">
+            <span class="bar" style="width: 8px; height: {{b.h}}; border-radius: 4px; background: #FFFFFF; animation-delay: {{b.delay}}; animation-play-state: {{play}}"></span>
+          </sc-for>
+        </div>
+        <div style="display: flex; justify-content: center; gap: 8px">
+          <sc-for list="{{modes}}" as="m" hint-placeholder-count="2">
+            <button onClick="{{m.pick}}" aria-pressed="{{m.on}}" style="height: 48px; padding: 0 18px; border-radius: 24px; border: 2px solid #FFFFFF; background: {{m.bg}}; color: {{m.fg}}; font-family: inherit; font-size: 16px; font-weight: 600">{{m.label}}</button>
+          </sc-for>
+        </div>
+        <p style="margin: 0; text-align: center; font-size: 15px; line-height: 1.4; color: #FFFFFF">Saved on this phone. Sharing is your choice.</p>
+        <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; gap: 10px">
+            <button onClick="{{stop}}" style="flex: 2; height: 68px; border-radius: 18px; border: none; background: #FFFFFF; color: #7F1D1D; font-family: inherit; font-size: 20px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px">
+              <span aria-hidden="true" style="width: 20px; height: 20px; border-radius: 4px; background: #B42318"></span>
+              Stop and save
+            </button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{saved}}" hint-placeholder-val="{{false}}">
+      <div class="rise" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center">
+        <div style="width: 96px; height: 96px; border-radius: 48px; background: #1F6B4A; display: flex; align-items: center; justify-content: center; margin-top: 70px">
+          <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+        </div>
+        <h1 style="margin: 0; font-family: 'Fraunces', serif; font-size: 28px; font-weight: 600; color: #FFFFFF">Saved in My Files</h1>
+        <p style="margin: 0; font-size: 17px; line-height: 1.45; color: #FFFFFF">{{savedMsg}}</p>
+        <div style="margin-top: auto; width: 100%; display: flex; flex-direction: column; gap: 10px">
+          <a href="Files.dc.html" style="height: 64px; border-radius: 18px; background: #D3B675; color: #0E2740; font-size: 20px; font-weight: 600; text-decoration: none; display: flex; align-items: center; justify-content: center">Open My Files</a>
+          <button onClick="{{again}}" style="height: 60px; border-radius: 18px; border: 2px solid #FFFFFF; background: transparent; color: #FFFFFF; font-family: inherit; font-size: 18px; font-weight: 600">Record again</button>
+        </div>
+      </div>
+    </sc-if>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+componentDidMount() {
+this.timer = setInterval(() => {
+const s = this.state || {};
+if (s.paused || s.saved) return;
+this.setState({ secs: (s.secs || 0) + 1 });
+}, 1000);
+}
+componentWillUnmount() {
+clearInterval(this.timer);
+}
+renderVals() {
+const s = this.state || {};
+const secs = s.secs || 0;
+const paused = !!s.paused;
+const saved = !!s.saved;
+const dark = !!s.dark && !saved;
+const mode = s.mode || 'Sound only';
+const m = Math.floor(secs / 60);
+const sec = secs % 60;
+const clock = m + ':' + (sec < 10 ? '0' : '') + sec;
+const heights = [30, 52, 80, 46, 100, 64, 110, 72, 96, 50, 84, 40, 70, 56, 28];
+return {
+bg: dark ? '#000000' : '#0E2740',
+dark: dark, lit: !dark,
+recording: !saved, saved: saved,
+title: paused ? 'Paused' : 'Recording',
+dotClass: paused ? '' : 'blink',
+clock: clock,
+bars: heights.map((h, i) => ({ h: h + 'px', delay: (i * 0.06) + 's' })),
+play: paused ? 'paused' : 'running',
+modes: ['Sound only', 'Sound and video'].map((l) => ({
+label: l, on: l === mode,
+bg: l === mode ? '#FFFFFF' : 'transparent', fg: l === mode ? '#0E2740' : '#FFFFFF',
+pick: () => this.setState({ mode: l })
+})),
+pauseLabel: paused ? 'Go on' : 'Pause',
+togglePause: () => this.setState({ paused: !paused }),
+hide: () => this.setState({ dark: true }),
+show: () => this.setState({ dark: false }),
+stop: () => this.setState({ saved: true }),
+again: () => this.setState({ saved: false, secs: 0, paused: false }),
+savedMsg: 'Your recording of ' + clock + ' is kept on this phone with the date and time.'
+};
+}
+}
+</script>
+</body>
+</html>
