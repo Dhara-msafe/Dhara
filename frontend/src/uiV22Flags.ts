@@ -359,3 +359,25 @@ export const UI_V22_S12 = process.env.EXPO_PUBLIC_UI_V22_S12 === 'true';
  * today's 40x40 back button exactly as before.
  */
 export const UI_V22_S2 = process.env.EXPO_PUBLIC_UI_V22_S2 === 'true';
+
+/**
+ * Home simplification (client feedback, 24 Nov: "lot of things on screen").
+ *
+ * Home rendered nine blocks — navy header, Ask card, "What matters to you?"
+ * nudge, For you right now, Family Journey, an interest card, Help journeys,
+ * a rights banner and a My files preview — on top of four tabs, a mic, All
+ * help, the bug button and SOS. Roughly fifteen choices on one screen, in an
+ * app people open when something has gone wrong.
+ *
+ * With the flag on Home does one job and shows four things:
+ *   1. the header
+ *   2. "Tell DHARA what happened" — the one thing the product is for
+ *   3. one card to resume, only when there is something to resume
+ *   4. Help journeys — everything you could start
+ *
+ * Nothing is deleted and nothing becomes unreachable: the nudge lives on Me
+ * where the interests are, the rights banner on the Rights tab, the My files
+ * preview duplicated both the Files tab and the resume card above it, and
+ * Head out and Family Journey become tiles in the Help journeys grid.
+ */
+export const UI_V22_HOME_SIMPLE = process.env.EXPO_PUBLIC_UI_V22_HOME_SIMPLE === 'true';

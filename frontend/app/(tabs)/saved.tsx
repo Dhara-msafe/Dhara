@@ -2,14 +2,19 @@ import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { tabBackTarget } from '@/src/tabBackTarget';
+import { UI_V22_ONE_SOS } from '@/src/uiV22Flags';
+import { focusRingStyle } from '@/src/a11yFocus';
 import { Bookmark, loadLocal, removeBookmark, syncBookmarks } from '@/src/bookmarks';
 import { formatDateDMY } from '@/src/dateFormat';
 
 export default function SavedScreen() {
   const { token, user } = useAuth();
+  const router = useRouter();
+  const { from } = useLocalSearchParams<{ from?: string }>();
   const [items, setItems] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -46,8 +51,13 @@ export default function SavedScreen() {
     return (
       <SafeAreaView style={styles.safe} edges={['top']} testID="saved-screen">
         <View style={styles.header}>
-          <Text style={styles.h1}>Saved answers</Text>
-          <Text style={styles.h2}>Kept on this phone — opens without internet</Text>
+          <View style={styles.titleRow}>
+            <Pressable testID="saved-back" onPress={() => router.navigate(tabBackTarget(from) as any)} hitSlop={8} style={(s) => [styles.backBtn, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
+              <Ionicons name="chevron-back" size={24} color={theme.colors.primary} />
+            </Pressable>
+            <Text style={styles.h1}>Saved answers</Text>
+          </View>
+          <Text style={[styles.h2, styles.h2Indented]}>Kept on this phone — opens without internet</Text>
         </View>
         <View style={styles.empty}>
           <Ionicons name="lock-closed-outline" size={56} color={theme.colors.brandSecondary} />
@@ -71,8 +81,13 @@ export default function SavedScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']} testID="saved-screen">
       <View style={styles.header}>
-        <Text style={styles.h1}>Saved answers</Text>
-        <Text style={styles.h2}>Kept on this phone — opens without internet</Text>
+        <View style={styles.titleRow}>
+          <Pressable testID="saved-back" onPress={() => router.navigate(tabBackTarget(from) as any)} hitSlop={8} style={(s) => [styles.backBtn, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
+              <Ionicons name="chevron-back" size={24} color={theme.colors.primary} />
+            </Pressable>
+          <Text style={styles.h1}>Saved answers</Text>
+        </View>
+        <Text style={[styles.h2, styles.h2Indented]}>Kept on this phone — opens without internet</Text>
       </View>
 
       {items.length === 0 ? (
@@ -140,8 +155,16 @@ export default function SavedScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.surface },
+  // 22 Nov (Vivek): this hidden tab had no way back. The arrow goes to the
+  // screen that opened it (src/tabBackTarget.ts), Me by default.
+  // Keeps the heading clear of the floating top-right SOS, which only shows
+  // when UI_V22_ONE_SOS is off (release builds have one SOS, at the bottom).
+  titleRow: { flexDirection: 'row', alignItems: 'center', paddingRight: UI_V22_ONE_SOS ? 0 : 92 },
+  backBtn: { width: 36, height: 40, marginLeft: -8, alignItems: 'flex-start', justifyContent: 'center' },
+  // Subtitle starts under the heading text, not under the arrow.
+  h2Indented: { marginLeft: 28 },
   header: { padding: theme.spacing.xl, paddingBottom: theme.spacing.md, borderBottomWidth: 1, borderBottomColor: theme.colors.divider },
-  h1: { fontFamily: theme.fonts.display, fontSize: 28, color: theme.colors.brand, fontWeight: '700' },
+  h1: { flexShrink: 1, fontFamily: theme.fonts.display, fontSize: 28, color: theme.colors.brand, fontWeight: '700' },
   h2: { color: theme.colors.onSurfaceSecondary, marginTop: 4, fontSize: 13 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: theme.spacing.xxl },
   emptyTitle: { fontFamily: theme.fonts.display, fontSize: 20, color: theme.colors.brand, marginTop: theme.spacing.lg, fontWeight: '700' },

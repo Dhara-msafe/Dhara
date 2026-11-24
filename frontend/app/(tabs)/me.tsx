@@ -45,8 +45,8 @@ export default function Me() {
     { icon: 'globe-outline', key: 'me.language', value: language.native, route: '/language' },
     { icon: 'help-buoy-outline', key: 'me.help', route: '/(tabs)/settings' },
     { icon: 'location-outline', key: 'me.state', value: user?.state_name || 'Add your state', route: '/state' },
-    { icon: 'chatbubbles-outline', key: 'me.history', route: '/(tabs)/history' },
-    { icon: 'bookmark-outline', key: 'me.saved', route: '/(tabs)/saved' },
+    { icon: 'chatbubbles-outline', key: 'me.history', route: '/(tabs)/history?from=me' },
+    { icon: 'bookmark-outline', key: 'me.saved', route: '/(tabs)/saved?from=me' },
     // B-97: advocate/lawyer features are hidden for Wave 1 per D-14.
     ...(ADVOCATE_MODE_ENABLED ? [{ icon: 'briefcase-outline' as any, key: 'me.advocate', route: '/(tabs)/advocate' }] : []),
     { icon: 'settings-outline', key: 'me.settings', route: '/(tabs)/settings' },

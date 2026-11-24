@@ -13,7 +13,7 @@ import { useUserProfile } from '@/src/userProfile';
 import { unreadCount } from '@/src/trustedCircle/api';
 import { useFamilyJourneyEnabled } from '@/src/familyJourney/store';
 import { FJ_SEND_ENABLED } from '@/src/familyJourney/flags';
-import { UI_V22_P5_HOME, UI_V22_P8 } from '@/src/uiV22Flags';
+import { UI_V22_P5_HOME, UI_V22_P8, UI_V22_HOME_SIMPLE } from '@/src/uiV22Flags';
 
 /** Same gate as women-shield.tsx — when Head Out is off, fall back to the shield. */
 const HEAD_OUT_ENABLED = process.env.EXPO_PUBLIC_SAFETY_SESSION_V1 === 'true';
@@ -80,6 +80,16 @@ export default function Home() {
     // v2.2 phase 5b: with the flag on, this tile is dropped — the "All help"
     // link above the grid is the one way in, not two side by side.
     ...(UI_V22_P5_HOME ? [] : [{ key: 'home.allHelp', sub: 'सारी मदद',   icon: 'apps-outline', route: '/all-help', allHelp: true }]),
+    // UI_V22_HOME_SIMPLE: these two lose their cards in "For you right now",
+    // so they become tiles here — the grid is where every other destination
+    // already lives. Both keep their own gates, so a switched-off feature
+    // does not gain an entry point.
+    ...(UI_V22_HOME_SIMPLE && HEAD_OUT_ENABLED
+      ? [{ key: 'j.headout', sub: 'सुरक्षित यात्रा', icon: 'navigate-outline', route: '/women/head-out' }]
+      : []),
+    ...(UI_V22_HOME_SIMPLE && familyJourneyEnabled
+      ? [{ key: 'j.family', sub: 'परिवार', icon: 'people-circle-outline', route: '/family-journey' }]
+      : []),
   ];
 
   // Promote profile-matching tiles right after the engine tile (position 1).
@@ -96,6 +106,52 @@ export default function Home() {
   // 'engine.title' and 'j.*' are looked up in ui18n.ts; fall back to a plain
   // English label if a language pack hasn't added the key yet.
   const jLabel = (key: string) => (key === 'engine.title' ? 'Dhara Engine' : tr(key, lang));
+
+
+  /**
+   * v2.2 Home simplification (UI_V22_HOME_SIMPLE).
+   *
+   * "For you right now" was a horizontal shelf of fixed 280px cards. On a
+   * 390px phone that leaves 76px of the next card showing — too much to read
+   * as "swipe for more", too little to read as a card, so it looks broken,
+   * and the floating buttons landed on top of exactly that fragment.
+   *
+   * With the flag on the section shows ONE full-width card: the thing to
+   * resume. It does not auto-scroll. A card that says "step 1 of 6" is a task
+   * someone came back to finish, and content that slides away while it is
+   * being read takes control from the reader — worse in an app used under
+   * stress, and it would need a pause control to meet WCAG 2.2.2 anyway.
+   *
+   * The Head out, Family Journey and interest cards move to the Help
+   * journeys grid below, where every other destination already lives.
+   */
+  const forYouPrimaryCard = primaryCase && primaryProgress ? (
+    <View style={[styles.forYouCard, UI_V22_HOME_SIMPLE && styles.forYouCardFull, { backgroundColor: c.navy }]}>
+      <View style={styles.forYouTag}>
+        <Ionicons name="time-outline" size={13} color={c.gold} />
+        <Text style={styles.forYouTagTxt}>
+          {isDraftReady(primaryCase) ? 'DRAFT READY' : `STEP ${primaryProgress.step} OF ${primaryProgress.total}`}
+        </Text>
+      </View>
+      <Text style={styles.forYouTitle} numberOfLines={2}>{complaintTitle(primaryCase)}</Text>
+      <Text style={styles.forYouBody} numberOfLines={2}>{primaryProgress.label}</Text>
+      <Pressable style={styles.goldBtn} onPress={() => openCase(primaryCase)} testID="foryou-case-cta" accessibilityRole="button" accessibilityLabel={isDraftReady(primaryCase) ? 'View your complaint draft' : 'Continue your case'}>
+        <Text style={styles.goldBtnTxt}>{isDraftReady(primaryCase) ? 'View draft' : 'Continue'}</Text>
+      </Pressable>
+    </View>
+  ) : !casesLoading ? (
+    <View style={[styles.forYouCard, UI_V22_HOME_SIMPLE && styles.forYouCardFull, { backgroundColor: c.navy }]}>
+      <View style={styles.forYouTag}>
+        <Ionicons name="add-circle-outline" size={13} color={c.gold} />
+        <Text style={styles.forYouTagTxt}>GET STARTED</Text>
+      </View>
+      <Text style={styles.forYouTitle}>Start your first case</Text>
+      <Text style={styles.forYouBody}>Tell DHARA what happened — we’ll help you draft a complaint, step by step.</Text>
+      <Pressable style={styles.goldBtn} onPress={() => router.push('/engine')} testID="foryou-start-case" accessibilityRole="button" accessibilityLabel="Start your first case">
+        <Text style={styles.goldBtnTxt}>Start</Text>
+      </Pressable>
+    </View>
+  ) : null;
 
   return (
     <View style={styles.root}>
@@ -182,7 +238,9 @@ export default function Home() {
           ))}
 
           {/* ── Onboarding nudge for users who haven't set interests yet ── */}
-          {loaded && interests.length === 0 && (
+          {/* UI_V22_HOME_SIMPLE: this belongs on Me, where the interests it
+              asks for actually live. */}
+          {!UI_V22_HOME_SIMPLE && loaded && interests.length === 0 && (
             <Pressable
               style={styles.onboardCard}
               onPress={() => router.push('/(tabs)/me')}
@@ -208,34 +266,11 @@ export default function Home() {
             <Text style={styles.sectionTitle}>{tr('home.forYou', lang)}</Text>
           </View>
         </View>
+        {UI_V22_HOME_SIMPLE ? (
+          <View style={styles.shelfSingle}>{forYouPrimaryCard}</View>
+        ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelf}>
-          {primaryCase && primaryProgress ? (
-            <View style={[styles.forYouCard, { backgroundColor: c.navy }]}>
-              <View style={styles.forYouTag}>
-                <Ionicons name="time-outline" size={13} color={c.gold} />
-                <Text style={styles.forYouTagTxt}>
-                  {isDraftReady(primaryCase) ? 'DRAFT READY' : `STEP ${primaryProgress.step} OF ${primaryProgress.total}`}
-                </Text>
-              </View>
-              <Text style={styles.forYouTitle} numberOfLines={2}>{complaintTitle(primaryCase)}</Text>
-              <Text style={styles.forYouBody} numberOfLines={2}>{primaryProgress.label}</Text>
-              <Pressable style={styles.goldBtn} onPress={() => openCase(primaryCase)} testID="foryou-case-cta" accessibilityRole="button" accessibilityLabel={isDraftReady(primaryCase) ? 'View your complaint draft' : 'Continue your case'}>
-                <Text style={styles.goldBtnTxt}>{isDraftReady(primaryCase) ? 'View draft' : 'Continue'}</Text>
-              </Pressable>
-            </View>
-          ) : !casesLoading ? (
-            <View style={[styles.forYouCard, { backgroundColor: c.navy }]}>
-              <View style={styles.forYouTag}>
-                <Ionicons name="add-circle-outline" size={13} color={c.gold} />
-                <Text style={styles.forYouTagTxt}>GET STARTED</Text>
-              </View>
-              <Text style={styles.forYouTitle}>Start your first case</Text>
-              <Text style={styles.forYouBody}>Tell DHARA what happened — we’ll help you draft a complaint, step by step.</Text>
-              <Pressable style={styles.goldBtn} onPress={() => router.push('/engine')} testID="foryou-start-case" accessibilityRole="button" accessibilityLabel="Start your first case">
-                <Text style={styles.goldBtnTxt}>Start</Text>
-              </Pressable>
-            </View>
-          ) : null}
+          {forYouPrimaryCard}
           <View style={[styles.forYouCard, styles.forYouCardLight]}>
             <View style={styles.forYouTag}>
               <Ionicons name="navigate-outline" size={13} color={c.darkGold} />
@@ -306,6 +341,7 @@ export default function Home() {
             </Pressable>
           )}
         </ScrollView>
+        )}
 
         {/* ── Help journeys ────────────────────────────── */}
         <View style={styles.section}>
@@ -347,6 +383,9 @@ export default function Home() {
         {/* DHARA-B024: removed placeholder legal text; replaced with a
             neutral, non-legal message per the acceptance criteria (no
             specific legal claim is asserted here). */}
+        {/* UI_V22_HOME_SIMPLE: the Rights tab is one tap away and says this
+            better than a banner can. */}
+        {!UI_V22_HOME_SIMPLE && (
         <Pressable style={styles.verified} onPress={() => router.push('/(tabs)/rights')} testID="rights-reminder-banner" accessibilityRole="button" accessibilityLabel="Learn about your rights">
           <Ionicons name="shield-checkmark" size={20} color={c.verifiedGreen} />
           <Text style={styles.verifiedTxt}>
@@ -356,13 +395,18 @@ export default function Home() {
           </Text>
           <Ionicons name="chevron-forward" size={16} color={c.muted} />
         </Pressable>
+        )}
 
         {/* ── My files preview ─────────────────────────── */}
         {/* v2.2 phase 5b: with the flag on, the empty card ("No cases yet —
             tap to start your first complaint") is hidden; "Start your first
             case" in "For you right now" is the one start action. The section
             shows as soon as a case exists. */}
-        {(!UI_V22_P5_HOME || (primaryCase && primaryProgress)) && (
+        {/* UI_V22_HOME_SIMPLE: dropped. With P5_HOME on it only renders when
+            a case exists — and then it repeats the resume card directly
+            above it, title and step and all, while the Files tab is one tap
+            away. */}
+        {!UI_V22_HOME_SIMPLE && (!UI_V22_P5_HOME || (primaryCase && primaryProgress)) && (
         <View style={styles.section}>
           <View style={styles.rowBetween}>
             <Text style={styles.h2}>{tr('home.myFiles', lang)}</Text>
@@ -448,7 +492,11 @@ const styles = StyleSheet.create({
   link: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.navy },
 
   shelf: { paddingHorizontal: 20, paddingTop: 14, gap: 14 },
+  // UI_V22_HOME_SIMPLE: one card, full width, no horizontal scroll, so
+  // nothing is ever clipped mid-card at 390px.
+  shelfSingle: { paddingHorizontal: 20, paddingTop: 14 },
   forYouCard: { width: 280, borderRadius: 20, padding: 18, justifyContent: 'space-between', minHeight: 170 },
+  forYouCardFull: { width: '100%' },
   forYouCardLight: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines },
   forYouTag: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
   forYouTagTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 11, color: c.gold, letterSpacing: 1 },
