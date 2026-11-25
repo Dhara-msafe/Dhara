@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, Platform, ActivityIndicator, Modal, Animated, PanResponder, AppState, type GestureResponderEvent, type PanResponderGestureState } from 'react-native';
 import { crossAlert } from '@/src/utils/crossAlert';
 import { alertPermissionBlocked } from '@/src/permissions/setup';
+import { useHeaderSosPresent } from '@/src/ui/headerSos';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -74,6 +75,8 @@ export default function ChatScreen() {
   // Mute button: the live auto-read state. A ref, so a reply that is still
   // loading when the user taps mute is not read aloud (send() captured the
   // old `autoSpeak` value when the question was sent).
+  // Redesign v3: this screen's own header carries SOS.
+  useHeaderSosPresent();
   const autoSpeakRef = useRef(autoSpeak);
   autoSpeakRef.current = autoSpeak;
   const { primaryInterest } = useUserProfile();

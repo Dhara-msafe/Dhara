@@ -28,12 +28,13 @@ const dock = read('src', 'components', 'dhara', 'FloatingDock.tsx');
 const help = read('src', 'components', 'dhara', 'GlobalHelpButton.tsx');
 const bug = read('src', 'components', 'IssueReporterButton.tsx');
 
-test('flag defaults OFF', () => {
-  assert.match(flags, /export const UI_V22_DOCK = process\.env\.EXPO_PUBLIC_UI_V22_DOCK === 'true';/);
+// Redesign v3, stage 2: the bottom dock is retired (SOS moved to the header).
+test('dock is retired: the flag is hard off', () => {
+  assert.match(flags, /export const UI_V22_DOCK: boolean = false;/);
 });
 
 test('flag OFF keeps the old floating layout exactly', () => {
-  assert.match(layout, /<View style=\{\{ flex: 1 \}\}>\s*\n\s*<Stack[^\n]*\/>\s*\n\s*<GlobalHelpButton \/>\s*\n\s*<IssueReporterButton \/>/);
+  assert.match(layout, /<View style=\{\{ flex: 1 \}\}>\s*\n\s*<QaInsetFrame>\s*\n\s*<Stack[^\n]*\/>\s*\n\s*<\/QaInsetFrame>\s*\n\s*<GlobalHelpButton \/>\s*\n\s*<IssueReporterButton \/>/);
 });
 
 test('flag ON on phones: the stack sits inside DockedStack (dock in layout flow)', () => {

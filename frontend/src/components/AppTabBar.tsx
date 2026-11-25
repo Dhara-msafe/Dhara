@@ -56,7 +56,9 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
 
   return (
     <View testID="app-bottom-navigation" style={styles.wrap}>
-      {activeName !== 'home' && <DisclaimerBanner />}
+      {/* Redesign v3: the disclaimer bar shows on Ask only (it used to sit
+          above the tab bar on every tab except Home). */}
+      {askFocused && <DisclaimerBanner />}
       <View style={styles.tabs}>
         {LEFT.map(renderTab)}
         {/* Redesign v3: Ask is a flat tab like the others (was a raised gold

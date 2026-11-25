@@ -2,6 +2,7 @@ import { View, Text, ScrollView, Pressable, StyleSheet, Image, useWindowDimensio
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBarCap } from '@/src/ui/kit';
 import { useState, useEffect, useCallback } from 'react';
 import { theme } from '@/src/theme';
 import { UI_REVISION_V1 } from '@/src/designRevision';
@@ -155,6 +156,7 @@ export default function Home() {
 
   return (
     <View style={styles.root}>
+      <StatusBarCap />
       <ScrollView contentContainerStyle={{ paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
         {/* ── Navy header ─────────────────────────────── */}
         <View style={[styles.header, { paddingTop: insets.top + 10 }]}>

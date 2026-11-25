@@ -1,5 +1,6 @@
 import { Pressable, Text, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useHeaderSosPresent } from '@/src/ui/headerSos';
 import { useRouter } from 'expo-router';
 import { theme } from '../../theme';
 import { UI_V22_ONE_SOS } from '../../uiV22Flags';
@@ -11,6 +12,7 @@ const c = theme.colors;
 /** Red SOS pill used in screen headers — routes to the Emergency screen. */
 export function SosPill({ onPress, compact }: { onPress?: () => void; compact?: boolean }) {
   const router = useRouter();
+  useHeaderSosPresent();
   // UI_V22_ONE_SOS: inside the desktop frame the sidebar SOS is the one entry.
   const inDesktopFrame = useInDesktopFrame();
   if (UI_V22_ONE_SOS && inDesktopFrame) return null;

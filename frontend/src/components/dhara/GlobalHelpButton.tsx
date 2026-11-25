@@ -2,6 +2,7 @@ import { Pressable, Text, StyleSheet } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useHeaderSosVisible } from '@/src/ui/headerSos';
 import { UI_V22_ONE_SOS } from '../../uiV22Flags';
 import { theme } from '@/src/theme';
 
@@ -44,11 +45,22 @@ export function isGlobalHelpHidden(pathname: string | null | undefined): boolean
   return !!(pathname === '/emergency' || pathname?.startsWith('/oauth') || (pathname?.startsWith('/women') && !pathname?.startsWith('/women/head-out')) || isHeadOutWizardStep || pathname?.startsWith('/family-journey') || pathname?.startsWith('/guardian') || pathname?.startsWith('/admin-') || isHome || hideScan || isAuthOnboarding);
 }
 
+const TAB_GROUP_PATHS = new Set([
+  '/rights', '/myfiles', '/me', '/settings', '/saved', '/history', '/complaints',
+  '/discover', '/lookup', '/voter-roll', '/advocate',
+]);
+
 export function GlobalHelpButton({ docked = false }: { docked?: boolean } = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
+  const headerHasSos = useHeaderSosVisible();
   if (isGlobalHelpHidden(pathname)) return null;
+  // Redesign v3: one SOS per screen. If the focused screen's header shows
+  // SOS, this floating button stays away.
+  if (headerHasSos && !docked) return null;
+  // Tab-group screens have the 58-tall tab bar under them; other screens do not.
+  const overTabBar = TAB_GROUP_PATHS.has(pathname ?? '');
 
   return (
     <Pressable
@@ -63,7 +75,7 @@ export function GlobalHelpButton({ docked = false }: { docked?: boolean } = {}) 
       // 140 offset gives ~174px on modern iPhones — clears the full disclaimer
       // without rising into the screen content (the previous 180 was 52px too high
       // and overlapped the "Code phrase" ToolRow on the Women's Shield screen).
-      style={docked ? [styles.btn, styles.btnDocked] : [styles.btn, { bottom: insets.bottom + 140 }]}
+      style={docked ? [styles.btn, styles.btnDocked] : [styles.btn, { bottom: insets.bottom + (overTabBar ? 74 : 16) }]}
     >
       <Ionicons name="alert-circle" size={18} color="#fff" />
       <Text style={styles.txt}>{UI_V22_ONE_SOS ? 'SOS' : 'Help'}</Text>
