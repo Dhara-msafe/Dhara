@@ -171,13 +171,13 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.brand },
   header: { paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.lg, paddingBottom: theme.spacing.md },
   brand: { fontFamily: theme.fonts.display, fontSize: 22, color: theme.colors.onBrandPrimary, fontWeight: '700', textAlign: 'center' },
-  sub: { color: theme.colors.goldSoft, fontSize: 12, textAlign: 'center', marginTop: theme.spacing.sm, lineHeight: 17 },
+  sub: { color: theme.colors.goldSoft, fontFamily: 'Inter', fontSize: 12, textAlign: 'center', marginTop: theme.spacing.sm, lineHeight: 17 },
   searchWrap: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginHorizontal: theme.spacing.lg, paddingHorizontal: theme.spacing.md,
     backgroundColor: theme.colors.surface, borderRadius: theme.radius.md, minHeight: 48,
   },
-  search: { flex: 1, color: theme.colors.onSurface, fontSize: 13, paddingVertical: theme.spacing.md },
+  search: { flex: 1, color: theme.colors.onSurface, fontFamily: 'Inter', fontSize: 13, paddingVertical: theme.spacing.md },
   list: { padding: theme.spacing.lg, gap: theme.spacing.sm },
   row: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface,
@@ -185,15 +185,15 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.md, minHeight: 50, borderWidth: 2, borderColor: 'transparent',
   },
   rowActive: { borderColor: theme.colors.gold },
-  name: { color: theme.colors.onSurface, fontSize: 14, fontWeight: '700' },
+  name: { color: theme.colors.onSurface, fontSize: 14, fontFamily: 'InterBold'},
   nameActive: { color: theme.colors.brand },
-  native: { color: theme.colors.onSurfaceSecondary, fontSize: 12, marginTop: 2 },
+  native: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 12, marginTop: 2 },
   footer: { padding: theme.spacing.lg, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)' },
   btn: { backgroundColor: theme.colors.brandSecondary, padding: theme.spacing.lg, borderRadius: theme.radius.md, alignItems: 'center', minHeight: 52, justifyContent: 'center' },
   btnDisabled: { opacity: 0.5 },
-  btnText: { color: theme.colors.onBrandSecondary, fontWeight: '700', fontSize: 14 },
+  btnText: { color: theme.colors.onBrandSecondary, fontFamily: 'InterBold', fontSize: 14 },
   // UI-revision pilot (reversible via UI_REVISION_V1): 44px met iOS's own
   // minimum but not the stricter 48px target used across this batch.
   skip: { alignItems: 'center', paddingVertical: theme.spacing.md, minHeight: UI_REVISION_V1 ? 48 : 44, justifyContent: 'center' },
-  skipText: { color: theme.colors.goldSoft, fontSize: 13, fontWeight: '600' },
+  skipText: { color: theme.colors.goldSoft, fontSize: 13, fontFamily: 'InterSemiBold'},
 });

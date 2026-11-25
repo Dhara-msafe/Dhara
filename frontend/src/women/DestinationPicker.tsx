@@ -1200,11 +1200,11 @@ const styles = StyleSheet.create({
   },
   suggestionTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12, color: c.ink, lineHeight: 16 },
   suggestionSecondaryTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 1 },
-  suggestionEmptyTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, padding: 12, fontStyle: 'italic' },
+  suggestionEmptyTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, padding: 12 },
   savedSection: { marginBottom: 16 },
   savedHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
   savedTitle: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  emptyTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, fontStyle: 'italic', paddingVertical: 4 },
+  emptyTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, paddingVertical: 4 },
   savedRow: {
     flexDirection: 'row', alignItems: 'center', borderRadius: 12,
     borderWidth: 1.5, borderColor: c.lines, backgroundColor: c.surface,

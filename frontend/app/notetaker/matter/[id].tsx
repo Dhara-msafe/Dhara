@@ -120,6 +120,6 @@ const styles = StyleSheet.create({
   },
   cardRow: { flexDirection: 'row', alignItems: 'center' },
   cardTitle: { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.navy },
-  cardArrow: { color: c.muted, fontSize: 19 },
+  cardArrow: { color: c.muted, fontFamily: 'Inter', fontSize: 19 },
   cardMeta: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 6 },
 });

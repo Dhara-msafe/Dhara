@@ -518,7 +518,7 @@ const styles = S.create({
   brandSub: {
     fontSize: 12,
     color: theme.dhara.gold,
-    fontWeight: '600',
+    fontFamily: 'InterSemiBold',
     letterSpacing: 0.5,
   },
 
@@ -541,7 +541,7 @@ const styles = S.create({
   },
   langChipText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'InterSemiBold',
     color: theme.dhara.gold,
   },
   langChipTextActive: {
@@ -561,7 +561,7 @@ const styles = S.create({
   },
   newBtnText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'InterBold',
     color: theme.dhara.gold,
   },
 
@@ -578,7 +578,7 @@ const styles = S.create({
   },
   appBtnText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'InterSemiBold',
     color: theme.dhara.textOnNavyMuted,
   },
 
@@ -600,7 +600,7 @@ const styles = S.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: '#FFF0F0',
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.error,
     paddingHorizontal: theme.spacing.xl,
@@ -610,7 +610,7 @@ const styles = S.create({
     flex: 1,
     color: theme.colors.error,
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'InterSemiBold',
   },
 
   // ── Scroll / Messages ───────────────────────────────────────────────────────
@@ -655,7 +655,7 @@ const styles = S.create({
     marginBottom: 8,
   },
   emptySubtitle: {
-    fontSize: 13,
+    fontFamily: 'Inter', fontSize: 13,
     color: theme.dhara.textSecondary,
     textAlign: 'center',
     maxWidth: 460,
@@ -687,7 +687,7 @@ const styles = S.create({
     fontSize: 12,
     color: theme.dhara.textPrimary,
     lineHeight: 16,
-    fontWeight: '500',
+    fontFamily: 'InterMedium',
   },
 
   // ── Message rows ────────────────────────────────────────────────────────────
@@ -718,7 +718,7 @@ const styles = S.create({
   avatarText: {
     color: theme.dhara.gold,
     fontSize: 13,
-    fontWeight: '800',
+    fontFamily: 'InterExtraBold',
   },
 
   // Bubble
@@ -742,7 +742,7 @@ const styles = S.create({
     }),
   },
   bubbleText: {
-    fontSize: 13,
+    fontFamily: 'Inter', fontSize: 13,
     lineHeight: 20,
     color: theme.dhara.textPrimary,
   },
@@ -750,9 +750,9 @@ const styles = S.create({
     color: theme.dhara.textOnNavy,
   },
   thinkingText: {
-    fontSize: 12,
+    fontFamily: 'Inter', fontSize: 12,
     color: theme.dhara.textSecondary,
-    fontStyle: 'italic',
+    
   },
 
   // ── Citations ────────────────────────────────────────────────────────────────
@@ -772,7 +772,7 @@ const styles = S.create({
   },
   citHeaderText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontFamily: 'InterExtraBold',
     color: theme.colors.brand,
     letterSpacing: 0.5,
   },
@@ -781,7 +781,7 @@ const styles = S.create({
     borderColor: theme.colors.brandSecondary,
     borderRadius: theme.radius.md,
     padding: theme.spacing.md,
-    backgroundColor: '#FFFBEC',
+    backgroundColor: '#FFF4E6',
     gap: 6,
   },
   citTop: {
@@ -798,22 +798,22 @@ const styles = S.create({
   citChipText: {
     color: theme.colors.onBrandPrimary,
     fontSize: 11,
-    fontWeight: '700',
+    fontFamily: 'InterBold',
     letterSpacing: 0.3,
   },
   citDate: {
-    fontSize: 11,
+    fontFamily: 'Inter', fontSize: 11,
     color: theme.colors.onSurfaceSecondary,
   },
   citStaleRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  citStaleText: { fontSize: 11, color: theme.colors.warning, fontWeight: '600' },
+  citStaleText: { fontSize: 11, color: theme.colors.warning, fontFamily: 'InterSemiBold'},
   citTitle: {
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'InterBold',
     color: theme.dhara.textPrimary,
   },
   citBody: {
-    fontSize: 12,
+    fontFamily: 'Inter', fontSize: 12,
     color: theme.dhara.textSecondary,
     lineHeight: 16,
   },
@@ -848,7 +848,7 @@ const styles = S.create({
   },
   input: {
     flex: 1,
-    fontSize: 13,
+    fontFamily: 'Inter', fontSize: 13,
     color: theme.colors.onSurface,
     minHeight: 24,
     maxHeight: 120,
@@ -874,7 +874,7 @@ const styles = S.create({
     }),
   },
   disclaimer: {
-    fontSize: 12,
+    fontFamily: 'Inter', fontSize: 12,
     color: theme.colors.onSurfaceTertiary,
     textAlign: 'center',
     lineHeight: 16,

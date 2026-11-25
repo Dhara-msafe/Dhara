@@ -14,7 +14,7 @@ import { focusRingStyle } from '@/src/a11yFocus';
 // Step S3 (Safety core, v2.2 design, 23 Nov handover): visual-only — the
 // background used the legacy `emergencyDeep` (#7A160F) constant, which
 // predates the v2.2 design package; Emergency.dc.html's authoritative
-// background is `redDeep` (#7F1D1D, design-tokens.json). Screen-manifest
+// background is `redDeep` (#690F16, design-tokens.json). Screen-manifest
 // id 25 is "Copy correction + Visual change" — the copy (no "Police
 // notified", "Open dialler for 112" label, visible number fallback) was
 // already correct, and the real 112 handler was already wired

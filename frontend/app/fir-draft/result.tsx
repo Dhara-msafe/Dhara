@@ -135,8 +135,8 @@ export default function FIRResult() {
     if (!draftText) return;
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
 <style>body{padding:24px;font-family:Arial,sans-serif;}
-h2{color:#1B2B5B;font-size:18px;margin-bottom:4px;}
-.warn{background:#FFF8E7;border-left:4px solid #C9973A;padding:10px;font-size:12px;color:#555;margin-bottom:16px;}
+h2{color:#082B4F;font-size:18px;margin-bottom:4px;}
+.warn{background:#FFF4E6;border-left:4px solid #E8B956;padding:10px;font-size:12px;color:#555;margin-bottom:16px;}
 pre{white-space:pre-wrap;font-size:13px;line-height:1.7;font-family:'Courier New',monospace;}</style>
 </head><body>
 <h2>FIR Complaint Draft — DHARA</h2>
@@ -258,7 +258,7 @@ pre{white-space:pre-wrap;font-size:13px;line-height:1.7;font-family:'Courier New
           <Ionicons name="alert-circle-outline" size={48} color={RED} />
           <Text style={[styles.loadingText, { color: RED, marginTop: 12 }]}>{draftError || 'Draft could not be loaded.'}</Text>
           <Pressable testID="fir-result-error-back" onPress={() => router.back()} style={(s) => [{ marginTop: 20, padding: 12, backgroundColor: NAVY, borderRadius: 8, minHeight: UI_REVISION_V1 ? 48 : undefined, justifyContent: 'center' }, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
-            <Text style={{ color: '#fff', fontWeight: '600' }}>← Go Back</Text>
+            <Text style={{ color: '#fff', fontFamily: 'InterSemiBold'}}>← Go Back</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -295,7 +295,7 @@ pre{white-space:pre-wrap;font-size:13px;line-height:1.7;font-family:'Courier New
         <View style={styles.disclaimerCard}>
           <Ionicons name="alert-circle" size={18} color={RED} />
           <Text style={styles.disclaimerText}>
-            <Text style={{ fontWeight: '700' }}>CITIZEN DRAFT — NOT A REGISTERED FIR.</Text>
+            <Text style={{ fontFamily: 'InterBold'}}>CITIZEN DRAFT — NOT A REGISTERED FIR.</Text>
             {' '}Present this at the police station for official registration under Section 173(1) BNSS.
           </Text>
         </View>
@@ -304,7 +304,7 @@ pre{white-space:pre-wrap;font-size:13px;line-height:1.7;font-family:'Courier New
         <View style={styles.zeroFirCard}>
           <Ionicons name="information-circle" size={18} color={NAVY} />
           <Text style={styles.zeroFirText}>
-            <Text style={{ fontWeight: '700' }}>Zero FIR Right: </Text>
+            <Text style={{ fontFamily: 'InterBold'}}>Zero FIR Right: </Text>
             You can file this FIR at ANY police station in India. They are legally required to accept it (Section 173(1) BNSS).
           </Text>
         </View>
@@ -419,7 +419,7 @@ pre{white-space:pre-wrap;font-size:13px;line-height:1.7;font-family:'Courier New
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: SURFACE },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
-  loadingText: { color: MUTED, fontSize: 13 },
+  loadingText: { color: MUTED, fontFamily: 'Inter', fontSize: 13 },
 
   // Header
   header: {
@@ -427,8 +427,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12, gap: 12,
   },
   headerCenter: { flex: 1 },
-  headerTitle: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  headerSub: { fontSize: 12, color: GOLD },
+  headerTitle: { fontSize: 14, fontFamily: 'InterBold', color: '#fff' },
+  headerSub: { fontFamily: 'Inter', fontSize: 12, color: GOLD },
   backBtn: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   sectionMenuBtn: { padding: 6, minWidth: UI_REVISION_V1 ? 44 : undefined, minHeight: UI_REVISION_V1 ? 44 : undefined, alignItems: 'center', justifyContent: 'center' },
 
@@ -438,19 +438,19 @@ const styles = StyleSheet.create({
 
   // Disclaimer
   disclaimerCard: {
-    flexDirection: 'row', gap: 10, backgroundColor: '#FEF2F2',
-    borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#FECACA',
+    flexDirection: 'row', gap: 10, backgroundColor: '#FFF0F0',
+    borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#EFC7C7',
     alignItems: 'flex-start',
   },
-  disclaimerText: { flex: 1, fontSize: 12, color: '#7F1D1D', lineHeight: 17 },
+  disclaimerText: { flex: 1, fontFamily: 'Inter', fontSize: 12, color: '#690F16', lineHeight: 17 },
 
   // Zero FIR
   zeroFirCard: {
-    flexDirection: 'row', gap: 10, backgroundColor: '#EFF6FF',
-    borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#BFDBFE',
+    flexDirection: 'row', gap: 10, backgroundColor: '#EEF5FF',
+    borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#D2E1FD',
     alignItems: 'flex-start',
   },
-  zeroFirText: { flex: 1, fontSize: 12, color: NAVY, lineHeight: 17 },
+  zeroFirText: { flex: 1, fontFamily: 'Inter', fontSize: 12, color: NAVY, lineHeight: 17 },
 
   // Issue 9: Sections summary card
   sectionsSummaryCard: {
@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
     backgroundColor: CREAM, borderRadius: 12, padding: 14,
     borderWidth: 1, borderColor: BORDER,
   },
-  sectionsSummaryText: { flex: 1, fontSize: 12, color: NAVY, fontWeight: '600' },
+  sectionsSummaryText: { flex: 1, fontSize: 12, color: NAVY, fontFamily: 'InterSemiBold'},
 
   // Draft
   draftCard: {
@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#D6C9B0',
   },
   draftHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  draftTitle: { fontSize: 13, fontWeight: '700', color: NAVY },
+  draftTitle: { fontSize: 13, fontFamily: 'InterBold', color: NAVY },
   draftText: { fontSize: 12, color: '#2D2D2D', lineHeight: 19, fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace' },
 
   // Actions
@@ -477,35 +477,35 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: BORDER, minWidth: 80, minHeight: UI_REVISION_V1 ? 48 : undefined,
   },
   actionBtnPdf: { backgroundColor: NAVY, borderColor: NAVY, flexBasis: '100%', flex: 0 },
-  actionBtnPrint: { backgroundColor: '#2D6A4F', borderColor: '#2D6A4F', flexBasis: '100%', flex: 0 },
-  actionBtnText: { fontSize: 12, color: NAVY, fontWeight: '600' },
+  actionBtnPrint: { backgroundColor: '#087951', borderColor: '#087951', flexBasis: '100%', flex: 0 },
+  actionBtnText: { fontSize: 12, color: NAVY, fontFamily: 'InterSemiBold'},
 
   // Steps
   stepsCard: {
     backgroundColor: SURFACE, borderRadius: 14, padding: 16,
     borderWidth: 1, borderColor: BORDER,
   },
-  stepsTitle: { fontSize: 13, fontWeight: '700', color: NAVY, marginBottom: 12 },
+  stepsTitle: { fontSize: 13, fontFamily: 'InterBold', color: NAVY, marginBottom: 12 },
   stepRow: { flexDirection: 'row', gap: 10, marginBottom: 10, alignItems: 'flex-start' },
   stepNum: {
     width: 24, height: 24, borderRadius: 12, backgroundColor: NAVY,
     alignItems: 'center', justifyContent: 'center',
   },
-  stepNumText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  stepText: { flex: 1, fontSize: 12, color: MUTED, lineHeight: 17 },
+  stepNumText: { color: '#fff', fontSize: 12, fontFamily: 'InterBold'},
+  stepText: { flex: 1, fontFamily: 'Inter', fontSize: 12, color: MUTED, lineHeight: 17 },
 
   // Helplines
   helplinesCard: {
     backgroundColor: NAVY, borderRadius: 14, padding: 16,
   },
-  helplinesTitle: { fontSize: 13, fontWeight: '700', color: GOLD, marginBottom: 12 },
+  helplinesTitle: { fontSize: 13, fontFamily: 'InterBold', color: GOLD, marginBottom: 12 },
   helplinesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   helplineItem: {
     backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 10, padding: 10,
     alignItems: 'center', minWidth: 80, gap: 4,
   },
-  helplineNum: { fontSize: 14, fontWeight: '800', color: '#fff' },
-  helplineLabel: { fontSize: 11, color: 'rgba(255,255,255,0.7)', textAlign: 'center' },
+  helplineNum: { fontSize: 14, fontFamily: 'InterExtraBold', color: '#fff' },
+  helplineLabel: { fontFamily: 'Inter', fontSize: 11, color: 'rgba(255,255,255,0.7)', textAlign: 'center' },
 
   // New complaint
   newComplaintBtn: {
@@ -513,5 +513,5 @@ const styles = StyleSheet.create({
     gap: 8, borderRadius: 12, paddingVertical: 14,
     backgroundColor: CREAM, borderWidth: 1.5, borderColor: BORDER,
   },
-  newComplaintText: { color: NAVY, fontSize: 13, fontWeight: '600' },
+  newComplaintText: { color: NAVY, fontSize: 13, fontFamily: 'InterSemiBold'},
 });

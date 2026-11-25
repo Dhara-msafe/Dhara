@@ -26,11 +26,11 @@ function buildHtml(item: RecordingItem, entry: ManifestEntry): string {
     : 'Not backed up to cloud storage.';
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
 <style>body{padding:24px;font-family:Arial,sans-serif;color:#222;}
-h2{color:#1B2B5B;font-size:18px;margin-bottom:4px;}
-.warn{background:#FFF8E7;border-left:4px solid #C9973A;padding:10px;font-size:12px;color:#555;margin-bottom:16px;}
+h2{color:#082B4F;font-size:18px;margin-bottom:4px;}
+.warn{background:#FFF4E6;border-left:4px solid #E8B956;padding:10px;font-size:12px;color:#555;margin-bottom:16px;}
 table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px;}
 td{padding:6px 8px;border-bottom:1px solid #eee;vertical-align:top;word-break:break-all;}
-td:first-child{font-weight:bold;width:200px;color:#1B2B5B;word-break:normal;}
+td:first-child{font-weight:bold;width:200px;color:#082B4F;word-break:normal;}
 .blank{border-bottom:1px solid #999;display:inline-block;min-width:260px;height:14px;}
 .sig{margin-top:28px;font-size:13px;}
 </style></head><body>

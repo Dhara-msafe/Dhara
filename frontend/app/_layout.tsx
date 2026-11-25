@@ -70,7 +70,7 @@ class RootErrorBoundary extends Component<BoundaryProps, BoundaryState> {
       return (
         <View testID="root-error-boundary" style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 28, backgroundColor: theme.colors.surface }}>
           <Text testID="root-error-title" style={{ color: theme.colors.primary, fontSize: 21, fontWeight: "700", textAlign: "center" }}>Dhara needs to restart</Text>
-          <Text testID="root-error-message" style={{ color: theme.colors.onSurfaceSecondary, fontSize: 14, lineHeight: 21, marginTop: 12, textAlign: "center" }}>A screen could not load safely. Your saved information is not affected.</Text>
+          <Text testID="root-error-message" style={{ color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 14, lineHeight: 21, marginTop: 12, textAlign: "center" }}>A screen could not load safely. Your saved information is not affected.</Text>
           <Pressable testID="root-error-retry" accessibilityRole="button" onPress={() => this.setState({ hasError: false })} style={{ backgroundColor: theme.colors.primary, borderRadius: 12, marginTop: 18, minHeight: 48, justifyContent: "center", paddingHorizontal: 18 }}>
             <Text style={{ color: theme.colors.onBrandPrimary, fontSize: 14, fontWeight: "700" }}>Try again</Text>
           </Pressable>

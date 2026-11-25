@@ -94,7 +94,7 @@ export default function LawyerHome() {
                 <Text style={s.cardTitle}>{card.title}</Text>
                 <Text style={s.cardSub}>{card.sub}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+              <Ionicons name="chevron-forward" size={20} color="#64788A" />
             </Pressable>
           ))}
 
@@ -112,7 +112,7 @@ export default function LawyerHome() {
           <Text style={[s.tabLabel, { color: NAVY }]}>Lawyer Mode</Text>
         </Pressable>
         <Pressable style={s.tabItem} onPress={() => router.push('/(tabs)/settings' as any)}>
-          <Ionicons name="person-outline" size={22} color="#9CA3AF" />
+          <Ionicons name="person-outline" size={22} color="#64788A" />
           <Text style={s.tabLabel}>Account</Text>
         </Pressable>
       </View>
@@ -121,27 +121,27 @@ export default function LawyerHome() {
 }
 
 const s = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: '#FDFBF7' },
+  safe:   { flex: 1, backgroundColor: '#FFFAF2' },
   header: { backgroundColor: NAVY, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16 },
-  headerTitle: { fontSize: 19, fontWeight: '800', color: '#fff' },
+  headerTitle: { fontSize: 19, fontFamily: 'InterExtraBold', color: '#fff' },
   badge: { marginTop: 4, backgroundColor: GOLD, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12, alignSelf: 'flex-start' },
-  badgeText: { fontSize: 12, fontWeight: '700', color: NAVY },
-  pending: { fontSize: 12, color: '#9CA3AF', marginTop: 4 },
+  badgeText: { fontSize: 12, fontFamily: 'InterBold', color: NAVY },
+  pending: { fontFamily: 'Inter', fontSize: 12, color: '#64788A', marginTop: 4 },
   settingsBtn: { padding: 4 },
   scroll: { padding: 16, gap: 14, paddingBottom: 80 },
   card: {
     backgroundColor: '#fff', borderRadius: 14,
-    borderWidth: 1, borderColor: '#E5E7EB',
+    borderWidth: 1, borderColor: '#E6DFD1',
     padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14,
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  cardIcon: { width: 48, height: 48, borderRadius: 12, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' },
-  cardTitle: { fontSize: 14, fontWeight: '700', color: NAVY, marginBottom: 3 },
-  cardSub:   { fontSize: 12, color: '#6B7280', lineHeight: 16 },
+  cardIcon: { width: 48, height: 48, borderRadius: 12, backgroundColor: '#EEF5FF', alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { fontSize: 14, fontFamily: 'InterBold', color: NAVY, marginBottom: 3 },
+  cardSub:   { fontFamily: 'Inter', fontSize: 12, color: '#64788A', lineHeight: 16 },
   backBtn:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12, paddingVertical: 12 },
-  backBtnText: { fontSize: 13, color: NAVY, fontWeight: '600' },
-  tabBar: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#E5E7EB', backgroundColor: '#fff', paddingBottom: 20, paddingTop: 8 },
+  backBtnText: { fontSize: 13, color: NAVY, fontFamily: 'InterSemiBold'},
+  tabBar: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#E6DFD1', backgroundColor: '#fff', paddingBottom: 20, paddingTop: 8 },
   tabItem: { flex: 1, alignItems: 'center', gap: 3 },
-  tabLabel: { fontSize: 12, fontWeight: '600', color: '#9CA3AF' },
+  tabLabel: { fontSize: 12, fontFamily: 'InterSemiBold', color: '#64788A' },
 });

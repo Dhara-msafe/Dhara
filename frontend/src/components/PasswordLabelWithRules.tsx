@@ -55,8 +55,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border,
     borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 8, gap: 6,
   },
-  title: { color: theme.colors.onSurfaceSecondary, fontWeight: '600', fontSize: 12 },
+  title: { color: theme.colors.onSurfaceSecondary, fontFamily: 'InterSemiBold', fontSize: 12 },
   ruleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  rule: { color: theme.colors.onSurfaceSecondary, fontSize: 12 },
+  rule: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 12 },
   ruleOk: { color: theme.colors.success },
 });

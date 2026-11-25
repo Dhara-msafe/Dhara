@@ -174,16 +174,16 @@ export default function ApprovedStep({
 
 const styles = StyleSheet.create({
   wrap: { padding: 16, gap: 4 },
-  approvedBanner: { backgroundColor: '#E7F1EB', borderRadius: 12, padding: 14, marginBottom: 16 },
+  approvedBanner: { backgroundColor: '#EDFAF2', borderRadius: 12, padding: 14, marginBottom: 16 },
   approvedBannerText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: '#087951' },
   hashText: { fontFamily: theme.fonts.body, fontSize: 12, color: '#087951', marginTop: 4 },
   section: { marginTop: 14 },
   sectionTitle: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy, marginBottom: 8 },
   itemCard: { backgroundColor: c.surface, borderRadius: 10, borderWidth: 1, borderColor: c.border, padding: 12, marginBottom: 8 },
   itemText: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, lineHeight: 18 },
-  sourceRef: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, fontStyle: 'italic', marginTop: 4 },
+  sourceRef: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 4 },
   assignee: { fontFamily: theme.fonts.bodyMedium, fontSize: 12, color: c.navy, marginTop: 2 },
-  editedTag: { fontFamily: theme.fonts.bodyMedium, fontSize: 11, color: '#92400E', marginTop: 4 },
+  editedTag: { fontFamily: theme.fonts.bodyMedium, fontSize: 11, color: '#8A6A1E', marginTop: 4 },
   citationText: { fontFamily: theme.fonts.body, fontSize: 12, color: c.ink, marginBottom: 4 },
   actionsRow: { flexDirection: 'row', gap: 10, marginTop: 20 },
   actionBtn: { flex: 1, borderWidth: 1.5, borderColor: c.navy, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
@@ -193,6 +193,6 @@ const styles = StyleSheet.create({
   primaryBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: '#fff' },
   reviseBtn: { marginTop: 14, paddingVertical: 10, alignItems: 'center' },
   reviseBtnText: { fontFamily: theme.fonts.bodyMedium, fontSize: 12, color: c.muted, textDecorationLine: 'underline' },
-  verificationNotice: { backgroundColor: '#FEF3C7', borderRadius: 10, padding: 14, marginTop: 10 },
-  verificationNoticeText: { fontFamily: theme.fonts.body, fontSize: 12, color: '#92400E', lineHeight: 17 },
+  verificationNotice: { backgroundColor: '#FFF4E6', borderRadius: 10, padding: 14, marginTop: 10 },
+  verificationNoticeText: { fontFamily: theme.fonts.body, fontSize: 12, color: '#8A6A1E', lineHeight: 17 },
 });

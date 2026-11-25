@@ -17,7 +17,7 @@ import { theme } from '@/src/theme';
 
 const NAVY  = theme.colors.primary;
 const GOLD  = theme.colors.gold;
-const CREAM = '#F8F6F0';
+const CREAM = '#FFFAF2';
 const HINT  = '#8A8A8A';
 
 type CaseRow = {
@@ -35,10 +35,10 @@ type CaseRow = {
 
 function statusColor(status: string | null): { bg: string; fg: string } {
   const s = (status || '').toUpperCase();
-  if (s === 'PENDING') return { bg: '#FEF3C7', fg: '#92400E' };
-  if (s === 'DISPOSED') return { bg: '#D1FAE5', fg: '#065F46' };
-  if (!s) return { bg: '#F3F4F6', fg: '#6B7280' };
-  return { bg: '#E0E7FF', fg: NAVY };
+  if (s === 'PENDING') return { bg: '#FFF4E6', fg: '#8A6A1E' };
+  if (s === 'DISPOSED') return { bg: '#D1FAE5', fg: '#087951' };
+  if (!s) return { bg: '#EEF3FC', fg: '#64788A' };
+  return { bg: '#D2E1FD', fg: NAVY };
 }
 
 function CaseCard({ row, onPress }: { row: CaseRow; onPress?: () => void }) {
@@ -252,7 +252,7 @@ export default function LookupResults() {
 
       {!loading && errorMsg && (
         <View style={styles.center} testID="lookup-results-error">
-          <Ionicons name={noSearchTerm ? 'search-outline' : 'alert-circle-outline'} size={40} color={noSearchTerm ? HINT : '#DC2626'} />
+          <Ionicons name={noSearchTerm ? 'search-outline' : 'alert-circle-outline'} size={40} color={noSearchTerm ? HINT : '#C73236'} />
           <Text style={styles.errorText}>{errorMsg}</Text>
           <Pressable style={styles.retryBtn} onPress={handleRetry} testID="lookup-results-retry">
             <Ionicons name={noSearchTerm ? 'arrow-back' : 'refresh'} size={16} color="#fff" />
@@ -340,43 +340,43 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: 'rgba(211,182,117,0.25)',
   },
   backBtn: { padding: 4 },
-  headerTitle: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  headerSub: { color: GOLD, fontSize: 12, fontWeight: '500', marginTop: 2 },
+  headerTitle: { color: '#fff', fontSize: 14, fontFamily: 'InterBold'},
+  headerSub: { color: GOLD, fontSize: 12, fontFamily: 'InterMedium', marginTop: 2 },
 
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 12 },
-  loadingText: { color: NAVY, fontSize: 13, fontWeight: '500' },
-  errorText: { color: '#374151', fontSize: 13, textAlign: 'center', lineHeight: 18 },
+  loadingText: { color: NAVY, fontSize: 13, fontFamily: 'InterMedium'},
+  errorText: { color: '#102A45', fontFamily: 'Inter', fontSize: 13, textAlign: 'center', lineHeight: 18 },
   retryBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: NAVY, paddingHorizontal: 18, paddingVertical: 11, borderRadius: 10, marginTop: 4 },
-  retryBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  emptyText: { color: '#374151', fontSize: 13, fontWeight: '600', textAlign: 'center' },
-  emptyHint: { color: HINT, fontSize: 12, textAlign: 'center', lineHeight: 16 },
+  retryBtnText: { color: '#fff', fontSize: 13, fontFamily: 'InterBold'},
+  emptyText: { color: '#102A45', fontSize: 13, fontFamily: 'InterSemiBold', textAlign: 'center' },
+  emptyHint: { color: HINT, fontFamily: 'Inter', fontSize: 12, textAlign: 'center', lineHeight: 16 },
 
   contentPad: { padding: 16, gap: 12, flex: 1 },
   listContent: { padding: 16, gap: 12, flexGrow: 1 },
 
-  card: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', padding: 14, gap: 6, marginBottom: 12 },
+  card: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#E6DFD1', padding: 14, gap: 6, marginBottom: 12 },
   cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 },
-  cardTitle: { flex: 1, fontSize: 13, fontWeight: '700', color: NAVY, lineHeight: 17 },
+  cardTitle: { flex: 1, fontSize: 13, fontFamily: 'InterBold', color: NAVY, lineHeight: 17 },
   statusChip: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 6 },
-  statusChipText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.3 },
+  statusChipText: { fontSize: 11, fontFamily: 'InterExtraBold', letterSpacing: 0.3 },
 
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  metaText: { fontSize: 12.5, color: '#4B5563', flex: 1 },
+  metaText: { fontFamily: 'Inter', fontSize: 13, color: '#64788A', flex: 1 },
 
   dateRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  dateChip: { backgroundColor: '#F3F4F6', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
-  dateChipLabel: { fontSize: 11, color: HINT, fontWeight: '600' },
-  dateChipValue: { fontSize: 12.5, color: '#1F2937', fontWeight: '700' },
+  dateChip: { backgroundColor: '#EEF3FC', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  dateChipLabel: { fontSize: 11, color: HINT, fontFamily: 'InterSemiBold'},
+  dateChipValue: { fontSize: 13, color: '#102A45', fontFamily: 'InterBold'},
 
   viewMoreRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 4 },
-  viewMoreText: { fontSize: 12.5, color: NAVY, fontWeight: '700' },
+  viewMoreText: { fontSize: 13, color: NAVY, fontFamily: 'InterBold'},
 
-  partiesCard: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', padding: 14, gap: 12 },
+  partiesCard: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#E6DFD1', padding: 14, gap: 12 },
   partyBlock: { gap: 4 },
-  partyLabel: { fontSize: 12, fontWeight: '800', color: NAVY, letterSpacing: 0.2, marginBottom: 2 },
-  partyName: { fontSize: 12.5, color: '#374151', lineHeight: 17 },
+  partyLabel: { fontSize: 12, fontFamily: 'InterExtraBold', color: NAVY, letterSpacing: 0.2, marginBottom: 2 },
+  partyName: { fontFamily: 'Inter', fontSize: 13, color: '#102A45', lineHeight: 17 },
 
-  disclaimer: { fontSize: 12.5, color: HINT, lineHeight: 16, textAlign: 'center', paddingHorizontal: 8, marginTop: 4, marginBottom: 8 },
-  noteCard: { flexDirection: 'row', gap: 8, backgroundColor: '#EEF2FF', borderRadius: 10, padding: 12, alignItems: 'flex-start', marginBottom: 12 },
-  noteText: { flex: 1, fontSize: 12.5, color: NAVY, lineHeight: 17 },
+  disclaimer: { fontFamily: 'Inter', fontSize: 13, color: HINT, lineHeight: 16, textAlign: 'center', paddingHorizontal: 8, marginTop: 4, marginBottom: 8 },
+  noteCard: { flexDirection: 'row', gap: 8, backgroundColor: '#EEF5FF', borderRadius: 10, padding: 12, alignItems: 'flex-start', marginBottom: 12 },
+  noteText: { flex: 1, fontFamily: 'Inter', fontSize: 13, color: NAVY, lineHeight: 17 },
 });

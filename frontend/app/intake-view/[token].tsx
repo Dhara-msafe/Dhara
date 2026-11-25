@@ -47,7 +47,7 @@ export default function IntakeView() {
         <Text style={s.headerTitle}>Intake</Text>
       </View>
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 18 }}>
-        <Ionicons name="alert-circle-outline" size={44} color="#D1D5DB" />
+        <Ionicons name="alert-circle-outline" size={44} color="#E6DFD1" />
         <Text style={s.notFoundTitle}>Intake not found</Text>
       </View>
     </SafeAreaView>
@@ -121,20 +121,20 @@ export default function IntakeView() {
 }
 
 const s = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: '#FDFBF7' },
+  safe:   { flex: 1, backgroundColor: '#FFFAF2' },
   header: { backgroundColor: NAVY, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  headerSub: { fontSize: 12, color: GOLD, marginTop: 1 },
+  headerTitle: { fontSize: 16, fontFamily: 'InterBold', color: '#fff' },
+  headerSub: { fontFamily: 'Inter', fontSize: 12, color: GOLD, marginTop: 1 },
   scroll: { padding: 16, gap: 20, paddingBottom: 40 },
-  section: { backgroundColor: '#fff', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#E5E7EB' },
-  sectionTitle: { fontSize: 13, fontWeight: '800', color: NAVY, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
-  summaryText: { fontSize: 13, color: '#1F2937', lineHeight: 21 },
-  analysisText: { fontSize: 13, color: '#374151', lineHeight: 19, fontFamily: 'monospace' },
+  section: { backgroundColor: '#fff', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#E6DFD1' },
+  sectionTitle: { fontSize: 13, fontFamily: 'InterExtraBold', color: NAVY, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
+  summaryText: { fontFamily: 'Inter', fontSize: 13, color: '#102A45', lineHeight: 21 },
+  analysisText: { fontSize: 13, color: '#102A45', lineHeight: 19, fontFamily: 'monospace' },
   accordionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  transcriptItem: { borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 10, marginTop: 8 },
-  transcriptLabel: v22SectionLabel({ fontSize: 12, fontWeight: '700', color: '#9CA3AF', marginBottom: 4, textTransform: 'uppercase' }),
-  transcriptText: { fontSize: 13, color: '#374151', lineHeight: 18 },
+  transcriptItem: { borderTopWidth: 1, borderTopColor: '#EEF3FC', paddingTop: 10, marginTop: 8 },
+  transcriptLabel: v22SectionLabel({ fontSize: 12, fontFamily: 'InterBold', color: '#64788A', marginBottom: 4, textTransform: 'uppercase' }),
+  transcriptText: { fontFamily: 'Inter', fontSize: 13, color: '#102A45', lineHeight: 18 },
   exportBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: NAVY, borderRadius: 12, paddingVertical: 13 },
-  exportBtnText: { fontSize: 13, fontWeight: '700', color: NAVY },
-  notFoundTitle: { fontSize: 16, fontWeight: '700', color: '#374151', marginTop: 12 },
+  exportBtnText: { fontSize: 13, fontFamily: 'InterBold', color: NAVY },
+  notFoundTitle: { fontSize: 16, fontFamily: 'InterBold', color: '#102A45', marginTop: 12 },
 });

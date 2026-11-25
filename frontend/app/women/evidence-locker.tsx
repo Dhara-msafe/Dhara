@@ -1253,10 +1253,10 @@ export default function EvidenceLocker() {
         ))}
         <View style={styles.captureRow}>
           <Pressable testID="evidence-take-photo" disabled={busy || state.isRecording} style={(s) => [styles.secondary, styles.captureBtn, focusRingStyle(s)]} onPress={() => capture('photo')} accessibilityRole="button" accessibilityLabel="Take photo">
-            <Text style={styles.label}>📷 Take photo</Text>
+            <Text style={styles.label}>Take photo</Text>
           </Pressable>
           <Pressable testID="evidence-record-video" disabled={busy || state.isRecording} style={(s) => [styles.secondary, styles.captureBtn, focusRingStyle(s)]} onPress={() => capture('video')} accessibilityRole="button" accessibilityLabel="Record video, max 2 minutes">
-            <Text style={styles.label}>🎥 Record video (max 2 min)</Text>
+            <Text style={styles.label}>Record video (max 2 min)</Text>
           </Pressable>
         </View>
         {/* v2.2 phase 7: microphone-denied and save-failed get their own
@@ -1274,7 +1274,7 @@ export default function EvidenceLocker() {
         <Text style={styles.heading} testID="evidence-count">Saved items ({items.length})</Text>
         {items.map(item => <View key={item.id} style={styles.secondary} testID={`recording-${item.id}`}>
           <Text style={styles.label}>
-            {item.type === 'photo' ? '📷 Photo' : item.type === 'video' ? '🎥 Video' : '🎙️ Audio'}
+            {item.type === 'photo' ? 'Photo' : item.type === 'video' ? 'Video' : 'Audio'}
             {item.recording_format_version === 2 ? ` (${item.segment_count ?? 0} segments)` : ''}
             {' · '}{new Date(item.createdAt).toLocaleString()}
           </Text>
@@ -1310,7 +1310,7 @@ export default function EvidenceLocker() {
           <View style={styles.vaultRow}>
             <Text testID={`recording-vault-status-${item.id}`} style={styles.note}>
               {manifestMap[item.id]?.anchor
-                ? `🔒 Anchored · ${new Date(manifestMap[item.id]!.anchor!.serverTime).toLocaleString()}`
+                ? `Anchored · ${new Date(manifestMap[item.id]!.anchor!.serverTime).toLocaleString()}`
                 : 'Not anchored yet · timestamp proof is optional'}
               {manifestMap[item.id]?.backup ? ' · ☁️ Backed up' : ''}
             </Text>
@@ -1356,7 +1356,7 @@ export default function EvidenceLocker() {
                   accessibilityLabel={notesMap[item.id] ? `Edit note: ${notesMap[item.id].slice(0, 60)}` : 'Add note'}
                 >
                   <Text style={styles.label}>
-                    {notesMap[item.id] ? `📝 Note: ${notesMap[item.id].slice(0, 60)}${notesMap[item.id].length > 60 ? '…' : ''}` : '📝 Add note'}
+                    {notesMap[item.id] ? `Note: ${notesMap[item.id].slice(0, 60)}${notesMap[item.id].length > 60 ? '…' : ''}` : 'Add note'}
                   </Text>
                 </Pressable>
               )}

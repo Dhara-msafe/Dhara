@@ -21,8 +21,8 @@ const WORKFLOWS = [
     id: 'emergency',
     icon: 'alert-circle' as const,
     color: C.error,
-    bg: '#FEF2F2',
-    border: '#FECACA',
+    bg: '#FFF0F0',
+    border: '#EFC7C7',
     titles: { en: 'Emergency Help', fr: 'Aide d\'urgence', de: 'Notfallhilfe', es: 'Ayuda de emergencia', hi: 'आपातकालीन सहायता' } as Record<string, string>,
     subs:   { en: 'Accident, assault, theft, medical', fr: 'Accident, agression, vol, urgence', de: 'Unfall, Überfall, Diebstahl', es: 'Accidente, asalto, robo, emergencia', hi: 'दुर्घटना, हमला, चोरी, चिकित्सा' } as Record<string, string>,
     route: '/visitor/emergency',
@@ -32,7 +32,7 @@ const WORKFLOWS = [
     icon: 'document-outline' as const,
     color: C.primary,
     bg: C.navySoft,
-    border: '#BFDBFE',
+    border: '#D2E1FD',
     titles: { en: 'Lost Passport', fr: 'Passeport perdu', de: 'Reisepass verloren', es: 'Pasaporte perdido', hi: 'पासपोर्ट खो गया' } as Record<string, string>,
     subs:   { en: 'FIR, embassy, FRRO process', fr: 'FIR, ambassade, FRRO', de: 'FIR, Botschaft, FRRO', es: 'FIR, embajada, FRRO', hi: 'FIR, दूतावास, FRRO' } as Record<string, string>,
     route: '/visitor/lost-passport',
@@ -40,9 +40,9 @@ const WORKFLOWS = [
   {
     id: 'visa-frro',
     icon: 'calendar-outline' as const,
-    color: '#7C3AED',
-    bg: '#F5F3FF',
-    border: '#DDD6FE',
+    color: '#1E5BD0',
+    bg: '#EEF5FF',
+    border: '#D2E1FD',
     titles: { en: 'Visa / FRRO', fr: 'Visa / FRRO', de: 'Visum / FRRO', es: 'Visa / FRRO', hi: 'वीजा / FRRO' } as Record<string, string>,
     subs:   { en: 'Extension, overstay, appointment', fr: 'Extension, dépassement, rendez-vous', de: 'Verlängerung, Überschreitung', es: 'Extensión, exceso de estadía', hi: 'विस्तार, ओवरस्टे, अपॉइंटमेंट' } as Record<string, string>,
     route: '/visitor/visa-frro',
@@ -50,8 +50,8 @@ const WORKFLOWS = [
   {
     id: 'cyber-fraud',
     icon: 'shield-outline' as const,
-    color: '#D97706',
-    bg: '#FFFBEB',
+    color: '#8A6A1E',
+    bg: '#FFF4E6',
     border: '#FDE68A',
     titles: { en: 'Cyber Fraud', fr: 'Fraude en ligne', de: 'Cyberbetrug', es: 'Fraude cibernético', hi: 'साइबर धोखाधड़ी' } as Record<string, string>,
     subs:   { en: 'Scam, online fraud, helpline 1930', fr: 'Arnaque, fraude en ligne, hotline 1930', de: 'Betrug, Online-Fraud, Hotline 1930', es: 'Estafa, fraude en línea, 1930', hi: 'स्कैम, ऑनलाइन फ्रॉड, हेल्पलाइन 1930' } as Record<string, string>,
@@ -60,8 +60,8 @@ const WORKFLOWS = [
   {
     id: 'interpreter',
     icon: 'language-outline' as const,
-    color: '#059669',
-    bg: '#ECFDF5',
+    color: '#087951',
+    bg: '#EDFAF2',
     border: '#A7F3D0',
     titles: { en: 'Two-Way Interpreter', fr: 'Interprète bidirectionnel', de: 'Zwei-Wege-Dolmetscher', es: 'Intérprete bidireccional', hi: 'दो-तरफ़ा दुभाषिया' } as Record<string, string>,
     // DHARA-B021: "{LANG}" is substituted at render time with the tourist's
@@ -126,7 +126,7 @@ export default function VisitorIntent() {
         </View>
 
         <Text style={s.alwaysNote}>
-          ℹ️ In any emergency, call <Text style={{ fontWeight: '800' }}>112</Text> immediately.
+          ℹ️ In any emergency, call <Text style={{ fontFamily: 'InterExtraBold'}}>112</Text> immediately.
         </Text>
 
         <Pressable style={s.callBtn} testID="visitor-intent-call-112" onPress={UI_V22_P6 ? async () => setDialStatus(await openPhone('112')) : () => {
@@ -146,7 +146,7 @@ export default function VisitorIntent() {
 
 const s = StyleSheet.create({
   // v2.2 phase 6 follow-up: dial status line (selectable = number fallback).
-  dialStatus: { fontSize: 13, lineHeight: 18, color: C.ink, textAlign: 'center', marginTop: 10 },
+  dialStatus: { fontFamily: 'Inter', fontSize: 13, lineHeight: 18, color: C.ink, textAlign: 'center', marginTop: 10 },
   safe:    { flex: 1, backgroundColor: C.background },
   content: { padding: 16, paddingBottom: 40, flexGrow: 1 },
 
@@ -155,10 +155,10 @@ const s = StyleSheet.create({
     backgroundColor: C.navySoft, borderRadius: 20, alignSelf: 'flex-start',
     paddingHorizontal: 12, paddingVertical: 6, marginBottom: 20,
   },
-  topBadgeText: { fontSize: 12, color: C.primary, fontWeight: '600' },
+  topBadgeText: { fontSize: 12, color: C.primary, fontFamily: 'InterSemiBold'},
 
-  heading: { fontSize: 21, fontWeight: '800', color: C.primary, marginBottom: 6 },
-  sub:     { fontSize: 13, color: C.onSurfaceTertiary, marginBottom: 18, lineHeight: 18 },
+  heading: { fontSize: 21, fontFamily: 'InterExtraBold', color: C.primary, marginBottom: 6 },
+  sub:     { fontFamily: 'Inter', fontSize: 13, color: C.onSurfaceTertiary, marginBottom: 18, lineHeight: 18 },
 
   workflows: { gap: 14 },
   card:      {
@@ -167,16 +167,16 @@ const s = StyleSheet.create({
   },
   iconWrap:  { width: 56, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   cardText:  { flex: 1 },
-  cardTitle: { fontSize: 15, fontWeight: '800', marginBottom: 4 },
-  cardSub:   { fontSize: 12, color: C.onSurfaceTertiary, lineHeight: 17 },
+  cardTitle: { fontSize: 15, fontFamily: 'InterExtraBold', marginBottom: 4 },
+  cardSub:   { fontFamily: 'Inter', fontSize: 12, color: C.onSurfaceTertiary, lineHeight: 17 },
 
   alwaysNote: {
-    fontSize: 12, color: C.onSurfaceTertiary, textAlign: 'center',
+    fontFamily: 'Inter', fontSize: 12, color: C.onSurfaceTertiary, textAlign: 'center',
     marginTop: 18, marginBottom: 12, lineHeight: 17,
   },
   callBtn:     {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 10, backgroundColor: C.error, borderRadius: 14, paddingVertical: 16,
   },
-  callBtnText: { fontSize: 14, fontWeight: '800', color: '#fff' },
+  callBtnText: { fontSize: 14, fontFamily: 'InterExtraBold', color: '#fff' },
 });

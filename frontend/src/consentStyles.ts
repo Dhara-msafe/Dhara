@@ -17,7 +17,7 @@ export const consentStyles = StyleSheet.create({
   logoBox: { width: 40, height: 40 },
   stepEyebrow: v22SectionLabel({
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'InterBold',
     letterSpacing: 0.6,
     textTransform: 'uppercase',
     color: colors.muted,
@@ -29,18 +29,18 @@ export const consentStyles = StyleSheet.create({
     color: colors.navy,
     marginBottom: 10,
   },
-  intro: { fontSize: 14, color: colors.muted, lineHeight: 21, marginBottom: 20 },
+  intro: { fontFamily: 'Inter', fontSize: 14, color: colors.muted, lineHeight: 21, marginBottom: 20 },
 
   // ── Section labels (eyebrow style) ────────────────────────────────────────
   sectionLabel: v22SectionLabel({
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'InterBold',
     letterSpacing: 0.6,
     textTransform: 'uppercase',
     color: colors.muted,
     marginBottom: 10,
   }),
-  sectionHeading: { fontSize: 16, fontWeight: '700', color: colors.navy, marginTop: 18, marginBottom: 12 },
+  sectionHeading: { fontSize: 16, fontFamily: 'InterBold', color: colors.navy, marginTop: 18, marginBottom: 12 },
 
   // ── Checkbox-style rows (required items) ──────────────────────────────────
   // Visually: white card, full-width tap target, border highlights when checked
@@ -85,32 +85,32 @@ export const consentStyles = StyleSheet.create({
   },
 
   // ── Legacy radio / check styles kept for compatibility ────────────────────
-  bodyText: { fontSize: 13, color: colors.onSurfaceSecondary, lineHeight: 20 },
+  bodyText: { fontFamily: 'Inter', fontSize: 13, color: colors.onSurfaceSecondary, lineHeight: 20 },
   bulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
-  bulletText: { flex: 1, fontSize: 13, color: colors.onSurfaceSecondary, lineHeight: 20 },
+  bulletText: { flex: 1, fontFamily: 'Inter', fontSize: 13, color: colors.onSurfaceSecondary, lineHeight: 20 },
   infoBox: { backgroundColor: colors.surfaceSecondary, borderRadius: 10, borderWidth: 1, borderColor: colors.divider, padding: 14, marginTop: 16 },
-  infoText: { fontSize: 13, color: colors.onSurfaceSecondary, lineHeight: 19 },
+  infoText: { fontFamily: 'Inter', fontSize: 13, color: colors.onSurfaceSecondary, lineHeight: 19 },
   radioGroup: { gap: 12 },
   radioBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1.5, borderColor: colors.border, borderRadius: 12, padding: 16, minHeight: 50 },
   radioSelected: { borderColor: colors.primary, backgroundColor: colors.surfaceSecondary },
-  radioLabel: { flex: 1, fontSize: 14, lineHeight: 21, color: colors.onSurface, fontWeight: '600' },
+  radioLabel: { flex: 1, fontSize: 14, lineHeight: 21, color: colors.onSurface, fontFamily: 'InterSemiBold'},
   divider: { height: 1, backgroundColor: colors.divider, marginVertical: 20 },
   checkRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, minHeight: 48, paddingVertical: 12 },
-  checkLabel: { flex: 1, fontSize: 13, color: colors.onSurfaceSecondary, lineHeight: 20 },
+  checkLabel: { flex: 1, fontFamily: 'Inter', fontSize: 13, color: colors.onSurfaceSecondary, lineHeight: 20 },
   termsLink: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48, paddingVertical: 12 },
-  linkText: { flexShrink: 1, fontSize: 13, lineHeight: 19, fontWeight: '700', color: colors.primary, textDecorationLine: 'underline' },
+  linkText: { flexShrink: 1, fontSize: 13, lineHeight: 19, fontFamily: 'InterBold', color: colors.primary, textDecorationLine: 'underline' },
 
   // ── Optional section ──────────────────────────────────────────────────────
   optionalHeading: v22SectionLabel({
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'InterBold',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     color: colors.muted,
     marginBottom: 10,
   }),
   toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 50, paddingVertical: 12, gap: 16, borderBottomWidth: 1, borderBottomColor: colors.divider },
-  toggleLabel: { flex: 1, fontSize: 13, lineHeight: 20, color: colors.onSurfaceSecondary },
+  toggleLabel: { flex: 1, fontFamily: 'Inter', fontSize: 13, lineHeight: 20, color: colors.onSurfaceSecondary },
 
   // ── "You get a record" card ───────────────────────────────────────────────
   recordCard: {
@@ -153,14 +153,14 @@ export const consentStyles = StyleSheet.create({
 
   // ── Footer ────────────────────────────────────────────────────────────────
   footer: { flexShrink: 0, padding: 16, gap: 10, borderTopWidth: 1, borderColor: colors.divider, backgroundColor: colors.cream },
-  guidance: { fontSize: 12, lineHeight: 17, color: colors.onSurfaceSecondary, textAlign: 'center' },
+  guidance: { fontFamily: 'Inter', fontSize: 12, lineHeight: 17, color: colors.onSurfaceSecondary, textAlign: 'center' },
   nothingSavedNote: {
     textAlign: 'center',
-    fontSize: 12,
+    fontFamily: 'Inter', fontSize: 12,
     color: colors.muted,
     lineHeight: 16,
   },
-  error: { fontSize: 13, lineHeight: 18, color: colors.error },
+  error: { fontFamily: 'Inter', fontSize: 13, lineHeight: 18, color: colors.error },
   continueBtn: { backgroundColor: colors.navy, borderRadius: 16, minHeight: 54, padding: 14, alignItems: 'center', justifyContent: 'center' },
   continueDisabled: { backgroundColor: '#E3DDCD' },
   continueText: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 15 },
@@ -169,7 +169,7 @@ export const consentStyles = StyleSheet.create({
     // background measured ~3.79:1 — under 4.5:1. onSurfaceSecondary clears ~5.7:1.
     color: UI_REVISION_V1 ? colors.onSurfaceSecondary : colors.onSurfaceTertiary,
   },
-  note: { fontSize: 12, lineHeight: 18, color: colors.onSurfaceTertiary, marginTop: 16 },
+  note: { fontFamily: 'Inter', fontSize: 12, lineHeight: 18, color: colors.onSurfaceTertiary, marginTop: 16 },
   pressed: { opacity: 0.75 },
   helpButtons: { gap: 8, marginTop: 12 },
   helpButton: { minHeight: 44, justifyContent: 'center' },

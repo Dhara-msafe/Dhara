@@ -294,7 +294,7 @@ export const UI_V22_S7 = process.env.EXPO_PUBLIC_UI_V22_S7 === 'true';
  * fresh from Welcome.dc.html in an earlier stage with the corrected,
  * non-overclaiming copy (see the file's own header comment). Choose state
  * (id5, app/state.tsx) already has a selected-row checkmark, the shared
- * #505B68 placeholder-contrast token, and its one sub-48px touch target
+ * #64788A placeholder-contrast token, and its one sub-48px touch target
  * (the skip/cancel button) already raised to 48px by the pre-existing
  * UI_REVISION_V1 flag. Choose language (id2, app/language.tsx) already
  * shows native names first and already has a working search field (the
@@ -338,7 +338,7 @@ export const UI_V22_S10 = process.env.EXPO_PUBLIC_UI_V22_S10 === 'true';
  * `/api/advocate/profile/:id` fetch, not sample data, and nowhere shows a
  * rating or a "cases won" count. IPC lookup (id52, "retained... Visual
  * only") is the one real gap: its `safe` container hardcodes the legacy
- * off-brand `#FDFBF7`, one hex away from the v2.2 cream token
+ * off-brand `#FFFAF2`, one hex away from the v2.2 cream token
  * (`theme.colors.background`, `#FFFAF2`) that IPCLookup.dc.html and every
  * other v2.2 screen use. With the flag on, it reads the shared token
  * instead.

@@ -283,7 +283,7 @@ export default function CodePhrase() {
         {/* SOS ↔ Hide conflict notice */}
         {sosConflictsWithHide && (
           <View style={styles.conflictNotice}>
-            <Ionicons name="alert-circle-outline" size={16} color="#b45309" />
+            <Ionicons name="alert-circle-outline" size={16} color="#8A6A1E" />
             <Text style={styles.conflictNoticeTxt}>
               This phrase is the same as, or too close to, your Privacy phrase. Use a different
               sentence so DHARA can tell the two apart.
@@ -395,7 +395,7 @@ export default function CodePhrase() {
         {/* Conflict notice — shown for both real-time in-state check and persisted-value gate */}
         {(hideConflictsWithSOS || hidePersistedConflict) && (
           <View style={styles.conflictNotice}>
-            <Ionicons name="alert-circle-outline" size={16} color="#b45309" />
+            <Ionicons name="alert-circle-outline" size={16} color="#8A6A1E" />
             <Text style={styles.conflictNoticeTxt}>
               This phrase is the same as, or too close to, your SOS phrase. Use a different
               sentence so DHARA can tell the two apart.
@@ -482,14 +482,14 @@ const styles = StyleSheet.create({
   webNoticeTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 17 },
   webSaveReplace: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 12, paddingVertical: 15, marginTop: 14 },
   webSaveReplaceTxt: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted },
-  errorNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#fff5f5', borderWidth: 1, borderColor: '#fecaca', borderRadius: 12, padding: 12, marginBottom: 14 },
+  errorNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#FFF0F0', borderWidth: 1, borderColor: '#EFC7C7', borderRadius: 12, padding: 12, marginBottom: 14 },
   errorNoticeTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12, color: c.emergencyRed, lineHeight: 17 },
-  conflictNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fcd34d', borderRadius: 12, padding: 12, marginBottom: 14 },
-  conflictNoticeTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12, color: '#b45309', lineHeight: 17 },
+  conflictNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#FFF4E6', borderWidth: 1, borderColor: '#E8B956', borderRadius: 12, padding: 12, marginBottom: 14 },
+  conflictNoticeTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12, color: '#8A6A1E', lineHeight: 17 },
   // Status badges
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 16, borderWidth: 1 },
   statusArmed:     { backgroundColor: '#f0faf4', borderColor: '#b6e8c8' },
-  statusHideArmed: { backgroundColor: '#eef2ff', borderColor: '#c7d2fe' },
+  statusHideArmed: { backgroundColor: '#EEF5FF', borderColor: '#c7d2fe' },
   statusOff:       { backgroundColor: c.surface, borderColor: c.lines },
   statusText:     { fontFamily: theme.fonts.bodyBold, fontSize: 12 },
   statusArmedText:     { color: c.verifiedGreen },
@@ -497,13 +497,13 @@ const styles = StyleSheet.create({
   statusOffText:       { color: c.muted },
   // Input
   input: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 14, padding: 16, fontFamily: theme.fonts.body, fontSize: 15, color: c.ink, minHeight: 70, textAlignVertical: 'top' },
-  inputConflict: { borderColor: '#fcd34d', backgroundColor: '#fffbeb' },
+  inputConflict: { borderColor: '#E8B956', backgroundColor: '#FFF4E6' },
   // Buttons
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.navy, borderRadius: 12, paddingVertical: 15, marginTop: 14 },
   hideSaveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.onBrandPrimary, borderRadius: 12, paddingVertical: 15, marginTop: 14 },
   btnDisabled: { opacity: 0.4 },
   saveTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14 },
-  clearBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 12, paddingVertical: 12, marginTop: 8, borderWidth: 1, borderColor: '#fecaca', minHeight: UI_REVISION_V1 ? 48 : undefined },
+  clearBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 12, paddingVertical: 12, marginTop: 8, borderWidth: 1, borderColor: '#EFC7C7', minHeight: UI_REVISION_V1 ? 48 : undefined },
   clearTxt: { color: c.emergencyRed, fontFamily: theme.fonts.bodyBold, fontSize: 13 },
   // Suggestions
   sugTitle: {
@@ -517,7 +517,7 @@ const styles = StyleSheet.create({
   sugTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.ink },
   // Tips
   tip: { flexDirection: 'row', gap: 10, backgroundColor: c.navySoft, borderRadius: 12, padding: 14, marginTop: 16 },
-  tipPrivacy: { backgroundColor: '#eef2ff' },
+  tipPrivacy: { backgroundColor: '#EEF5FF' },
   tipTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 17 },
   // Section divider
   sectionDivider: { alignItems: 'center', marginVertical: 24 },

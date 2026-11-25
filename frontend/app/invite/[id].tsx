@@ -142,6 +142,6 @@ const styles = StyleSheet.create({
   statusTxt: { fontFamily: theme.fonts.bodyMedium, fontSize: 13, color: c.muted, textAlign: 'center', marginTop: 10 },
   manageCard: { marginTop: 18, borderTopWidth: 1, borderTopColor: c.border, paddingTop: 20 },
   muteRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 14, padding: 14, marginBottom: 14 },
-  leaveBtn: { backgroundColor: '#FCEBE9', borderRadius: 999, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
+  leaveBtn: { backgroundColor: '#FFF0F0', borderRadius: 999, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   leaveBtnTxt: { color: c.error, fontFamily: theme.fonts.bodyBold, fontSize: 13 },
 });

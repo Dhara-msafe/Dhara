@@ -81,9 +81,9 @@ function buildDraftHtml(answers: Record<string, string>, lang: Lang, support: Mi
 <title>DHARA Missing Person Complaint</title>
 <style>
   body { font-family: Arial, sans-serif; margin: 24px; color: #111; }
-  h1   { color: #1B2B5B; font-size: 20px; margin-bottom: 4px; }
+  h1   { color: #082B4F; font-size: 20px; margin-bottom: 4px; }
   .disclaimer {
-    background: #FFF8E7; border-left: 4px solid #C9973A;
+    background: #FFF4E6; border-left: 4px solid #E8B956;
     padding: 12px; font-size: 12px; color: #555; margin-bottom: 20px; line-height: 1.6;
   }
   table { width: 100%; border-collapse: collapse; margin-top: 12px; }
@@ -136,7 +136,7 @@ function RightsCard({ lang, onShare }: { lang: Lang; onShare: () => void }) {
             accessibilityRole="button"
             accessibilityLabel={`Call ${en.number}, ${t(en.label, lang)}`}
           >
-            <Text style={rc.chipNum}>📞 {en.number}</Text>
+            <Text style={rc.chipNum}>{en.number}</Text>
             <Text style={rc.chipLabel}>{t(en.label, lang)}</Text>
           </Pressable>
         ))}
@@ -161,7 +161,7 @@ function RightsCard({ lang, onShare }: { lang: Lang; onShare: () => void }) {
         accessibilityLabel="Share rights card as image"
       >
         <Text style={rc.shareBtnText}>
-          {lang === 'hi' ? '📤 छवि के रूप में शेयर करें' : lang === 'mr' ? '📤 प्रतिमा म्हणून शेअर करा' : '📤 Share as Image'}
+          {lang === 'hi' ? 'छवि के रूप में शेयर करें' : lang === 'mr' ? 'प्रतिमा म्हणून शेअर करा' : 'Share as Image'}
         </Text>
       </Pressable>
     </View>
@@ -256,17 +256,17 @@ export default function MissingResultScreen() {
     const card = rightsData.card;
     const rightsHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
 <style>
-  body { font-family: Arial, sans-serif; background:#1B2B5B; color:#fff; padding:24px; }
-  h1   { font-size:22px; color:#C9973A; margin-bottom:16px; }
-  .chip{ display:inline-block; background:#CC0000; color:#fff; padding:10px 16px;
+  body { font-family: Arial, sans-serif; background:#082B4F; color:#fff; padding:24px; }
+  h1   { font-size:22px; color:#E8B956; margin-bottom:16px; }
+  .chip{ display:inline-block; background:#C73236; color:#fff; padding:10px 16px;
          border-radius:12px; margin:4px; font-size:18px; font-weight:bold; }
   .panel { background:rgba(255,255,255,0.1); border-radius:10px; padding:14px; margin:8px 0; }
-  .phead { font-size:14px; font-weight:700; color:#C9973A; margin-bottom:6px; }
+  .phead { font-size:14px; font-weight:700; color:#E8B956; margin-bottom:6px; }
   .pbody { font-size:13px; line-height:1.6; }
   .footer{ font-size:11px; color:rgba(255,255,255,0.6); margin-top:16px; }
 </style></head><body>
 <h1>${t(card.title, lang)}</h1>
-${card.emergency_numbers.map(e => `<span class="chip">📞 ${e.number} · ${t(e.label, lang)}</span>`).join('')}
+${card.emergency_numbers.map(e => `<span class="chip">${e.number} · ${t(e.label, lang)}</span>`).join('')}
 ${card.rights.map(r => `<div class="panel"><div class="phead">${t(r.heading, lang)}</div><div class="pbody">${t(r.body, lang)}</div></div>`).join('')}
 <div class="footer">${t(card.footer_note, lang)}</div>
 </body></html>`;
@@ -370,7 +370,7 @@ ${card.rights.map(r => `<div class="panel"><div class="phead">${t(r.heading, lan
             accessibilityLabel="Generate PDF"
           >
             <Text style={s.primaryBtnText}>
-              {lang === 'hi' ? '📄 PDF तैयार करें' : lang === 'mr' ? '📄 PDF तयार करा' : '📄 Generate PDF'}
+              {lang === 'hi' ? 'PDF तैयार करें' : lang === 'mr' ? 'PDF तयार करा' : 'Generate PDF'}
             </Text>
           </Pressable>
         )}
@@ -408,13 +408,13 @@ ${card.rights.map(r => `<div class="panel"><div class="phead">${t(r.heading, lan
         {Object.keys(answers).length > 0 && !loading && (
           <Pressable
             testID="missing-print"
-            style={(st) => [s.primaryBtn, { backgroundColor: '#2D6A4F' }, focusRingStyle(st)]}
+            style={(st) => [s.primaryBtn, { backgroundColor: '#087951' }, focusRingStyle(st)]}
             onPress={handlePrint}
             accessibilityRole="button"
             accessibilityLabel="Print complaint"
           >
             <Text style={s.primaryBtnText}>
-              {lang === 'hi' ? '🖨 प्रिंट करें' : lang === 'mr' ? '🖨 प्रिंट करा' : '🖨 Print Complaint'}
+              {lang === 'hi' ? 'प्रिंट करें' : lang === 'mr' ? 'प्रिंट करा' : 'Print Complaint'}
             </Text>
           </Pressable>
         )}
@@ -463,42 +463,42 @@ ${card.rights.map(r => `<div class="panel"><div class="phead">${t(r.heading, lan
 // ── Styles ────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   attachments: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.divider, padding: 14, borderRadius: 12, marginBottom: 20, gap: 8 },
-  attachmentText: { fontSize: 13, color: NAVY, lineHeight: 18 },
+  attachmentText: { fontFamily: 'Inter', fontSize: 13, color: NAVY, lineHeight: 18 },
   // NF-UI-REV-02 (Group C): 44px was below the 48px minimum touch target.
   attachmentBtn: { minHeight: UI_REVISION_V1 ? 48 : 44, flexDirection: 'row', gap: 8, alignItems: 'center' },
   safe:           { flex: 1, backgroundColor: BG },
   scroll:         { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60 },
   centred:        { flex: 1, alignItems: 'center', justifyContent: 'center' },
   backBtn:        { marginBottom: 12, minHeight: UI_REVISION_V1 ? 48 : 44, minWidth: UI_REVISION_V1 ? 48 : 44, justifyContent: 'center' },
-  backText:       { color: NAVY, fontSize: 13, fontWeight: '600' },
+  backText:       { color: NAVY, fontSize: 13, fontFamily: 'InterSemiBold'},
   banner:         {
     backgroundColor: NAVY, borderRadius: 16, padding: 18, alignItems: 'center', marginBottom: 20,
   },
   bannerEmoji:    { fontSize: 28, marginBottom: 8 },
-  bannerTitle:    { fontSize: 19, fontWeight: '700', color: '#FFF' },
-  bannerSub:      { fontSize: 12, color: '#C5CEEA', marginTop: 8, textAlign: 'center', lineHeight: 17 },
+  bannerTitle:    { fontSize: 19, fontFamily: 'InterBold', color: '#FFF' },
+  bannerSub:      { fontFamily: 'Inter', fontSize: 12, color: '#D2E1FD', marginTop: 8, textAlign: 'center', lineHeight: 17 },
   primaryBtn:     {
     backgroundColor: NAVY, borderRadius: 12, paddingVertical: 16,
     alignItems: 'center', marginBottom: 12,
   },
-  primaryBtnText: { color: '#FFF', fontWeight: '700', fontSize: 14 },
+  primaryBtnText: { color: '#FFF', fontFamily: 'InterBold', fontSize: 14 },
   // NF-UI-REV-02: paddingVertical 14 (~46px tall) was just under the 48px
   // minimum touch target.
   secondaryBtn:   {
     borderWidth: 1.5, borderColor: NAVY, borderRadius: 12, paddingVertical: UI_REVISION_V1 ? 16 : 14,
     alignItems: 'center', marginTop: 8,
   },
-  secondaryBtnText: { color: NAVY, fontWeight: '600', fontSize: 13 },
+  secondaryBtnText: { color: NAVY, fontFamily: 'InterSemiBold', fontSize: 13 },
   generatingRow:  { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, marginBottom: 12 },
-  generatingText: { color: NAVY, fontSize: 13 },
+  generatingText: { color: NAVY, fontFamily: 'Inter', fontSize: 13 },
   errorCard:      { backgroundColor: '#FFF0F0', borderRadius: 10, padding: 12, marginBottom: 12 },
-  errorText:      { color: RED, fontSize: 12 },
+  errorText:      { color: RED, fontFamily: 'Inter', fontSize: 12 },
   privacyCard:    {
-    backgroundColor: '#F0F4FF', borderRadius: 10, padding: 14, marginBottom: 18,
+    backgroundColor: '#EEF5FF', borderRadius: 10, padding: 14, marginBottom: 18,
   },
-  privacyText:    { fontSize: 12, color: '#334', lineHeight: 16 },
+  privacyText:    { fontFamily: 'Inter', fontSize: 12, color: '#334', lineHeight: 16 },
   rightsTitle:    {
-    fontSize: 13, fontWeight: '700', color: NAVY, textAlign: 'center',
+    fontSize: 13, fontFamily: 'InterBold', color: NAVY, textAlign: 'center',
     marginBottom: 16, letterSpacing: 0.5,
   },
 });
@@ -507,29 +507,29 @@ const rc = StyleSheet.create({
   card:          {
     backgroundColor: NAVY, borderRadius: 20, padding: 16, marginBottom: 20,
   },
-  title:         { fontSize: 16, fontWeight: '700', color: GOLD, marginBottom: 16 },
+  title:         { fontSize: 16, fontFamily: 'InterBold', color: GOLD, marginBottom: 16 },
   chips:         { flexDirection: 'row', gap: 10, marginBottom: 16, flexWrap: 'wrap' },
   chip:          {
     backgroundColor: RED, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, flex: 1,
     alignItems: 'center',
   },
-  chipNum:       { fontSize: 17, fontWeight: '800', color: '#FFF' },
+  chipNum:       { fontSize: 17, fontFamily: 'InterExtraBold', color: '#FFF' },
   // NF-UI-REV-02: white-80%-over-red measured ~4.6:1, right at the edge —
   // 88% gives a safer margin above the 4.5:1 minimum.
-  chipLabel:     { fontSize: 12, color: UI_REVISION_V1 ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.8)', marginTop: 4, textAlign: 'center' },
+  chipLabel:     { fontFamily: 'Inter', fontSize: 12, color: UI_REVISION_V1 ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.8)', marginTop: 4, textAlign: 'center' },
   panel:         {
     backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 14, marginBottom: 10,
   },
-  panelHeading:  { fontSize: 12, fontWeight: '700', color: GOLD, marginBottom: 6 },
-  panelBody:     { fontSize: 12, color: 'rgba(255,255,255,0.8)', lineHeight: 16 },
+  panelHeading:  { fontSize: 12, fontFamily: 'InterBold', color: GOLD, marginBottom: 6 },
+  panelBody:     { fontFamily: 'Inter', fontSize: 12, color: 'rgba(255,255,255,0.8)', lineHeight: 16 },
   // NF-UI-REV-02: white-50%-over-navy measured ~4.0:1, below the 4.5:1
   // minimum for this small disclaimer text — 68% clears it with margin.
-  footer:        { fontSize: 12, color: UI_REVISION_V1 ? 'rgba(255,255,255,0.68)' : 'rgba(255,255,255,0.5)', marginTop: 12, lineHeight: 17 },
+  footer:        { fontFamily: 'Inter', fontSize: 12, color: UI_REVISION_V1 ? 'rgba(255,255,255,0.68)' : 'rgba(255,255,255,0.5)', marginTop: 12, lineHeight: 17 },
   // NF-UI-REV-02: paddingVertical 14 (~46px tall) was just under the 48px
   // minimum touch target.
   shareBtn:      {
     marginTop: 16, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 12,
     paddingVertical: UI_REVISION_V1 ? 16 : 14, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
   },
-  shareBtnText:  { color: '#FFF', fontWeight: '600', fontSize: 13 },
+  shareBtnText:  { color: '#FFF', fontFamily: 'InterSemiBold', fontSize: 13 },
 });

@@ -218,7 +218,7 @@ export function DestinationMapPicker({
           onDragEnd={(e: any) => { handleDragEnd(e); onInteractionChange?.(false); }}
           title="Planned destination"
           description="Planned arrival area — drag or tap map to adjust"
-          pinColor="#1A3F74"
+          pinColor="#082B4F"
         />
         {/* Radius circle: PLANNED ARRIVAL AREA, not active geofencing.
             Only rendered when radiusMeters is finite and within 50–2000 m. */}

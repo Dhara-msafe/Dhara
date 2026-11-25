@@ -27,10 +27,10 @@ const NAVY   = theme.colors.primary;
 const GOLD   = theme.colors.gold;
 const CUTOFF = '2024-07-01';
 // NF-UI-REV-02: secondary-text grey used across this screen. The old literal
-// greys ('#6B7280' / '#9CA3AF') measured below 4.5:1 on this screen's light
+// greys ('#64788A' / '#64788A') measured below 4.5:1 on this screen's light
 // card/chip backgrounds; MUTED_TEXT (theme.colors.onSurfaceSecondary) clears
 // 4.5:1 on every background used here with margin to spare.
-const MUTED_TEXT = UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : '#9CA3AF';
+const MUTED_TEXT = UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : '#64788A';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface XRef {
@@ -78,17 +78,17 @@ interface CitationGuard {
 
 // ── Change-type display config ────────────────────────────────────────────────
 const CHANGE_META: Record<string, { label: string; bg: string; color: string }> = {
-  renumbering_only:                { label: 'Renumbered',      bg: '#EEF2FF', color: '#3730A3' },
-  renumbering_plus_relocation:     { label: 'Relocated',       bg: '#F0FDF4', color: '#166534' },
+  renumbering_only:                { label: 'Renumbered',      bg: '#EEF5FF', color: '#0D436B' },
+  renumbering_plus_relocation:     { label: 'Relocated',       bg: '#EDFAF2', color: '#087951' },
   wording_change_same_effect:      { label: 'Minor Wording',   bg: '#FFF7ED', color: '#9A3412' },
-  substantive_change:              { label: 'Substantive ⚠',   bg: '#FEF3C7', color: '#92400E' },
-  deleted_replaced_by_new_offence: { label: 'Replaced',        bg: '#FEF2F2', color: '#991B1B' },
-  deleted:                         { label: 'Deleted',         bg: '#FEE2E2', color: '#B91C1C' },
-  new:                             { label: 'New',             bg: '#ECFDF5', color: '#065F46' },
-  dead_law:                        { label: '⚠ Dead Law',      bg: '#1F2937', color: '#FCA5A5' },
+  substantive_change:              { label: 'Substantive ⚠',   bg: '#FFF4E6', color: '#8A6A1E' },
+  deleted_replaced_by_new_offence: { label: 'Replaced',        bg: '#FFF0F0', color: '#C73236' },
+  deleted:                         { label: 'Deleted',         bg: '#FFF0F0', color: '#C73236' },
+  new:                             { label: 'New',             bg: '#EDFAF2', color: '#087951' },
+  dead_law:                        { label: '⚠ Dead Law',      bg: '#102A45', color: '#EFC7C7' },
 };
 function changeMeta(ct: string) {
-  return CHANGE_META[ct] ?? { label: ct.replace(/_/g, ' '), bg: '#F3F4F6', color: '#374151' };
+  return CHANGE_META[ct] ?? { label: ct.replace(/_/g, ' '), bg: '#EEF3FC', color: '#102A45' };
 }
 
 /** Guard B: returns true only when the new_section value is meaningful. */
@@ -113,7 +113,7 @@ function CodeAppliesHelper() {
     const d = date.trim();
     const m = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (!m) {
-      setResult({ label: 'Invalid date', color: '#B91C1C', detail: 'Use YYYY-MM-DD format (e.g. 2024-06-28)' });
+      setResult({ label: 'Invalid date', color: '#C73236', detail: 'Use YYYY-MM-DD format (e.g. 2024-06-28)' });
       return;
     }
     // DHARA-B016: the old check only verified the string SHAPE (4-2-2
@@ -122,7 +122,7 @@ function CodeAppliesHelper() {
     // date first.
     const y = parseInt(m[1], 10), mo = parseInt(m[2], 10), da = parseInt(m[3], 10);
     if (!isValidCalendarDate(y, mo, da)) {
-      setResult({ label: 'Invalid date', color: '#B91C1C', detail: `${d} is not a real calendar date — please check the day and month.` });
+      setResult({ label: 'Invalid date', color: '#C73236', detail: `${d} is not a real calendar date — please check the day and month.` });
       return;
     }
     // DHARA-B016: both branches now say "procedure uses BNSS" consistently
@@ -138,7 +138,7 @@ function CodeAppliesHelper() {
     } else {
       setResult({
         label: 'BNS / BSA apply (substantive) — BNSS governs procedure',
-        color: '#065F46',
+        color: '#087951',
         detail: `Offence date ${d} is ON/AFTER ${CUTOFF}.\nSubstantive charge: use BNS sections.\nProcedure: use BNSS throughout.\n\n${caveat}`,
       });
     }
@@ -155,7 +155,7 @@ function CodeAppliesHelper() {
         <TextInput
           style={h.input}
           placeholder="YYYY-MM-DD  e.g. 2024-06-28"
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor="#64788A"
           value={date}
           onChangeText={t => { setDate(t); setResult(null); }}
           keyboardType="numeric"
@@ -180,7 +180,7 @@ function CodeAppliesHelper() {
         </View>
       )}
       <Text style={h.cutoffNote}>
-        Transition date: <Text style={{ fontWeight: '700' }}>1 July 2024</Text>
+        Transition date: <Text style={{ fontFamily: 'InterBold'}}>1 July 2024</Text>
         {' '}— BNS/BNSS/BSA in force from this date.
       </Text>
     </View>
@@ -193,7 +193,7 @@ function DeadLawBanner({ item }: { item: XRef }) {
     <View style={dl.card}>
       <View style={dl.headerRow}>
         <View style={dl.iconWrap}>
-          <Ionicons name="close-circle" size={28} color="#FCA5A5" />
+          <Ionicons name="close-circle" size={28} color="#EFC7C7" />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={dl.title}>⚠ Dead Law — Never Cite</Text>
@@ -211,7 +211,7 @@ function DeadLawBanner({ item }: { item: XRef }) {
         </View>
       )}
       <View style={dl.warningBox}>
-        <Ionicons name="warning-outline" size={14} color="#FBBF24" />
+        <Ionicons name="warning-outline" size={14} color="#E8B956" />
         <Text style={dl.warningText}>
           This provision is void and unenforceable. It must never be cited in a pleading,
           FIR, or legal document as a valid subsisting law.
@@ -226,7 +226,7 @@ function NotInDatabaseWall({ sectionQuery, totalInDb }: { sectionQuery: string; 
   return (
     <View style={w.wall}>
       <View style={w.iconWrap}>
-        <Ionicons name="shield-checkmark-outline" size={32} color="#B91C1C" />
+        <Ionicons name="shield-checkmark-outline" size={32} color="#C73236" />
       </View>
       <Text style={w.title}>No Mapping Found for &ldquo;{sectionQuery}&rdquo;</Text>
       <View style={w.secPill}>
@@ -234,13 +234,13 @@ function NotInDatabaseWall({ sectionQuery, totalInDb }: { sectionQuery: string; 
       </View>
       <Text style={w.body}>
         This section is not in our cross-reference database.{'\n'}
-        The database currently covers <Text style={{ fontWeight: '700' }}>{totalInDb} entries</Text> and is still expanding.
+        The database currently covers <Text style={{ fontFamily: 'InterBold'}}>{totalInDb} entries</Text> and is still expanding.
       </Text>
       <View style={w.actionBox}>
         <Ionicons name="book-outline" size={16} color={NAVY} />
         <Text style={w.actionText}>
           Cross-check against the bare Act at{' '}
-          <Text style={{ fontWeight: '700' }}>indiacode.nic.in</Text>
+          <Text style={{ fontFamily: 'InterBold'}}>indiacode.nic.in</Text>
           {' '}or the Bharatiya Nyaya Sanhita 2023 gazette before filing.
         </Text>
       </View>
@@ -256,7 +256,7 @@ function NotInDatabaseWall({ sectionQuery, totalInDb }: { sectionQuery: string; 
 function UnverifiedBanner() {
   return (
     <View style={v.banner}>
-      <Ionicons name="warning-outline" size={14} color="#92400E" />
+      <Ionicons name="warning-outline" size={14} color="#8A6A1E" />
       <Text style={v.bannerTxt}>
         Pending advocate verification — treat as indicative only.
         Do not cite without manual cross-check.
@@ -282,7 +282,7 @@ function NotYetApprovedBanner({ reason }: { reason: string }) {
   return (
     <View style={na.banner}>
       <View style={na.iconWrap}>
-        <Ionicons name="lock-closed-outline" size={14} color="#3730A3" />
+        <Ionicons name="lock-closed-outline" size={14} color="#0D436B" />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={na.title}>
@@ -303,7 +303,7 @@ function NotYetApprovedBanner({ reason }: { reason: string }) {
           accessibilityRole="button"
           accessibilityLabel="Ask DHARA about this section"
         >
-          <Ionicons name="chatbubble-ellipses-outline" size={13} color="#3730A3" />
+          <Ionicons name="chatbubble-ellipses-outline" size={13} color="#0D436B" />
           <Text style={na.ctaTxt}>Ask DHARA</Text>
         </Pressable>
       </View>
@@ -356,12 +356,12 @@ function ResultCard({ item }: { item: XRef }) {
         {/* Source + change-type badges */}
         <View style={rc.sourceRow}>
           <View style={[rc.srcBadge, {
-            backgroundColor: item.source.includes('CrPC')     ? '#EFF6FF'
-                           : item.source.includes('Evidence') ? '#F5F3FF' : '#F0FDF4',
+            backgroundColor: item.source.includes('CrPC')     ? '#EEF5FF'
+                           : item.source.includes('Evidence') ? '#EEF5FF' : '#EDFAF2',
           }]}>
             <Text style={[rc.srcTxt, {
               color: item.source.includes('CrPC')     ? theme.colors.primary
-                   : item.source.includes('Evidence') ? '#6D28D9' : '#166534',
+                   : item.source.includes('Evidence') ? '#1E5BD0' : '#087951',
             }]}>{item.source}</Text>
           </View>
           <View style={[rc.chgBadge, { backgroundColor: meta.bg }]}>
@@ -377,18 +377,18 @@ function ResultCard({ item }: { item: XRef }) {
           </View>
           <Ionicons
             name={isWithheld ? 'lock-closed' : 'arrow-forward'} size={18}
-            color={isWithheld ? '#6366F1' : hasNewSec ? NAVY : '#B91C1C'}
+            color={isWithheld ? '#1E5BD0' : hasNewSec ? NAVY : '#C73236'}
             style={{ marginTop: 14 }}
           />
           <View style={[rc.secBox, !hasNewSec && !isWithheld && rc.secBoxDeleted, isWithheld && rc.secBoxWithheld]}>
             <Text style={rc.secLabel}>{isWithheld ? 'Status' : hasNewSec ? 'New Section' : 'Status'}</Text>
             {isWithheld
-              ? <Text style={[rc.secNum, { color: '#6366F1', fontSize: 12, lineHeight: 16 }]}>
+              ? <Text style={[rc.secNum, { color: '#1E5BD0', fontFamily: 'Inter', fontSize: 12, lineHeight: 16 }]}>
                   Pending{'\n'}review
                 </Text>
               : hasNewSec
                 ? <Text style={rc.secNum}>{item.new_section}</Text>
-                : <Text style={[rc.secNum, { color: '#B91C1C', fontSize: 12, lineHeight: 16 }]}>
+                : <Text style={[rc.secNum, { color: '#C73236', fontFamily: 'Inter', fontSize: 12, lineHeight: 16 }]}>
                     Deleted{'\n'}No BNS equiv.
                   </Text>
             }
@@ -440,7 +440,7 @@ function GuardStatusBar({ guard, total }: { guard: CitationGuard; total: number 
   return (
     <View style={gb.bar}>
       <View style={gb.left}>
-        <Ionicons name="shield-checkmark-outline" size={14} color="#166534" />
+        <Ionicons name="shield-checkmark-outline" size={14} color="#087951" />
         <Text style={gb.label}>Citation Guard</Text>
         <View style={gb.dbPill}><Text style={gb.dbTxt}>DB only</Text></View>
       </View>
@@ -585,7 +585,7 @@ export default function IpcBnsLookup() {
                 mode === 'bns' ? 'BNS/BNSS/BSA section e.g. 103, 482' :
                 'Keyword e.g. murder, bail, rape, evidence'
               }
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor="#64788A"
               returnKeyType="search"
               onSubmitEditing={search}
               autoCapitalize="none"
@@ -609,7 +609,7 @@ export default function IpcBnsLookup() {
           {/* Network error */}
           {!!error && (
             <View style={s.errorBox}>
-              <Ionicons name="alert-circle-outline" size={16} color="#B91C1C" />
+              <Ionicons name="alert-circle-outline" size={16} color="#C73236" />
               <Text style={s.errorTxt}>{error}</Text>
             </View>
           )}
@@ -630,12 +630,12 @@ export default function IpcBnsLookup() {
           {/* A3: Explicit no-results — shown for both keyword and section mode */}
           {showNoMatch && (
             <View style={s.noResults}>
-              <Ionicons name="search-outline" size={28} color="#D1D5DB" />
+              <Ionicons name="search-outline" size={28} color="#E6DFD1" />
               <Text style={s.noResultsTitle}>No mapping found for &ldquo;{lastQuery}&rdquo;</Text>
               <Text style={s.noResultsSub}>
                 This query returned no results from a database of {totalInDb} entries
                 (still expanding). Cross-check against the bare Act at{' '}
-                <Text style={{ fontWeight: '700' }}>indiacode.nic.in</Text> before filing.
+                <Text style={{ fontFamily: 'InterBold'}}>indiacode.nic.in</Text> before filing.
               </Text>
             </View>
           )}
@@ -643,7 +643,7 @@ export default function IpcBnsLookup() {
           {/* Pre-search empty state */}
           {!searched && !loading && (
             <View style={s.empty}>
-              <Ionicons name="book-outline" size={40} color="#D1D5DB" />
+              <Ionicons name="book-outline" size={40} color="#E6DFD1" />
               <Text style={s.emptyTitle}>BNS / BNSS / BSA Search</Text>
               <Text style={s.emptySub}>
                 Search by old IPC section, new BNS section, or keywords like
@@ -688,7 +688,7 @@ export default function IpcBnsLookup() {
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  // v2.2 (UI_V22_S12): '#FDFBF7' was one hex off the shared cream token
+  // v2.2 (UI_V22_S12): '#FFFAF2' was one hex off the shared cream token
   // every other v2.2 screen (and IPCLookup.dc.html itself) uses.
   safe: { flex: 1, backgroundColor: UI_V22_S12 ? theme.colors.background : '#FDFBF7' },
   header: {
@@ -699,13 +699,13 @@ const s = StyleSheet.create({
   // minimum touch target; hitSlop above already helps, this widens the
   // visible hit area too so sighted users see where they can tap.
   backBtn:    { padding: UI_REVISION_V1 ? 10 : 4 },
-  title:      { fontSize: 16, fontWeight: '800', color: '#fff' },
-  sub:        { fontSize: 12, color: '#94A3B8', marginTop: 1 },
+  title:      { fontSize: 16, fontFamily: 'InterExtraBold', color: '#fff' },
+  sub:        { fontFamily: 'Inter', fontSize: 12, color: '#94A3B8', marginTop: 1 },
   guardPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: GOLD, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10,
   },
-  guardPillTxt: { fontSize: 11, fontWeight: '700', color: NAVY },
+  guardPillTxt: { fontSize: 11, fontFamily: 'InterBold', color: NAVY },
   scroll: { padding: 16, gap: 14, paddingBottom: 40 },
 
   tabs:       { flexDirection: 'row', gap: 8 },
@@ -714,19 +714,19 @@ const s = StyleSheet.create({
   tab: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 5, paddingVertical: UI_REVISION_V1 ? 14 : 9, borderRadius: 10,
-    backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB',
+    backgroundColor: '#EEF3FC', borderWidth: 1, borderColor: '#E6DFD1',
   },
   tabActive:    { backgroundColor: GOLD, borderColor: GOLD },
-  tabTxt:       { fontSize: 12, fontWeight: '600', color: MUTED_TEXT },
+  tabTxt:       { fontSize: 12, fontFamily: 'InterSemiBold', color: MUTED_TEXT },
   // NF-UI-REV-02: the active tab used to be distinguished by colour alone —
   // now its label is also bolder, for users who can't tell colours apart.
-  tabTxtActive: UI_REVISION_V1 ? { color: NAVY, fontWeight: '800' } : { color: NAVY },
+  tabTxtActive: UI_REVISION_V1 ? { color: NAVY, fontFamily: 'InterExtraBold'} : { color: NAVY },
 
   searchRow:  { flexDirection: 'row', gap: 8 },
   searchInput: {
     flex: 1, backgroundColor: '#fff', borderRadius: 12,
-    borderWidth: 1, borderColor: '#E5E7EB',
-    paddingHorizontal: 14, paddingVertical: 12, fontSize: 13, color: '#1F2937',
+    borderWidth: 1, borderColor: '#E6DFD1',
+    paddingHorizontal: 14, paddingVertical: 12, fontFamily: 'Inter', fontSize: 13, color: '#102A45',
   },
   searchBtn: {
     width: 48, height: 48, borderRadius: 12,
@@ -736,18 +736,18 @@ const s = StyleSheet.create({
 
   errorBox: {
     flexDirection: 'row', gap: 8, alignItems: 'center',
-    backgroundColor: '#FEF2F2', borderRadius: 10, padding: 12,
+    backgroundColor: '#FFF0F0', borderRadius: 10, padding: 12,
   },
-  errorTxt: { flex: 1, fontSize: 12, color: '#B91C1C' },
+  errorTxt: { flex: 1, fontFamily: 'Inter', fontSize: 12, color: '#C73236' },
 
   noResults:     { alignItems: 'center', gap: 8, paddingVertical: 16, paddingHorizontal: 16 },
-  noResultsTitle:{ fontSize: 13, fontWeight: '700', color: '#374151', textAlign: 'center' },
-  noResultsSub:  { fontSize: 12, color: MUTED_TEXT, textAlign: 'center', lineHeight: 18 },
+  noResultsTitle:{ fontSize: 13, fontFamily: 'InterBold', color: '#102A45', textAlign: 'center' },
+  noResultsSub:  { fontFamily: 'Inter', fontSize: 12, color: MUTED_TEXT, textAlign: 'center', lineHeight: 18 },
 
   empty:      { alignItems: 'center', paddingTop: 12, gap: 10 },
-  emptyTitle: { fontSize: 14, fontWeight: '700', color: '#374151' },
+  emptyTitle: { fontSize: 14, fontFamily: 'InterBold', color: '#102A45' },
   emptySub: {
-    fontSize: 12, color: MUTED_TEXT, textAlign: 'center',
+    fontFamily: 'Inter', fontSize: 12, color: MUTED_TEXT, textAlign: 'center',
     lineHeight: 18, paddingHorizontal: 16,
   },
   chips: {
@@ -756,147 +756,147 @@ const s = StyleSheet.create({
   },
   // NF-UI-REV-02: paddingVertical 7 (~30px tall) was below the 44px minimum
   // touch target for these quick-search suggestion chips.
-  chip:    { backgroundColor: '#EEF2FF', paddingHorizontal: 12, paddingVertical: UI_REVISION_V1 ? 12 : 7, borderRadius: 20 },
-  chipTxt: { fontSize: 12, fontWeight: '600', color: NAVY },
+  chip:    { backgroundColor: '#EEF5FF', paddingHorizontal: 12, paddingVertical: UI_REVISION_V1 ? 12 : 7, borderRadius: 20 },
+  chipTxt: { fontSize: 12, fontFamily: 'InterSemiBold', color: NAVY },
 
   disclaimer: {
     flexDirection: 'row', gap: 6, alignItems: 'flex-start',
-    backgroundColor: '#F9FAFB', borderRadius: 10, padding: 12,
+    backgroundColor: '#FFFAF2', borderRadius: 10, padding: 12,
   },
-  disclaimerTxt: { flex: 1, fontSize: 12, color: MUTED_TEXT, lineHeight: 16 },
+  disclaimerTxt: { flex: 1, fontFamily: 'Inter', fontSize: 12, color: MUTED_TEXT, lineHeight: 16 },
 });
 
 // ── Wall styles ────────────────────────────────────────────────────────────────
 const w = StyleSheet.create({
   wall: {
-    backgroundColor: '#FFF5F5', borderRadius: 14,
-    borderWidth: 1.5, borderColor: '#FECACA',
+    backgroundColor: '#FFF0F0', borderRadius: 14,
+    borderWidth: 1.5, borderColor: '#EFC7C7',
     padding: 16, alignItems: 'center', gap: 10,
   },
   iconWrap: {
     width: 60, height: 60, borderRadius: 30,
-    backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#FFF0F0', alignItems: 'center', justifyContent: 'center',
   },
-  title:   { fontSize: 14, fontWeight: '800', color: '#B91C1C', textAlign: 'center' },
+  title:   { fontSize: 14, fontFamily: 'InterExtraBold', color: '#C73236', textAlign: 'center' },
   secPill: {
-    backgroundColor: '#FEE2E2', paddingHorizontal: 12,
+    backgroundColor: '#FFF0F0', paddingHorizontal: 12,
     paddingVertical: 4, borderRadius: 8,
   },
-  secPillTxt: { fontSize: 16, fontWeight: '800', color: '#7F1D1D' },
-  body: { fontSize: 13, color: '#374151', textAlign: 'center', lineHeight: 19 },
+  secPillTxt: { fontSize: 16, fontFamily: 'InterExtraBold', color: '#690F16' },
+  body: { fontFamily: 'Inter', fontSize: 13, color: '#102A45', textAlign: 'center', lineHeight: 19 },
   actionBox: {
     flexDirection: 'row', gap: 8, alignItems: 'flex-start',
-    backgroundColor: '#EEF2FF', borderRadius: 10, padding: 12, width: '100%',
+    backgroundColor: '#EEF5FF', borderRadius: 10, padding: 12, width: '100%',
   },
-  actionText: { flex: 1, fontSize: 12, color: '#1E40AF', lineHeight: 17 },
-  // NF-UI-REV-02: '#9CA3AF' on this wall's '#FFF5F5' background measured
+  actionText: { flex: 1, fontFamily: 'Inter', fontSize: 12, color: '#1E40AF', lineHeight: 17 },
+  // NF-UI-REV-02: '#64788A' on this wall's '#FFF0F0' background measured
   // ~2.4:1 — MUTED_TEXT clears 4.5:1 here.
-  note: { fontSize: 12, color: MUTED_TEXT, textAlign: 'center', lineHeight: 16 },
+  note: { fontFamily: 'Inter', fontSize: 12, color: MUTED_TEXT, textAlign: 'center', lineHeight: 16 },
 });
 
 // ── Guard status bar styles ────────────────────────────────────────────────────
 const gb = StyleSheet.create({
   bar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: '#F0FDF4', borderRadius: 10, padding: 10,
+    backgroundColor: '#EDFAF2', borderRadius: 10, padding: 10,
     borderWidth: 1, borderColor: '#BBF7D0',
   },
   left:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  label: { fontSize: 12, fontWeight: '700', color: '#166534' },
+  label: { fontSize: 12, fontFamily: 'InterBold', color: '#087951' },
   dbPill: {
-    backgroundColor: '#166534', paddingHorizontal: 6,
+    backgroundColor: '#087951', paddingHorizontal: 6,
     paddingVertical: 2, borderRadius: 6,
   },
-  dbTxt:  { fontSize: 9, fontWeight: '700', color: '#fff' },
-  right:  { fontSize: 12, color: '#374151' },
+  dbTxt:  { fontSize: 9, fontFamily: 'InterBold', color: '#fff' },
+  right:  { fontFamily: 'Inter', fontSize: 12, color: '#102A45' },
 });
 
 // ── Unverified banner styles ───────────────────────────────────────────────────
 const v = StyleSheet.create({
   banner: {
     flexDirection: 'row', gap: 6, alignItems: 'flex-start',
-    backgroundColor: '#FFFBEB', borderRadius: 8, padding: 8,
+    backgroundColor: '#FFF4E6', borderRadius: 8, padding: 8,
     borderLeftWidth: 3, borderLeftColor: theme.colors.gold, marginBottom: 8,
   },
-  bannerTxt: { flex: 1, fontSize: 12, color: '#92400E', lineHeight: 16 },
+  bannerTxt: { flex: 1, fontFamily: 'Inter', fontSize: 12, color: '#8A6A1E', lineHeight: 16 },
 });
 
 // ── Helper card styles ─────────────────────────────────────────────────────────
 const h = StyleSheet.create({
   card: {
     backgroundColor: '#fff', borderRadius: 14,
-    borderWidth: 1, borderColor: '#E5E7EB', padding: 16,
+    borderWidth: 1, borderColor: '#E6DFD1', padding: 16,
   },
   headRow:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  title:       { fontSize: 13, fontWeight: '700', color: NAVY },
-  sub:         { fontSize: 12, color: '#6B7280', marginBottom: 10 },
+  title:       { fontSize: 13, fontFamily: 'InterBold', color: NAVY },
+  sub:         { fontFamily: 'Inter', fontSize: 12, color: '#64788A', marginBottom: 10 },
   row:         { flexDirection: 'row', gap: 8, marginBottom: 10 },
   input: {
-    flex: 1, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: '#1F2937',
-    backgroundColor: '#FAFAFA',
+    flex: 1, borderWidth: 1, borderColor: '#E6DFD1', borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 10, fontFamily: 'Inter', fontSize: 13, color: '#102A45',
+    backgroundColor: '#FFFAF2',
   },
   checkBtn:     { backgroundColor: NAVY, paddingHorizontal: 16, borderRadius: 10, justifyContent: 'center', minHeight: UI_REVISION_V1 ? 48 : undefined },
-  checkBtnText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  checkBtnText: { color: '#fff', fontFamily: 'InterBold', fontSize: 12 },
   resultBox:    { borderLeftWidth: 3, paddingLeft: 12, marginBottom: 8 },
-  resultLabel:  { fontSize: 12, fontWeight: '700', marginBottom: 4 },
-  resultDetail: { fontSize: 12, color: '#374151', lineHeight: 16 },
-  cutoffNote:   { fontSize: 12, color: MUTED_TEXT, marginTop: 4 },
+  resultLabel:  { fontSize: 12, fontFamily: 'InterBold', marginBottom: 4 },
+  resultDetail: { fontFamily: 'Inter', fontSize: 12, color: '#102A45', lineHeight: 16 },
+  cutoffNote:   { fontFamily: 'Inter', fontSize: 12, color: MUTED_TEXT, marginTop: 4 },
 });
 
 // ── Result card styles ─────────────────────────────────────────────────────────
 const rc = StyleSheet.create({
   card: {
     backgroundColor: '#fff', borderRadius: 14,
-    borderWidth: 1, borderColor: '#E5E7EB', padding: 14,
+    borderWidth: 1, borderColor: '#E6DFD1', padding: 14,
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4,
     shadowOffset: { width: 0, height: 1 }, elevation: 1,
   },
   sourceRow:  { flexDirection: 'row', gap: 6, marginBottom: 10 },
   srcBadge:   { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  srcTxt:     { fontSize: 11, fontWeight: '700' },
+  srcTxt:     { fontSize: 11, fontFamily: 'InterBold'},
   chgBadge:   { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  chgTxt:     { fontSize: 11, fontWeight: '700' },
+  chgTxt:     { fontSize: 11, fontFamily: 'InterBold'},
   secRow: {
     flexDirection: 'row', alignItems: 'flex-start',
     gap: 10, marginBottom: 10,
   },
   secBox: {
-    flex: 1, backgroundColor: '#F8F6F0', borderRadius: 10,
+    flex: 1, backgroundColor: '#FFFAF2', borderRadius: 10,
     padding: 10, alignItems: 'center',
   },
-  secBoxDeleted: { backgroundColor: '#FEF2F2' },
-  secBoxWithheld: { backgroundColor: '#EEF2FF' },
-  // NF-UI-REV-02: '#9CA3AF' measured below 4.5:1 on every secBox background
+  secBoxDeleted: { backgroundColor: '#FFF0F0' },
+  secBoxWithheld: { backgroundColor: '#EEF5FF' },
+  // NF-UI-REV-02: '#64788A' measured below 4.5:1 on every secBox background
   // variant used here (default/deleted/withheld) — MUTED_TEXT clears it.
   secLabel: v22SectionLabel({
-    fontSize: 11, color: MUTED_TEXT, fontWeight: '600',
+    fontSize: 11, color: MUTED_TEXT, fontFamily: 'InterSemiBold',
     textTransform: 'uppercase', marginBottom: 3,
   }),
-  secNum:        { fontSize: 17, fontWeight: '800', color: NAVY, textAlign: 'center' },
-  offence:       { fontSize: 12, color: '#374151', lineHeight: 17, marginBottom: 6 },
+  secNum:        { fontSize: 17, fontFamily: 'InterExtraBold', color: NAVY, textAlign: 'center' },
+  offence:       { fontFamily: 'Inter', fontSize: 12, color: '#102A45', lineHeight: 17, marginBottom: 6 },
   explainBox: {
     backgroundColor: '#F8FAFF', borderRadius: 10, padding: 12, marginTop: 4,
     borderLeftWidth: 3, borderLeftColor: GOLD,
   },
-  explainTxt:    { fontSize: 12, color: '#1F2937', lineHeight: 18 },
+  explainTxt:    { fontFamily: 'Inter', fontSize: 12, color: '#102A45', lineHeight: 18 },
   expandHint:    { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: UI_REVISION_V1 ? 44 : undefined, paddingVertical: UI_REVISION_V1 ? 10 : 0 },
-  expandHintTxt: { fontSize: 12, color: MUTED_TEXT },
+  expandHintTxt: { fontFamily: 'Inter', fontSize: 12, color: MUTED_TEXT },
   srcLinkRow: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#F3F4F6',
+    marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#EEF3FC',
     minHeight: UI_REVISION_V1 ? 44 : undefined,
   },
-  srcLinkTxt: { fontSize: 12, color: theme.colors.primary, textDecorationLine: 'underline' },
+  srcLinkTxt: { fontFamily: 'Inter', fontSize: 12, color: theme.colors.primary, textDecorationLine: 'underline' },
 });
 
 // ── Not-yet-approved banner styles (Guard E, DHARA P1) ────────────────────────
 const na = StyleSheet.create({
   banner: {
     flexDirection: 'row', gap: 8, alignItems: 'flex-start',
-    backgroundColor: '#EEF2FF',
+    backgroundColor: '#EEF5FF',
     borderRadius: 8, padding: 10,
-    borderLeftWidth: 3, borderLeftColor: '#6366F1', marginBottom: 8,
+    borderLeftWidth: 3, borderLeftColor: '#1E5BD0', marginBottom: 8,
   },
   iconWrap: {
     width: 24, height: 24, borderRadius: 12,
@@ -904,41 +904,41 @@ const na = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
     marginTop: 1,
   },
-  title: { fontSize: 12, fontWeight: '800', color: '#3730A3', marginBottom: 2 },
-  sub:   { fontSize: 12, color: '#4338CA', lineHeight: 16 },
-  nextStep: { fontSize: 12, color: '#3730A3', fontWeight: '600', lineHeight: 16, marginTop: 6 },
+  title: { fontSize: 12, fontFamily: 'InterExtraBold', color: '#0D436B', marginBottom: 2 },
+  sub:   { fontFamily: 'Inter', fontSize: 12, color: '#4338CA', lineHeight: 16 },
+  nextStep: { fontSize: 12, color: '#0D436B', fontFamily: 'InterSemiBold', lineHeight: 16, marginTop: 6 },
   cta: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: '#E0E7FF', borderRadius: 8, paddingVertical: 8, marginTop: 8,
+    backgroundColor: '#D2E1FD', borderRadius: 8, paddingVertical: 8, marginTop: 8,
     minHeight: UI_REVISION_V1 ? 44 : 32, alignSelf: 'flex-start', paddingHorizontal: 12,
   },
-  ctaTxt: { fontSize: 12, fontWeight: '700', color: '#3730A3' },
+  ctaTxt: { fontSize: 12, fontFamily: 'InterBold', color: '#0D436B' },
 });
 
 // ── Dead-Law banner styles ─────────────────────────────────────────────────────
 const dl = StyleSheet.create({
   card: {
-    backgroundColor: '#111827', borderRadius: 14, padding: 16, gap: 10,
-    borderWidth: 2, borderColor: '#EF4444',
+    backgroundColor: '#102A45', borderRadius: 14, padding: 16, gap: 10,
+    borderWidth: 2, borderColor: '#C73236',
   },
   headerRow:   { flexDirection: 'row', alignItems: 'center', gap: 10 },
   iconWrap: {
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: '#1F2937', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#102A45', alignItems: 'center', justifyContent: 'center',
   },
-  title:       { fontSize: 13, fontWeight: '800', color: '#FCA5A5' },
-  section:     { fontSize: 19, fontWeight: '900', color: '#fff', marginTop: 2 },
-  offence:     { fontSize: 12, color: '#D1D5DB', lineHeight: 17 },
+  title:       { fontSize: 13, fontFamily: 'InterExtraBold', color: '#EFC7C7' },
+  section:     { fontSize: 19, fontFamily: 'InterExtraBold', color: '#fff', marginTop: 2 },
+  offence:     { fontFamily: 'Inter', fontSize: 12, color: '#E6DFD1', lineHeight: 17 },
   reasonBox: {
-    backgroundColor: '#1F2937', borderRadius: 10, padding: 12,
-    borderLeftWidth: 3, borderLeftColor: '#EF4444',
+    backgroundColor: '#102A45', borderRadius: 10, padding: 12,
+    borderLeftWidth: 3, borderLeftColor: '#C73236',
   },
-  reasonText:  { fontSize: 12, color: '#E5E7EB', lineHeight: 16 },
+  reasonText:  { fontFamily: 'Inter', fontSize: 12, color: '#E6DFD1', lineHeight: 16 },
   citationRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  citationText:{ fontSize: 12, color: '#F87171', fontStyle: 'italic' },
+  citationText:{ fontFamily: 'Inter', fontSize: 12, color: '#F87171' },
   warningBox: {
     flexDirection: 'row', gap: 8, alignItems: 'flex-start',
     backgroundColor: '#78350F20', borderRadius: 8, padding: 10,
   },
-  warningText: { flex: 1, fontSize: 12, color: '#FBBF24', lineHeight: 17 },
+  warningText: { flex: 1, fontFamily: 'Inter', fontSize: 12, color: '#E8B956', lineHeight: 17 },
 });

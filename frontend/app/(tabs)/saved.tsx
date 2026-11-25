@@ -130,7 +130,7 @@ export default function SavedScreen() {
 
                 {open && item.citations?.length > 0 && (
                   <View style={styles.cites}>
-                    <Text style={styles.citesHead}>📚 Sources</Text>
+                    <Text style={styles.citesHead}>Sources</Text>
                     {item.citations.map((c) => (
                       <View key={c.key} style={styles.citeCard}>
                         <View style={styles.citeChip}>
@@ -165,22 +165,22 @@ const styles = StyleSheet.create({
   h2Indented: { marginLeft: 28 },
   header: { padding: theme.spacing.xl, paddingBottom: theme.spacing.md, borderBottomWidth: 1, borderBottomColor: theme.colors.divider },
   h1: { flexShrink: 1, fontFamily: theme.fonts.display, fontSize: 24, color: theme.colors.brand, fontWeight: '700' },
-  h2: { color: theme.colors.onSurfaceSecondary, marginTop: 4, fontSize: 12 },
+  h2: { color: theme.colors.onSurfaceSecondary, marginTop: 4, fontFamily: 'Inter', fontSize: 12 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: theme.spacing.xxl },
   emptyTitle: { fontFamily: theme.fonts.display, fontSize: 17, color: theme.colors.brand, marginTop: theme.spacing.lg, fontWeight: '700' },
   emptySub: { color: theme.colors.onSurfaceSecondary, textAlign: 'center', marginTop: theme.spacing.sm, lineHeight: 18 },
   list: { padding: theme.spacing.lg, gap: theme.spacing.md, paddingBottom: theme.spacing.xxxl },
   card: { backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md, padding: theme.spacing.lg, borderWidth: 1, borderColor: theme.colors.border },
   cardHead: { flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing.md },
-  q: { flex: 1, color: theme.colors.brand, fontWeight: '700', fontSize: 13 },
-  meta: { color: theme.colors.onSurfaceTertiary, fontSize: 12, marginTop: 4 },
-  a: { color: theme.colors.onSurface, fontSize: 13, lineHeight: 18, marginTop: theme.spacing.sm },
+  q: { flex: 1, color: theme.colors.brand, fontFamily: 'InterBold', fontSize: 13 },
+  meta: { color: theme.colors.onSurfaceTertiary, fontFamily: 'Inter', fontSize: 12, marginTop: 4 },
+  a: { color: theme.colors.onSurface, fontFamily: 'Inter', fontSize: 13, lineHeight: 18, marginTop: theme.spacing.sm },
   cites: { marginTop: theme.spacing.md, gap: theme.spacing.sm },
-  citesHead: { color: theme.colors.brand, fontWeight: '700', fontSize: 12 },
+  citesHead: { color: theme.colors.brand, fontFamily: 'InterBold', fontSize: 12 },
   citeCard: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.sm, padding: theme.spacing.md, borderLeftWidth: 3, borderLeftColor: theme.colors.gold },
   citeChip: { alignSelf: 'flex-start', backgroundColor: theme.colors.brand, borderRadius: theme.radius.pill, paddingHorizontal: theme.spacing.md, paddingVertical: 2 },
-  citeChipText: { color: theme.colors.onBrandPrimary, fontSize: 12, fontWeight: '800' },
-  citeTitle: { color: theme.colors.onSurface, fontWeight: '700', fontSize: 12, marginTop: 6 },
-  citeText: { color: theme.colors.onSurfaceSecondary, fontSize: 12, lineHeight: 16, marginTop: 4 },
-  expand: { color: theme.colors.brandSecondary, fontSize: 12, fontWeight: '700', marginTop: theme.spacing.md },
+  citeChipText: { color: theme.colors.onBrandPrimary, fontSize: 12, fontFamily: 'InterExtraBold'},
+  citeTitle: { color: theme.colors.onSurface, fontFamily: 'InterBold', fontSize: 12, marginTop: 6 },
+  citeText: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 12, lineHeight: 16, marginTop: 4 },
+  expand: { color: theme.colors.brandSecondary, fontSize: 12, fontFamily: 'InterBold', marginTop: theme.spacing.md },
 });

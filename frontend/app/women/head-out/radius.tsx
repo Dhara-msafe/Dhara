@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   disclaimerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 14, backgroundColor: c.navySoft, borderRadius: 10, padding: 10 },
   disclaimerTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.navy, flex: 1, lineHeight: 17 },
   fieldLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink, marginBottom: 4, marginTop: 16 },
-  note: { fontFamily: theme.fonts.body, fontSize: 12.5, color: c.muted, lineHeight: 16, marginBottom: 10 },
+  note: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 16, marginBottom: 10 },
   chipRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   chip: {
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20,

@@ -241,23 +241,23 @@ const styles = StyleSheet.create({
   scroll: { padding: theme.spacing.lg, gap: theme.spacing.md, paddingBottom: theme.spacing.xxl },
   deadlineCard: {
     flexDirection: 'row', gap: theme.spacing.sm, alignItems: 'flex-start',
-    backgroundColor: '#FEE2E2', borderRadius: theme.radius.md, padding: theme.spacing.md,
+    backgroundColor: '#FFF0F0', borderRadius: theme.radius.md, padding: theme.spacing.md,
   },
-  deadlineText: { flex: 1, color: '#7F1D1D', fontSize: 12, lineHeight: 16, fontWeight: '600' },
+  deadlineText: { flex: 1, color: '#690F16', fontSize: 12, lineHeight: 16, fontFamily: 'InterSemiBold'},
   fieldWrap: { gap: 6 },
-  label: { color: theme.colors.onSurfaceSecondary, fontSize: 12, fontWeight: '600' },
+  label: { color: theme.colors.onSurfaceSecondary, fontSize: 12, fontFamily: 'InterSemiBold'},
   input: {
     backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md,
     borderWidth: 1, borderColor: theme.colors.border, paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md, color: theme.colors.onSurface, fontSize: 13, minHeight: 48,
+    paddingVertical: theme.spacing.md, color: theme.colors.onSurface, fontFamily: 'Inter', fontSize: 13, minHeight: 48,
   },
   inputMulti: { minHeight: 76, textAlignVertical: 'top' },
-  hint: { color: theme.colors.onSurfaceTertiary, fontSize: 12, marginTop: theme.spacing.sm },
+  hint: { color: theme.colors.onSurfaceTertiary, fontFamily: 'Inter', fontSize: 12, marginTop: theme.spacing.sm },
   output: {
     backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md,
     borderWidth: 1, borderColor: theme.colors.border, padding: theme.spacing.lg,
   },
-  outputText: { color: theme.colors.onSurface, fontSize: 12, lineHeight: 18 },
+  outputText: { color: theme.colors.onSurface, fontFamily: 'Inter', fontSize: 12, lineHeight: 18 },
   actionBar: {
     flexDirection: 'row', gap: theme.spacing.md, padding: theme.spacing.lg,
     borderTopWidth: 1, borderTopColor: theme.colors.divider, backgroundColor: theme.colors.surface,
@@ -267,13 +267,13 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.brandSecondary, borderRadius: theme.radius.md,
     paddingHorizontal: theme.spacing.xl, minHeight: 52, flex: 1,
   },
-  primaryBtnText: { color: theme.colors.onBrandSecondary, fontWeight: '800', fontSize: 13 },
+  primaryBtnText: { color: theme.colors.onBrandSecondary, fontFamily: 'InterExtraBold', fontSize: 13 },
   secondaryBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     borderWidth: 2, borderColor: theme.colors.brand, borderRadius: theme.radius.md,
     paddingHorizontal: theme.spacing.xl, minHeight: 52, flex: 1,
   },
-  secondaryBtnText: { color: theme.colors.brand, fontWeight: '800', fontSize: 13 },
+  secondaryBtnText: { color: theme.colors.brand, fontFamily: 'InterExtraBold', fontSize: 13 },
   missing: { padding: theme.spacing.xl, color: theme.colors.onSurface },
   legalDisclaimer: {
     flexDirection: 'row',
@@ -288,9 +288,9 @@ const styles = StyleSheet.create({
   legalDisclaimerText: {
     flex: 1,
     color: theme.colors.onSurfaceSecondary,
-    fontSize: 12,
+    fontFamily: 'Inter', fontSize: 12,
     lineHeight: 17,
-    fontStyle: 'italic',
+    
   },
   prefillBanner: {
     flexDirection: 'row',
@@ -307,6 +307,6 @@ const styles = StyleSheet.create({
     color: theme.colors.brand,
     fontSize: 12,
     lineHeight: 17,
-    fontWeight: '600',
+    fontFamily: 'InterSemiBold',
   },
 });

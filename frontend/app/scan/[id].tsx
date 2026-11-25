@@ -187,7 +187,7 @@ export default function ScanDetail() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
   busy: { alignItems: 'center', paddingVertical: 60 },
-  errBox: { backgroundColor: '#FBEAE8', borderRadius: 12, padding: 14, marginTop: 16 },
+  errBox: { backgroundColor: '#FFF0F0', borderRadius: 12, padding: 14, marginTop: 16 },
   errTxt: { fontFamily: theme.fonts.bodyMedium, fontSize: 13, color: c.error },
   preview: { width: '100%', height: 180, borderRadius: 14, marginBottom: 12, backgroundColor: c.surfaceTertiary },
   docTypeBadge: {
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   factValue: { flex: 1, fontFamily: theme.fonts.bodyMedium, fontSize: 13, color: c.ink, lineHeight: 18 },
   truthNote: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
-    backgroundColor: '#FFF8E8', borderRadius: 12, padding: 12, marginTop: 12,
+    backgroundColor: '#FFF4E6', borderRadius: 12, padding: 12, marginTop: 12,
   },
   truthNoteTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12, color: c.warning, lineHeight: 17 },
   card: { backgroundColor: c.navy, borderRadius: 18, padding: 16, marginTop: 12 },

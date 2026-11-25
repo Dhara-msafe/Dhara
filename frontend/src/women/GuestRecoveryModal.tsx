@@ -125,9 +125,9 @@ const rowStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  label: { fontSize: 13, fontWeight: '600', color: theme.colors.navy, lineHeight: 18 },
-  date:  { fontSize: 12, color: theme.colors.muted, marginTop: 1 },
-  index: { fontSize: 12, color: theme.colors.muted, fontVariant: ['tabular-nums'] },
+  label: { fontSize: 13, fontFamily: 'InterSemiBold', color: theme.colors.navy, lineHeight: 18 },
+  date:  { fontFamily: 'Inter', fontSize: 12, color: theme.colors.muted, marginTop: 1 },
+  index: { fontFamily: 'Inter', fontSize: 12, color: theme.colors.muted, fontVariant: ['tabular-nums'] },
 });
 
 // ── Session card ──────────────────────────────────────────────────────────────
@@ -274,12 +274,12 @@ const cardStyles = StyleSheet.create({
   },
   sessionTitle: {
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'InterBold',
     color: theme.colors.navy,
     lineHeight: 18,
   },
   sessionMeta: {
-    fontSize: 12,
+    fontFamily: 'Inter', fontSize: 12,
     color: theme.colors.muted,
     marginTop: 2,
   },
@@ -288,7 +288,7 @@ const cardStyles = StyleSheet.create({
     paddingTop: theme.spacing.sm,
   },
   keepNote: {
-    fontSize: 12,
+    fontFamily: 'Inter', fontSize: 12,
     color: theme.colors.muted,
     lineHeight: 17,
     paddingHorizontal: theme.spacing.lg,
@@ -316,7 +316,7 @@ const cardStyles = StyleSheet.create({
   },
   keepBtnText: {
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'InterBold',
     color: theme.colors.navy,
   },
   discardBtn: {
@@ -334,7 +334,7 @@ const cardStyles = StyleSheet.create({
   },
   discardBtnText: {
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'InterBold',
     color: theme.colors.error,
   },
   deletingRow: {
@@ -347,7 +347,7 @@ const cardStyles = StyleSheet.create({
   deletingText: {
     fontSize: 13,
     color: theme.colors.error,
-    fontWeight: '600',
+    fontFamily: 'InterSemiBold',
   },
 });
 
@@ -535,12 +535,12 @@ const modal = StyleSheet.create({
   },
   topbarTitle: {
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: 'InterBold',
     color: theme.colors.navy,
     lineHeight: 18,
   },
   topbarSub: {
-    fontSize: 12,
+    fontFamily: 'Inter', fontSize: 12,
     color: theme.colors.muted,
   },
   closeBtn: {
@@ -559,17 +559,17 @@ const modal = StyleSheet.create({
     gap: theme.spacing.md,
   },
   loadingText: {
-    fontSize: 13,
+    fontFamily: 'Inter', fontSize: 13,
     color: theme.colors.muted,
     marginTop: theme.spacing.md,
   },
   emptyTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: 'InterBold',
     color: theme.colors.navy,
   },
   emptyText: {
-    fontSize: 13,
+    fontFamily: 'Inter', fontSize: 13,
     color: theme.colors.muted,
     textAlign: 'center',
   },
@@ -577,7 +577,7 @@ const modal = StyleSheet.create({
     padding: theme.spacing.lg,
   },
   intro: {
-    fontSize: 13,
+    fontFamily: 'Inter', fontSize: 13,
     color: theme.colors.muted,
     lineHeight: 18,
     marginBottom: theme.spacing.lg,
@@ -594,6 +594,6 @@ const modal = StyleSheet.create({
   doneBtnText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: 'InterBold',
   },
 });

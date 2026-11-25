@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background, paddingHorizontal: 16 },
   headRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { fontFamily: theme.fonts.displayBold, fontSize: 24, color: c.ink },
-  titleHi: { color: c.darkGold, fontSize: 17 },
+  titleHi: { color: c.darkGold, fontFamily: 'Inter', fontSize: 17 },
   searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 14, paddingHorizontal: 14, height: 52, marginTop: 16 },
   search: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.ink },
   // UI-revision pilot: 36x36 was below the 48px minimum touch target.
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   cardTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink, marginTop: 4 },
   cardSub: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted },
   newBadge: { position: 'absolute', top: 12, right: 12, backgroundColor: c.goldSoft, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
-  newTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 9, color: c.darkGold, letterSpacing: 0.5 },
+  newTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 11, color: c.darkGold, letterSpacing: 0.5 },
   noResults: { alignItems: 'center', gap: 10, paddingVertical: 18 },
   noResultsTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, textAlign: 'center', paddingHorizontal: 16 },
   askDharaBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.navy, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 12, marginTop: 4 },
