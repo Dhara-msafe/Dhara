@@ -33,6 +33,7 @@ import { UI_V22_P9, headOutBottomGutter } from '@/src/uiV22Flags';
 // keyboard-focus ring only. No destination/search/map logic changes.
 import { focusRingStyle } from '@/src/a11yFocus';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
+import { StepStrip } from '@/src/ui/kit';
 import { DestinationMapPicker } from '@/src/women/DestinationMapPicker';
 import { useAuth } from '@/src/auth';
 import { useHeadOutWizard } from '@/src/women/headOutWizardStore';
@@ -529,6 +530,8 @@ export default function ChooseDestination() {
   return (
     <View style={styles.root}>
       <ScreenHeader title={UI_V22_P9 ? 'Head out safely' : 'Head Out'} subtitle="Step 1 of 3 — Where are you going?" />
+      {/* Redesign v3, stage 6: gold step bar, as in the prototype. */}
+      <StepStrip step={1} total={3} />
       <ScrollView scrollEnabled={!mapActive} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + headOutBottomGutter(110) }]} keyboardShouldPersistTaps="handled">
 
         <Text style={styles.fieldLabel}>Where are you going?</Text>

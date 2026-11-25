@@ -1,3 +1,4 @@
+import React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Switch } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -5,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBarCap, SosPill112 } from '@/src/ui/kit';
+import { StatusBarCap, SosPill112, Panel, Body, Button } from '@/src/ui/kit';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
@@ -250,7 +251,7 @@ export default function WomenShield() {
         {/* Safety tools */}
         <View style={styles.section}>
           <Text style={styles.h2}>{tr('ws.tools', lang)}</Text>
-          <View style={styles.toolCard}>
+          <ToolGrid>
             <ToolRow icon="people-outline" title={tr('ws.circle', lang)} sub={circleCount > 0 ? tr('ws.circle.sub.count', lang).replace('{n}', String(circleCount)) : tr('ws.circle.sub.empty', lang)} action={tr('ws.manage', lang)} onPress={() => router.push('/women/trusted-circle')} />
             <Divider />
             {/* v2.2 phase 8: this switch only stored ws_checkin_enabled on the
@@ -279,12 +280,18 @@ export default function WomenShield() {
               <Divider />
               <ToolRow icon="people-circle-outline" title="Guardian Journey" sub="Share where you're going with someone you trust" action="Share" onPress={() => router.push('/women/guardian-share')} />
             </>}
-          </View>
+          </ToolGrid>
           <Pressable style={(s) => [styles.lessonRow, focusRingStyle(s)]} onPress={() => router.push('/women/panic-lesson')} accessibilityRole="button" accessibilityLabel="Learn the 20-second panic trigger for 112">
             <Ionicons name="school-outline" size={18} color={UI_V22_S4 ? shieldColors.gold : c.darkGold} />
             <Text style={styles.lessonTxt}>Learn the 20-second panic trigger for 112</Text>
             <Ionicons name="chevron-forward" size={18} color={UI_V22_S4 ? shieldColors.textFaint : c.onSurfaceTertiary} />
           </Pressable>
+          {/* Redesign v3, stage 6: emergency is one tap from the hub. */}
+          <Panel tone="danger" title="Emergency help" testID="ws-emergency-panel">
+            <Body>In immediate danger? Call 112, or see every emergency option.</Body>
+            <View style={{ height: 10 }} />
+            <Button label="View 112 emergency options" variant="red" full icon="warning-outline" testID="ws-emergency-cta" onPress={() => router.push('/emergency')} />
+          </Panel>
         </View>
 
         </>}
@@ -306,7 +313,7 @@ export default function WomenShield() {
         {/* Safety tools */}
         <View style={styles.section}>
           <Text style={styles.h2}>{tr('ws.tools', lang)}</Text>
-          <View style={styles.toolCard}>
+          <ToolGrid>
             <ToolRow icon="people-outline" title={tr('ws.circle', lang)} sub={circleCount > 0 ? tr('ws.circle.sub.count', lang).replace('{n}', String(circleCount)) : tr('ws.circle.sub.empty', lang)} action={tr('ws.manage', lang)} onPress={() => router.push('/women/trusted-circle')} />
             <Divider />
             {/* v2.2 phase 8: this switch only stored ws_checkin_enabled on the
@@ -335,7 +342,7 @@ export default function WomenShield() {
               <Divider />
               <ToolRow icon="people-circle-outline" title="Guardian Journey" sub="Share where you're going with someone you trust" action="Share" onPress={() => router.push('/women/guardian-share')} />
             </>}
-          </View>
+          </ToolGrid>
           <Pressable style={(s) => [styles.lessonRow, focusRingStyle(s)]} onPress={() => router.push('/women/panic-lesson')} accessibilityRole="button" accessibilityLabel="Learn the 20-second panic trigger for 112">
             <Ionicons name="school-outline" size={18} color={UI_V22_S4 ? shieldColors.gold : c.darkGold} />
             <Text style={styles.lessonTxt}>Learn the 20-second panic trigger for 112</Text>
@@ -349,7 +356,7 @@ export default function WomenShield() {
           <View style={styles.section}>
             <Text style={styles.h2}>Campus safety</Text>
             <Text style={styles.h2sub}>Resources for students and campus communities</Text>
-            <View style={styles.toolCard}>
+            <ToolGrid>
               {UI_V22_P6 ? (
                 <ToolRow icon="school-outline" title="Anti-Ragging helpline" sub="National helpline: 1800-180-5522" action="Open dialler"
                   onPress={async () => setCampusDialStatus(await openPhone('18001805522'))} />
@@ -360,7 +367,7 @@ export default function WomenShield() {
               <ToolRow icon="briefcase-outline" title="POSH / Internal Complaints" sub="Your institution's Internal Complaints Committee (ICC)" action="How to find" onPress={() => router.push({ pathname: '/all-help', params: { q: 'POSH committee' } })} />
               <Divider />
               <ToolRow icon="shield-checkmark-outline" title="Campus security" sub="Contact your campus security office directly" action="Ask DHARA" onPress={() => router.push({ pathname: '/(tabs)', params: { draft: 'How do I contact campus security or file a complaint?', entry: Date.now().toString() } } as any)} />
-            </View>
+            </ToolGrid>
             {UI_V22_P6 && !!campusDialStatus && (
               <Text testID="ws-campus-dial-status" style={styles.hlNote} accessibilityLiveRegion="polite" accessibilityRole="alert" selectable>{campusDialStatus}</Text>
             )}
@@ -433,14 +440,40 @@ export default function WomenShield() {
 // helpline row, which displays a number but must not be tappable until the
 // app is live (SOS-numbers-inactive policy; calling stays off everywhere
 // except through the explicit dialler consent flow this policy doesn't cover).
+/** Flattens fragments so conditional groups of tools still count as tiles. */
+function flattenTools(children: React.ReactNode): React.ReactElement[] {
+  const out: React.ReactElement[] = [];
+  React.Children.forEach(children, (ch) => {
+    if (!React.isValidElement(ch)) return;
+    if (ch.type === React.Fragment) out.push(...flattenTools((ch.props as any).children));
+    else if (ch.type !== Divider) out.push(ch);
+  });
+  return out;
+}
+
+/**
+ * Redesign v3, stage 6: the safety tools as a two-column grid of tiles (the
+ * prototype's hub) instead of one long list card. Divider lines between the
+ * old rows are dropped; an odd tile at the end takes the full width.
+ */
+function ToolGrid({ children }: { children: React.ReactNode }) {
+  const tools = flattenTools(children);
+  return (
+    <View style={styles.toolGrid}>
+      {tools.map((t, i) => (
+        <View key={i} style={tools.length % 2 === 1 && i === tools.length - 1 ? styles.toolCellFull : styles.toolCell}>{t}</View>
+      ))}
+    </View>
+  );
+}
+
 function ToolRow({ icon, title, sub, action, onPress }: { icon: any; title: string; sub: string; action?: string; onPress?: () => void }) {
+  // Redesign v3, stage 6: each tool is a tile (icon, name, one line, action).
   const content = (
     <>
-      <View style={styles.toolIcon}><Ionicons name={icon} size={20} color={UI_V22_S4 ? shieldColors.text : c.navy} /></View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.toolTitle}>{title}</Text>
-        <Text style={styles.toolSub}>{sub}</Text>
-      </View>
+      <Ionicons name={icon} size={24} color={UI_V22_S4 ? shieldColors.text : c.navy} />
+      <Text style={styles.toolTitle} numberOfLines={2}>{title}</Text>
+      <Text style={styles.toolSub} numberOfLines={3}>{sub}</Text>
       {!!action && <Text style={styles.toolAction}>{action}</Text>}
     </>
   );
@@ -483,7 +516,7 @@ const styles = StyleSheet.create({
   discreetSub: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 12, marginTop: 2 },
 
   section: { paddingHorizontal: 16, marginTop: 18 },
-  h2: { fontFamily: theme.fonts.displayBold, fontSize: 19, color: UI_V22_S4 ? shieldColors.text : c.ink },
+  h2: { fontFamily: theme.fonts.displayBold, fontSize: 17, color: UI_V22_S4 ? shieldColors.text : c.ink },
   h2sub: { fontFamily: theme.fonts.body, fontSize: 12, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, marginTop: 2, marginBottom: 14 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
   rightCard: UI_V22_S4
@@ -495,11 +528,16 @@ const styles = StyleSheet.create({
   toolCard: UI_V22_S4
     ? { backgroundColor: shieldColors.cardBg, borderRadius: 18, borderWidth: 1, borderColor: shieldColors.cardBorder, paddingHorizontal: 16 }
     : { backgroundColor: c.surface, borderRadius: 18, borderWidth: 1, borderColor: c.lines, paddingHorizontal: 16 },
-  toolRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16 },
+  toolGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 9, marginTop: 10 },
+  toolCell: { width: '48.6%' },
+  toolCellFull: { width: '100%' },
+  toolRow: UI_V22_S4
+    ? { flex: 1, gap: 3, backgroundColor: shieldColors.cardBg, borderRadius: 13, borderWidth: 1, borderColor: shieldColors.cardBorder, paddingVertical: 14, paddingHorizontal: 12, minHeight: 112 }
+    : { flex: 1, gap: 3, backgroundColor: c.tileBg, borderRadius: 13, borderWidth: 1, borderColor: c.tileBorder, paddingVertical: 14, paddingHorizontal: 12, minHeight: 112 },
   toolIcon: { width: 40, height: 40, borderRadius: 11, backgroundColor: UI_V22_S4 ? shieldColors.chipBg : c.navySoft, alignItems: 'center', justifyContent: 'center' },
-  toolTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: UI_V22_S4 ? shieldColors.text : c.ink },
-  toolSub: { fontFamily: theme.fonts.body, fontSize: 12, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, marginTop: 2 },
-  toolAction: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: UI_V22_S4 ? shieldColors.gold : c.navy },
+  toolTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 14, marginTop: 6, color: UI_V22_S4 ? shieldColors.text : c.ink },
+  toolSub: { fontFamily: theme.fonts.body, fontSize: 12, lineHeight: 16, color: UI_V22_S4 ? shieldColors.textMuted : c.muted },
+  toolAction: { fontFamily: theme.fonts.bodyBold, fontSize: 12, marginTop: 6, color: UI_V22_S4 ? shieldColors.gold : c.blue },
 
   hlGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
   hlCard: UI_V22_S4

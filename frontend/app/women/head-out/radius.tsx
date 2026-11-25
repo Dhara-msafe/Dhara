@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { UI_V22_P9, headOutBottomGutter } from '@/src/uiV22Flags';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
+import { StepStrip } from '@/src/ui/kit';
 import { useHeadOutWizard } from '@/src/women/headOutWizardStore';
 import { RADIUS_PRESETS, isPreset, CustomRadiusModal } from '@/src/women/DestinationPicker';
 import { DestinationMapPicker } from '@/src/women/DestinationMapPicker';
@@ -70,6 +71,8 @@ export default function ArrivalRadius() {
   return (
     <View style={styles.root}>
       <ScreenHeader title={UI_V22_P9 ? 'Head out safely' : 'Head Out'} subtitle="Step 2 of 3 — Arrival area" />
+      {/* Redesign v3, stage 6: gold step bar, as in the prototype. */}
+      <StepStrip step={2} total={3} />
       <ScrollView scrollEnabled={!mapActive} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + headOutBottomGutter(110) }]}>
         <Text style={styles.destTxt} numberOfLines={2}>{draft.label}</Text>
 

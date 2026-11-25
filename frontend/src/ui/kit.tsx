@@ -331,6 +331,16 @@ export function KeyValueRow({ label, value }: { label: string; value: string }) 
   );
 }
 
+/** The prototype's gold step bar, placed directly under a screen's header. */
+export function StepStrip({ step, total, testID = 'step-strip' }: { step: number; total: number; testID?: string }) {
+  const size = useSizeClass();
+  return (
+    <View testID={testID} style={{ paddingHorizontal: size.margin, paddingTop: 12, backgroundColor: c.background }}>
+      <ProgressSteps step={step} total={total} />
+    </View>
+  );
+}
+
 export function ProgressSteps({ step, total = 5 }: { step: number; total?: number }) {
   return (
     <View style={s.progress} accessibilityRole="progressbar" accessibilityLabel={`Step ${step} of ${total}`}
