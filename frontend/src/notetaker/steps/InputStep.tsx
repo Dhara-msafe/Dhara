@@ -267,7 +267,7 @@ function AudioImport({ consultation, token, onChanged }: { consultation: Consult
         <View style={styles.choiceRow}>
           {Platform.OS !== 'web' && (
             <Pressable style={[styles.secondaryBtn, styles.choiceBtn]} onPress={startRecording} disabled={picking || uploading}>
-              <Text style={styles.secondaryBtnText}>🎙️ Record now</Text>
+              <Text style={styles.secondaryBtnText}>Record now</Text>
             </Pressable>
           )}
           <Pressable style={[styles.secondaryBtn, styles.choiceBtn]} onPress={pick} disabled={picking || uploading}>
@@ -337,8 +337,8 @@ const styles = StyleSheet.create({
   discardBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.muted },
   stopBtn: { flex: 1.4, backgroundColor: c.error, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   stopBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: '#fff' },
-  permBanner: { backgroundColor: '#FEF3C7', borderRadius: 10, padding: 12, marginBottom: 16 },
-  permBannerText: { fontFamily: theme.fonts.body, fontSize: 12, color: '#92400E', lineHeight: 16, marginBottom: 8 },
-  permBannerBtn: { alignSelf: 'flex-start', backgroundColor: '#92400E', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  permBanner: { backgroundColor: '#FFF4E6', borderRadius: 10, padding: 12, marginBottom: 16 },
+  permBannerText: { fontFamily: theme.fonts.body, fontSize: 12, color: '#8A6A1E', lineHeight: 16, marginBottom: 8 },
+  permBannerBtn: { alignSelf: 'flex-start', backgroundColor: '#8A6A1E', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
   permBannerBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: '#fff' },
 });

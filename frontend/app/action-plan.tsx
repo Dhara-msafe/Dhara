@@ -95,7 +95,7 @@ export default function ActionPlan() {
           </View>
         ) : needsSafetyGate && safetyStatus === 'danger' ? (
           <View style={styles.safetyGateCard} testID="safety-emergency">
-            <Ionicons name="warning" size={28} color="#B91C1C" />
+            <Ionicons name="warning" size={28} color="#C73236" />
             <Text style={styles.safetyGateTitle}>Get to safety first — help is one tap away</Text>
             <Pressable style={styles.safetyEmergencyBtn} testID="safety-call-112" onPress={UI_V22_P6 ? async () => setDialStatus(await openPhone('112')) : () => openExternal('tel:112').catch(() => {})}
               {...(UI_V22_P6 ? { accessibilityRole: 'button' as const, accessibilityLabel: dialLabel('112'), accessibilityHint: dialHint('112') } : {})}>
@@ -126,7 +126,7 @@ export default function ActionPlan() {
               <Text style={styles.safetyGateUnsureTxt}>I&apos;ve decided I&apos;m safe — show legal steps</Text>
             </Pressable>
             <Pressable testID="safety-gate-danger-2" onPress={() => setSafetyStatus('danger')}>
-              <Text style={[styles.safetyGateUnsureTxt, { color: '#B91C1C' }]}>Actually, I&apos;m in danger</Text>
+              <Text style={[styles.safetyGateUnsureTxt, { color: '#C73236' }]}>Actually, I&apos;m in danger</Text>
             </Pressable>
           </View>
         ) : (
@@ -220,13 +220,13 @@ const styles = StyleSheet.create({
   safetyGateCard: { backgroundColor: c.surface, borderRadius: 20, padding: 18, alignItems: 'center', gap: 14, borderWidth: 1, borderColor: c.lines },
   safetyGateTitle: { fontFamily: theme.fonts.displayBold, fontSize: 16, color: c.ink, textAlign: 'center', lineHeight: 23 },
   safetyGateSub: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, textAlign: 'center' },
-  safetyGateDangerBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#B91C1C', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16, width: '100%' },
+  safetyGateDangerBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#C73236', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16, width: '100%' },
   safetyGateDangerTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: '#fff' },
   safetyGateUnsureBtn: { paddingVertical: 10 },
   safetyGateUnsureTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy, textDecorationLine: 'underline' },
   safetyGateSafeBtn: { backgroundColor: c.navy, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16, width: '100%', alignItems: 'center' },
   safetyGateSafeTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: '#fff' },
-  safetyEmergencyBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#B91C1C', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16, width: '100%' },
+  safetyEmergencyBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#C73236', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16, width: '100%' },
   notRight: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.navy, textDecorationLine: 'underline', marginTop: 10 },
   rightCard: { backgroundColor: c.navy, borderRadius: 20, padding: 22, marginTop: 14 },
   rightLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.gold, letterSpacing: 1.5 },

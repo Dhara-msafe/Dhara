@@ -157,7 +157,7 @@ export default function MyDataScreen() {
           <Ionicons name="cloud-offline-outline" size={36} color={theme.colors.onSurfaceSecondary} />
           <Text testID="my-data-load-failed" style={styles.loadingText}>We could not load your data right now.</Text>
           <Pressable testID="my-data-retry" onPress={fetchSummary} hitSlop={16} style={(s) => [{ paddingVertical: 10 }, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Try again">
-            <Text style={[styles.loadingText, { color: theme.colors.brand, fontWeight: '700' }]}>Try again</Text>
+            <Text style={[styles.loadingText, { color: theme.colors.brand, fontFamily: 'InterBold'}]}>Try again</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -192,7 +192,7 @@ export default function MyDataScreen() {
           <DataRow label="Phone"      value={profile.phone ? profile.phone.replace(/\d(?=\d{4})/g, '•') : '—'} />
           <DataRow label="Language"   value={profile.language?.toUpperCase() || 'EN'} />
           <DataRow label="Joined"     value={profile.created_at ? new Date(profile.created_at).toLocaleDateString('en-IN') : '—'} />
-          <DataRow label="Plan"       value={profile.is_pro ? '⭐ Pro' : 'Basic (free)'} last />
+          <DataRow label="Plan"       value={profile.is_pro ? 'Pro' : 'Basic (free)'} last />
         </SectionCard>
 
         {/* ── Consent ── */}
@@ -262,7 +262,7 @@ export default function MyDataScreen() {
             </Text>
           </Pressable>
           {exportFailed && (
-            <Text testID="my-data-export-failed" style={{ color: '#DC2626', textAlign: 'center', marginTop: 8 }}>
+            <Text testID="my-data-export-failed" style={{ color: '#C73236', textAlign: 'center', marginTop: 8 }}>
               Could not export your data. Please try again.
             </Text>
           )}
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     color: theme.colors.onSurfaceSecondary,
-    fontSize: 13,
+    fontFamily: 'Inter', fontSize: 13,
   },
   // Header
   header: {
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: 'InterBold',
     color: theme.colors.onSurface,
   },
   // Scroll
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'InterBold',
     color: theme.colors.brand,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -412,13 +412,13 @@ const styles = StyleSheet.create({
   // UI_V22_MYDATA: multi-line values align to the top of the row.
   dataRowWrap: { alignItems: 'flex-start' },
   dataLabel: {
-    fontSize: 12,
+    fontFamily: 'Inter', fontSize: 12,
     color: theme.colors.onSurfaceSecondary,
     flex: 1,
   },
   dataValue: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'InterSemiBold',
     color: theme.colors.onSurface,
     flex: 1.5,
     textAlign: 'right',
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
   },
   exportBtnText: {
     color: '#fff',
-    fontWeight: '700',
+    fontFamily: 'InterBold',
     fontSize: 13,
   },
   deleteLink: {
@@ -454,11 +454,11 @@ const styles = StyleSheet.create({
   deleteLinkText: {
     color: theme.colors.error,
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: 'InterSemiBold',
   },
   // Legal note
   legalNote: {
-    fontSize: 12,
+    fontFamily: 'Inter', fontSize: 12,
     // NF-UI-REV-12: onSurfaceTertiary directly on this screen's cream root
     // background measured ~4.33:1 — under 4.5:1. onSurfaceSecondary clears ~6.5:1.
     color: UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : theme.colors.onSurfaceTertiary,

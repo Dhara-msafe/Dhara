@@ -27,9 +27,9 @@ type Intake = {
 
 function StatusChip({ status }: { status: Intake['status'] }) {
   const map = {
-    pending:  { bg: '#F3F4F6', text: '#6B7280', label: 'Pending' },
-    complete: { bg: '#FEF9EC', text: NAVY,       label: 'Complete' },
-    expired:  { bg: '#FEF2F2', text: '#DC2626',  label: 'Expired' },
+    pending:  { bg: '#EEF3FC', text: '#64788A', label: 'Pending' },
+    complete: { bg: '#FFF4E6', text: NAVY,       label: 'Complete' },
+    expired:  { bg: '#FFF0F0', text: '#C73236',  label: 'Expired' },
   };
   const c = map[status];
   return (
@@ -132,7 +132,7 @@ export default function Intakes() {
           contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
           ListEmptyComponent={
             <View style={s.empty}>
-              <Ionicons name="people-outline" size={40} color="#D1D5DB" />
+              <Ionicons name="people-outline" size={40} color="#E6DFD1" />
               <Text style={s.emptyTitle}>No intakes yet</Text>
               <Text style={s.emptySub}>Tap + to pick a template and send a secure intake link to your client.</Text>
             </View>
@@ -150,7 +150,7 @@ export default function Intakes() {
                 <Text style={s.rowDate}>{new Date(item.created_at).toLocaleDateString('en-IN')}</Text>
               </View>
               <StatusChip status={item.status} />
-              {item.status === 'complete' && <Ionicons name="chevron-forward" size={16} color="#9CA3AF" style={{ marginLeft: 8 }} />}
+              {item.status === 'complete' && <Ionicons name="chevron-forward" size={16} color="#64788A" style={{ marginLeft: 8 }} />}
             </Pressable>
           )}
         />
@@ -176,7 +176,7 @@ export default function Intakes() {
                 <Text style={s.templateTitle}>{tmpl.title}</Text>
                 <Text style={s.templateDesc}>{tmpl.description}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+              <Ionicons name="chevron-forward" size={16} color="#64788A" />
             </Pressable>
           ))}
         </View>
@@ -186,28 +186,28 @@ export default function Intakes() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F9FAFB' },
+  safe: { flex: 1, backgroundColor: '#FFFAF2' },
   header: { backgroundColor: NAVY, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: '#fff', flex: 1 },
-  row: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB' },
-  rowName: { fontSize: 13, fontWeight: '600', color: '#1F2937', marginBottom: 2 },
-  rowTemplate: { fontSize: 12, color: GOLD, fontWeight: '600', marginBottom: 2 },
-  rowDate: { fontSize: 12, color: '#9CA3AF' },
+  headerTitle: { fontSize: 16, fontFamily: 'InterBold', color: '#fff', flex: 1 },
+  row: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E6DFD1' },
+  rowName: { fontSize: 13, fontFamily: 'InterSemiBold', color: '#102A45', marginBottom: 2 },
+  rowTemplate: { fontSize: 12, color: GOLD, fontFamily: 'InterSemiBold', marginBottom: 2 },
+  rowDate: { fontFamily: 'Inter', fontSize: 12, color: '#64788A' },
   empty: { alignItems: 'center', paddingTop: 60, gap: 8 },
-  emptyTitle: { fontSize: 14, fontWeight: '700', color: '#374151' },
-  emptySub:   { fontSize: 12, color: '#9CA3AF', textAlign: 'center', maxWidth: 260 },
+  emptyTitle: { fontSize: 14, fontFamily: 'InterBold', color: '#102A45' },
+  emptySub:   { fontFamily: 'Inter', fontSize: 12, color: '#64788A', textAlign: 'center', maxWidth: 260 },
   fab: { position: 'absolute', bottom: 28, right: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: GOLD, alignItems: 'center', justifyContent: 'center', elevation: 6, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 18, gap: 12 },
-  sheetTitle: { fontSize: 16, fontWeight: '800', color: NAVY },
-  sheetSub: { fontSize: 12, color: '#6B7280', marginTop: -6, marginBottom: 4 },
-  templateCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#FAFAFA' },
+  sheetTitle: { fontSize: 16, fontFamily: 'InterExtraBold', color: NAVY },
+  sheetSub: { fontFamily: 'Inter', fontSize: 12, color: '#64788A', marginTop: -6, marginBottom: 4 },
+  templateCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#E6DFD1', backgroundColor: '#FFFAF2' },
   templateIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  templateTitle: { fontSize: 13, fontWeight: '700', color: '#1F2937' },
-  templateDesc: { fontSize: 12, color: '#6B7280', marginTop: 2 },
+  templateTitle: { fontSize: 13, fontFamily: 'InterBold', color: '#102A45' },
+  templateDesc: { fontFamily: 'Inter', fontSize: 12, color: '#64788A', marginTop: 2 },
 });
 
 const ic = StyleSheet.create({
   chip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  chipText: { fontSize: 12, fontWeight: '700' },
+  chipText: { fontSize: 12, fontFamily: 'InterBold'},
 });

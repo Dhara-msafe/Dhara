@@ -800,7 +800,7 @@ const styles = StyleSheet.create({
     marginTop: 6, overflow: 'hidden',
   },
   sourceNote: {
-    fontFamily: theme.fonts.body, fontSize: 12.5, color: c.muted,
+    fontFamily: theme.fonts.body, fontSize: 13, color: c.muted,
     paddingHorizontal: 12, paddingVertical: 7,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.lines,
   },
@@ -815,7 +815,7 @@ const styles = StyleSheet.create({
   tabTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.muted },
   tabTxtActive: { color: c.navy },
   listSection: { marginTop: 14, gap: 8 },
-  emptyTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, fontStyle: 'italic', paddingVertical: 6 },
+  emptyTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, paddingVertical: 6 },
   placeRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines,
@@ -826,7 +826,7 @@ const styles = StyleSheet.create({
   placeLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink, flex: 1 },
   customRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
   customTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.darkGold },
-  mapHint: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 14, fontStyle: 'italic' },
+  mapHint: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 14 },
   // ── Live location button ────────────────────────────────────────────────────
   locationBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 10,

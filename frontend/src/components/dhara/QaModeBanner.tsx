@@ -79,7 +79,7 @@ export function QaModeBanner() {
         alignItems: 'center',
       }}
     >
-      <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 12, letterSpacing: 0.5 }}>
+      <Text style={{ color: '#FFFFFF', fontFamily: 'InterBold', fontSize: 12, letterSpacing: 0.5 }}>
         {isClosedTest
           ? 'CLOSED TEST — calls, SMS and sharing are simulated during this test'
           : 'QA MODE — calls, SMS and sharing are simulated'}

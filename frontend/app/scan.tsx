@@ -128,13 +128,13 @@ const buildScanHtml = (r: ScanResult) => {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
 <style>
 body{padding:28px;font-family:Arial,sans-serif;color:#1A1A1A;}
-h2{color:#1B2B5B;font-size:18px;margin-bottom:2px;}
+h2{color:#082B4F;font-size:18px;margin-bottom:2px;}
 .date{color:#6B6B6B;font-size:12px;margin-bottom:18px;}
 .label{color:#8A6A2A;font-size:11px;letter-spacing:1px;font-weight:700;margin-top:18px;}
 .body{white-space:pre-wrap;font-size:14px;line-height:1.7;margin-top:6px;}
-.orig{background:#F7F7F7;border-left:3px solid #C9973A;padding:12px;font-size:12px;line-height:1.6;color:#444;white-space:pre-wrap;margin-top:8px;}
+.orig{background:#F7F7F7;border-left:3px solid #E8B956;padding:12px;font-size:12px;line-height:1.6;color:#444;white-space:pre-wrap;margin-top:8px;}
 .foot{color:#8A8A8A;font-size:11px;margin-top:26px;border-top:1px solid #E5E5E5;padding-top:10px;}
-.badge{display:inline-block;background:#EEF3FC;color:#1B2B5B;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;margin-bottom:12px;}
+.badge{display:inline-block;background:#EEF3FC;color:#082B4F;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;margin-bottom:12px;}
 .fact{display:flex;gap:12px;margin-bottom:6px;}
 .fk{color:#8A6A2A;font-size:12px;font-weight:700;min-width:130px;}
 .fv{font-size:12px;color:#1A1A1A;}
@@ -918,7 +918,7 @@ const styles = StyleSheet.create({
 
   // ── Error ──────────────────────────────────────────────────────────────
   errBox: {
-    backgroundColor: '#FBEAE8', borderRadius: 12, padding: 14,
+    backgroundColor: '#FFF0F0', borderRadius: 12, padding: 14,
     marginTop: 16, flexDirection: 'row', alignItems: 'flex-start', gap: 10,
   },
   errTxt: { fontFamily: theme.fonts.bodyMedium, fontSize: 13, color: c.error },
@@ -1018,7 +1018,7 @@ const styles = StyleSheet.create({
   },
   ocrEditedNote: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#FFF8E8', borderRadius: 8, padding: 8,
+    backgroundColor: '#FFF4E6', borderRadius: 8, padding: 8,
   },
   ocrEditedTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12, color: c.warning },
 
@@ -1082,7 +1082,7 @@ const styles = StyleSheet.create({
   factValue: { flex: 1, fontFamily: theme.fonts.bodyMedium, fontSize: 13, color: c.ink, lineHeight: 18 },
   truthNote: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
-    backgroundColor: '#FFF8E8', borderRadius: 12, padding: 12, marginTop: 14,
+    backgroundColor: '#FFF4E6', borderRadius: 12, padding: 12, marginTop: 14,
   },
   truthNoteConditional: { backgroundColor: '#EAF2FF' },
   truthNoteTxt: {

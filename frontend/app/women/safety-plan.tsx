@@ -145,7 +145,7 @@ export default function SafetyPlan() {
                 <View style={styles.plusCodeLabelRow}>
                   <Text style={styles.plusCodeLabel}>Emergency Plus Code</Text>
                   <View style={styles.offlineBadge}>
-                    <Ionicons name="cloud-offline-outline" size={10} color={UI_V22_S4 ? shieldColors.textFaint : '#6b7280'} />
+                    <Ionicons name="cloud-offline-outline" size={10} color={UI_V22_S4 ? shieldColors.textFaint : '#64788A'} />
                     <Text style={styles.offlineBadgeTxt}>Works offline</Text>
                   </View>
                 </View>
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
     backgroundColor: c.surface,
     borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: c.border ?? '#e5e7eb',
+    borderColor: c.border ?? '#E6DFD1',
     padding: 16,
     marginBottom: 12,
     gap: 12,
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: UI_V22_S4 ? shieldColors.chipBg : '#f3f4f6',
+    backgroundColor: UI_V22_S4 ? shieldColors.chipBg : '#EEF3FC',
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -361,10 +361,10 @@ const styles = StyleSheet.create({
   offlineBadgeTxt: {
     fontFamily: theme.fonts.body,
     fontSize: 11,
-    // NF-UI-REV-02: '#6b7280' on this chip's '#f3f4f6' background measured
+    // NF-UI-REV-02: '#64788A' on this chip's '#EEF3FC' background measured
     // ~4.37:1 — just under the 4.5:1 minimum for small text. c.muted
-    // (#505B68) on the same background measures ~6:1.
-    color: UI_V22_S4 ? shieldColors.textFaint : (UI_REVISION_V1 ? c.muted : '#6b7280'),
+    // (#64788A) on the same background measures ~6:1.
+    color: UI_V22_S4 ? shieldColors.textFaint : (UI_REVISION_V1 ? c.muted : '#64788A'),
   },
   plusCodeValue: {
     fontFamily: theme.fonts.displayBold,
@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
     color: UI_V22_S4 ? shieldColors.textFaint : c.muted,
     lineHeight: 17,
     marginTop: 12,
-    fontStyle: 'italic',
+    
   },
 
   // ── Safety plan questions ───────────────────────────────────────────────────────

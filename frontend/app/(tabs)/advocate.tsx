@@ -149,13 +149,13 @@ export default function AdvocateTab() {
         {/* Verification pending banner */}
         {!profile?.verified && (
           <View style={s.verifyCard}>
-            <Ionicons name="time-outline" size={20} color="#92400E" style={{ marginTop: 1 }} />
+            <Ionicons name="time-outline" size={20} color="#8A6A1E" style={{ marginTop: 1 }} />
             <View style={{ flex: 1 }}>
-              <Text style={[s.verifyCardText, { fontWeight: '700', marginBottom: 2 }]}>
+              <Text style={[s.verifyCardText, { fontFamily: 'InterBold', marginBottom: 2 }]}>
                 Verification Pending
               </Text>
               <Text style={s.verifyCardText}>
-                Your enrolment no. <Text style={{ fontWeight: '700' }}>{profile?.bar_council_number}</Text> is under review.
+                Your enrolment no. <Text style={{ fontFamily: 'InterBold'}}>{profile?.bar_council_number}</Text> is under review.
                 You'll receive a "Reviewed" badge within 24–48 hours.
               </Text>
             </View>
@@ -171,7 +171,7 @@ export default function AdvocateTab() {
               <Text style={s.cardTitle}>{card.title}</Text>
               <Text style={s.cardSub}>{card.sub}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            <Ionicons name="chevron-forward" size={20} color="#64788A" />
           </Pressable>
         ))}
 
@@ -197,64 +197,64 @@ export default function AdvocateTab() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FDFBF7' },
+  safe: { flex: 1, backgroundColor: '#FFFAF2' },
   header: {
     backgroundColor: NAVY, flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16,
   },
-  headerTitle: { fontSize: 19, fontWeight: '800', color: '#fff' },
+  headerTitle: { fontSize: 19, fontFamily: 'InterExtraBold', color: '#fff' },
   verifiedBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     marginTop: 4, backgroundColor: GOLD, paddingHorizontal: 8,
     paddingVertical: 3, borderRadius: 10, alignSelf: 'flex-start',
   },
-  verifiedText: { fontSize: 12, fontWeight: '700', color: NAVY },
-  pendingText: { fontSize: 12, color: '#9CA3AF', marginTop: 4 },
+  verifiedText: { fontSize: 12, fontFamily: 'InterBold', color: NAVY },
+  pendingText: { fontFamily: 'Inter', fontSize: 12, color: '#64788A', marginTop: 4 },
   settingsBtn: { padding: 4 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   // Not-registered state
   registerContainer: { padding: 18, alignItems: 'center', paddingBottom: 40 },
   iconWrap: {
-    width: 90, height: 90, borderRadius: 45, backgroundColor: '#EEF2FF',
+    width: 90, height: 90, borderRadius: 45, backgroundColor: '#EEF5FF',
     alignItems: 'center', justifyContent: 'center', marginBottom: 20,
   },
-  registerTitle: { fontSize: 19, fontWeight: '800', color: NAVY, marginBottom: 10 },
-  registerSub: { fontSize: 13, color: '#6B7280', textAlign: 'center', lineHeight: 19, marginBottom: 18 },
+  registerTitle: { fontSize: 19, fontFamily: 'InterExtraBold', color: NAVY, marginBottom: 10 },
+  registerSub: { fontFamily: 'Inter', fontSize: 13, color: '#64788A', textAlign: 'center', lineHeight: 19, marginBottom: 18 },
   featureList: { width: '100%', gap: 14, marginBottom: 24 },
   featureRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  featureText: { flex: 1, fontSize: 13, color: '#374151', lineHeight: 18 },
+  featureText: { flex: 1, fontFamily: 'Inter', fontSize: 13, color: '#102A45', lineHeight: 18 },
   registerBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: GOLD, paddingVertical: 14, paddingHorizontal: 28,
     borderRadius: 12, width: '100%',
   },
-  registerBtnText: { fontSize: 14, fontWeight: '700', color: NAVY },
+  registerBtnText: { fontSize: 14, fontFamily: 'InterBold', color: NAVY },
 
   // Registered dashboard
   dashScroll: { padding: 16, gap: 14, paddingBottom: 40 },
   verifyCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-    backgroundColor: '#FEF3C7', borderRadius: 12, padding: 14,
+    backgroundColor: '#FFF4E6', borderRadius: 12, padding: 14,
   },
-  verifyCardText: { flex: 1, fontSize: 12, color: '#92400E', lineHeight: 17 },
+  verifyCardText: { flex: 1, fontFamily: 'Inter', fontSize: 12, color: '#8A6A1E', lineHeight: 17 },
   card: {
     backgroundColor: '#fff', borderRadius: 14,
-    borderWidth: 1, borderColor: '#E5E7EB',
+    borderWidth: 1, borderColor: '#E6DFD1',
     padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14,
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   cardIcon: {
     width: 48, height: 48, borderRadius: 12,
-    backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#EEF5FF', alignItems: 'center', justifyContent: 'center',
   },
-  cardTitle: { fontSize: 14, fontWeight: '700', color: NAVY, marginBottom: 3 },
-  cardSub: { fontSize: 12, color: '#6B7280', lineHeight: 16 },
+  cardTitle: { fontSize: 14, fontFamily: 'InterBold', color: NAVY, marginBottom: 3 },
+  cardSub: { fontFamily: 'Inter', fontSize: 12, color: '#64788A', lineHeight: 16 },
   profileCard: {
     backgroundColor: '#fff', borderRadius: 14,
-    borderWidth: 1, borderColor: '#E5E7EB', padding: 18, marginTop: 4,
+    borderWidth: 1, borderColor: '#E6DFD1', padding: 18, marginTop: 4,
   },
-  profileLabel: v22SectionLabel({ fontSize: 12, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5 }),
-  profileValue: { fontSize: 13, color: '#1F2937', marginTop: 3, fontWeight: '600' },
+  profileLabel: v22SectionLabel({ fontSize: 12, fontFamily: 'InterBold', color: '#64788A', textTransform: 'uppercase', letterSpacing: 0.5 }),
+  profileValue: { fontSize: 13, color: '#102A45', marginTop: 3, fontFamily: 'InterSemiBold'},
 });

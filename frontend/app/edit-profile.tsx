@@ -238,7 +238,7 @@ export default function EditProfileScreen() {
           />
           {dob.length === 10 && (
             isAtLeast18(dob)
-              ? <Text style={[styles.hint, { color: '#059669' }]}>✓ Age confirmed 18+</Text>
+              ? <Text style={[styles.hint, { color: '#087951' }]}>✓ Age confirmed 18+</Text>
               : <Text style={[styles.hint, { color: c.error }]}>⚠ You must be 18 or older to use Dhara.</Text>
           )}
         </View>
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
   cameraBadge:   { position: 'absolute', right: 0, bottom: 0, width: 30, height: 30, borderRadius: 15, backgroundColor: c.navy, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: c.background },
   changeBtn:     { marginTop: 10, marginBottom: 20, minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
   changeTxt:     { fontFamily: theme.fonts.bodySemiBold, color: c.navy, fontSize: 13 },
-  errorBox:      { width: '100%', backgroundColor: '#FEF2F2', borderRadius: 10, borderWidth: 1, borderColor: '#FCA5A5', padding: 12, marginBottom: 12 },
+  errorBox:      { width: '100%', backgroundColor: '#FFF0F0', borderRadius: 10, borderWidth: 1, borderColor: '#EFC7C7', padding: 12, marginBottom: 12 },
   errorTxt:      { fontFamily: theme.fonts.body, fontSize: 13, color: c.error, lineHeight: 18 },
   field:         { width: '100%', marginBottom: 16 },
   label:         { fontFamily: theme.fonts.bodySemiBold, color: c.navy, fontSize: 12, marginBottom: 6 },

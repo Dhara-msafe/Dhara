@@ -37,18 +37,18 @@ const ACTIVE_ACTIONS = [
   { id: 'archive',  icon: 'archive-outline',       label: 'Archive',              color: c.navy },
   { id: 'save',     icon: 'download-outline',       label: 'Save to device',       color: c.navy },
   { id: 'trash',    icon: 'trash-outline',          label: 'Move to trash',        color: '#E07B39' },
-  { id: 'delete',   icon: 'close-circle-outline',   label: 'Delete permanently',   color: '#C0392B' },
+  { id: 'delete',   icon: 'close-circle-outline',   label: 'Delete permanently',   color: '#C73236' },
 ] as const;
 
 const ARCHIVED_ACTIONS = [
   { id: 'restore',  icon: 'refresh-outline',        label: 'Restore to active',    color: c.navy },
   { id: 'trash',    icon: 'trash-outline',          label: 'Move to trash',        color: '#E07B39' },
-  { id: 'delete',   icon: 'close-circle-outline',   label: 'Delete permanently',   color: '#C0392B' },
+  { id: 'delete',   icon: 'close-circle-outline',   label: 'Delete permanently',   color: '#C73236' },
 ] as const;
 
 const TRASH_ACTIONS = [
   { id: 'restore',  icon: 'refresh-outline',        label: 'Restore to active',    color: c.navy },
-  { id: 'delete',   icon: 'close-circle-outline',   label: 'Delete permanently',   color: '#C0392B' },
+  { id: 'delete',   icon: 'close-circle-outline',   label: 'Delete permanently',   color: '#C73236' },
 ] as const;
 
 export default function MyFiles() {
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
   pin:           { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.goldMuted, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
   pinTxt:        { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.darkGold },
   guestNotice:   { flexDirection: 'row', gap: 10, backgroundColor: c.goldMuted, borderRadius: 14, padding: 14, marginTop: 14, alignItems: 'flex-start' },
-  guestNoticeTxt:{ flex: 1, fontFamily: theme.fonts.body, fontSize: 12.5, color: c.ink, lineHeight: 16 },
+  guestNoticeTxt:{ flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, lineHeight: 16 },
 
   // Tabs
   tabs:          { gap: 10, paddingVertical: 16 },

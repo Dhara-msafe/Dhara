@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: v22SectionLabel({
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'InterBold',
     letterSpacing: 0.6,
     textTransform: 'uppercase',
     color: theme.colors.muted,
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   // Descriptive subtitle replacing the multilingual hint
-  sub: { color: theme.colors.muted, fontSize: 13, lineHeight: 19 },
+  sub: { color: theme.colors.muted, fontFamily: 'Inter', fontSize: 13, lineHeight: 19 },
 
   // ── Search field ─────────────────────────────────────────────────────────
   searchWrap: {
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
   searchIcon: { opacity: 0.7 },
   searchInput: {
     flex: 1,
-    fontSize: 13,
+    fontFamily: 'Inter', fontSize: 13,
     color: theme.colors.navy,
     paddingVertical: theme.spacing.sm,
     // No hardcoded height — flex fills available space naturally
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    fontSize: 13,
+    fontFamily: 'Inter', fontSize: 13,
     color: theme.colors.muted,
     textAlign: 'center',
   },
@@ -263,11 +263,11 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.lines,
   },
   // Selected: gold border (#8A6A1E) + warm tinted background — matches design token
-  rowActive: { borderWidth: 2.5, borderColor: '#8A6A1E', backgroundColor: '#FFF8E7' },
-  native: { color: theme.dhara.textPrimary, fontSize: 16, fontWeight: '600' },
+  rowActive: { borderWidth: 2.5, borderColor: '#8A6A1E', backgroundColor: '#FFF4E6' },
+  native: { color: theme.dhara.textPrimary, fontSize: 16, fontFamily: 'InterSemiBold'},
   nativeActive: { color: theme.colors.navy },
   // English translation: textSecondary on surface — 6.81:1 ✅; weight 500 for Indic script legibility
-  name: { color: theme.dhara.textSecondary, fontSize: 12, marginTop: 2, fontWeight: '500' },
+  name: { color: theme.dhara.textSecondary, fontSize: 12, marginTop: 2, fontFamily: 'InterMedium'},
   selectedWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   selectedLabel: {
     fontFamily: theme.fonts.bodyBold,

@@ -279,7 +279,7 @@ const s = StyleSheet.create({
   displayText: {
     color: C.display,
     fontSize: Math.min(96, BTN_H * 1.1),
-    fontWeight: '200',
+    fontFamily: 'Inter',
     letterSpacing: -2,
     textAlign: 'right',
   },
@@ -306,7 +306,7 @@ const s = StyleSheet.create({
   },
   btnTxt: {
     fontSize:   Math.min(34, BTN_H * 0.44),
-    fontWeight: '400',
+    fontFamily: 'Inter',
   },
   btnTxtZero: {
     // inherits from btnTxt — no override needed

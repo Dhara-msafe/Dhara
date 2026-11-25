@@ -47,7 +47,7 @@ const headerStyles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 14, gap: 4,
   },
   backBtn: { width: 44, height: 44, justifyContent: 'center' },
-  backArrow: { color: '#fff', fontSize: 24, lineHeight: 28, marginTop: -2 },
+  backArrow: { color: '#fff', fontFamily: 'Inter', fontSize: 24, lineHeight: 28, marginTop: -2 },
   title: { color: '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 15 },
   subtitle: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 12, marginTop: 1 },
 });
@@ -55,11 +55,11 @@ const headerStyles = StyleSheet.create({
 // ── Status pill ───────────────────────────────────────────────────────────
 
 const TONES = {
-  muted:   { bg: '#F4EFE3', fg: '#505B68' },
-  warning: { bg: '#FEF3C7', fg: '#92400E' },
+  muted:   { bg: '#F4EFE3', fg: '#64788A' },
+  warning: { bg: '#FFF4E6', fg: '#8A6A1E' },
   info:    { bg: '#EEF3FC', fg: '#0D436B' },
-  success: { bg: '#E7F1EB', fg: '#087951' },
-  error:   { bg: '#FEE4E2', fg: '#C73236' },
+  success: { bg: '#EDFAF2', fg: '#087951' },
+  error:   { bg: '#FFF0F0', fg: '#C73236' },
 } as const;
 
 const STATE_META: Record<ConsultationState, { label: string; tone: keyof typeof TONES }> = {
@@ -196,7 +196,7 @@ export function LegacyConsentNotice() {
 }
 
 const legacyStyles = StyleSheet.create({
-  box: { backgroundColor: '#FEF3C7', borderRadius: 10, padding: 14, marginBottom: 16 },
-  title: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: '#92400E', marginBottom: 4 },
-  text: { fontFamily: theme.fonts.body, fontSize: 12, color: '#92400E', lineHeight: 16 },
+  box: { backgroundColor: '#FFF4E6', borderRadius: 10, padding: 14, marginBottom: 16 },
+  title: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: '#8A6A1E', marginBottom: 4 },
+  text: { fontFamily: theme.fonts.body, fontSize: 12, color: '#8A6A1E', lineHeight: 16 },
 });

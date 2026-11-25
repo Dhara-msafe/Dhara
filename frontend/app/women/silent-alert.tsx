@@ -214,12 +214,12 @@ const styles = StyleSheet.create({
   toggleLabel:   { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink, marginBottom: 3 },
   toggleSub:     { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 16 },
   recordingBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingBottom: 14 },
-  recordingDot:   { width: 8, height: 8, borderRadius: 4, backgroundColor: '#ef4444' },
+  recordingDot:   { width: 8, height: 8, borderRadius: 4, backgroundColor: '#C73236' },
   recordingText:  {
     fontFamily: theme.fonts.bodyBold, fontSize: 12,
-    // NF-UI-REV-09: '#ef4444' on white measured ~3.76:1 — under 4.5:1.
+    // NF-UI-REV-09: '#C73236' on white measured ~3.76:1 — under 4.5:1.
     // theme.colors.emergencyRed ('#C73236') clears ~5.9:1 on the same bg.
-    color: UI_REVISION_V1 ? c.emergencyRed : '#ef4444',
+    color: UI_REVISION_V1 ? c.emergencyRed : '#C73236',
   },
   evidenceTip:     { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 16, paddingBottom: 14 },
   evidenceTipText: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 16 },

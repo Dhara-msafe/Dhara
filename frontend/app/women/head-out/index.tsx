@@ -1175,7 +1175,7 @@ export default function HeadOut() {
       {HEADOUT_DEMO_ENABLED && (
         <View style={styles.demoBanner} testID="headout-demo-banner">
           <View style={styles.demoBannerHeader}>
-            <Ionicons name="flask-outline" size={14} color="#92400e" />
+            <Ionicons name="flask-outline" size={14} color="#8A6A1E" />
             <Text style={styles.demoBannerTitle}>Demo mode · simulated location, nothing is sent</Text>
           </View>
           <View style={styles.demoBtnRow}>
@@ -1222,7 +1222,7 @@ export default function HeadOut() {
       {/* A30: tell her plainly whether the server-held alarm is armed. */}
       {!expired && journeyAlarm === 'connecting' && (
         <View style={styles.alarmPendingBanner} testID="headout-alarm-connecting" accessibilityLiveRegion="polite">
-          <Ionicons name="sync-outline" size={18} color="#92400e" />
+          <Ionicons name="sync-outline" size={18} color="#8A6A1E" />
           <View style={{ flex: 1 }}>
             <Text style={styles.alarmBannerTitle}>{ALARM_COPY.connecting.title}</Text>
             <Text style={styles.alarmBannerBody}>{ALARM_COPY.connecting.body}</Text>
@@ -1315,7 +1315,7 @@ export default function HeadOut() {
                 <View style={styles.statusCard} testID="headout-phone-status">
                   <Ionicons
                     name={gps.lastFixAt && Date.now() - gps.lastFixAt < OFFLINE_THRESHOLD_MS ? 'wifi-outline' : 'cloud-offline-outline'}
-                    size={20} color={gps.lastFixAt && Date.now() - gps.lastFixAt < OFFLINE_THRESHOLD_MS ? c.verifiedGreen : '#B45309'}
+                    size={20} color={gps.lastFixAt && Date.now() - gps.lastFixAt < OFFLINE_THRESHOLD_MS ? c.verifiedGreen : '#8A6A1E'}
                   />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.statusCardLabel}>Phone status</Text>
@@ -1482,7 +1482,7 @@ export default function HeadOut() {
                   radiusMeters={arrivalRadius} routePolyline={routeInfo?.polyline ?? null}
                 />
               )}
-              <Ionicons name="warning-outline" size={28} color="#B45309" />
+              <Ionicons name="warning-outline" size={28} color="#8A6A1E" />
               <Text style={styles.activeTitle}>Your journey changed</Text>
               <Text style={styles.note}>You are outside the expected route or moving away from your destination.</Text>
               <Text style={[styles.note, styles.areYouOkayTxt]}>Are you okay?</Text>
@@ -1610,7 +1610,7 @@ export default function HeadOut() {
                   {/* Step 1: pre-OS rationale — shown before any permission is requested */}
                   {!locationConsentGiven && !gps.denied && (
                     <View style={styles.gpsRationaleCard} testID="gps-rationale-card">
-                      <Ionicons name="location-outline" size={18} color="#1D4ED8" />
+                      <Ionicons name="location-outline" size={18} color="#1E5BD0" />
                       <View style={{ flex: 1 }}>
                         <Text style={styles.gpsRationaleTitle}>Share your location with your guardian?</Text>
                         <Text style={styles.gpsRationaleBody}>
@@ -1639,9 +1639,9 @@ export default function HeadOut() {
                       <Ionicons
                         name={gps.tracking ? 'location' : gps.error ? 'information-circle-outline' : 'location-outline'}
                         size={14}
-                        color={gps.tracking ? '#16a34a' : c.muted}
+                        color={gps.tracking ? '#087951' : c.muted}
                       />
-                      <Text style={[styles.gpsLabel, gps.tracking && { color: '#16a34a' }]}>
+                      <Text style={[styles.gpsLabel, gps.tracking && { color: '#087951' }]}>
                         {gps.denied
                           ? 'Location access denied — guardian page will not show your area'
                           : gps.error
@@ -1656,7 +1656,7 @@ export default function HeadOut() {
                   {/* Step 3: permanent denial — canAskAgain=false — show Settings path */}
                   {(showPermDeniedSettings || (gps.denied && !gps.canAskAgain)) && (
                     <View style={styles.gpsDeniedCard} testID="gps-denied-settings-card">
-                      <Ionicons name="location-outline" size={18} color="#B91C1C" />
+                      <Ionicons name="location-outline" size={18} color="#C73236" />
                       <View style={{ flex: 1 }}>
                         <Text style={styles.gpsDeniedTitle}>Location permission blocked</Text>
                         <Text style={styles.gpsDeniedBody}>
@@ -1733,7 +1733,7 @@ export default function HeadOut() {
                   </Pressable>
                   {helpReqState === 'failed' ? (
                     <>
-                      <Text style={[styles.disclosureNote, { color: '#B91C1C' }]} testID="headout-help-failed-note">
+                      <Text style={[styles.disclosureNote, { color: '#C73236' }]} testID="headout-help-failed-note">
                         Could not reach DHARA. Your circle was NOT told. Call 112 now.
                       </Text>
                       <Pressable
@@ -1933,7 +1933,7 @@ const styles = StyleSheet.create({
     backgroundColor: c.surface, borderRadius: 18, borderWidth: 1,
     borderColor: c.lines, padding: 16, gap: 8, alignItems: 'center', marginBottom: 4,
   },
-  expiredCard: { borderColor: c.emergencyRed, backgroundColor: '#FFF5F5' },
+  expiredCard: { borderColor: c.emergencyRed, backgroundColor: '#FFF0F0' },
   activeHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   activeTitle: { fontFamily: theme.fonts.displayBold, fontSize: 17, color: c.navy },
   destTxt: {
@@ -1942,7 +1942,7 @@ const styles = StyleSheet.create({
   },
   radiusTxt: {
     fontFamily: theme.fonts.body, fontSize: 12, color: c.muted,
-    textAlign: 'center', fontStyle: 'italic',
+    textAlign: 'center',
   },
   timerLbl: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 8 },
   timerDisplay: {
@@ -1957,16 +1957,16 @@ const styles = StyleSheet.create({
   gpsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   gpsLabel: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, flex: 1, textAlign: 'center' },
   // handle_permissions_contract — pre-OS rationale card
-  gpsRationaleCard: { flexDirection: 'row', gap: 10, backgroundColor: '#EFF6FF', borderRadius: 10, padding: 12, marginTop: 10, alignItems: 'flex-start' },
+  gpsRationaleCard: { flexDirection: 'row', gap: 10, backgroundColor: '#EEF5FF', borderRadius: 10, padding: 12, marginTop: 10, alignItems: 'flex-start' },
   gpsRationaleTitle: { fontFamily: theme.fonts.body, fontSize: 12, fontWeight: '600', color: '#1E3A8A', marginBottom: 3 },
-  gpsRationaleBody: { fontFamily: theme.fonts.body, fontSize: 12, color: '#1D4ED8', lineHeight: 17 },
-  gpsAllowBtn: { marginTop: 8, backgroundColor: '#1D4ED8', borderRadius: 8, minHeight: UI_V22_P9 ? 48 : 44, justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start' },
+  gpsRationaleBody: { fontFamily: theme.fonts.body, fontSize: 12, color: '#1E5BD0', lineHeight: 17 },
+  gpsAllowBtn: { marginTop: 8, backgroundColor: '#1E5BD0', borderRadius: 8, minHeight: UI_V22_P9 ? 48 : 44, justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start' },
   gpsAllowBtnText: { fontFamily: theme.fonts.body, fontSize: 12, color: '#fff', fontWeight: '600' },
   // handle_permissions_contract — permanent denial + Settings redirect
-  gpsDeniedCard: { flexDirection: 'row', gap: 10, backgroundColor: '#FEF2F2', borderRadius: 10, padding: 12, marginTop: 10, alignItems: 'flex-start' },
-  gpsDeniedTitle: { fontFamily: theme.fonts.body, fontSize: 12, fontWeight: '600', color: '#B91C1C', marginBottom: 3 },
-  gpsDeniedBody: { fontFamily: theme.fonts.body, fontSize: 12, color: '#7F1D1D', lineHeight: 17 },
-  gpsSettingsBtn: { marginTop: 8, backgroundColor: '#B91C1C', borderRadius: 8, paddingVertical: 7, paddingHorizontal: 14, alignSelf: 'flex-start' },
+  gpsDeniedCard: { flexDirection: 'row', gap: 10, backgroundColor: '#FFF0F0', borderRadius: 10, padding: 12, marginTop: 10, alignItems: 'flex-start' },
+  gpsDeniedTitle: { fontFamily: theme.fonts.body, fontSize: 12, fontWeight: '600', color: '#C73236', marginBottom: 3 },
+  gpsDeniedBody: { fontFamily: theme.fonts.body, fontSize: 12, color: '#690F16', lineHeight: 17 },
+  gpsSettingsBtn: { marginTop: 8, backgroundColor: '#C73236', borderRadius: 8, paddingVertical: 7, paddingHorizontal: 14, alignSelf: 'flex-start' },
   gpsSettingsBtnText: { fontFamily: theme.fonts.body, fontSize: 12, color: '#fff', fontWeight: '600' },
   simOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 18 },
   simBox: { backgroundColor: '#fff', borderRadius: 18, padding: 22, width: '100%', maxWidth: 400, gap: 6 },
@@ -1989,7 +1989,7 @@ const styles = StyleSheet.create({
     borderRadius: 12, padding: 12, marginTop: 10,
   },
   statusCardLabel: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.muted },
-  statusCardValue: { fontFamily: theme.fonts.bodyBold, fontSize: 12.5, color: c.ink, marginTop: 1 },
+  statusCardValue: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink, marginTop: 1 },
   togglesHeader: {
     fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.navy,
     textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2,
@@ -2001,7 +2001,7 @@ const styles = StyleSheet.create({
     borderRadius: 10, padding: 10,
   },
   notifyName: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.ink },
-  notifyEta: { fontFamily: theme.fonts.body, fontSize: 12.5, color: c.muted },
+  notifyEta: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted },
   avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.navySoft },
   avatarFallback: {
     width: 28, height: 28, borderRadius: 14, backgroundColor: c.navySoft,
@@ -2009,9 +2009,9 @@ const styles = StyleSheet.create({
   },
   smsDivider: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'stretch', marginTop: 16, marginBottom: 2 },
   smsDividerLine: { flex: 1, height: 1, backgroundColor: c.lines },
-  smsDividerTxt: { fontFamily: theme.fonts.body, fontSize: 12.5, color: c.muted },
+  smsDividerTxt: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted },
   outlineAlertBtn: { backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.emergencyRed },
-  deviatedCard: { borderColor: '#B45309', backgroundColor: '#FFFBEB' },
+  deviatedCard: { borderColor: '#8A6A1E', backgroundColor: '#FFF4E6' },
   areYouOkayTxt: { fontFamily: theme.fonts.bodyBold, color: c.ink, fontSize: 14 },
   etaTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.navy, marginTop: 2 },
   linkTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy, paddingVertical: 6 },
@@ -2030,33 +2030,33 @@ const styles = StyleSheet.create({
   // A30: server-alarm state
   alarmPendingBanner: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-    backgroundColor: '#fef3c7', borderWidth: 1, borderColor: '#fbbf24',
+    backgroundColor: '#FFF4E6', borderWidth: 1, borderColor: '#E8B956',
     borderRadius: 12, padding: 12, marginBottom: 10,
   },
   alarmOffBanner: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-    backgroundColor: '#fef2f2', borderWidth: 1.5, borderColor: c.emergencyRed,
+    backgroundColor: '#FFF0F0', borderWidth: 1.5, borderColor: c.emergencyRed,
     borderRadius: 12, padding: 12, marginBottom: 10,
   },
-  alarmOffCard: { alignItems: 'flex-start', backgroundColor: '#fef2f2', borderColor: c.emergencyRed },
-  alarmBannerTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: '#92400e' },
+  alarmOffCard: { alignItems: 'flex-start', backgroundColor: '#FFF0F0', borderColor: c.emergencyRed },
+  alarmBannerTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: '#8A6A1E' },
   alarmBannerBody: { fontFamily: theme.fonts.body, fontSize: 12, color: c.ink, lineHeight: 17, marginTop: 2 },
   alarmRetryBtn: {
     alignSelf: 'flex-start', marginTop: 8, paddingVertical: 8, paddingHorizontal: 14,
     borderRadius: 10, borderWidth: 1.5, borderColor: c.navy, backgroundColor: c.surface, minHeight: UI_V22_P9 ? 48 : 44, justifyContent: 'center',
   },
-  alarmRetryTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12.5, color: c.navy },
+  alarmRetryTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy },
   alarmOnRow: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'stretch' },
-  alarmOnTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12.5, color: c.muted },
+  alarmOnTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.muted },
   demoBanner: {
-    backgroundColor: '#fef3c7', borderWidth: 1, borderColor: '#fbbf24',
+    backgroundColor: '#FFF4E6', borderWidth: 1, borderColor: '#E8B956',
     borderRadius: 12, padding: 12, marginBottom: 10,
   },
   demoBannerHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  demoBannerTitle: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: '#92400e', flex: 1 },
+  demoBannerTitle: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: '#8A6A1E', flex: 1 },
   demoBtnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   demoBtn: {
-    backgroundColor: '#fbbf24', borderRadius: 8,
+    backgroundColor: '#E8B956', borderRadius: 8,
     paddingHorizontal: 10, paddingVertical: 7,
   },
   demoBtnTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: '#78350f' },

@@ -8,7 +8,7 @@ export default function VisitorLayout() {
       screenOptions={{
         headerStyle: { backgroundColor: theme.colors.primary },
         headerTintColor: '#fff',
-        headerTitleStyle: { fontWeight: '700' },
+        headerTitleStyle: { fontFamily: 'InterBold'},
         headerBackTitle: 'Back',
         // Redesign v3: the same navy header as the rest of the app (back,
         // title, SOS 112) instead of the platform's default bar.

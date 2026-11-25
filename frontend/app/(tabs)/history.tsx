@@ -130,8 +130,8 @@ const styles = StyleSheet.create({
   emptyTitle: { fontFamily: theme.fonts.display, fontSize: 17, color: theme.colors.onSurface, marginTop: theme.spacing.lg, fontWeight: '700' },
   emptySub: { color: theme.colors.onSurfaceSecondary, marginTop: theme.spacing.sm, textAlign: 'center' },
   startBtn: { backgroundColor: theme.colors.brand, borderRadius: theme.radius.md, paddingHorizontal: theme.spacing.xl, paddingVertical: theme.spacing.md, marginTop: theme.spacing.xl },
-  startBtnText: { color: theme.colors.onBrandPrimary, fontWeight: '700' },
+  startBtnText: { color: theme.colors.onBrandPrimary, fontFamily: 'InterBold'},
   row: { flexDirection: 'row', alignItems: 'center', padding: theme.spacing.lg, backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md, marginBottom: theme.spacing.sm, borderWidth: 1, borderColor: theme.colors.border },
-  title: { color: theme.colors.onSurface, fontSize: 13, fontWeight: '600' },
-  meta: { color: theme.colors.onSurfaceTertiary, fontSize: 12, marginTop: 2 },
+  title: { color: theme.colors.onSurface, fontSize: 13, fontFamily: 'InterSemiBold'},
+  meta: { color: theme.colors.onSurfaceTertiary, fontFamily: 'Inter', fontSize: 12, marginTop: 2 },
 });

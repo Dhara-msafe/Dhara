@@ -8,7 +8,7 @@ export default function VisaFRROScreen() {
   useEffect(() => { loadVisitorSession().then(s => s && setLc(s.touristLang.code)); }, []);
   return (
     <WorkflowScreen
-      headerColor="#7C3AED"
+      headerColor="#1E5BD0"
       headerIcon="calendar-outline"
       headerTitle="Visa / FRRO Guide"
       headerSub="e-Visa, extension, overstay recovery"

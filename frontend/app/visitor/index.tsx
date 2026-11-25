@@ -61,7 +61,7 @@ export default function VisitorSetup() {
       <ScrollView contentContainerStyle={s.content}>
         {/* Hero */}
         <View style={s.hero}>
-          <Text style={s.heroEmoji}>🌏</Text>
+          <Ionicons name="globe-outline" size={36} color="#E8B956" style={{ marginBottom: 8 }} />
           <Text style={s.heroTitle}>Welcome to India</Text>
           <Text style={s.heroSub}>
             DHARA helps international visitors navigate legal emergencies—lost passport, police assistance, and more.
@@ -209,21 +209,21 @@ const s = StyleSheet.create({
 
   hero:      { backgroundColor: C.primary, borderRadius: 20, padding: 18, alignItems: 'center', marginBottom: 18 },
   heroEmoji: { fontSize: 36, marginBottom: 8 },
-  heroTitle: { fontSize: 21, fontWeight: '800', color: '#fff', marginBottom: 8 },
-  heroSub:   { fontSize: 12, color: '#C5CEEA', textAlign: 'center', lineHeight: 18 },
+  heroTitle: { fontSize: 21, fontFamily: 'InterExtraBold', color: '#fff', marginBottom: 8 },
+  heroSub:   { fontFamily: 'Inter', fontSize: 12, color: '#D2E1FD', textAlign: 'center', lineHeight: 18 },
 
   // NF-UI-REV-02: C.onSurfaceTertiary measured ~4.35:1 on this cream
   // background, just under the 4.5:1 minimum for this small uppercase
   // label — MUTED_LABEL (onSurfaceSecondary) clears it.
-  label:     { fontSize: 12, fontWeight: '700', letterSpacing: 1, color: MUTED_LABEL, marginBottom: 8 },
+  label:     { fontSize: 12, fontFamily: 'InterBold', letterSpacing: 1, color: MUTED_LABEL, marginBottom: 8 },
   picker:    {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: C.surface, borderRadius: 12, padding: 14,
     borderWidth: 1.5, borderColor: C.border,
     minHeight: UI_REVISION_V1 ? 48 : undefined,
   },
-  pickerText: { flex: 1, fontSize: 13, color: C.onSurface, fontWeight: '600' },
-  pickerPlaceholder: { color: C.onSurfaceTertiary, fontWeight: '500' },
+  pickerText: { flex: 1, fontSize: 13, color: C.onSurface, fontFamily: 'InterSemiBold'},
+  pickerPlaceholder: { color: C.onSurfaceTertiary, fontFamily: 'InterMedium'},
 
   cards:    { gap: 10, marginVertical: 20 },
   infoCard: {
@@ -231,15 +231,15 @@ const s = StyleSheet.create({
     backgroundColor: C.surface, borderRadius: 12, padding: 14,
     borderWidth: 1, borderColor: C.divider,
   },
-  infoText: { flex: 1, fontSize: 12, color: C.onSurface, lineHeight: 17 },
+  infoText: { flex: 1, fontFamily: 'Inter', fontSize: 12, color: C.onSurface, lineHeight: 17 },
 
   cta:     {
     backgroundColor: C.gold, borderRadius: 14, paddingVertical: 16,
     alignItems: 'center', marginBottom: 16,
   },
-  ctaText: { fontSize: 14, fontWeight: '800', color: C.primary },
+  ctaText: { fontSize: 14, fontFamily: 'InterExtraBold', color: C.primary },
 
-  disclaimer: { fontSize: 12, color: MUTED_LABEL, textAlign: 'center', lineHeight: 16 },
+  disclaimer: { fontFamily: 'Inter', fontSize: 12, color: MUTED_LABEL, textAlign: 'center', lineHeight: 16 },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
@@ -247,10 +247,10 @@ const s = StyleSheet.create({
     backgroundColor: C.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
     maxHeight: '75%', paddingBottom: Platform.OS === 'ios' ? 34 : 16,
   },
-  modalTitle:    { fontSize: 15, fontWeight: '700', color: C.primary, padding: 18, paddingBottom: 10 },
+  modalTitle:    { fontSize: 15, fontFamily: 'InterBold', color: C.primary, padding: 18, paddingBottom: 10 },
   modalSearch:   {
     margin: 12, marginTop: 0, paddingHorizontal: 14, paddingVertical: 10,
-    backgroundColor: C.background, borderRadius: 10, fontSize: 13, color: C.onSurface,
+    backgroundColor: C.background, borderRadius: 10, fontFamily: 'Inter', fontSize: 13, color: C.onSurface,
     borderWidth: 1, borderColor: C.border,
   },
   modalItem:         {
@@ -260,8 +260,8 @@ const s = StyleSheet.create({
     minHeight: UI_REVISION_V1 ? 48 : undefined,
   },
   modalItemSelected: { backgroundColor: C.navySoft },
-  modalItemNative:   { flex: 1, fontSize: 13, color: C.onSurface, fontWeight: '600' },
-  modalItemLabel:    { fontSize: 12, color: MUTED_LABEL },
+  modalItemNative:   { flex: 1, fontSize: 13, color: C.onSurface, fontFamily: 'InterSemiBold'},
+  modalItemLabel:    { fontFamily: 'Inter', fontSize: 12, color: MUTED_LABEL },
   modalCancel:       { padding: 18, alignItems: 'center', minHeight: UI_REVISION_V1 ? 48 : undefined, justifyContent: 'center' },
-  modalCancelText:   { fontSize: 13, color: C.error, fontWeight: '600' },
+  modalCancelText:   { fontSize: 13, color: C.error, fontFamily: 'InterSemiBold'},
 });

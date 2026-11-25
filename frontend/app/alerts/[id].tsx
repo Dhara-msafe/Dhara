@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   hint: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 6, lineHeight: 17 },
   banner: { borderRadius: 16, padding: 16, marginBottom: 16 },
-  bannerUrgent: { backgroundColor: '#FCEBE9' },
+  bannerUrgent: { backgroundColor: '#FFF0F0' },
   bannerNeutral: { backgroundColor: c.surfaceSecondary },
   bannerTitle: { fontFamily: theme.fonts.displayBold, fontSize: 16, color: c.navy, marginBottom: 4 },
   bannerBody: { fontFamily: theme.fonts.bodyMedium, fontSize: 13, color: c.ink },

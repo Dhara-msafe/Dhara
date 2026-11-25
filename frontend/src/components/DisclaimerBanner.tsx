@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
     color: theme.dhara.textSecondary,
     fontSize: 12,
     lineHeight: 16,
-    fontWeight: '400',
+    fontFamily: 'Inter',
     opacity: 0.8,
   },
 });

@@ -141,6 +141,6 @@ const styles = StyleSheet.create({
   },
   currentDotInner: {
     width: 12, height: 12, borderRadius: 6,
-    backgroundColor: '#1D4ED8', borderWidth: 2, borderColor: '#fff',
+    backgroundColor: '#1E5BD0', borderWidth: 2, borderColor: '#fff',
   },
 });

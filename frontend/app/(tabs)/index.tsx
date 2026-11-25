@@ -2307,13 +2307,13 @@ export default function ChatScreen() {
                                 )}
                                 {isIpcCitation(c) && (
                                   <View style={styles.ipcNoticeRow} testID={`ipc-notice-${c.key}`}>
-                                    <Ionicons name="information-circle" size={13} color="#92400E" />
+                                    <Ionicons name="information-circle" size={13} color="#8A6A1E" />
                                     <Text style={styles.ipcNoticeText}>This section has been renumbered or replaced under BNS 2023, effective 1 July 2024.</Text>
                                   </View>
                                 )}
                                 {!!c.registry_gap_note && (
                                   <View style={styles.gapNoteRow} testID={`gap-note-${c.key}`}>
-                                    <Ionicons name="information-circle-outline" size={13} color="#1D4ED8" />
+                                    <Ionicons name="information-circle-outline" size={13} color="#1E5BD0" />
                                     <Text style={styles.gapNoteText}>{c.registry_gap_note}</Text>
                                   </View>
                                 )}
@@ -2370,13 +2370,13 @@ export default function ChatScreen() {
                         )}
                         {isIpcCitation(c) && (
                           <View style={styles.ipcNoticeRow} testID={`ipc-notice-${c.key}`}>
-                            <Ionicons name="information-circle" size={13} color="#92400E" />
+                            <Ionicons name="information-circle" size={13} color="#8A6A1E" />
                             <Text style={styles.ipcNoticeText}>This section has been renumbered or replaced under BNS 2023, effective 1 July 2024.</Text>
                           </View>
                         )}
                         {!!c.registry_gap_note && (
                           <View style={styles.gapNoteRow} testID={`gap-note-${c.key}`}>
-                            <Ionicons name="information-circle-outline" size={13} color="#1D4ED8" />
+                            <Ionicons name="information-circle-outline" size={13} color="#1E5BD0" />
                             <Text style={styles.gapNoteText}>{c.registry_gap_note}</Text>
                           </View>
                         )}

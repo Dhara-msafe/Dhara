@@ -248,17 +248,17 @@ const styles = StyleSheet.create({
   lawPill: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: theme.colors.surfaceSecondary, paddingHorizontal: theme.spacing.md, paddingVertical: theme.spacing.sm, borderRadius: theme.radius.pill, marginBottom: theme.spacing.md },
   lawText: { color: theme.colors.brandSecondary, fontFamily: theme.fonts.bodySemiBold, fontSize: 12 },
   point: { flexDirection: 'row', gap: theme.spacing.sm, marginBottom: theme.spacing.sm },
-  bullet: { color: theme.colors.brandSecondary, fontSize: 16, lineHeight: 19 },
+  bullet: { color: theme.colors.brandSecondary, fontFamily: 'Inter', fontSize: 16, lineHeight: 19 },
   pointText: { flex: 1, fontFamily: theme.fonts.body, color: theme.colors.ink, lineHeight: 19, fontSize: 13 },
   askBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: theme.colors.brand, borderRadius: theme.radius.md, padding: theme.spacing.md, marginTop: theme.spacing.md, minHeight: UI_REVISION_V1 ? 48 : undefined },
   askText: { color: theme.colors.onBrandPrimary, fontFamily: theme.fonts.bodyBold, fontSize: 14 },
   noticeBox: { flexDirection: 'row', gap: theme.spacing.sm, backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md, padding: theme.spacing.md, marginBottom: theme.spacing.md },
-  noticeText: { flex: 1, color: theme.colors.onSurfaceSecondary, fontSize: 12.5, lineHeight: 16 },
+  noticeText: { flex: 1, color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 13, lineHeight: 16 },
   citeWrap: { marginTop: theme.spacing.sm, paddingTop: theme.spacing.sm, borderTopWidth: 1, borderTopColor: theme.colors.divider },
-  citeHeading: v22SectionLabel({ fontSize: 12, fontWeight: '700', color: theme.colors.onSurfaceSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }),
+  citeHeading: v22SectionLabel({ fontSize: 12, fontFamily: 'InterBold', color: theme.colors.onSurfaceSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }),
   // 44px-minimum tap target via hitSlop above; visual row height stays
   // compact so the citation list doesn't balloon (NF-UI-REV-02).
   citeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4, minHeight: 28 },
-  citeText: { color: theme.colors.brand, fontSize: 12, textDecorationLine: 'underline', flex: 1 },
-  verifiedText: { color: theme.colors.onSurfaceSecondary, fontSize: 12, marginTop: 4, fontStyle: 'italic' },
+  citeText: { color: theme.colors.brand, fontFamily: 'Inter', fontSize: 12, textDecorationLine: 'underline', flex: 1 },
+  verifiedText: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 12, marginTop: 4 },
 });

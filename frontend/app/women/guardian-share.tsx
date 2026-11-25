@@ -340,8 +340,8 @@ export default function GuardianShare() {
         </View>
         {statusUrl && (
           <View style={styles.journeyRow}>
-            <Ionicons name="link-outline" size={20} color={c.verifiedGreen ?? '#16a34a'} />
-            <Text style={[styles.journeyTxt, { color: c.verifiedGreen ?? '#16a34a', fontSize: 12, flex: 1 }]}>
+            <Ionicons name="link-outline" size={20} color={c.verifiedGreen ?? '#087951'} />
+            <Text style={[styles.journeyTxt, { color: c.verifiedGreen ?? '#087951', fontFamily: 'Inter', fontSize: 12, flex: 1 }]}>
               {gpsLive
                 ? 'Status page ready — it shows your area while sharing is on'
                 : 'Status page ready — it shows your check-in status, not your location'}
@@ -471,7 +471,7 @@ export default function GuardianShare() {
 
       {markedSafe && revoked && (
         <View style={styles.safeBanner} testID="guardian-safe-banner">
-          <Ionicons name="shield-checkmark" size={18} color="#16a34a" />
+          <Ionicons name="shield-checkmark" size={18} color="#087951" />
           <Text style={styles.safeBannerTxt}>
             {'Status page updated \u2014 arrived safely. Sharing had already been turned off, so no location was shown for this update.'}
           </Text>
@@ -479,7 +479,7 @@ export default function GuardianShare() {
       )}
       {markedSafe && !revoked && (
         <View style={styles.safeBanner} testID="guardian-safe-banner">
-          <Ionicons name="shield-checkmark" size={18} color="#16a34a" />
+          <Ionicons name="shield-checkmark" size={18} color="#087951" />
           <Text style={styles.safeBannerTxt}>
             {'Status page updated \u2014 your guardian can see you are safe.'}
           </Text>
@@ -507,8 +507,8 @@ export default function GuardianShare() {
             accessibilityLabel="Withdraw location sharing for this link"
           >
             {revoking
-              ? <ActivityIndicator color={c.error ?? '#dc2626'} size="small" />
-              : <Ionicons name="lock-closed-outline" size={18} color={c.error ?? '#dc2626'} />
+              ? <ActivityIndicator color={c.error ?? '#C73236'} size="small" />
+              : <Ionicons name="lock-closed-outline" size={18} color={c.error ?? '#C73236'} />
             }
             <Text style={styles.revokeSharingBtnTxt}>
               {revoking ? 'Withdrawing\u2026' : 'Withdraw sharing for this link'}
@@ -528,7 +528,7 @@ export default function GuardianShare() {
 
       {revoked && (
         <View style={styles.revokedBanner} testID="guardian-revoked-banner">
-          <Ionicons name="lock-closed" size={18} color={c.error ?? '#dc2626'} />
+          <Ionicons name="lock-closed" size={18} color={c.error ?? '#C73236'} />
           <Text style={styles.revokedBannerTxt}>
             Sharing withdrawn — the status link no longer shows your location to anyone, including anyone it was forwarded to. Missed-check-in alerts for this link are also off now; you can still tap &ldquo;I have arrived safely&rdquo; below at any time.
           </Text>
@@ -609,7 +609,7 @@ const styles = StyleSheet.create({
   sendBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: '#fff' },
   sentBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#F0FFF4', borderRadius: 12, padding: 14,
+    backgroundColor: '#EDFAF2', borderRadius: 12, padding: 14,
     borderWidth: 1, borderColor: c.verifiedGreen,
   },
   sentTxt: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, flex: 1 },
@@ -621,25 +621,25 @@ const styles = StyleSheet.create({
   safeBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.navy },
   safeBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#F0FFF4', borderRadius: 12, padding: 14,
-    borderWidth: 1, borderColor: '#16a34a',
+    backgroundColor: '#EDFAF2', borderRadius: 12, padding: 14,
+    borderWidth: 1, borderColor: '#087951',
   },
   safeBannerTxt: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, flex: 1 },
   revokeSection: { gap: 8 },
   revokeWarningTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 17, paddingHorizontal: 4 },
   revokeSharingBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, backgroundColor: '#FCEBE9', borderRadius: 14, paddingVertical: 14,
-    borderWidth: 1.5, borderColor: c.error ?? '#dc2626',
+    gap: 8, backgroundColor: '#FFF0F0', borderRadius: 14, paddingVertical: 14,
+    borderWidth: 1.5, borderColor: c.error ?? '#C73236',
   },
-  revokeSharingBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.error ?? '#dc2626' },
+  revokeSharingBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.error ?? '#C73236' },
   revokedBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#FCEBE9', borderRadius: 12, padding: 14,
-    borderWidth: 1, borderColor: c.error ?? '#dc2626',
+    backgroundColor: '#FFF0F0', borderRadius: 12, padding: 14,
+    borderWidth: 1, borderColor: c.error ?? '#C73236',
   },
   revokedBannerTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.ink, flex: 1, lineHeight: 17 },
-  errorTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: '#dc2626', textAlign: 'center' },
+  errorTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: '#C73236', textAlign: 'center' },
   disclosureNote: {
     fontFamily: theme.fonts.body, fontSize: 12, color: c.muted,
     textAlign: 'center', lineHeight: 16,

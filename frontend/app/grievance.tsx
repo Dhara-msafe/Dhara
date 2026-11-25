@@ -107,7 +107,7 @@ export default function GrievanceScreen() {
   const statusColor = (s: string) => {
     if (s === 'resolved')     return '#15803D';
     if (s === 'acknowledged') return theme.colors.primary;
-    return '#92400E'; // received
+    return '#8A6A1E'; // received
   };
 
   return (
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
   },
   backBtn: { width: 40, height: 40, alignItems: 'flex-start', justifyContent: 'center' },
-  headerTitle: { fontSize: 15, fontWeight: '700', color: theme.colors.onSurface },
+  headerTitle: { fontSize: 15, fontFamily: 'InterBold', color: theme.colors.onSurface },
   scroll: { flex: 1 },
   // List
   listContent: { padding: theme.spacing.lg, gap: theme.spacing.md, paddingBottom: 40 },
@@ -320,10 +320,10 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.brand,
     borderStyle: 'dashed',
   },
-  newBtnText: { fontSize: 13, fontWeight: '700', color: theme.colors.brand },
+  newBtnText: { fontSize: 13, fontFamily: 'InterBold', color: theme.colors.brand },
   listHeading: v22SectionLabel({
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'InterBold',
     color: theme.colors.onSurfaceTertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -338,24 +338,24 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   ticketTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  ticketId: { fontSize: 12, fontWeight: '700', color: theme.colors.onSurfaceSecondary },
+  ticketId: { fontSize: 12, fontFamily: 'InterBold', color: theme.colors.onSurfaceSecondary },
   statusBadge: {
     borderWidth: 1,
     borderRadius: 20,
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
-  statusText: { fontSize: 12, fontWeight: '700' },
-  ticketCategory: { fontSize: 13, fontWeight: '700', color: theme.colors.onSurface },
-  ticketDesc: { fontSize: 12, color: theme.colors.onSurfaceSecondary, lineHeight: 16 },
-  ticketDate: { fontSize: 12, color: theme.colors.onSurfaceTertiary, marginTop: 2 },
+  statusText: { fontSize: 12, fontFamily: 'InterBold'},
+  ticketCategory: { fontSize: 13, fontFamily: 'InterBold', color: theme.colors.onSurface },
+  ticketDesc: { fontFamily: 'Inter', fontSize: 12, color: theme.colors.onSurfaceSecondary, lineHeight: 16 },
+  ticketDate: { fontFamily: 'Inter', fontSize: 12, color: theme.colors.onSurfaceTertiary, marginTop: 2 },
   // Empty
   emptyWrap: { alignItems: 'center', paddingTop: 48, gap: 12, paddingHorizontal: theme.spacing.xl },
-  emptyTitle: { fontSize: 14, fontWeight: '700', color: theme.colors.onSurface },
-  emptySub: { fontSize: 12, color: theme.colors.onSurfaceSecondary, textAlign: 'center', lineHeight: 18 },
+  emptyTitle: { fontSize: 14, fontFamily: 'InterBold', color: theme.colors.onSurface },
+  emptySub: { fontFamily: 'Inter', fontSize: 12, color: theme.colors.onSurfaceSecondary, textAlign: 'center', lineHeight: 18 },
   // Form
   formContent: { padding: theme.spacing.lg, gap: theme.spacing.md, paddingBottom: 48 },
-  formHeading: { fontSize: 13, fontWeight: '700', color: theme.colors.onSurface },
+  formHeading: { fontSize: 13, fontFamily: 'InterBold', color: theme.colors.onSurface },
   categoriesGrid: { gap: 8 },
   categoryCard: {
     backgroundColor: theme.colors.surface,
@@ -369,21 +369,21 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.brand,
     backgroundColor: 'rgba(30, 58, 138, 0.04)',
   },
-  categoryLabel: { fontSize: 13, fontWeight: '700', color: theme.colors.onSurface },
+  categoryLabel: { fontSize: 13, fontFamily: 'InterBold', color: theme.colors.onSurface },
   categoryLabelActive: { color: theme.colors.brand },
-  categoryDesc: { fontSize: 12, color: theme.colors.onSurfaceSecondary },
-  formLabel: { fontSize: 12, fontWeight: '600', color: theme.colors.onSurfaceSecondary },
+  categoryDesc: { fontFamily: 'Inter', fontSize: 12, color: theme.colors.onSurfaceSecondary },
+  formLabel: { fontSize: 12, fontFamily: 'InterSemiBold', color: theme.colors.onSurfaceSecondary },
   textArea: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.md,
     borderWidth: 1,
     borderColor: theme.colors.border,
     padding: theme.spacing.md,
-    fontSize: 13,
+    fontFamily: 'Inter', fontSize: 13,
     color: theme.colors.onSurface,
     minHeight: 100,
   },
-  charCount: { fontSize: 12, color: theme.colors.onSurfaceTertiary, textAlign: 'right' },
+  charCount: { fontFamily: 'Inter', fontSize: 12, color: theme.colors.onSurfaceTertiary, textAlign: 'right' },
   primaryBtn: {
     backgroundColor: theme.colors.brand,
     borderRadius: theme.radius.lg,
@@ -392,9 +392,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   primaryBtnDisabled: { opacity: 0.45 },
-  primaryBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  primaryBtnText: { color: '#fff', fontFamily: 'InterBold', fontSize: 13 },
   legalNote: {
-    fontSize: 12,
+    fontFamily: 'Inter', fontSize: 12,
     color: theme.colors.onSurfaceTertiary,
     lineHeight: 17,
     textAlign: 'center',
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing.lg,
   },
   successIconWrap: { marginBottom: theme.spacing.sm },
-  successTitle: { fontSize: 19, fontWeight: '800', color: theme.colors.onSurface },
+  successTitle: { fontSize: 19, fontFamily: 'InterExtraBold', color: theme.colors.onSurface },
   ticketIdBox: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,
@@ -418,10 +418,10 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     width: '100%',
   },
-  ticketIdLabel: { fontSize: 12, color: theme.colors.onSurfaceSecondary, fontWeight: '600' },
-  ticketIdValue: { fontSize: 19, fontWeight: '900', color: theme.colors.brand, letterSpacing: 1 },
+  ticketIdLabel: { fontSize: 12, color: theme.colors.onSurfaceSecondary, fontFamily: 'InterSemiBold'},
+  ticketIdValue: { fontSize: 19, fontFamily: 'InterExtraBold', color: theme.colors.brand, letterSpacing: 1 },
   successMsg: {
-    fontSize: 12,
+    fontFamily: 'Inter', fontSize: 12,
     color: theme.colors.onSurfaceSecondary,
     textAlign: 'center',
     lineHeight: 18,

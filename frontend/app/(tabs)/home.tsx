@@ -517,7 +517,7 @@ const styles = StyleSheet.create({
   tileTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink, marginTop: 4 },
   tileSub: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted },
   newBadge: { position: 'absolute', top: 12, right: 12, backgroundColor: c.goldSoft, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
-  newTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 9, color: c.darkGold, letterSpacing: 0.5 },
+  newTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 11, color: c.darkGold, letterSpacing: 0.5 },
   forYouBadge: { position: 'absolute', top: 12, right: 12, backgroundColor: c.navy, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   forYouBadgeTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 8, color: '#fff', letterSpacing: 0.5 },
 

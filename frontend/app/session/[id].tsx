@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
   userMsg: { backgroundColor: theme.colors.brand, alignSelf: 'flex-end', maxWidth: '90%', borderBottomRightRadius: 4 },
   aiMsg: { backgroundColor: theme.colors.surfaceSecondary, alignSelf: 'flex-start', maxWidth: '100%', borderBottomLeftRadius: 4, borderWidth: 1, borderColor: theme.colors.border },
   msgHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: theme.spacing.xs, alignItems: 'center' },
-  msgRole: { fontSize: 12, fontWeight: '700' },
+  msgRole: { fontSize: 12, fontFamily: 'InterBold'},
   userRole: { color: theme.colors.brandSecondary },
   aiRole: { color: theme.colors.brand },
   msgText: { fontSize: 13, lineHeight: 19 },
