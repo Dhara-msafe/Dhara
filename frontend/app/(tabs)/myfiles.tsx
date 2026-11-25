@@ -443,7 +443,7 @@ export default function MyFiles() {
   return (
     <View style={styles.root}>
       <ScrollView
-        contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 20, paddingBottom: 32 }}
+        contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
@@ -575,34 +575,34 @@ export default function MyFiles() {
 const styles = StyleSheet.create({
   root:          { flex: 1, backgroundColor: c.background },
   headRow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: 4 },
-  title:         { fontFamily: theme.fonts.displayBold, fontSize: 28, color: c.ink },
+  title:         { fontFamily: theme.fonts.displayBold, fontSize: 24, color: c.ink },
   pin:           { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.goldMuted, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
-  pinTxt:        { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.darkGold },
+  pinTxt:        { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.darkGold },
   guestNotice:   { flexDirection: 'row', gap: 10, backgroundColor: c.goldMuted, borderRadius: 14, padding: 14, marginTop: 14, alignItems: 'flex-start' },
-  guestNoticeTxt:{ flex: 1, fontFamily: theme.fonts.body, fontSize: 12.5, color: c.ink, lineHeight: 18 },
+  guestNoticeTxt:{ flex: 1, fontFamily: theme.fonts.body, fontSize: 12.5, color: c.ink, lineHeight: 16 },
 
   // Tabs
   tabs:          { gap: 10, paddingVertical: 16 },
   tab:           { backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 999, paddingHorizontal: 18, paddingVertical: UI_REVISION_V1 ? 14 : 9 },
   tabActive:     { backgroundColor: c.navy, borderColor: c.navy },
-  tabTxt:        { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.ink },
+  tabTxt:        { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.ink },
   tabTxtActive:  UI_REVISION_V1 ? { color: '#fff', fontFamily: theme.fonts.bodyBold } : { color: '#fff' },
 
   // Filter bar
   filterRow:          { gap: 8, paddingBottom: 16, alignItems: 'center' },
   filterChip:         { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, borderWidth: 1, borderColor: c.lines, backgroundColor: c.surface },
   filterChipActive:   { backgroundColor: c.navy, borderColor: c.navy },
-  filterTxt:          { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted },
+  filterTxt:          { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted },
   filterTxtActive:    { color: '#fff', fontFamily: theme.fonts.bodySemiBold },
 
   // Card
   fileCard:      { backgroundColor: c.surface, borderRadius: 18, borderWidth: 1, borderColor: c.lines, padding: 18, marginBottom: 14 },
   cardBody:      { flex: 1 },
   numBadge:      { position: 'absolute', top: 12, left: 14, backgroundColor: c.navySoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
-  numBadgeTxt:   { fontFamily: theme.fonts.bodyBold, fontSize: 11, color: c.navy },
-  fileHead:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 24 },
-  fileTitle:     { fontFamily: theme.fonts.displayBold, fontSize: 18, color: c.ink },
-  fileSub:       { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, marginTop: 2 },
+  numBadgeTxt:   { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.navy },
+  fileHead:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 18 },
+  fileTitle:     { fontFamily: theme.fonts.displayBold, fontSize: 16, color: c.ink },
+  fileSub:       { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 2 },
   statusPill:    { backgroundColor: c.successSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   statusPillPaused: { backgroundColor: '#FFF3E8' },
   statusTxt:     { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.verifiedGreen },
@@ -612,8 +612,8 @@ const styles = StyleSheet.create({
 
   // Card action row
   actionRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 },
-  goldBtn:       { backgroundColor: c.gold, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 24 },
-  goldBtnTxt:    { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.navy },
+  goldBtn:       { backgroundColor: c.gold, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 18 },
+  goldBtnTxt:    { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.navy },
   iconBtn:       { width: 44, height: 44, borderRadius: 12, backgroundColor: c.surfaceSecondary, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.lines },
 
   // Stack
@@ -621,7 +621,7 @@ const styles = StyleSheet.create({
   stackShadow2:  { position: 'absolute', top: 7, left: 7, right: 7, zIndex: 0, opacity: 0.5 },
   stackShadow3:  { position: 'absolute', top: 14, left: 14, right: 14, zIndex: -1, opacity: 0.3 },
   stackToggle:   { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center', marginBottom: 18, marginTop: -4, paddingVertical: 7, paddingHorizontal: 16, backgroundColor: c.navySoft, borderRadius: 999 },
-  stackToggleTxt:{ fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy },
+  stackToggleTxt:{ fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.navy },
 
   // Hint row
   hintRow:       { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center', marginTop: -4, marginBottom: 8 },
@@ -629,25 +629,25 @@ const styles = StyleSheet.create({
 
   // Misc
   loadingWrap:   { paddingVertical: 50, alignItems: 'center' },
-  empty:         { alignItems: 'center', gap: 10, paddingVertical: 36, paddingHorizontal: 20, backgroundColor: c.surface, borderRadius: 18, borderWidth: 1, borderColor: c.lines },
-  emptyTitle:    { fontFamily: theme.fonts.displayBold, fontSize: 17, color: c.ink, textAlign: 'center', marginTop: 4 },
-  emptySub:      { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, textAlign: 'center', lineHeight: 19 },
+  empty:         { alignItems: 'center', gap: 10, paddingVertical: 36, paddingHorizontal: 16, backgroundColor: c.surface, borderRadius: 18, borderWidth: 1, borderColor: c.lines },
+  emptyTitle:    { fontFamily: theme.fonts.displayBold, fontSize: 15, color: c.ink, textAlign: 'center', marginTop: 4 },
+  emptySub:      { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, textAlign: 'center', lineHeight: 17 },
   evidenceRow:   { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.lines, padding: 14, marginBottom: 10 },
-  evidenceName:  { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.ink },
+  evidenceName:  { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink },
   evidenceMeta:  { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 2 },
   attachChip:    { width: 36, height: 36, borderRadius: 999, backgroundColor: c.surfaceSecondary, alignItems: 'center', justifyContent: 'center' },
   resolvedCard:  { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.lines, padding: 16, marginBottom: 14 },
   resolvedIcon:  { width: 44, height: 44, borderRadius: 12, backgroundColor: c.navySoft, alignItems: 'center', justifyContent: 'center' },
-  resolvedTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.ink },
+  resolvedTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.ink },
   resolvedSub:   { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 2 },
 
   // Action menu sheet
   overlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  menuSheet:     { backgroundColor: c.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 12 },
+  menuSheet:     { backgroundColor: c.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 16, paddingTop: 12 },
   menuHandle:    { width: 40, height: 4, borderRadius: 2, backgroundColor: c.lines, alignSelf: 'center', marginBottom: 18 },
-  menuTitle:     { fontFamily: theme.fonts.displayBold, fontSize: 17, color: c.ink, marginBottom: 16 },
+  menuTitle:     { fontFamily: theme.fonts.displayBold, fontSize: 15, color: c.ink, marginBottom: 16 },
   menuRow:       { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14 },
   menuIcon:      { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  menuLabel:     { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 15 },
+  menuLabel:     { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 13 },
   menuDivider:   { height: 1, backgroundColor: c.lines, marginLeft: 56 },
 });

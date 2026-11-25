@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     backgroundColor: CREAM,
   },
   drawerHeaderLeft: { flexDirection: 'row', alignItems: 'center' },
-  drawerTitle: { fontSize: 16, fontWeight: '700', color: NAVY },
+  drawerTitle: { fontSize: 14, fontWeight: '700', color: NAVY },
   closeBtn: { padding: 4 },
   drawerScroll: { flex: 1, paddingHorizontal: 16, paddingTop: 12 },
   sectionGroup: { marginBottom: 8 },
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     backgroundColor: CREAM, borderRadius: 10,
     borderWidth: 1, borderColor: GOLD,
   },
-  jumpAllText: { fontSize: 11, color: GOLD, fontWeight: '600' },
+  jumpAllText: { fontSize: 12, color: GOLD, fontWeight: '600' },
   sectionCard: {
     backgroundColor: CREAM,
     borderRadius: 10,
@@ -238,20 +238,20 @@ const styles = StyleSheet.create({
   sectionBadge: {
     backgroundColor: NAVY, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3,
   },
-  sectionBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff', letterSpacing: 0.3 },
-  sectionHeading: { fontSize: 13, fontWeight: '600', color: NAVY, lineHeight: 18 },
-  sectionText: { fontSize: 11, color: MUTED, lineHeight: 16, marginTop: 4 },
+  sectionBadgeText: { fontSize: 12, fontWeight: '700', color: '#fff', letterSpacing: 0.3 },
+  sectionHeading: { fontSize: 12, fontWeight: '600', color: NAVY, lineHeight: 16 },
+  sectionText: { fontSize: 12, color: MUTED, lineHeight: 16, marginTop: 4 },
   jumpBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 2,
     backgroundColor: '#FEF9EC', borderRadius: 8,
     paddingHorizontal: 7, paddingVertical: 3,
     borderWidth: 1, borderColor: GOLD,
   },
-  jumpBtnText: { fontSize: 11, color: GOLD, fontWeight: '600' },
-  droppedReason: { fontSize: 11, color: '#B91C1C', marginTop: 4, lineHeight: 15 },
-  emptyState: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 20 },
+  jumpBtnText: { fontSize: 12, color: GOLD, fontWeight: '600' },
+  droppedReason: { fontSize: 12, color: '#B91C1C', marginTop: 4, lineHeight: 15 },
+  emptyState: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 16 },
   emptyText: {
-    fontSize: 13, color: MUTED, textAlign: 'center', marginTop: 12, lineHeight: 20,
+    fontSize: 12, color: MUTED, textAlign: 'center', marginTop: 12, lineHeight: 18,
   },
   drawerFooter: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 6,
@@ -259,5 +259,5 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: BORDER,
     backgroundColor: CREAM,
   },
-  footerText: { fontSize: 10, color: MUTED, lineHeight: 14, flex: 1 },
+  footerText: { fontSize: 11, color: MUTED, lineHeight: 14, flex: 1 },
 });

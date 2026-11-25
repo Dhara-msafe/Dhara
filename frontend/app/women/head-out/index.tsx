@@ -1120,7 +1120,7 @@ export default function HeadOut() {
   // teleporting the user back into wizard step 1 with no acknowledgement.
   if (!session && safeConfirmed) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface, padding: 24, gap: 10 }} testID="headout-marked-safe">
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface, padding: 18, gap: 10 }} testID="headout-marked-safe">
         <Ionicons name="checkmark-circle" size={56} color={c.verifiedGreen} />
         <Text style={styles.activeTitle}>{"You're marked safe"}</Text>
         <Text style={[styles.note, { textAlign: 'center' }]}>
@@ -1910,13 +1910,13 @@ export default function HeadOut() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
-  content: { padding: 20, gap: 16 },
-  note: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, lineHeight: 21 },
+  content: { padding: 16, gap: 16 },
+  note: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18 },
   button: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, backgroundColor: c.navy, borderRadius: 14, paddingVertical: 16,
   },
-  buttonText: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: '#fff' },
+  buttonText: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: '#fff' },
   safeButton: { backgroundColor: c.verifiedGreen },
   // P9 'Sharing is on' banner (v2.2 On the way header, green)
   sharingOnBanner: {
@@ -1925,31 +1925,31 @@ const styles = StyleSheet.create({
     paddingVertical: 10, paddingHorizontal: 14, marginBottom: 12, minHeight: 48,
   },
   sharingOnDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.85)' },
-  sharingOnTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: '#fff' },
-  sharingOnBody: { fontFamily: theme.fonts.body, fontSize: 13, color: 'rgba(255,255,255,0.92)', marginTop: 1 },
+  sharingOnTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: '#fff' },
+  sharingOnBody: { fontFamily: theme.fonts.body, fontSize: 12, color: 'rgba(255,255,255,0.92)', marginTop: 1 },
   alertButton: { backgroundColor: c.emergencyRed },
   guardianBtn: { backgroundColor: c.navySoft, borderWidth: 1.5, borderColor: c.navy },
   activeCard: {
     backgroundColor: c.surface, borderRadius: 18, borderWidth: 1,
-    borderColor: c.lines, padding: 20, gap: 8, alignItems: 'center', marginBottom: 4,
+    borderColor: c.lines, padding: 16, gap: 8, alignItems: 'center', marginBottom: 4,
   },
   expiredCard: { borderColor: c.emergencyRed, backgroundColor: '#FFF5F5' },
   activeHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  activeTitle: { fontFamily: theme.fonts.displayBold, fontSize: 20, color: c.navy },
+  activeTitle: { fontFamily: theme.fonts.displayBold, fontSize: 17, color: c.navy },
   destTxt: {
-    fontFamily: theme.fonts.bodyBold, fontSize: 17, color: c.ink,
+    fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink,
     textAlign: 'center', paddingHorizontal: 8,
   },
   radiusTxt: {
     fontFamily: theme.fonts.body, fontSize: 12, color: c.muted,
     textAlign: 'center', fontStyle: 'italic',
   },
-  timerLbl: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, marginTop: 8 },
+  timerLbl: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 8 },
   timerDisplay: {
-    fontFamily: theme.fonts.displayBold, fontSize: 56, color: c.navy,
-    letterSpacing: -2, lineHeight: 64,
+    fontFamily: theme.fonts.displayBold, fontSize: 48, color: c.navy,
+    letterSpacing: -2, lineHeight: 56,
   },
-  expiredTitle: { fontFamily: theme.fonts.displayBold, fontSize: 22, color: c.emergencyRed },
+  expiredTitle: { fontFamily: theme.fonts.displayBold, fontSize: 19, color: c.emergencyRed },
   disclosureNote: {
     fontFamily: theme.fonts.body, fontSize: 12, color: c.muted,
     textAlign: 'center', marginTop: 8,
@@ -1958,27 +1958,27 @@ const styles = StyleSheet.create({
   gpsLabel: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, flex: 1, textAlign: 'center' },
   // handle_permissions_contract — pre-OS rationale card
   gpsRationaleCard: { flexDirection: 'row', gap: 10, backgroundColor: '#EFF6FF', borderRadius: 10, padding: 12, marginTop: 10, alignItems: 'flex-start' },
-  gpsRationaleTitle: { fontFamily: theme.fonts.body, fontSize: 13, fontWeight: '600', color: '#1E3A8A', marginBottom: 3 },
+  gpsRationaleTitle: { fontFamily: theme.fonts.body, fontSize: 12, fontWeight: '600', color: '#1E3A8A', marginBottom: 3 },
   gpsRationaleBody: { fontFamily: theme.fonts.body, fontSize: 12, color: '#1D4ED8', lineHeight: 17 },
   gpsAllowBtn: { marginTop: 8, backgroundColor: '#1D4ED8', borderRadius: 8, minHeight: UI_V22_P9 ? 48 : 44, justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start' },
   gpsAllowBtnText: { fontFamily: theme.fonts.body, fontSize: 12, color: '#fff', fontWeight: '600' },
   // handle_permissions_contract — permanent denial + Settings redirect
   gpsDeniedCard: { flexDirection: 'row', gap: 10, backgroundColor: '#FEF2F2', borderRadius: 10, padding: 12, marginTop: 10, alignItems: 'flex-start' },
-  gpsDeniedTitle: { fontFamily: theme.fonts.body, fontSize: 13, fontWeight: '600', color: '#B91C1C', marginBottom: 3 },
+  gpsDeniedTitle: { fontFamily: theme.fonts.body, fontSize: 12, fontWeight: '600', color: '#B91C1C', marginBottom: 3 },
   gpsDeniedBody: { fontFamily: theme.fonts.body, fontSize: 12, color: '#7F1D1D', lineHeight: 17 },
   gpsSettingsBtn: { marginTop: 8, backgroundColor: '#B91C1C', borderRadius: 8, paddingVertical: 7, paddingHorizontal: 14, alignSelf: 'flex-start' },
   gpsSettingsBtnText: { fontFamily: theme.fonts.body, fontSize: 12, color: '#fff', fontWeight: '600' },
-  simOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  simOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 18 },
   simBox: { backgroundColor: '#fff', borderRadius: 18, padding: 22, width: '100%', maxWidth: 400, gap: 6 },
   simBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
     backgroundColor: c.navySoft, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, marginBottom: 6,
   },
   simBadgeTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.navy },
-  simTitle: { fontFamily: theme.fonts.displayBold, fontSize: 18, color: c.ink },
-  simHint: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 19, marginBottom: 6 },
+  simTitle: { fontFamily: theme.fonts.displayBold, fontSize: 16, color: c.ink },
+  simHint: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 17, marginBottom: 6 },
   simLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.muted, marginTop: 6, textTransform: 'uppercase', letterSpacing: 0.4 },
-  simValue: { fontFamily: theme.fonts.body, fontSize: 14, color: c.ink, lineHeight: 20 },
+  simValue: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, lineHeight: 18 },
   // GO1C: live route / arrival / deviation
   buttonDisabled: { opacity: 0.6 },
   stopSharingBtn: { backgroundColor: c.surfaceSecondary, borderWidth: 1, borderColor: c.lines },
@@ -1989,9 +1989,9 @@ const styles = StyleSheet.create({
     borderRadius: 12, padding: 12, marginTop: 10,
   },
   statusCardLabel: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.muted },
-  statusCardValue: { fontFamily: theme.fonts.bodyBold, fontSize: 13.5, color: c.ink, marginTop: 1 },
+  statusCardValue: { fontFamily: theme.fonts.bodyBold, fontSize: 12.5, color: c.ink, marginTop: 1 },
   togglesHeader: {
-    fontFamily: theme.fonts.bodySemiBold, fontSize: 11, color: c.navy,
+    fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.navy,
     textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2,
   },
   notifyListBlock: { alignSelf: 'stretch', marginTop: 14, gap: 6 },
@@ -2000,8 +2000,8 @@ const styles = StyleSheet.create({
     backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines,
     borderRadius: 10, padding: 10,
   },
-  notifyName: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.ink },
-  notifyEta: { fontFamily: theme.fonts.body, fontSize: 11.5, color: c.muted },
+  notifyName: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.ink },
+  notifyEta: { fontFamily: theme.fonts.body, fontSize: 12.5, color: c.muted },
   avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.navySoft },
   avatarFallback: {
     width: 28, height: 28, borderRadius: 14, backgroundColor: c.navySoft,
@@ -2009,17 +2009,17 @@ const styles = StyleSheet.create({
   },
   smsDivider: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'stretch', marginTop: 16, marginBottom: 2 },
   smsDividerLine: { flex: 1, height: 1, backgroundColor: c.lines },
-  smsDividerTxt: { fontFamily: theme.fonts.body, fontSize: 11.5, color: c.muted },
+  smsDividerTxt: { fontFamily: theme.fonts.body, fontSize: 12.5, color: c.muted },
   outlineAlertBtn: { backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.emergencyRed },
   deviatedCard: { borderColor: '#B45309', backgroundColor: '#FFFBEB' },
-  areYouOkayTxt: { fontFamily: theme.fonts.bodyBold, color: c.ink, fontSize: 16 },
-  etaTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy, marginTop: 2 },
-  linkTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.navy, paddingVertical: 6 },
+  areYouOkayTxt: { fontFamily: theme.fonts.bodyBold, color: c.ink, fontSize: 14 },
+  etaTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.navy, marginTop: 2 },
+  linkTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy, paddingVertical: 6 },
   linkTxtUnderline: { textDecorationLine: 'underline' },
   inlineError: { fontFamily: theme.fonts.body, fontSize: 12, color: c.emergencyRed, textAlign: 'center' },
   changeDestInput: {
     backgroundColor: c.background, borderWidth: 1, borderColor: c.lines, borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 12, fontFamily: theme.fonts.body, fontSize: 15,
+    paddingHorizontal: 14, paddingVertical: 12, fontFamily: theme.fonts.body, fontSize: 13,
     color: c.ink, marginTop: 10, marginBottom: 10,
   },
   // ── Arrived card — side-by-side action buttons ──────────────────────────────
@@ -2039,13 +2039,13 @@ const styles = StyleSheet.create({
     borderRadius: 12, padding: 12, marginBottom: 10,
   },
   alarmOffCard: { alignItems: 'flex-start', backgroundColor: '#fef2f2', borderColor: c.emergencyRed },
-  alarmBannerTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: '#92400e' },
-  alarmBannerBody: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, lineHeight: 19, marginTop: 2 },
+  alarmBannerTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: '#92400e' },
+  alarmBannerBody: { fontFamily: theme.fonts.body, fontSize: 12, color: c.ink, lineHeight: 17, marginTop: 2 },
   alarmRetryBtn: {
     alignSelf: 'flex-start', marginTop: 8, paddingVertical: 8, paddingHorizontal: 14,
     borderRadius: 10, borderWidth: 1.5, borderColor: c.navy, backgroundColor: c.surface, minHeight: UI_V22_P9 ? 48 : 44, justifyContent: 'center',
   },
-  alarmRetryTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13.5, color: c.navy },
+  alarmRetryTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12.5, color: c.navy },
   alarmOnRow: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'stretch' },
   alarmOnTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12.5, color: c.muted },
   demoBanner: {

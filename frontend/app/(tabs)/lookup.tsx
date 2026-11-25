@@ -657,41 +657,41 @@ export default function LookupScreen() {
 
 const ps = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  sheet:   { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%', paddingHorizontal: 20, paddingBottom: 30 },
+  sheet:   { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%', paddingHorizontal: 16, paddingBottom: 30 },
   handle:  { width: 36, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', alignSelf: 'center', marginVertical: 12 },
-  title:   { fontSize: 16, fontWeight: '700', color: NAVY, marginBottom: 10 },
+  title:   { fontSize: 14, fontWeight: '700', color: NAVY, marginBottom: 10 },
   searchBox: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10 },
-  searchInput: { flex: 1, fontSize: 14, color: '#1F2937' },
+  searchInput: { flex: 1, fontSize: 13, color: '#1F2937' },
   item:     { paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   itemActive: { backgroundColor: '#FEF9EC' },
-  itemText: { fontSize: 14, color: '#374151', flex: 1 },
+  itemText: { fontSize: 13, color: '#374151', flex: 1 },
   itemTextActive: { color: NAVY, fontWeight: '700' },
-  empty:  { paddingVertical: 20, textAlign: 'center', color: HINT },
+  empty:  { paddingVertical: 16, textAlign: 'center', color: HINT },
 });
 
 const styles = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: CREAM },
-  header: { backgroundColor: NAVY, paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(211,182,117,0.25)' },
+  header: { backgroundColor: NAVY, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(211,182,117,0.25)' },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#fff' },
-  headerSub: { fontSize: 13, color: GOLD, fontWeight: '500' },
+  headerTitle: { fontSize: 17, fontWeight: '700', color: '#fff' },
+  headerSub: { fontSize: 12, color: GOLD, fontWeight: '500' },
   scroll:  { flex: 1 },
   scrollContent: { padding: 16, gap: 14, paddingBottom: 48 },
 
   modeRow: { flexDirection: 'row', gap: 10 },
   modeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: NAVY, backgroundColor: '#fff' },
   modeBtnActive: { backgroundColor: NAVY },
-  modeBtnText: { fontSize: 14, fontWeight: '700', color: NAVY },
+  modeBtnText: { fontSize: 13, fontWeight: '700', color: NAVY },
 
   card: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1.5, borderColor: NAVY + '33', padding: 16, gap: 14 },
 
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingBottom: 8 },
   inputDisabled: { opacity: 0.45 },
-  input: { fontSize: 15, color: '#1F2937', minHeight: 28 },
+  input: { fontSize: 13, color: '#1F2937', minHeight: 28 },
 
   cnrProgress: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cnrBar:  { height: 3, borderRadius: 2, backgroundColor: NAVY },
-  cnrCount: { fontSize: 11, color: NAVY, fontWeight: '700' },
+  cnrCount: { fontSize: 12, color: NAVY, fontWeight: '700' },
 
   micBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3EFE7' },
   micBtnActive: { backgroundColor: '#DC2626' },
@@ -709,28 +709,28 @@ const styles = StyleSheet.create({
 
   pickerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1.5, borderColor: NAVY, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 11, backgroundColor: '#fff' },
   pickerRowDisabled: { borderColor: '#D1D5DB', opacity: 0.5 },
-  pickerText: { fontSize: 14, color: '#1F2937', flex: 1 },
+  pickerText: { fontSize: 13, color: '#1F2937', flex: 1 },
   pickerPlaceholder: { color: HINT },
 
   toggleRow: { flexDirection: 'row', gap: 10 },
   toggleBtn: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 8, borderWidth: 1.5, borderColor: NAVY, backgroundColor: '#fff' },
   toggleBtnActive: { backgroundColor: NAVY },
-  toggleText: { fontSize: 14, fontWeight: '700', color: NAVY },
+  toggleText: { fontSize: 13, fontWeight: '700', color: NAVY },
   toggleTextActive: { color: '#fff' },
 
   searchBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: GOLD, paddingVertical: 14, borderRadius: 10 },
   searchBtnDisabled: { backgroundColor: '#D1D5DB' },
-  searchBtnText: { color: NAVY, fontSize: 15, fontWeight: '800' },
+  searchBtnText: { color: NAVY, fontSize: 13, fontWeight: '800' },
 
   hintCard: { flexDirection: 'row', gap: 10, backgroundColor: '#EEF2FF', borderRadius: 10, padding: 14, alignItems: 'flex-start' },
-  hintText: { flex: 1, fontSize: 13, color: NAVY, lineHeight: 19 },
+  hintText: { flex: 1, fontSize: 12, color: NAVY, lineHeight: 17 },
 
   filtersDivider: { height: 1, backgroundColor: '#F0EDE4', marginVertical: 2 },
   filtersToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
   filtersToggleLeft: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, flexWrap: 'wrap' },
-  filtersToggleLabel: { fontSize: 13, fontWeight: '700', color: NAVY },
+  filtersToggleLabel: { fontSize: 12, fontWeight: '700', color: NAVY },
   filtersBadge: { backgroundColor: '#EEF2FF', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-  filtersBadgeText: { fontSize: 11, color: NAVY, fontWeight: '600' },
+  filtersBadgeText: { fontSize: 12, color: NAVY, fontWeight: '600' },
   filtersBody: { gap: 12, marginTop: 4 },
   clearFiltersBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', paddingVertical: 4 },
   clearFiltersText: { fontSize: 12.5, color: '#DC2626', fontWeight: '700' },

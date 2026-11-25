@@ -391,14 +391,14 @@ export default function VoterFormScreen() {
 
 const st = StyleSheet.create({
   safe:            { flex: 1, backgroundColor: BG },
-  scrollContent:   { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 60 },
+  scrollContent:   { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60 },
   centred:         { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
 
   backBtn:          { marginBottom: 8 },
-  backText:         { color: NAVY, fontSize: 14, fontWeight: '600' },
+  backText:         { color: NAVY, fontSize: 13, fontWeight: '600' },
 
   interviewHeader:  { marginBottom: 16 },
-  formTitle:        { fontSize: 16, fontWeight: '700', color: NAVY, marginTop: 4, lineHeight: 22 },
+  formTitle:        { fontSize: 14, fontWeight: '700', color: NAVY, marginTop: 4, lineHeight: 19 },
 
   progressRow:      { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   progressBar:      { flex: 1, height: 4, backgroundColor: '#E5E7EB', borderRadius: 2, marginRight: 10 },
@@ -408,10 +408,10 @@ const st = StyleSheet.create({
   questionBubble:   {
     backgroundColor: NAVY, borderRadius: 16, padding: 18, marginBottom: 16,
   },
-  questionText:     { fontSize: 17, fontWeight: '600', color: '#FFF', lineHeight: 26 },
+  questionText:     { fontSize: 15, fontWeight: '600', color: '#FFF', lineHeight: 23 },
 
   declarationText:  {
-    fontSize: 13, color: '#555', lineHeight: 20, marginBottom: 16,
+    fontSize: 12, color: '#555', lineHeight: 18, marginBottom: 16,
     backgroundColor: '#FFF', borderRadius: 10, padding: 14,
     borderWidth: 1, borderColor: '#E5E7EB',
   },
@@ -421,75 +421,75 @@ const st = StyleSheet.create({
     marginBottom: 10, borderWidth: 1.5, borderColor: '#E5E7EB',
   },
   optionSelected:   { borderColor: NAVY, backgroundColor: '#EEF0FA' },
-  optionText:       { fontSize: 15, color: '#222', lineHeight: 22 },
+  optionText:       { fontSize: 13, color: '#222', lineHeight: 19 },
   optionTextSelected: { color: NAVY, fontWeight: '600' },
 
   inputRow:         { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
   textInput:        {
     flex: 1, backgroundColor: '#FFF', borderWidth: 1.5, borderColor: '#DDD',
     borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14,
-    fontSize: 15, color: '#111',
+    fontSize: 13, color: '#111',
   },
   nextBtn:          {
     backgroundColor: NAVY, borderRadius: 12, width: 52, height: 52,
     alignItems: 'center', justifyContent: 'center',
   },
   nextBtnDisabled:  { backgroundColor: '#CCC' },
-  nextBtnText:      { color: '#FFF', fontSize: 20, fontWeight: '700' },
+  nextBtnText:      { color: '#FFF', fontSize: 17, fontWeight: '700' },
 
   skipBtn:          { alignItems: 'center', paddingVertical: 10 },
-  skipText:         { color: '#999', fontSize: 14 },
+  skipText:         { color: '#999', fontSize: 13 },
 
   errorCard:        {
     backgroundColor: '#FFF0F0', borderRadius: 10, padding: 12, marginBottom: 12,
     borderLeftWidth: 3, borderLeftColor: '#CC0000',
   },
-  errorText:        { color: '#CC0000', fontSize: 13 },
-  retryText:        { color: NAVY, fontSize: 13, fontWeight: '600', marginTop: 6 },
+  errorText:        { color: '#CC0000', fontSize: 12 },
+  retryText:        { color: NAVY, fontSize: 12, fontWeight: '600', marginTop: 6 },
 
-  genText:          { color: NAVY, fontSize: 16, fontWeight: '600' },
+  genText:          { color: NAVY, fontSize: 14, fontWeight: '600' },
 
   successBanner:    {
-    backgroundColor: NAVY, borderRadius: 16, padding: 24, alignItems: 'center', marginBottom: 20,
+    backgroundColor: NAVY, borderRadius: 16, padding: 18, alignItems: 'center', marginBottom: 20,
   },
-  successEmoji:     { fontSize: 36, marginBottom: 8 },
-  successTitle:     { fontSize: 22, fontWeight: '700', color: '#FFF' },
+  successEmoji:     { fontSize: 28, marginBottom: 8 },
+  successTitle:     { fontSize: 19, fontWeight: '700', color: '#FFF' },
   successSub:       { fontSize: 12, color: '#C5CEEA', marginTop: 6, textAlign: 'center' },
 
   primaryBtn:       {
     backgroundColor: NAVY, borderRadius: 12, paddingVertical: 16,
     alignItems: 'center', marginBottom: 12,
   },
-  primaryBtnText:   { color: '#FFF', fontWeight: '700', fontSize: 16 },
+  primaryBtnText:   { color: '#FFF', fontWeight: '700', fontSize: 14 },
 
   secondaryBtn:     {
     borderWidth: 1.5, borderColor: NAVY, borderRadius: 12, paddingVertical: 14,
     alignItems: 'center', marginBottom: 12,
   },
-  secondaryBtnText: { color: NAVY, fontWeight: '600', fontSize: 14 },
+  secondaryBtnText: { color: NAVY, fontWeight: '600', fontSize: 13 },
 
   disclaimerCard:   {
     backgroundColor: '#FFF8E7', borderLeftWidth: 4, borderLeftColor: GOLD,
     borderRadius: 8, padding: 14, marginBottom: 20,
   },
-  disclaimerText:   { fontSize: 12, color: '#555', lineHeight: 18 },
+  disclaimerText:   { fontSize: 12, color: '#555', lineHeight: 16 },
 
-  sectionTitle:     { fontSize: 14, fontWeight: '700', color: NAVY, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
+  sectionTitle:     { fontSize: 13, fontWeight: '700', color: NAVY, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
 
   checkRow:         { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
-  checkBox:         { fontSize: 16, color: NAVY, marginRight: 10, marginTop: 1 },
-  checkLabel:       { flex: 1, fontSize: 14, color: '#333', lineHeight: 20 },
+  checkBox:         { fontSize: 14, color: NAVY, marginRight: 10, marginTop: 1 },
+  checkLabel:       { flex: 1, fontSize: 13, color: '#333', lineHeight: 18 },
 
   noteCard:         {
     backgroundColor: '#F0F4FF', borderRadius: 10, padding: 14, marginBottom: 20,
   },
-  noteText:         { fontSize: 13, color: '#334', lineHeight: 20 },
+  noteText:         { fontSize: 12, color: '#334', lineHeight: 18 },
 
   gateCard:         {
-    margin: 20, backgroundColor: '#FFF', borderRadius: 16, padding: 24,
+    margin: 20, backgroundColor: '#FFF', borderRadius: 16, padding: 18,
     shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  gateTitle:        { fontSize: 20, fontWeight: '700', color: NAVY, marginBottom: 12 },
-  gateBody:         { fontSize: 15, color: '#555', lineHeight: 22, marginBottom: 24 },
+  gateTitle:        { fontSize: 17, fontWeight: '700', color: NAVY, marginBottom: 12 },
+  gateBody:         { fontSize: 13, color: '#555', lineHeight: 19, marginBottom: 18 },
 });

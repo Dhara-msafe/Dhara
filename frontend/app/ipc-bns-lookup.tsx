@@ -383,12 +383,12 @@ function ResultCard({ item }: { item: XRef }) {
           <View style={[rc.secBox, !hasNewSec && !isWithheld && rc.secBoxDeleted, isWithheld && rc.secBoxWithheld]}>
             <Text style={rc.secLabel}>{isWithheld ? 'Status' : hasNewSec ? 'New Section' : 'Status'}</Text>
             {isWithheld
-              ? <Text style={[rc.secNum, { color: '#6366F1', fontSize: 11, lineHeight: 16 }]}>
+              ? <Text style={[rc.secNum, { color: '#6366F1', fontSize: 12, lineHeight: 16 }]}>
                   Pending{'\n'}review
                 </Text>
               : hasNewSec
                 ? <Text style={rc.secNum}>{item.new_section}</Text>
-                : <Text style={[rc.secNum, { color: '#B91C1C', fontSize: 13, lineHeight: 18 }]}>
+                : <Text style={[rc.secNum, { color: '#B91C1C', fontSize: 12, lineHeight: 16 }]}>
                     Deleted{'\n'}No BNS equiv.
                   </Text>
             }
@@ -699,13 +699,13 @@ const s = StyleSheet.create({
   // minimum touch target; hitSlop above already helps, this widens the
   // visible hit area too so sighted users see where they can tap.
   backBtn:    { padding: UI_REVISION_V1 ? 10 : 4 },
-  title:      { fontSize: 18, fontWeight: '800', color: '#fff' },
+  title:      { fontSize: 16, fontWeight: '800', color: '#fff' },
   sub:        { fontSize: 12, color: '#94A3B8', marginTop: 1 },
   guardPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: GOLD, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10,
   },
-  guardPillTxt: { fontSize: 10, fontWeight: '700', color: NAVY },
+  guardPillTxt: { fontSize: 11, fontWeight: '700', color: NAVY },
   scroll: { padding: 16, gap: 14, paddingBottom: 40 },
 
   tabs:       { flexDirection: 'row', gap: 8 },
@@ -726,7 +726,7 @@ const s = StyleSheet.create({
   searchInput: {
     flex: 1, backgroundColor: '#fff', borderRadius: 12,
     borderWidth: 1, borderColor: '#E5E7EB',
-    paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: '#1F2937',
+    paddingHorizontal: 14, paddingVertical: 12, fontSize: 13, color: '#1F2937',
   },
   searchBtn: {
     width: 48, height: 48, borderRadius: 12,
@@ -738,17 +738,17 @@ const s = StyleSheet.create({
     flexDirection: 'row', gap: 8, alignItems: 'center',
     backgroundColor: '#FEF2F2', borderRadius: 10, padding: 12,
   },
-  errorTxt: { flex: 1, fontSize: 13, color: '#B91C1C' },
+  errorTxt: { flex: 1, fontSize: 12, color: '#B91C1C' },
 
-  noResults:     { alignItems: 'center', gap: 8, paddingVertical: 20, paddingHorizontal: 16 },
-  noResultsTitle:{ fontSize: 15, fontWeight: '700', color: '#374151', textAlign: 'center' },
-  noResultsSub:  { fontSize: 13, color: MUTED_TEXT, textAlign: 'center', lineHeight: 20 },
+  noResults:     { alignItems: 'center', gap: 8, paddingVertical: 16, paddingHorizontal: 16 },
+  noResultsTitle:{ fontSize: 13, fontWeight: '700', color: '#374151', textAlign: 'center' },
+  noResultsSub:  { fontSize: 12, color: MUTED_TEXT, textAlign: 'center', lineHeight: 18 },
 
   empty:      { alignItems: 'center', paddingTop: 12, gap: 10 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#374151' },
+  emptyTitle: { fontSize: 14, fontWeight: '700', color: '#374151' },
   emptySub: {
-    fontSize: 13, color: MUTED_TEXT, textAlign: 'center',
-    lineHeight: 20, paddingHorizontal: 20,
+    fontSize: 12, color: MUTED_TEXT, textAlign: 'center',
+    lineHeight: 18, paddingHorizontal: 16,
   },
   chips: {
     flexDirection: 'row', flexWrap: 'wrap', gap: 8,
@@ -763,7 +763,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', gap: 6, alignItems: 'flex-start',
     backgroundColor: '#F9FAFB', borderRadius: 10, padding: 12,
   },
-  disclaimerTxt: { flex: 1, fontSize: 11, color: MUTED_TEXT, lineHeight: 16 },
+  disclaimerTxt: { flex: 1, fontSize: 12, color: MUTED_TEXT, lineHeight: 16 },
 });
 
 // ── Wall styles ────────────────────────────────────────────────────────────────
@@ -771,27 +771,27 @@ const w = StyleSheet.create({
   wall: {
     backgroundColor: '#FFF5F5', borderRadius: 14,
     borderWidth: 1.5, borderColor: '#FECACA',
-    padding: 20, alignItems: 'center', gap: 10,
+    padding: 16, alignItems: 'center', gap: 10,
   },
   iconWrap: {
     width: 60, height: 60, borderRadius: 30,
     backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center',
   },
-  title:   { fontSize: 16, fontWeight: '800', color: '#B91C1C', textAlign: 'center' },
+  title:   { fontSize: 14, fontWeight: '800', color: '#B91C1C', textAlign: 'center' },
   secPill: {
     backgroundColor: '#FEE2E2', paddingHorizontal: 12,
     paddingVertical: 4, borderRadius: 8,
   },
-  secPillTxt: { fontSize: 18, fontWeight: '800', color: '#7F1D1D' },
-  body: { fontSize: 14, color: '#374151', textAlign: 'center', lineHeight: 22 },
+  secPillTxt: { fontSize: 16, fontWeight: '800', color: '#7F1D1D' },
+  body: { fontSize: 13, color: '#374151', textAlign: 'center', lineHeight: 19 },
   actionBox: {
     flexDirection: 'row', gap: 8, alignItems: 'flex-start',
     backgroundColor: '#EEF2FF', borderRadius: 10, padding: 12, width: '100%',
   },
-  actionText: { flex: 1, fontSize: 13, color: '#1E40AF', lineHeight: 19 },
+  actionText: { flex: 1, fontSize: 12, color: '#1E40AF', lineHeight: 17 },
   // NF-UI-REV-02: '#9CA3AF' on this wall's '#FFF5F5' background measured
   // ~2.4:1 — MUTED_TEXT clears 4.5:1 here.
-  note: { fontSize: 11, color: MUTED_TEXT, textAlign: 'center', lineHeight: 16 },
+  note: { fontSize: 12, color: MUTED_TEXT, textAlign: 'center', lineHeight: 16 },
 });
 
 // ── Guard status bar styles ────────────────────────────────────────────────────
@@ -818,7 +818,7 @@ const v = StyleSheet.create({
     backgroundColor: '#FFFBEB', borderRadius: 8, padding: 8,
     borderLeftWidth: 3, borderLeftColor: theme.colors.gold, marginBottom: 8,
   },
-  bannerTxt: { flex: 1, fontSize: 11, color: '#92400E', lineHeight: 16 },
+  bannerTxt: { flex: 1, fontSize: 12, color: '#92400E', lineHeight: 16 },
 });
 
 // ── Helper card styles ─────────────────────────────────────────────────────────
@@ -828,20 +828,20 @@ const h = StyleSheet.create({
     borderWidth: 1, borderColor: '#E5E7EB', padding: 16,
   },
   headRow:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  title:       { fontSize: 15, fontWeight: '700', color: NAVY },
+  title:       { fontSize: 13, fontWeight: '700', color: NAVY },
   sub:         { fontSize: 12, color: '#6B7280', marginBottom: 10 },
   row:         { flexDirection: 'row', gap: 8, marginBottom: 10 },
   input: {
     flex: 1, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#1F2937',
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: '#1F2937',
     backgroundColor: '#FAFAFA',
   },
   checkBtn:     { backgroundColor: NAVY, paddingHorizontal: 16, borderRadius: 10, justifyContent: 'center', minHeight: UI_REVISION_V1 ? 48 : undefined },
-  checkBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  checkBtnText: { color: '#fff', fontWeight: '700', fontSize: 12 },
   resultBox:    { borderLeftWidth: 3, paddingLeft: 12, marginBottom: 8 },
-  resultLabel:  { fontSize: 13, fontWeight: '700', marginBottom: 4 },
-  resultDetail: { fontSize: 12, color: '#374151', lineHeight: 18 },
-  cutoffNote:   { fontSize: 11, color: MUTED_TEXT, marginTop: 4 },
+  resultLabel:  { fontSize: 12, fontWeight: '700', marginBottom: 4 },
+  resultDetail: { fontSize: 12, color: '#374151', lineHeight: 16 },
+  cutoffNote:   { fontSize: 12, color: MUTED_TEXT, marginTop: 4 },
 });
 
 // ── Result card styles ─────────────────────────────────────────────────────────
@@ -854,9 +854,9 @@ const rc = StyleSheet.create({
   },
   sourceRow:  { flexDirection: 'row', gap: 6, marginBottom: 10 },
   srcBadge:   { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  srcTxt:     { fontSize: 10, fontWeight: '700' },
+  srcTxt:     { fontSize: 11, fontWeight: '700' },
   chgBadge:   { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  chgTxt:     { fontSize: 10, fontWeight: '700' },
+  chgTxt:     { fontSize: 11, fontWeight: '700' },
   secRow: {
     flexDirection: 'row', alignItems: 'flex-start',
     gap: 10, marginBottom: 10,
@@ -870,24 +870,24 @@ const rc = StyleSheet.create({
   // NF-UI-REV-02: '#9CA3AF' measured below 4.5:1 on every secBox background
   // variant used here (default/deleted/withheld) — MUTED_TEXT clears it.
   secLabel: v22SectionLabel({
-    fontSize: 10, color: MUTED_TEXT, fontWeight: '600',
+    fontSize: 11, color: MUTED_TEXT, fontWeight: '600',
     textTransform: 'uppercase', marginBottom: 3,
   }),
-  secNum:        { fontSize: 20, fontWeight: '800', color: NAVY, textAlign: 'center' },
-  offence:       { fontSize: 13, color: '#374151', lineHeight: 19, marginBottom: 6 },
+  secNum:        { fontSize: 17, fontWeight: '800', color: NAVY, textAlign: 'center' },
+  offence:       { fontSize: 12, color: '#374151', lineHeight: 17, marginBottom: 6 },
   explainBox: {
     backgroundColor: '#F8FAFF', borderRadius: 10, padding: 12, marginTop: 4,
     borderLeftWidth: 3, borderLeftColor: GOLD,
   },
-  explainTxt:    { fontSize: 13, color: '#1F2937', lineHeight: 20 },
+  explainTxt:    { fontSize: 12, color: '#1F2937', lineHeight: 18 },
   expandHint:    { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: UI_REVISION_V1 ? 44 : undefined, paddingVertical: UI_REVISION_V1 ? 10 : 0 },
-  expandHintTxt: { fontSize: 11, color: MUTED_TEXT },
+  expandHintTxt: { fontSize: 12, color: MUTED_TEXT },
   srcLinkRow: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#F3F4F6',
     minHeight: UI_REVISION_V1 ? 44 : undefined,
   },
-  srcLinkTxt: { fontSize: 11, color: theme.colors.primary, textDecorationLine: 'underline' },
+  srcLinkTxt: { fontSize: 12, color: theme.colors.primary, textDecorationLine: 'underline' },
 });
 
 // ── Not-yet-approved banner styles (Guard E, DHARA P1) ────────────────────────
@@ -905,8 +905,8 @@ const na = StyleSheet.create({
     marginTop: 1,
   },
   title: { fontSize: 12, fontWeight: '800', color: '#3730A3', marginBottom: 2 },
-  sub:   { fontSize: 11, color: '#4338CA', lineHeight: 16 },
-  nextStep: { fontSize: 11, color: '#3730A3', fontWeight: '600', lineHeight: 16, marginTop: 6 },
+  sub:   { fontSize: 12, color: '#4338CA', lineHeight: 16 },
+  nextStep: { fontSize: 12, color: '#3730A3', fontWeight: '600', lineHeight: 16, marginTop: 6 },
   cta: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     backgroundColor: '#E0E7FF', borderRadius: 8, paddingVertical: 8, marginTop: 8,
@@ -926,19 +926,19 @@ const dl = StyleSheet.create({
     width: 48, height: 48, borderRadius: 24,
     backgroundColor: '#1F2937', alignItems: 'center', justifyContent: 'center',
   },
-  title:       { fontSize: 14, fontWeight: '800', color: '#FCA5A5' },
-  section:     { fontSize: 22, fontWeight: '900', color: '#fff', marginTop: 2 },
-  offence:     { fontSize: 13, color: '#D1D5DB', lineHeight: 19 },
+  title:       { fontSize: 13, fontWeight: '800', color: '#FCA5A5' },
+  section:     { fontSize: 19, fontWeight: '900', color: '#fff', marginTop: 2 },
+  offence:     { fontSize: 12, color: '#D1D5DB', lineHeight: 17 },
   reasonBox: {
     backgroundColor: '#1F2937', borderRadius: 10, padding: 12,
     borderLeftWidth: 3, borderLeftColor: '#EF4444',
   },
-  reasonText:  { fontSize: 12, color: '#E5E7EB', lineHeight: 18 },
+  reasonText:  { fontSize: 12, color: '#E5E7EB', lineHeight: 16 },
   citationRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  citationText:{ fontSize: 11, color: '#F87171', fontStyle: 'italic' },
+  citationText:{ fontSize: 12, color: '#F87171', fontStyle: 'italic' },
   warningBox: {
     flexDirection: 'row', gap: 8, alignItems: 'flex-start',
     backgroundColor: '#78350F20', borderRadius: 8, padding: 10,
   },
-  warningText: { flex: 1, fontSize: 11, color: '#FBBF24', lineHeight: 17 },
+  warningText: { flex: 1, fontSize: 12, color: '#FBBF24', lineHeight: 17 },
 });

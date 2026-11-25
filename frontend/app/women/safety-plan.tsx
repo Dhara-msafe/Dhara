@@ -114,7 +114,7 @@ export default function SafetyPlan() {
   const body = (
     <>
       <ScreenHeader title="My safety plan" subtitle="Private · stored only on this phone" />
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
 
         {/* ── F0-B: Plus Code emergency card ──
             B-96: cachedLoc.source === 'demo' means locationCache.ts never
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
   },
   locationUnavailableTitle: {
     fontFamily: theme.fonts.bodySemiBold,
-    fontSize: 14,
+    fontSize: 13,
     color: UI_V22_S4 ? shieldColors.text : c.navy,
   },
   locationUnavailableBody: {
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   },
   offlineBadgeTxt: {
     fontFamily: theme.fonts.body,
-    fontSize: 10,
+    fontSize: 11,
     // NF-UI-REV-02: '#6b7280' on this chip's '#f3f4f6' background measured
     // ~4.37:1 — just under the 4.5:1 minimum for small text. c.muted
     // (#505B68) on the same background measures ~6:1.
@@ -368,15 +368,15 @@ const styles = StyleSheet.create({
   },
   plusCodeValue: {
     fontFamily: theme.fonts.displayBold,
-    fontSize: 22,
+    fontSize: 19,
     color: UI_V22_S4 ? shieldColors.text : c.navy,
     letterSpacing: 1,
-    lineHeight: 28,
+    lineHeight: 25,
     marginBottom: 2,
   },
   plusCodeAge: {
     fontFamily: theme.fonts.body,
-    fontSize: 11,
+    fontSize: 12,
     color: UI_V22_S4 ? shieldColors.textMuted : c.muted,
     lineHeight: 15,
   },
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
     borderColor: shieldColors.cardBorder,
     padding: 16,
     marginBottom: 4,
-    minHeight: 56,
+    minHeight: 50,
   } : {
     flexDirection: 'row',
     alignItems: 'center',
@@ -412,14 +412,14 @@ const styles = StyleSheet.create({
     borderColor: c.lines,
     padding: 16,
     marginBottom: 4,
-    minHeight: 56,
+    minHeight: 50,
   },
   checklistTitle: {
     fontFamily: theme.fonts.bodyBold,
-    fontSize: 14,
+    fontSize: 13,
     color: UI_V22_S4 ? shieldColors.text : c.navy,
     flex: 1,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   checklistBody: UI_V22_S4 ? {
     backgroundColor: shieldColors.cardBg,
@@ -461,16 +461,16 @@ const styles = StyleSheet.create({
   checklistText: { flex: 1 },
   checklistItemTitle: {
     fontFamily: theme.fonts.bodyBold,
-    fontSize: 13,
+    fontSize: 12,
     color: UI_V22_S4 ? shieldColors.text : c.ink,
-    lineHeight: 18,
+    lineHeight: 16,
     marginBottom: 4,
   },
   checklistItemBody: {
     fontFamily: theme.fonts.body,
-    fontSize: 13,
+    fontSize: 12,
     color: UI_V22_S4 ? shieldColors.textMuted : c.muted,
-    lineHeight: 19,
+    lineHeight: 17,
   },
   checklistFooter: {
     fontFamily: theme.fonts.body,
@@ -483,16 +483,16 @@ const styles = StyleSheet.create({
 
   // ── Safety plan questions ───────────────────────────────────────────────────────
   progress: { marginBottom: 18, marginTop: 4 },
-  progressTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, marginBottom: 8 },
+  progressTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, marginBottom: 8 },
   track: { height: 8, borderRadius: 4, backgroundColor: UI_V22_S4 ? shieldColors.chipBg : c.surfaceTertiary, overflow: 'hidden' },
   fill: { height: 8, borderRadius: 4, backgroundColor: UI_V22_S4 ? shieldColors.pink : c.gold },
   qCard: UI_V22_S4
     ? { backgroundColor: shieldColors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: shieldColors.cardBorder, padding: 16, marginBottom: 12 }
     : { backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.lines, padding: 16, marginBottom: 12 },
-  q: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: UI_V22_S4 ? shieldColors.text : c.ink, lineHeight: 22, marginBottom: 10 },
+  q: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: UI_V22_S4 ? shieldColors.text : c.ink, lineHeight: 19, marginBottom: 10 },
   input: UI_V22_S4
-    ? { backgroundColor: shieldColors.chipBg, borderWidth: 1, borderColor: shieldColors.cardBorder, borderRadius: 10, padding: 12, fontFamily: theme.fonts.body, fontSize: 15, color: shieldColors.text, minHeight: 48, textAlignVertical: 'top' }
-    : { backgroundColor: c.background, borderWidth: 1, borderColor: c.lines, borderRadius: 10, padding: 12, fontFamily: theme.fonts.body, fontSize: 15, color: c.ink, minHeight: 48, textAlignVertical: 'top' },
+    ? { backgroundColor: shieldColors.chipBg, borderWidth: 1, borderColor: shieldColors.cardBorder, borderRadius: 10, padding: 12, fontFamily: theme.fonts.body, fontSize: 13, color: shieldColors.text, minHeight: 48, textAlignVertical: 'top' }
+    : { backgroundColor: c.background, borderWidth: 1, borderColor: c.lines, borderRadius: 10, padding: 12, fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, minHeight: 48, textAlignVertical: 'top' },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: UI_V22_S4 ? shieldColors.lavenderBgDeep : c.navy, borderRadius: 12, paddingVertical: 16, marginTop: 8 },
-  saveTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 16 },
+  saveTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14 },
 });

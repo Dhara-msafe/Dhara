@@ -286,14 +286,14 @@ export default function MissingInterviewScreen() {
 
 const st = StyleSheet.create({
   attachmentBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, minHeight: 44, borderRadius: 12, backgroundColor: theme.colors.navySoft, marginBottom: 16 },
-  attachmentText: { color: NAVY, fontSize: 13, fontWeight: '600', flexShrink: 1 },
-  error: { color: RED, fontSize: 14, lineHeight: 21, marginBottom: 14 },
+  attachmentText: { color: NAVY, fontSize: 12, fontWeight: '600', flexShrink: 1 },
+  error: { color: RED, fontSize: 13, lineHeight: 18, marginBottom: 14 },
   safe:           { flex: 1, backgroundColor: BG },
-  scroll:         { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 60 },
+  scroll:         { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60 },
   centred:        { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
 
   back:           { marginBottom: 8, minWidth: 44, minHeight: 44, justifyContent: 'center' },
-  backText:       { color: NAVY, fontSize: 14, fontWeight: '600' },
+  backText:       { color: NAVY, fontSize: 13, fontWeight: '600' },
 
   progressRow:    { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   progressBar:    { flex: 1, height: 4, backgroundColor: '#E5E7EB', borderRadius: 2, marginRight: 10 },
@@ -303,21 +303,21 @@ const st = StyleSheet.create({
   // text — both uses are small (11-12px) so the stricter threshold applies.
   progressText:   { fontSize: 12, color: UI_REVISION_V1 ? theme.colors.onSurfaceTertiary : '#999', minWidth: 38, textAlign: 'right' },
 
-  sectionLabel:   v22SectionLabel({ fontSize: 11, fontWeight: '700', color: UI_REVISION_V1 ? theme.colors.onSurfaceTertiary : '#999', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }),
+  sectionLabel:   v22SectionLabel({ fontSize: 12, fontWeight: '700', color: UI_REVISION_V1 ? theme.colors.onSurfaceTertiary : '#999', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }),
 
   minorBanner:    {
     backgroundColor: '#FFF0F0', borderRadius: 10, padding: 14, marginBottom: 16,
     borderLeftWidth: 4, borderLeftColor: RED, flexDirection: 'row', alignItems: 'flex-start',
   },
-  minorBannerText: { flex: 1, fontSize: 13, color: RED, lineHeight: 19, fontWeight: '600' },
+  minorBannerText: { flex: 1, fontSize: 12, color: RED, lineHeight: 17, fontWeight: '600' },
   dismissBtn:     { marginLeft: 8, padding: 4 },
-  dismissText:    { color: RED, fontSize: 16 },
+  dismissText:    { color: RED, fontSize: 14 },
 
   qBubble:        { backgroundColor: NAVY, borderRadius: 16, padding: 18, marginBottom: 16 },
-  qText:          { fontSize: 17, fontWeight: '600', color: '#FFF', lineHeight: 26 },
+  qText:          { fontSize: 15, fontWeight: '600', color: '#FFF', lineHeight: 23 },
 
   declarationText: {
-    fontSize: 13, color: '#555', lineHeight: 20, marginBottom: 16,
+    fontSize: 12, color: '#555', lineHeight: 18, marginBottom: 16,
     backgroundColor: '#FFF', borderRadius: 10, padding: 14,
     borderWidth: 1, borderColor: '#E5E7EB',
   },
@@ -326,25 +326,25 @@ const st = StyleSheet.create({
     backgroundColor: '#FFF', borderRadius: 12, paddingVertical: 16, paddingHorizontal: 18,
     marginBottom: 10, borderWidth: 1.5, borderColor: '#E5E7EB',
   },
-  optionText:     { fontSize: 15, color: '#222', lineHeight: 22 },
+  optionText:     { fontSize: 13, color: '#222', lineHeight: 19 },
 
   inputRow:       { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
   textInput:      {
     flex: 1, backgroundColor: '#FFF', borderWidth: 1.5, borderColor: '#DDD',
-    borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: '#111',
+    borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 13, color: '#111',
   },
   nextBtn:        {
     backgroundColor: NAVY, borderRadius: 12, width: 52, height: 52,
     alignItems: 'center', justifyContent: 'center',
   },
   nextBtnDisabled: { backgroundColor: '#CCC' },
-  nextBtnText:    { color: '#FFF', fontSize: 20, fontWeight: '700' },
+  nextBtnText:    { color: '#FFF', fontSize: 17, fontWeight: '700' },
 
   primaryBtn:     {
     backgroundColor: NAVY, borderRadius: 12, paddingVertical: 16,
     alignItems: 'center', marginBottom: 12,
   },
-  primaryBtnText: { color: '#FFF', fontWeight: '700', fontSize: 16 },
+  primaryBtnText: { color: '#FFF', fontWeight: '700', fontSize: 14 },
 
   privacyNote:    {
     marginTop: 12, paddingHorizontal: 4, paddingVertical: 6,
@@ -353,11 +353,11 @@ const st = StyleSheet.create({
   // UI-revision pilot (reversible via UI_REVISION_V1): #AAA measured ~2.3:1
   // on white, well below 4.5:1 — this is the privacy-notice text, so
   // legibility matters more than most, not less.
-  privacyText:    { fontSize: 11, color: UI_REVISION_V1 ? theme.colors.onSurfaceTertiary : '#AAA', lineHeight: 16 },
+  privacyText:    { fontSize: 12, color: UI_REVISION_V1 ? theme.colors.onSurfaceTertiary : '#AAA', lineHeight: 16 },
 
-  savingText:     { color: NAVY, fontSize: 16, fontWeight: '600' },
+  savingText:     { color: NAVY, fontSize: 14, fontWeight: '600' },
 
-  gateCard:       { margin: 20, backgroundColor: '#FFF', borderRadius: 16, padding: 24 },
-  gateTitle:      { fontSize: 20, fontWeight: '700', color: NAVY, marginBottom: 12 },
-  gateBody:       { fontSize: 15, color: '#555', lineHeight: 22, marginBottom: 24 },
+  gateCard:       { margin: 20, backgroundColor: '#FFF', borderRadius: 16, padding: 18 },
+  gateTitle:      { fontSize: 17, fontWeight: '700', color: NAVY, marginBottom: 12 },
+  gateBody:       { fontSize: 13, color: '#555', lineHeight: 19, marginBottom: 18 },
 });

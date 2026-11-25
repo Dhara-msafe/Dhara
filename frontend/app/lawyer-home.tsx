@@ -122,13 +122,13 @@ export default function LawyerHome() {
 
 const s = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: '#FDFBF7' },
-  header: { backgroundColor: NAVY, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: '#fff' },
+  header: { backgroundColor: NAVY, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16 },
+  headerTitle: { fontSize: 19, fontWeight: '800', color: '#fff' },
   badge: { marginTop: 4, backgroundColor: GOLD, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12, alignSelf: 'flex-start' },
   badgeText: { fontSize: 12, fontWeight: '700', color: NAVY },
   pending: { fontSize: 12, color: '#9CA3AF', marginTop: 4 },
   settingsBtn: { padding: 4 },
-  scroll: { padding: 20, gap: 14, paddingBottom: 80 },
+  scroll: { padding: 16, gap: 14, paddingBottom: 80 },
   card: {
     backgroundColor: '#fff', borderRadius: 14,
     borderWidth: 1, borderColor: '#E5E7EB',
@@ -137,11 +137,11 @@ const s = StyleSheet.create({
     elevation: 2,
   },
   cardIcon: { width: 48, height: 48, borderRadius: 12, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: NAVY, marginBottom: 3 },
-  cardSub:   { fontSize: 13, color: '#6B7280', lineHeight: 18 },
+  cardTitle: { fontSize: 14, fontWeight: '700', color: NAVY, marginBottom: 3 },
+  cardSub:   { fontSize: 12, color: '#6B7280', lineHeight: 16 },
   backBtn:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12, paddingVertical: 12 },
-  backBtnText: { fontSize: 14, color: NAVY, fontWeight: '600' },
+  backBtnText: { fontSize: 13, color: NAVY, fontWeight: '600' },
   tabBar: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#E5E7EB', backgroundColor: '#fff', paddingBottom: 20, paddingTop: 8 },
   tabItem: { flex: 1, alignItems: 'center', gap: 3 },
-  tabLabel: { fontSize: 11, fontWeight: '600', color: '#9CA3AF' },
+  tabLabel: { fontSize: 12, fontWeight: '600', color: '#9CA3AF' },
 });

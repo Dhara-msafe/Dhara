@@ -31,10 +31,10 @@ export default function LookupHub() {
   </SafeAreaView>;
 }
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background }, header: { padding: 20, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  heading: { flex: 1, minWidth: 0 }, title: { fontSize: 28, fontWeight: '800', color: colors.primary }, subtitle: { fontSize: 14, color: colors.onSurfaceTertiary, marginTop: 6 },
+  safe: { flex: 1, backgroundColor: colors.background }, header: { padding: 16, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  heading: { flex: 1, minWidth: 0 }, title: { fontSize: 24, fontWeight: '800', color: colors.primary }, subtitle: { fontSize: 13, color: colors.onSurfaceTertiary, marginTop: 6 },
   profile: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.navySoft, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 18, gap: 16 }, card: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 18, borderRadius: 16, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.divider },
-  icon: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.goldMuted, alignItems: 'center', justifyContent: 'center' }, cardTitle: { color: colors.primary, fontSize: 16, fontWeight: '700' },
-  description: { fontSize: 13, lineHeight: 20, color: colors.onSurfaceTertiary, marginTop: 5 }, pressed: { opacity: 0.7 },
+  icon: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.goldMuted, alignItems: 'center', justifyContent: 'center' }, cardTitle: { color: colors.primary, fontSize: 14, fontWeight: '700' },
+  description: { fontSize: 12, lineHeight: 18, color: colors.onSurfaceTertiary, marginTop: 5 }, pressed: { opacity: 0.7 },
 });

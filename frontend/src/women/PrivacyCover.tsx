@@ -108,23 +108,23 @@ const styles = StyleSheet.create({
     backgroundColor: c.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
+    marginBottom: 18,
     borderWidth: 1,
     borderColor: c.lines,
   },
   heading: {
     fontFamily: theme.fonts.displayBold,
-    fontSize: 22,
+    fontSize: 19,
     color: c.ink,
     textAlign: 'center',
     marginBottom: 12,
   },
   caveat: {
     fontFamily: theme.fonts.body,
-    fontSize: 14,
+    fontSize: 13,
     color: c.muted,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 19,
     marginBottom: 36,
     maxWidth: 280,
   },
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   revealTxt: {
     color: '#fff',
     fontFamily: theme.fonts.bodyBold,
-    fontSize: 16,
+    fontSize: 14,
   },
   emergencyBtn: {
     flexDirection: 'row',
@@ -152,6 +152,6 @@ const styles = StyleSheet.create({
   emergencyTxt: {
     color: '#fff',
     fontFamily: theme.fonts.bodyBold,
-    fontSize: 16,
+    fontSize: 14,
   },
 });

@@ -16,6 +16,7 @@
   ],
   "exclude": [
     "src/voice/core/__tests__",
-    "src/permissions/__tests__"
+    "src/permissions/__tests__",
+    "src/ui/__tests__"
   ]
 }

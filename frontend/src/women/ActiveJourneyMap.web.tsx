@@ -50,7 +50,7 @@ const CIRCLE_OPTIONS: google.maps.CircleOptions = {
 };
 
 const ROUTE_OPTIONS: google.maps.PolylineOptions = {
-  strokeColor: '#14365A',
+  strokeColor: '#082B4F',
   strokeOpacity: 0.9,
   strokeWeight: 4,
   clickable: false,
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontFamily: theme.fonts.body,
-    fontSize: 11,
+    fontSize: 12,
     color: c.muted,
     marginTop: 6,
     lineHeight: 15,

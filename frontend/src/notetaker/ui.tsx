@@ -47,8 +47,8 @@ const headerStyles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 14, gap: 4,
   },
   backBtn: { width: 44, height: 44, justifyContent: 'center' },
-  backArrow: { color: '#fff', fontSize: 28, lineHeight: 32, marginTop: -2 },
-  title: { color: '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 17 },
+  backArrow: { color: '#fff', fontSize: 24, lineHeight: 28, marginTop: -2 },
+  title: { color: '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 15 },
   subtitle: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 12, marginTop: 1 },
 });
 
@@ -57,9 +57,9 @@ const headerStyles = StyleSheet.create({
 const TONES = {
   muted:   { bg: '#F4EFE3', fg: '#505B68' },
   warning: { bg: '#FEF3C7', fg: '#92400E' },
-  info:    { bg: '#E7EDF4', fg: '#1D4A78' },
-  success: { bg: '#E7F1EB', fg: '#1F6B4A' },
-  error:   { bg: '#FEE4E2', fg: '#B42318' },
+  info:    { bg: '#EEF3FC', fg: '#0D436B' },
+  success: { bg: '#E7F1EB', fg: '#087951' },
+  error:   { bg: '#FEE4E2', fg: '#C73236' },
 } as const;
 
 const STATE_META: Record<ConsultationState, { label: string; tone: keyof typeof TONES }> = {
@@ -90,7 +90,7 @@ export function StatusPill({ state }: { state: ConsultationState }) {
 
 const pillStyles = StyleSheet.create({
   pill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, alignSelf: 'flex-start' },
-  text: { fontFamily: theme.fonts.bodySemiBold, fontSize: 11 },
+  text: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12 },
 });
 
 // ── Progress steps ───────────────────────────────────────────────────────
@@ -166,12 +166,12 @@ const stepStyles = StyleSheet.create({
   },
   dotDone: { backgroundColor: c.navy },
   dotActive: { backgroundColor: c.gold },
-  dotText: { fontSize: 11, fontFamily: theme.fonts.bodySemiBold, color: c.muted },
+  dotText: { fontSize: 12, fontFamily: theme.fonts.bodySemiBold, color: c.muted },
   dotTextDone: { color: '#fff' },
   dotTextActive: { color: c.navy },
   connector: { flex: 1, height: 2, backgroundColor: c.border, marginHorizontal: 2 },
   connectorActive: { backgroundColor: c.navy },
-  label: { fontSize: 10, fontFamily: theme.fonts.body, color: c.muted, marginTop: 4 },
+  label: { fontSize: 11, fontFamily: theme.fonts.body, color: c.muted, marginTop: 4 },
   labelActive: { color: c.navy, fontFamily: theme.fonts.bodySemiBold },
 });
 
@@ -197,6 +197,6 @@ export function LegacyConsentNotice() {
 
 const legacyStyles = StyleSheet.create({
   box: { backgroundColor: '#FEF3C7', borderRadius: 10, padding: 14, marginBottom: 16 },
-  title: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: '#92400E', marginBottom: 4 },
-  text: { fontFamily: theme.fonts.body, fontSize: 12, color: '#92400E', lineHeight: 18 },
+  title: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: '#92400E', marginBottom: 4 },
+  text: { fontFamily: theme.fonts.body, fontSize: 12, color: '#92400E', lineHeight: 16 },
 });

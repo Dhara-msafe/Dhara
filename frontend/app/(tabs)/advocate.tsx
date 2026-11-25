@@ -200,44 +200,44 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#FDFBF7' },
   header: {
     backgroundColor: NAVY, flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16,
+    paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16,
   },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: '#fff' },
+  headerTitle: { fontSize: 19, fontWeight: '800', color: '#fff' },
   verifiedBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     marginTop: 4, backgroundColor: GOLD, paddingHorizontal: 8,
     paddingVertical: 3, borderRadius: 10, alignSelf: 'flex-start',
   },
-  verifiedText: { fontSize: 11, fontWeight: '700', color: NAVY },
+  verifiedText: { fontSize: 12, fontWeight: '700', color: NAVY },
   pendingText: { fontSize: 12, color: '#9CA3AF', marginTop: 4 },
   settingsBtn: { padding: 4 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   // Not-registered state
-  registerContainer: { padding: 24, alignItems: 'center', paddingBottom: 40 },
+  registerContainer: { padding: 18, alignItems: 'center', paddingBottom: 40 },
   iconWrap: {
     width: 90, height: 90, borderRadius: 45, backgroundColor: '#EEF2FF',
     alignItems: 'center', justifyContent: 'center', marginBottom: 20,
   },
-  registerTitle: { fontSize: 22, fontWeight: '800', color: NAVY, marginBottom: 10 },
-  registerSub: { fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 22, marginBottom: 24 },
-  featureList: { width: '100%', gap: 14, marginBottom: 32 },
+  registerTitle: { fontSize: 19, fontWeight: '800', color: NAVY, marginBottom: 10 },
+  registerSub: { fontSize: 13, color: '#6B7280', textAlign: 'center', lineHeight: 19, marginBottom: 18 },
+  featureList: { width: '100%', gap: 14, marginBottom: 24 },
   featureRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  featureText: { flex: 1, fontSize: 14, color: '#374151', lineHeight: 21 },
+  featureText: { flex: 1, fontSize: 13, color: '#374151', lineHeight: 18 },
   registerBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: GOLD, paddingVertical: 14, paddingHorizontal: 28,
     borderRadius: 12, width: '100%',
   },
-  registerBtnText: { fontSize: 16, fontWeight: '700', color: NAVY },
+  registerBtnText: { fontSize: 14, fontWeight: '700', color: NAVY },
 
   // Registered dashboard
-  dashScroll: { padding: 20, gap: 14, paddingBottom: 40 },
+  dashScroll: { padding: 16, gap: 14, paddingBottom: 40 },
   verifyCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
     backgroundColor: '#FEF3C7', borderRadius: 12, padding: 14,
   },
-  verifyCardText: { flex: 1, fontSize: 13, color: '#92400E', lineHeight: 19 },
+  verifyCardText: { flex: 1, fontSize: 12, color: '#92400E', lineHeight: 17 },
   card: {
     backgroundColor: '#fff', borderRadius: 14,
     borderWidth: 1, borderColor: '#E5E7EB',
@@ -249,12 +249,12 @@ const s = StyleSheet.create({
     width: 48, height: 48, borderRadius: 12,
     backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center',
   },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: NAVY, marginBottom: 3 },
-  cardSub: { fontSize: 13, color: '#6B7280', lineHeight: 18 },
+  cardTitle: { fontSize: 14, fontWeight: '700', color: NAVY, marginBottom: 3 },
+  cardSub: { fontSize: 12, color: '#6B7280', lineHeight: 16 },
   profileCard: {
     backgroundColor: '#fff', borderRadius: 14,
     borderWidth: 1, borderColor: '#E5E7EB', padding: 18, marginTop: 4,
   },
-  profileLabel: v22SectionLabel({ fontSize: 11, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5 }),
-  profileValue: { fontSize: 14, color: '#1F2937', marginTop: 3, fontWeight: '600' },
+  profileLabel: v22SectionLabel({ fontSize: 12, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5 }),
+  profileValue: { fontSize: 13, color: '#1F2937', marginTop: 3, fontWeight: '600' },
 });

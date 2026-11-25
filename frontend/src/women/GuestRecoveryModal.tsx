@@ -125,9 +125,9 @@ const rowStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  label: { fontSize: 14, fontWeight: '600', color: theme.colors.navy, lineHeight: 20 },
+  label: { fontSize: 13, fontWeight: '600', color: theme.colors.navy, lineHeight: 18 },
   date:  { fontSize: 12, color: theme.colors.muted, marginTop: 1 },
-  index: { fontSize: 11, color: theme.colors.muted, fontVariant: ['tabular-nums'] },
+  index: { fontSize: 12, color: theme.colors.muted, fontVariant: ['tabular-nums'] },
 });
 
 // ── Session card ──────────────────────────────────────────────────────────────
@@ -273,10 +273,10 @@ const cardStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   sessionTitle: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '700',
     color: theme.colors.navy,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   sessionMeta: {
     fontSize: 12,
@@ -315,7 +315,7 @@ const cardStyles = StyleSheet.create({
     minHeight: 44,
   },
   keepBtnText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: theme.colors.navy,
   },
@@ -333,7 +333,7 @@ const cardStyles = StyleSheet.create({
     minHeight: 44,
   },
   discardBtnText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: theme.colors.error,
   },
@@ -345,7 +345,7 @@ const cardStyles = StyleSheet.create({
     paddingVertical: theme.spacing.lg,
   },
   deletingText: {
-    fontSize: 14,
+    fontSize: 13,
     color: theme.colors.error,
     fontWeight: '600',
   },
@@ -534,10 +534,10 @@ const modal = StyleSheet.create({
     justifyContent: 'center',
   },
   topbarTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: theme.colors.navy,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   topbarSub: {
     fontSize: 12,
@@ -559,17 +559,17 @@ const modal = StyleSheet.create({
     gap: theme.spacing.md,
   },
   loadingText: {
-    fontSize: 15,
+    fontSize: 13,
     color: theme.colors.muted,
     marginTop: theme.spacing.md,
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: '700',
     color: theme.colors.navy,
   },
   emptyText: {
-    fontSize: 15,
+    fontSize: 13,
     color: theme.colors.muted,
     textAlign: 'center',
   },
@@ -577,9 +577,9 @@ const modal = StyleSheet.create({
     padding: theme.spacing.lg,
   },
   intro: {
-    fontSize: 14,
+    fontSize: 13,
     color: theme.colors.muted,
-    lineHeight: 20,
+    lineHeight: 18,
     marginBottom: theme.spacing.lg,
   },
   doneBtn: {
@@ -593,7 +593,7 @@ const modal = StyleSheet.create({
   },
   doneBtnText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
   },
 });

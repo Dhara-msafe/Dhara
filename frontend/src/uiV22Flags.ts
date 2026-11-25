@@ -206,7 +206,12 @@ export const UI_V22_S3 = process.env.EXPO_PUBLIC_UI_V22_S3 === 'true';
  * v2.2 design introduces for this screen group. Presentation-only,
  * reversible.
  */
-export const UI_V22_S4 = process.env.EXPO_PUBLIC_UI_V22_S4 === 'true';
+// Redesign v3 (26 Nov 2026): the dark purple "Shield mode" is retired. Women's
+// Shield, the panic lesson and the safety plan use the same navy / cream /
+// gold design as the rest of the app, so this is now always off whatever the
+// build sets. The S4 branches in those three screens stay in place, inert,
+// until the screens are rebuilt on the shared parts (src/ui/kit.tsx).
+export const UI_V22_S4: boolean = false;
 
 /**
  * Keep the focused input visible above the keyboard (client report, 23 Nov).
@@ -329,7 +334,7 @@ export const UI_V22_S10 = process.env.EXPO_PUBLIC_UI_V22_S10 === 'true';
  * rating or a "cases won" count. IPC lookup (id52, "retained... Visual
  * only") is the one real gap: its `safe` container hardcodes the legacy
  * off-brand `#FDFBF7`, one hex away from the v2.2 cream token
- * (`theme.colors.background`, `#FBF7EE`) that IPCLookup.dc.html and every
+ * (`theme.colors.background`, `#FFFAF2`) that IPCLookup.dc.html and every
  * other v2.2 screen use. With the flag on, it reads the shared token
  * instead.
  */

@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
   text: {
     flex: 1,
     color: theme.dhara.textSecondary,
-    fontSize: 11,
+    fontSize: 12,
     lineHeight: 16,
     fontWeight: '400',
     opacity: 0.8,

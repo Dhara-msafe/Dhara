@@ -419,7 +419,7 @@ pre{white-space:pre-wrap;font-size:13px;line-height:1.7;font-family:'Courier New
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: SURFACE },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
-  loadingText: { color: MUTED, fontSize: 15 },
+  loadingText: { color: MUTED, fontSize: 13 },
 
   // Header
   header: {
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12, gap: 12,
   },
   headerCenter: { flex: 1 },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  headerTitle: { fontSize: 14, fontWeight: '700', color: '#fff' },
   headerSub: { fontSize: 12, color: GOLD },
   backBtn: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   sectionMenuBtn: { padding: 6, minWidth: UI_REVISION_V1 ? 44 : undefined, minHeight: UI_REVISION_V1 ? 44 : undefined, alignItems: 'center', justifyContent: 'center' },
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
     borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#FECACA',
     alignItems: 'flex-start',
   },
-  disclaimerText: { flex: 1, fontSize: 13, color: '#7F1D1D', lineHeight: 19 },
+  disclaimerText: { flex: 1, fontSize: 12, color: '#7F1D1D', lineHeight: 17 },
 
   // Zero FIR
   zeroFirCard: {
@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
     borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#BFDBFE',
     alignItems: 'flex-start',
   },
-  zeroFirText: { flex: 1, fontSize: 13, color: NAVY, lineHeight: 19 },
+  zeroFirText: { flex: 1, fontSize: 12, color: NAVY, lineHeight: 17 },
 
   // Issue 9: Sections summary card
   sectionsSummaryCard: {
@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
     backgroundColor: CREAM, borderRadius: 12, padding: 14,
     borderWidth: 1, borderColor: BORDER,
   },
-  sectionsSummaryText: { flex: 1, fontSize: 13, color: NAVY, fontWeight: '600' },
+  sectionsSummaryText: { flex: 1, fontSize: 12, color: NAVY, fontWeight: '600' },
 
   // Draft
   draftCard: {
@@ -466,8 +466,8 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#D6C9B0',
   },
   draftHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  draftTitle: { fontSize: 15, fontWeight: '700', color: NAVY },
-  draftText: { fontSize: 13, color: '#2D2D2D', lineHeight: 22, fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace' },
+  draftTitle: { fontSize: 13, fontWeight: '700', color: NAVY },
+  draftText: { fontSize: 12, color: '#2D2D2D', lineHeight: 19, fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace' },
 
   // Actions
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -478,34 +478,34 @@ const styles = StyleSheet.create({
   },
   actionBtnPdf: { backgroundColor: NAVY, borderColor: NAVY, flexBasis: '100%', flex: 0 },
   actionBtnPrint: { backgroundColor: '#2D6A4F', borderColor: '#2D6A4F', flexBasis: '100%', flex: 0 },
-  actionBtnText: { fontSize: 13, color: NAVY, fontWeight: '600' },
+  actionBtnText: { fontSize: 12, color: NAVY, fontWeight: '600' },
 
   // Steps
   stepsCard: {
     backgroundColor: SURFACE, borderRadius: 14, padding: 16,
     borderWidth: 1, borderColor: BORDER,
   },
-  stepsTitle: { fontSize: 15, fontWeight: '700', color: NAVY, marginBottom: 12 },
+  stepsTitle: { fontSize: 13, fontWeight: '700', color: NAVY, marginBottom: 12 },
   stepRow: { flexDirection: 'row', gap: 10, marginBottom: 10, alignItems: 'flex-start' },
   stepNum: {
     width: 24, height: 24, borderRadius: 12, backgroundColor: NAVY,
     alignItems: 'center', justifyContent: 'center',
   },
   stepNumText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  stepText: { flex: 1, fontSize: 13, color: MUTED, lineHeight: 19 },
+  stepText: { flex: 1, fontSize: 12, color: MUTED, lineHeight: 17 },
 
   // Helplines
   helplinesCard: {
     backgroundColor: NAVY, borderRadius: 14, padding: 16,
   },
-  helplinesTitle: { fontSize: 14, fontWeight: '700', color: GOLD, marginBottom: 12 },
+  helplinesTitle: { fontSize: 13, fontWeight: '700', color: GOLD, marginBottom: 12 },
   helplinesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   helplineItem: {
     backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 10, padding: 10,
     alignItems: 'center', minWidth: 80, gap: 4,
   },
-  helplineNum: { fontSize: 16, fontWeight: '800', color: '#fff' },
-  helplineLabel: { fontSize: 10, color: 'rgba(255,255,255,0.7)', textAlign: 'center' },
+  helplineNum: { fontSize: 14, fontWeight: '800', color: '#fff' },
+  helplineLabel: { fontSize: 11, color: 'rgba(255,255,255,0.7)', textAlign: 'center' },
 
   // New complaint
   newComplaintBtn: {
@@ -513,5 +513,5 @@ const styles = StyleSheet.create({
     gap: 8, borderRadius: 12, paddingVertical: 14,
     backgroundColor: CREAM, borderWidth: 1.5, borderColor: BORDER,
   },
-  newComplaintText: { color: NAVY, fontSize: 14, fontWeight: '600' },
+  newComplaintText: { color: NAVY, fontSize: 13, fontWeight: '600' },
 });

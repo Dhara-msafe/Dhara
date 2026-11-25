@@ -27,6 +27,7 @@ import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { SosPill112 } from '@/src/ui/kit';
 import { theme } from '@/src/theme';
 import { goBackOr } from '@/src/goBackOr';
 import { focusRingStyle } from '@/src/a11yFocus';
@@ -93,6 +94,7 @@ export default function HowItHelps() {
             jumped. Flag-gated for rollback (EXPO_PUBLIC_UI_V22_P3, default
             OFF keeps the old label and 3-segment bar). */}
         <Text style={styles.step}>{UI_V22_P3 ? 'Step 2 of 4' : 'Step 2 of 3'}</Text>
+        <SosPill112 testID="how-it-helps-sos" />
       </View>
 
       <View style={styles.progressRow}>
@@ -103,13 +105,13 @@ export default function HowItHelps() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.title}>How DHARA{'\n'}helps you</Text>
+        <Text style={styles.title} accessibilityRole="header">How DHARA helps you</Text>
         <Text style={styles.sub}>Your personal legal guide, available 24/7.</Text>
 
         {FEATURES.map((f) => (
           <View key={f.title} style={styles.feat}>
             <View style={[styles.ficon, { backgroundColor: f.iconBg }]}>
-              <Ionicons name={f.icon} size={24} color={f.iconColor} />
+              <Ionicons name={f.icon} size={20} color={f.iconColor} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.featTitle}>{f.title}</Text>
@@ -138,31 +140,34 @@ export default function HowItHelps() {
   );
 }
 
+// Redesign v3: compact sizes on the prototype's scale, so all four points and
+// the Next button fit a 360 x 800 phone without scrolling, and nothing floats
+// over the text (SOS now sits in the header row).
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.background },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 4, gap: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 4, gap: 10 },
   backBtn: {
     width: 48, height: 48, borderRadius: 24, backgroundColor: c.surface,
-    borderWidth: 1.5, borderColor: c.border, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center',
   },
-  step: { fontSize: 13, color: c.onSurfaceSecondary, fontFamily: theme.fonts.bodyMedium },
-  progressRow: { flexDirection: 'row', gap: 4, paddingHorizontal: 20, paddingTop: 12 },
-  progressSeg: { flex: 1, height: 3, borderRadius: 2, backgroundColor: c.border },
+  step: { fontSize: 12, color: c.onSurfaceSecondary, fontFamily: theme.fonts.bodyMedium },
+  progressRow: { flexDirection: 'row', gap: 4, paddingHorizontal: 16, paddingTop: 10 },
+  progressSeg: { flex: 1, height: 4, borderRadius: 2, backgroundColor: c.border },
   progressSegDone: { backgroundColor: c.gold },
-  scroll: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 12 },
-  title: { fontFamily: theme.fonts.display, fontSize: 28, color: c.brand, lineHeight: 32 },
-  sub: { fontSize: 15, color: c.onSurfaceSecondary, marginTop: 8, lineHeight: 21 },
+  scroll: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 12 },
+  title: { fontFamily: theme.fonts.displayBold, fontSize: 24, color: c.ink, lineHeight: 29, letterSpacing: -0.4 },
+  sub: { fontFamily: theme.fonts.body, fontSize: 13, color: c.onSurfaceSecondary, marginTop: 6, lineHeight: 19 },
   feat: {
-    flexDirection: 'row', gap: 16, alignItems: 'flex-start',
-    paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: c.divider, marginTop: 8,
+    flexDirection: 'row', gap: 12, alignItems: 'flex-start',
+    paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.divider, marginTop: 4,
   },
-  ficon: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  featTitle: { fontSize: 17, fontWeight: '600', color: c.brand },
-  featBody: { fontSize: 14, color: c.onSurfaceSecondary, lineHeight: 20, marginTop: 4 },
-  footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 },
+  ficon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  featTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink },
+  featBody: { fontFamily: theme.fonts.body, fontSize: 13, color: c.onSurfaceSecondary, lineHeight: 19, marginTop: 3 },
+  footer: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 16 },
   nextBtn: {
-    height: 58, borderRadius: 16, backgroundColor: c.gold,
+    minHeight: 48, borderRadius: 12, backgroundColor: c.gold, borderWidth: 1, borderColor: '#D6AC51',
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  nextBtnText: { fontSize: 17, fontWeight: '700', color: c.brand },
+  nextBtnText: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.onGold },
 });

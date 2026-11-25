@@ -226,42 +226,42 @@ export default function VoterRollTab() {
 
 const s = StyleSheet.create({
   safe:            { flex: 1, backgroundColor: BG },
-  scrollContent:   { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 },
+  scrollContent:   { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 40 },
 
   header:          { marginBottom: 20 },
-  headerTitle:     { fontSize: 26, fontWeight: '700', color: NAVY, letterSpacing: -0.5 },
-  headerSub:       { fontSize: 14, color: '#666', marginTop: 4 },
+  headerTitle:     { fontSize: 22, fontWeight: '700', color: NAVY, letterSpacing: -0.5 },
+  headerSub:       { fontSize: 13, color: '#666', marginTop: 4 },
 
   disclaimerCard:  {
     backgroundColor: '#FFF8E7',
     borderLeftWidth: 4, borderLeftColor: GOLD,
-    borderRadius: 8, padding: 14, marginBottom: 24,
+    borderRadius: 8, padding: 14, marginBottom: 18,
   },
-  disclaimerText:  { fontSize: 12, color: '#555', lineHeight: 18 },
+  disclaimerText:  { fontSize: 12, color: '#555', lineHeight: 16 },
 
   primaryBtn:      {
     backgroundColor: NAVY, borderRadius: 12, paddingVertical: 16,
     alignItems: 'center', marginBottom: 12,
   },
-  primaryBtnText:  { color: '#FFF', fontWeight: '700', fontSize: 16 },
+  primaryBtnText:  { color: '#FFF', fontWeight: '700', fontSize: 14 },
 
   secondaryBtn:    {
     borderWidth: 1.5, borderColor: NAVY, borderRadius: 12, paddingVertical: 14,
     alignItems: 'center', marginBottom: 12,
   },
-  secondaryBtnText: { color: NAVY, fontWeight: '600', fontSize: 14 },
+  secondaryBtnText: { color: NAVY, fontWeight: '600', fontSize: 13 },
 
   backBtn:          { marginBottom: 16 },
-  backText:         { color: NAVY, fontSize: 14, fontWeight: '600' },
+  backText:         { color: NAVY, fontSize: 13, fontWeight: '600' },
 
   outcomeCard:      {
     backgroundColor: '#FFF', borderRadius: 16,
-    padding: 20, marginBottom: 20,
+    padding: 16, marginBottom: 20,
     shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  outcomeLabel:     { fontSize: 20, fontWeight: '700', color: NAVY, marginBottom: 12 },
-  outcomeBody:      { fontSize: 14, color: '#444', lineHeight: 22, marginBottom: 20 },
+  outcomeLabel:     { fontSize: 17, fontWeight: '700', color: NAVY, marginBottom: 12 },
+  outcomeBody:      { fontSize: 13, color: '#444', lineHeight: 19, marginBottom: 20 },
 
   progressRow:      { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   progressBar:      { flex: 1, height: 4, backgroundColor: '#E5E7EB', borderRadius: 2, marginRight: 10 },
@@ -269,9 +269,9 @@ const s = StyleSheet.create({
   progressText:     { fontSize: 12, color: '#999', minWidth: 40, textAlign: 'right' },
 
   questionCard:     {
-    backgroundColor: NAVY, borderRadius: 16, padding: 20, marginBottom: 20,
+    backgroundColor: NAVY, borderRadius: 16, padding: 16, marginBottom: 20,
   },
-  questionText:     { fontSize: 17, fontWeight: '600', color: '#FFF', lineHeight: 26 },
+  questionText:     { fontSize: 15, fontWeight: '600', color: '#FFF', lineHeight: 23 },
 
   optionBtn:        {
     backgroundColor: '#FFF', borderRadius: 12, paddingVertical: 16, paddingHorizontal: 18,
@@ -279,5 +279,5 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
-  optionText:       { fontSize: 15, color: '#222', lineHeight: 22 },
+  optionText:       { fontSize: 13, color: '#222', lineHeight: 19 },
 });

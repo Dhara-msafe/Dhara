@@ -33,11 +33,11 @@ export function ComplaintsList({ all = false, onEmptyChange }: { all?: boolean; 
 }
 const styles = StyleSheet.create({
   list: { gap: 12 },
-  compactEmpty: { backgroundColor: colors.surface, borderRadius: 14, padding: 14, gap: 6, borderWidth: 1, borderColor: colors.divider, minHeight: 64 },
-  compactLink: { color: colors.primary, fontWeight: '700', fontSize: 13 },
-  empty: { backgroundColor: colors.surface, borderRadius: 18, padding: 20, gap: 12, borderWidth: 1, borderColor: colors.divider },
-  title: { fontSize: 17, fontWeight: '700', color: colors.primary },
-  body: { fontSize: 14, lineHeight: 22, color: colors.onSurfaceSecondary },
+  compactEmpty: { backgroundColor: colors.surface, borderRadius: 14, padding: 14, gap: 6, borderWidth: 1, borderColor: colors.divider, minHeight: 54 },
+  compactLink: { color: colors.primary, fontWeight: '700', fontSize: 12 },
+  empty: { backgroundColor: colors.surface, borderRadius: 18, padding: 16, gap: 12, borderWidth: 1, borderColor: colors.divider },
+  title: { fontSize: 15, fontWeight: '700', color: colors.primary },
+  body: { fontSize: 13, lineHeight: 19, color: colors.onSurfaceSecondary },
   button: { minHeight: 44, padding: 12, alignItems: 'center', borderRadius: 10, backgroundColor: colors.primary },
   buttonText: { color: colors.onBrandPrimary, fontWeight: '700' },
 });

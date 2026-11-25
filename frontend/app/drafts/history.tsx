@@ -163,10 +163,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     padding: theme.spacing.lg, backgroundColor: theme.colors.brand,
   },
-  h1: { fontFamily: theme.fonts.display, fontSize: 18, color: theme.colors.onBrandPrimary, fontWeight: '700' },
+  h1: { fontFamily: theme.fonts.display, fontSize: 16, color: theme.colors.onBrandPrimary, fontWeight: '700' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: theme.spacing.xxl },
-  emptyTitle: { fontFamily: theme.fonts.display, fontSize: 20, color: theme.colors.brand, marginTop: theme.spacing.lg, fontWeight: '700' },
-  emptySub: { color: theme.colors.onSurfaceSecondary, textAlign: 'center', marginTop: theme.spacing.sm, lineHeight: 20 },
+  emptyTitle: { fontFamily: theme.fonts.display, fontSize: 17, color: theme.colors.brand, marginTop: theme.spacing.lg, fontWeight: '700' },
+  emptySub: { color: theme.colors.onSurfaceSecondary, textAlign: 'center', marginTop: theme.spacing.sm, lineHeight: 18 },
   list: { padding: theme.spacing.lg, gap: theme.spacing.md, paddingBottom: theme.spacing.xxxl },
   card: { backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md, padding: theme.spacing.lg, borderWidth: 1, borderColor: theme.colors.border },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
@@ -174,27 +174,27 @@ const styles = StyleSheet.create({
     width: 36, height: 36, borderRadius: 18, backgroundColor: theme.colors.surface,
     alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.colors.border,
   },
-  title: { color: theme.colors.brand, fontWeight: '700', fontSize: 14 },
+  title: { color: theme.colors.brand, fontWeight: '700', fontSize: 13 },
   meta: {
     // NF-UI-REV-10: onSurfaceTertiary on this card's surfaceSecondary
     // background measured ~4.03:1 — under 4.5:1. onSurfaceSecondary
     // (the darker token) clears ~6:1.
     color: UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : theme.colors.onSurfaceTertiary,
-    fontSize: 11, marginTop: 2,
+    fontSize: 12, marginTop: 2,
   },
-  preview: { color: theme.colors.onSurface, fontSize: 13, lineHeight: 19, marginTop: theme.spacing.sm },
+  preview: { color: theme.colors.onSurface, fontSize: 12, lineHeight: 17, marginTop: theme.spacing.sm },
   actionRow: { flexDirection: 'row', gap: theme.spacing.sm, marginTop: theme.spacing.md },
   secondaryBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     borderWidth: 2, borderColor: theme.colors.brand, borderRadius: theme.radius.md,
     paddingHorizontal: theme.spacing.md, minHeight: UI_REVISION_V1 ? 48 : 40, flex: 1,
   },
-  secondaryBtnText: { color: theme.colors.brand, fontWeight: '800', fontSize: 13 },
+  secondaryBtnText: { color: theme.colors.brand, fontWeight: '800', fontSize: 12 },
   primaryBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     backgroundColor: theme.colors.brandSecondary, borderRadius: theme.radius.md,
     paddingHorizontal: theme.spacing.md, minHeight: UI_REVISION_V1 ? 48 : 40, flex: 1,
   },
-  primaryBtnText: { color: theme.colors.onBrandSecondary, fontWeight: '800', fontSize: 13 },
+  primaryBtnText: { color: theme.colors.onBrandSecondary, fontWeight: '800', fontSize: 12 },
   expand: { color: theme.colors.brandSecondary, fontSize: 12, fontWeight: '700', marginTop: theme.spacing.md },
 });

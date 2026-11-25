@@ -465,63 +465,63 @@ function ToolRow({ icon, title, sub, action, onPress }: { icon: any; title: stri
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: UI_V22_S4 ? 'transparent' : c.background },
-  header: { backgroundColor: c.navy, paddingHorizontal: 20, paddingBottom: 18 },
+  header: { backgroundColor: c.navy, paddingHorizontal: 16, paddingBottom: 18 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   hideBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, height: 30, borderRadius: 15 },
-  hideBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 13 },
+  hideBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 12 },
   quickExit: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#fff', paddingHorizontal: 12, height: 32, borderRadius: 16 },
-  quickExitTxt: { color: c.navy, fontWeight: '700', fontSize: 13 },
+  quickExitTxt: { color: c.navy, fontWeight: '700', fontSize: 12 },
   backBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 10 },
   shieldBox: { width: 52, height: 52, borderRadius: 14, backgroundColor: c.gold, alignItems: 'center', justifyContent: 'center' },
-  title: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 26 },
-  subtitle: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 13, marginTop: 2 },
+  title: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 22 },
+  subtitle: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 12, marginTop: 2 },
   discreet: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 16, padding: 14, marginTop: 18 },
-  discreetTitle: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 15 },
+  discreetTitle: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 13 },
   discreetSub: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 12, marginTop: 2 },
 
-  section: { paddingHorizontal: 20, marginTop: 24 },
-  h2: { fontFamily: theme.fonts.displayBold, fontSize: 22, color: UI_V22_S4 ? shieldColors.text : c.ink },
-  h2sub: { fontFamily: theme.fonts.body, fontSize: 13, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, marginTop: 2, marginBottom: 14 },
+  section: { paddingHorizontal: 16, marginTop: 18 },
+  h2: { fontFamily: theme.fonts.displayBold, fontSize: 19, color: UI_V22_S4 ? shieldColors.text : c.ink },
+  h2sub: { fontFamily: theme.fonts.body, fontSize: 12, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, marginTop: 2, marginBottom: 14 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
   rightCard: UI_V22_S4
-    ? { width: '47.5%', flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: shieldColors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: shieldColors.cardBorder, padding: 12, minHeight: 64 }
-    : { width: '47.5%', flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.lines, padding: 12, minHeight: 64 },
+    ? { width: '47.5%', flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: shieldColors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: shieldColors.cardBorder, padding: 12, minHeight: 54 }
+    : { width: '47.5%', flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.lines, padding: 12, minHeight: 54 },
   rightIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: UI_V22_S4 ? shieldColors.goldBg : c.goldMuted, alignItems: 'center', justifyContent: 'center' },
-  rightTxt: { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: UI_V22_S4 ? shieldColors.text : c.ink },
+  rightTxt: { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: UI_V22_S4 ? shieldColors.text : c.ink },
 
   toolCard: UI_V22_S4
     ? { backgroundColor: shieldColors.cardBg, borderRadius: 18, borderWidth: 1, borderColor: shieldColors.cardBorder, paddingHorizontal: 16 }
     : { backgroundColor: c.surface, borderRadius: 18, borderWidth: 1, borderColor: c.lines, paddingHorizontal: 16 },
   toolRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16 },
   toolIcon: { width: 40, height: 40, borderRadius: 11, backgroundColor: UI_V22_S4 ? shieldColors.chipBg : c.navySoft, alignItems: 'center', justifyContent: 'center' },
-  toolTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: UI_V22_S4 ? shieldColors.text : c.ink },
+  toolTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: UI_V22_S4 ? shieldColors.text : c.ink },
   toolSub: { fontFamily: theme.fonts.body, fontSize: 12, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, marginTop: 2 },
-  toolAction: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: UI_V22_S4 ? shieldColors.gold : c.navy },
+  toolAction: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: UI_V22_S4 ? shieldColors.gold : c.navy },
 
   hlGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
   hlCard: UI_V22_S4
     ? { width: '31%', backgroundColor: shieldColors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: shieldColors.cardBorder, paddingVertical: 16, alignItems: 'center', position: 'relative' }
     : { width: '31%', backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.lines, paddingVertical: 16, alignItems: 'center', position: 'relative' },
   hlVerified: { position: 'absolute', top: 8, right: 8 },
-  hlNote: { marginTop: 10, fontFamily: theme.fonts.body, fontSize: 13, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, lineHeight: 18 },
+  hlNote: { marginTop: 10, fontFamily: theme.fonts.body, fontSize: 12, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, lineHeight: 16 },
   lessonRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: UI_V22_S4 ? shieldColors.goldBg : c.goldMuted, borderRadius: 14, padding: 14, marginTop: 14 },
-  lessonTxt: { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: UI_V22_S4 ? shieldColors.text : c.ink },
-  hlNum: { fontFamily: theme.fonts.displayBold, fontSize: 22, color: UI_V22_S4 ? shieldColors.text : c.navy },
+  lessonTxt: { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: UI_V22_S4 ? shieldColors.text : c.ink },
+  hlNum: { fontFamily: theme.fonts.displayBold, fontSize: 19, color: UI_V22_S4 ? shieldColors.text : c.navy },
   hlLabel: { fontFamily: theme.fonts.body, fontSize: 12, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, marginTop: 2 },
 
   planCard: UI_V22_S4
     ? { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: shieldColors.goldBg, borderRadius: 18, borderWidth: 1, borderColor: shieldColors.tipBorder, padding: 18 }
     : { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: c.goldMuted, borderRadius: 18, borderWidth: 1, borderColor: c.goldSoft, padding: 18 },
-  planTitle: { fontFamily: theme.fonts.displayBold, fontSize: 18, color: UI_V22_S4 ? shieldColors.text : c.ink },
-  planSub: { fontFamily: theme.fonts.body, fontSize: 13, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, marginTop: 4, lineHeight: 18 },
-  planBtn: { backgroundColor: UI_V22_S4 ? shieldColors.lavenderBgDeep : c.navy, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 22 },
-  planBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 15 },
+  planTitle: { fontFamily: theme.fonts.displayBold, fontSize: 16, color: UI_V22_S4 ? shieldColors.text : c.ink },
+  planSub: { fontFamily: theme.fonts.body, fontSize: 12, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, marginTop: 4, lineHeight: 16 },
+  planBtn: { backgroundColor: UI_V22_S4 ? shieldColors.lavenderBgDeep : c.navy, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 18 },
+  planBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 13 },
 
   // D1 — discreet cover styles
   discreetCover: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 36, paddingVertical: 60 },
-  discreetCoverTitle: { fontFamily: theme.fonts.displayBold, fontSize: 22, color: UI_V22_S4 ? shieldColors.text : c.ink, textAlign: 'center', marginBottom: 12 },
-  discreetCoverNote: { fontFamily: theme.fonts.body, fontSize: 14, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, textAlign: 'center', lineHeight: 21, marginBottom: 32 },
+  discreetCoverTitle: { fontFamily: theme.fonts.displayBold, fontSize: 19, color: UI_V22_S4 ? shieldColors.text : c.ink, textAlign: 'center', marginBottom: 12 },
+  discreetCoverNote: { fontFamily: theme.fonts.body, fontSize: 13, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, textAlign: 'center', lineHeight: 18, marginBottom: 24 },
   revealBtn: { backgroundColor: UI_V22_S4 ? shieldColors.lavenderBgDeep : c.navy, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 36 },
-  revealBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 16 },
+  revealBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14 },
 });

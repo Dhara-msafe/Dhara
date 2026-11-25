@@ -38,7 +38,7 @@ export function SosEmergencyBanner({ onDismiss, language }: { onDismiss: () => v
       alignItems: 'center',
       gap: theme.spacing.sm,
     }}>
-      <Text style={{ fontSize: 18 }}>🆘</Text>
+      <Text style={{ fontSize: 16 }}>🆘</Text>
       <View style={{ flex: 1, gap: 4 }}>
         <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 12 }}>{headline}</Text>
         <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
@@ -60,7 +60,7 @@ export function SosEmergencyBanner({ onDismiss, language }: { onDismiss: () => v
               accessibilityLabel={`Call ${label} — ${desc}`}
               accessibilityRole="button"
             >
-              <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15, letterSpacing: 0.5 }}>{label}</Text>
+              <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13, letterSpacing: 0.5 }}>{label}</Text>
               <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 9, fontWeight: '500' }}>{desc}</Text>
             </Pressable>
           ))}
@@ -74,7 +74,7 @@ export function SosEmergencyBanner({ onDismiss, language }: { onDismiss: () => v
         accessibilityRole="button"
         style={{ padding: 4 }}
       >
-        <Text style={{ color: '#FFFFFF', fontSize: 20, fontWeight: '300', lineHeight: 22 }}>✕</Text>
+        <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '300', lineHeight: 19 }}>✕</Text>
       </Pressable>
     </View>
   );
@@ -115,8 +115,8 @@ export function EmergencyCallShortcut({ language }: { language: string }) {
             }}
           >
             <Ionicons name="call" size={16} color="#FFFFFF" />
-            <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>{label}</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 10 }}>{desc}</Text>
+            <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13 }}>{label}</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11 }}>{desc}</Text>
           </Pressable>
         ))}
       </View>

@@ -463,73 +463,73 @@ ${card.rights.map(r => `<div class="panel"><div class="phead">${t(r.heading, lan
 // ── Styles ────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   attachments: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.divider, padding: 14, borderRadius: 12, marginBottom: 20, gap: 8 },
-  attachmentText: { fontSize: 14, color: NAVY, lineHeight: 21 },
+  attachmentText: { fontSize: 13, color: NAVY, lineHeight: 18 },
   // NF-UI-REV-02 (Group C): 44px was below the 48px minimum touch target.
   attachmentBtn: { minHeight: UI_REVISION_V1 ? 48 : 44, flexDirection: 'row', gap: 8, alignItems: 'center' },
   safe:           { flex: 1, backgroundColor: BG },
-  scroll:         { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 60 },
+  scroll:         { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60 },
   centred:        { flex: 1, alignItems: 'center', justifyContent: 'center' },
   backBtn:        { marginBottom: 12, minHeight: UI_REVISION_V1 ? 48 : 44, minWidth: UI_REVISION_V1 ? 48 : 44, justifyContent: 'center' },
-  backText:       { color: NAVY, fontSize: 14, fontWeight: '600' },
+  backText:       { color: NAVY, fontSize: 13, fontWeight: '600' },
   banner:         {
-    backgroundColor: NAVY, borderRadius: 16, padding: 24, alignItems: 'center', marginBottom: 20,
+    backgroundColor: NAVY, borderRadius: 16, padding: 18, alignItems: 'center', marginBottom: 20,
   },
-  bannerEmoji:    { fontSize: 36, marginBottom: 8 },
-  bannerTitle:    { fontSize: 22, fontWeight: '700', color: '#FFF' },
-  bannerSub:      { fontSize: 13, color: '#C5CEEA', marginTop: 8, textAlign: 'center', lineHeight: 19 },
+  bannerEmoji:    { fontSize: 28, marginBottom: 8 },
+  bannerTitle:    { fontSize: 19, fontWeight: '700', color: '#FFF' },
+  bannerSub:      { fontSize: 12, color: '#C5CEEA', marginTop: 8, textAlign: 'center', lineHeight: 17 },
   primaryBtn:     {
     backgroundColor: NAVY, borderRadius: 12, paddingVertical: 16,
     alignItems: 'center', marginBottom: 12,
   },
-  primaryBtnText: { color: '#FFF', fontWeight: '700', fontSize: 16 },
+  primaryBtnText: { color: '#FFF', fontWeight: '700', fontSize: 14 },
   // NF-UI-REV-02: paddingVertical 14 (~46px tall) was just under the 48px
   // minimum touch target.
   secondaryBtn:   {
     borderWidth: 1.5, borderColor: NAVY, borderRadius: 12, paddingVertical: UI_REVISION_V1 ? 16 : 14,
     alignItems: 'center', marginTop: 8,
   },
-  secondaryBtnText: { color: NAVY, fontWeight: '600', fontSize: 14 },
+  secondaryBtnText: { color: NAVY, fontWeight: '600', fontSize: 13 },
   generatingRow:  { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, marginBottom: 12 },
-  generatingText: { color: NAVY, fontSize: 14 },
+  generatingText: { color: NAVY, fontSize: 13 },
   errorCard:      { backgroundColor: '#FFF0F0', borderRadius: 10, padding: 12, marginBottom: 12 },
-  errorText:      { color: RED, fontSize: 13 },
+  errorText:      { color: RED, fontSize: 12 },
   privacyCard:    {
-    backgroundColor: '#F0F4FF', borderRadius: 10, padding: 14, marginBottom: 24,
+    backgroundColor: '#F0F4FF', borderRadius: 10, padding: 14, marginBottom: 18,
   },
-  privacyText:    { fontSize: 12, color: '#334', lineHeight: 18 },
+  privacyText:    { fontSize: 12, color: '#334', lineHeight: 16 },
   rightsTitle:    {
-    fontSize: 14, fontWeight: '700', color: NAVY, textAlign: 'center',
+    fontSize: 13, fontWeight: '700', color: NAVY, textAlign: 'center',
     marginBottom: 16, letterSpacing: 0.5,
   },
 });
 
 const rc = StyleSheet.create({
   card:          {
-    backgroundColor: NAVY, borderRadius: 20, padding: 20, marginBottom: 20,
+    backgroundColor: NAVY, borderRadius: 20, padding: 16, marginBottom: 20,
   },
-  title:         { fontSize: 18, fontWeight: '700', color: GOLD, marginBottom: 16 },
+  title:         { fontSize: 16, fontWeight: '700', color: GOLD, marginBottom: 16 },
   chips:         { flexDirection: 'row', gap: 10, marginBottom: 16, flexWrap: 'wrap' },
   chip:          {
     backgroundColor: RED, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, flex: 1,
     alignItems: 'center',
   },
-  chipNum:       { fontSize: 20, fontWeight: '800', color: '#FFF' },
+  chipNum:       { fontSize: 17, fontWeight: '800', color: '#FFF' },
   // NF-UI-REV-02: white-80%-over-red measured ~4.6:1, right at the edge —
   // 88% gives a safer margin above the 4.5:1 minimum.
-  chipLabel:     { fontSize: 11, color: UI_REVISION_V1 ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.8)', marginTop: 4, textAlign: 'center' },
+  chipLabel:     { fontSize: 12, color: UI_REVISION_V1 ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.8)', marginTop: 4, textAlign: 'center' },
   panel:         {
     backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 14, marginBottom: 10,
   },
-  panelHeading:  { fontSize: 13, fontWeight: '700', color: GOLD, marginBottom: 6 },
-  panelBody:     { fontSize: 12, color: 'rgba(255,255,255,0.8)', lineHeight: 18 },
+  panelHeading:  { fontSize: 12, fontWeight: '700', color: GOLD, marginBottom: 6 },
+  panelBody:     { fontSize: 12, color: 'rgba(255,255,255,0.8)', lineHeight: 16 },
   // NF-UI-REV-02: white-50%-over-navy measured ~4.0:1, below the 4.5:1
   // minimum for this small disclaimer text — 68% clears it with margin.
-  footer:        { fontSize: 11, color: UI_REVISION_V1 ? 'rgba(255,255,255,0.68)' : 'rgba(255,255,255,0.5)', marginTop: 12, lineHeight: 17 },
+  footer:        { fontSize: 12, color: UI_REVISION_V1 ? 'rgba(255,255,255,0.68)' : 'rgba(255,255,255,0.5)', marginTop: 12, lineHeight: 17 },
   // NF-UI-REV-02: paddingVertical 14 (~46px tall) was just under the 48px
   // minimum touch target.
   shareBtn:      {
     marginTop: 16, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 12,
     paddingVertical: UI_REVISION_V1 ? 16 : 14, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
   },
-  shareBtnText:  { color: '#FFF', fontWeight: '600', fontSize: 14 },
+  shareBtnText:  { color: '#FFF', fontWeight: '600', fontSize: 13 },
 });

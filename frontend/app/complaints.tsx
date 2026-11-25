@@ -31,6 +31,6 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   header: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 8, backgroundColor: colors.surface },
   icon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  title: { flex: 1, fontSize: 22, fontWeight: '700', color: colors.primary },
+  title: { flex: 1, fontSize: 19, fontWeight: '700', color: colors.primary },
   content: { padding: 18, paddingBottom: 32 },
 });

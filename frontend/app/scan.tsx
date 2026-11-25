@@ -133,7 +133,7 @@ h2{color:#1B2B5B;font-size:18px;margin-bottom:2px;}
 .body{white-space:pre-wrap;font-size:14px;line-height:1.7;margin-top:6px;}
 .orig{background:#F7F7F7;border-left:3px solid #C9973A;padding:12px;font-size:12px;line-height:1.6;color:#444;white-space:pre-wrap;margin-top:8px;}
 .foot{color:#8A8A8A;font-size:11px;margin-top:26px;border-top:1px solid #E5E5E5;padding-top:10px;}
-.badge{display:inline-block;background:#E7EDF4;color:#1B2B5B;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;margin-bottom:12px;}
+.badge{display:inline-block;background:#EEF3FC;color:#1B2B5B;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;margin-bottom:12px;}
 .fact{display:flex;gap:12px;margin-bottom:6px;}
 .fk{color:#8A6A2A;font-size:12px;font-weight:700;min-width:130px;}
 .fv{font-size:12px;color:#1A1A1A;}
@@ -197,8 +197,8 @@ const headerStyles = StyleSheet.create({
     backgroundColor: c.navy, paddingHorizontal: 12, paddingBottom: 16,
   },
   back: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  title: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 22 },
-  sub: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 13, marginTop: 2 },
+  title: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 19 },
+  sub: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 12, marginTop: 2 },
 });
 
 // ── Main Component ──────────────────────────────────────────────────────────────
@@ -890,7 +890,7 @@ export default function Scan() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
-  scroll: { padding: 20 },
+  scroll: { padding: 16 },
 
   // ── Entry ──────────────────────────────────────────────────────────────
   intro: { alignItems: 'center', paddingVertical: 10 },
@@ -899,46 +899,46 @@ const styles = StyleSheet.create({
     backgroundColor: c.navy, alignItems: 'center', justifyContent: 'center',
   },
   introTitle: {
-    fontFamily: theme.fonts.displayBold, fontSize: 22, color: c.ink,
+    fontFamily: theme.fonts.displayBold, fontSize: 19, color: c.ink,
     textAlign: 'center', marginTop: 16,
   },
   introSub: {
-    fontFamily: theme.fonts.body, fontSize: 14, color: c.muted,
-    textAlign: 'center', lineHeight: 21, marginTop: 10,
+    fontFamily: theme.fonts.body, fontSize: 13, color: c.muted,
+    textAlign: 'center', lineHeight: 18, marginTop: 10,
   },
   retryPreview: { alignItems: 'center', gap: 10, marginBottom: 8 },
   retryThumb: { width: '100%', height: 140, borderRadius: 12 },
-  retryHint: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, textAlign: 'center' },
+  retryHint: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, textAlign: 'center' },
   retryWithScanBtn: {
     backgroundColor: c.navy, borderRadius: 8, paddingVertical: 8, alignItems: 'center', marginTop: 4,
   },
-  retryWithScanTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 13 },
+  retryWithScanTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 12 },
 
   // ── Error ──────────────────────────────────────────────────────────────
   errBox: {
     backgroundColor: '#FBEAE8', borderRadius: 12, padding: 14,
     marginTop: 16, flexDirection: 'row', alignItems: 'flex-start', gap: 10,
   },
-  errTxt: { fontFamily: theme.fonts.bodyMedium, fontSize: 14, color: c.error },
+  errTxt: { fontFamily: theme.fonts.bodyMedium, fontSize: 13, color: c.error },
   settingsBtn: {
     backgroundColor: c.navy, borderRadius: 10, paddingVertical: 10,
     alignItems: 'center', marginTop: 6, paddingHorizontal: 12,
   },
-  settingsTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 13 },
+  settingsTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 12 },
 
   // ── Shared action buttons ───────────────────────────────────────────────
-  actions: { gap: 12, marginTop: 24 },
+  actions: { gap: 12, marginTop: 18 },
   primaryBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 10, backgroundColor: c.navy, borderRadius: 14, paddingVertical: 16, marginTop: 16,
   },
-  primaryTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 16 },
+  primaryTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14 },
   ghostBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines,
     borderRadius: 14, paddingVertical: 15,
   },
-  ghostTxt: { color: c.navy, fontFamily: theme.fonts.bodyBold, fontSize: 16 },
+  ghostTxt: { color: c.navy, fontFamily: theme.fonts.bodyBold, fontSize: 14 },
 
   // ── Review step ────────────────────────────────────────────────────────
   reviewImageWrap: {
@@ -947,7 +947,7 @@ const styles = StyleSheet.create({
   },
   reviewImage: { width: '100%', height: 300 },
   reviewHint: {
-    fontFamily: theme.fonts.body, fontSize: 13, color: c.muted,
+    fontFamily: theme.fonts.body, fontSize: 12, color: c.muted,
     textAlign: 'center', marginTop: 10, marginBottom: 16,
   },
   reviewToolbar: {
@@ -956,27 +956,27 @@ const styles = StyleSheet.create({
   toolBtn: {
     flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
     gap: 6, paddingVertical: 14, borderWidth: 1, borderColor: c.lines,
-    borderRadius: 14, backgroundColor: c.surface, minHeight: 64,
+    borderRadius: 14, backgroundColor: c.surface, minHeight: 54,
   },
   toolBtnDisabled: { opacity: 0.5 },
-  toolBtnTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy },
+  toolBtnTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.navy },
   useScanBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 10, backgroundColor: c.navy, borderRadius: 14, paddingVertical: 18,
+    gap: 10, backgroundColor: c.navy, borderRadius: 14, paddingVertical: 14,
   },
-  useScanTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 17 },
+  useScanTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 15 },
 
   // ── Processing step ────────────────────────────────────────────────────
   processingContainer: {
     flex: 1, justifyContent: 'center', alignItems: 'center',
     padding: 32,
   },
-  processingSpinner: { marginBottom: 24 },
+  processingSpinner: { marginBottom: 18 },
   processingTitle: {
-    fontFamily: theme.fonts.displayBold, fontSize: 20, color: c.ink,
-    textAlign: 'center', marginBottom: 28,
+    fontFamily: theme.fonts.displayBold, fontSize: 17, color: c.ink,
+    textAlign: 'center', marginBottom: 22,
   },
-  processingSteps: { width: '100%', gap: 16, marginBottom: 24 },
+  processingSteps: { width: '100%', gap: 16, marginBottom: 18 },
   processingRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   processingIconBox: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
   processingActiveDot: {
@@ -986,12 +986,12 @@ const styles = StyleSheet.create({
     width: 10, height: 10, borderRadius: 5, backgroundColor: c.lines,
   },
   processingLabel: {
-    fontFamily: theme.fonts.body, fontSize: 15, color: c.muted, flex: 1,
+    fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, flex: 1,
   },
   processingDone: { color: c.success },
   processingActive: { color: c.navy, fontFamily: theme.fonts.bodySemiBold },
   processingNote: {
-    fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, textAlign: 'center',
+    fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, textAlign: 'center',
   },
 
   // ── OCR review step ────────────────────────────────────────────────────
@@ -999,7 +999,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 14,
   },
   ocrSubtitle: {
-    flex: 1, fontFamily: theme.fonts.bodyMedium, fontSize: 14, color: c.muted, lineHeight: 20,
+    flex: 1, fontFamily: theme.fonts.bodyMedium, fontSize: 13, color: c.muted, lineHeight: 18,
   },
   ocrThumb: {
     width: '100%', height: 140, borderRadius: 12, marginBottom: 16,
@@ -1009,10 +1009,10 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: c.lines, borderRadius: 14,
     backgroundColor: c.surface, padding: 14, marginBottom: 16, gap: 8,
   },
-  ocrLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 11, color: c.gold, letterSpacing: 1.2 },
+  ocrLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.gold, letterSpacing: 1.2 },
   ocrInput: {
-    fontFamily: theme.fonts.body, fontSize: 14, color: c.ink,
-    lineHeight: 21, minHeight: 120,
+    fontFamily: theme.fonts.body, fontSize: 13, color: c.ink,
+    lineHeight: 18, minHeight: 120,
   },
   ocrEditedNote: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -1025,19 +1025,19 @@ const styles = StyleSheet.create({
     width: '100%', height: 160, borderRadius: 14, marginBottom: 14,
     backgroundColor: c.surfaceTertiary,
   },
-  card: { backgroundColor: c.navy, borderRadius: 18, padding: 20, marginTop: 8 },
+  card: { backgroundColor: c.navy, borderRadius: 18, padding: 16, marginTop: 8 },
   cardLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.gold, letterSpacing: 1.2 },
-  summary: { fontFamily: theme.fonts.body, fontSize: 17, color: '#fff', lineHeight: 26, marginTop: 10 },
+  summary: { fontFamily: theme.fonts.body, fontSize: 15, color: '#fff', lineHeight: 23, marginTop: 10 },
   actionCard: {
     backgroundColor: c.goldMuted, borderRadius: 14, padding: 16,
     marginTop: 14, gap: 8,
   },
   actionCardLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.darkGold, letterSpacing: 1 },
-  actionTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 15, color: c.ink, lineHeight: 22 },
+  actionTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.ink, lineHeight: 19 },
   toggle: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18 },
-  toggleTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.navy },
+  toggleTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.navy },
   extracted: {
-    fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, lineHeight: 21,
+    fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18,
     marginTop: 10, backgroundColor: c.surface, borderWidth: 1,
     borderColor: c.lines, borderRadius: 12, padding: 14,
   },
@@ -1048,9 +1048,9 @@ const styles = StyleSheet.create({
     paddingVertical: 13, backgroundColor: c.surface,
   },
   secBtnSaved: { borderColor: c.success, backgroundColor: c.successSoft },
-  secTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.navy },
-  busy: { alignItems: 'center', paddingVertical: 24, gap: 10 },
-  busyTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.muted },
+  secTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.navy },
+  busy: { alignItems: 'center', paddingVertical: 18, gap: 10 },
+  busyTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.muted },
 
   // ── Result — legal ─────────────────────────────────────────────────────
   docTypeBadge: {
@@ -1058,12 +1058,12 @@ const styles = StyleSheet.create({
     backgroundColor: c.navySoft, borderRadius: 20, paddingHorizontal: 12,
     paddingVertical: 6, alignSelf: 'flex-start', marginBottom: 14,
   },
-  docTypeBadgeTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.navy },
+  docTypeBadgeTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.navy },
   sectionBlock: { marginTop: 16, gap: 8 },
   sectionLabel: {
-    fontFamily: theme.fonts.bodyBold, fontSize: 11, color: c.darkGold, letterSpacing: 1.2,
+    fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.darkGold, letterSpacing: 1.2,
   },
-  sectionText: { fontFamily: theme.fonts.body, fontSize: 15, color: c.ink, lineHeight: 22 },
+  sectionText: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, lineHeight: 19 },
   factsGrid: {
     borderRadius: 14, borderWidth: 1, borderColor: c.lines,
     backgroundColor: c.surface, overflow: 'hidden',
@@ -1077,14 +1077,14 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.muted,
     width: 110, flexShrink: 0, paddingTop: 1,
   },
-  factValue: { flex: 1, fontFamily: theme.fonts.bodyMedium, fontSize: 14, color: c.ink, lineHeight: 20 },
+  factValue: { flex: 1, fontFamily: theme.fonts.bodyMedium, fontSize: 13, color: c.ink, lineHeight: 18 },
   truthNote: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
     backgroundColor: '#FFF8E8', borderRadius: 12, padding: 12, marginTop: 14,
   },
   truthNoteConditional: { backgroundColor: '#EAF2FF' },
   truthNoteTxt: {
-    flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.warning, lineHeight: 19,
+    flex: 1, fontFamily: theme.fonts.body, fontSize: 12, color: c.warning, lineHeight: 17,
   },
   templateCard: {
     flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: c.surface,
@@ -1094,7 +1094,7 @@ const styles = StyleSheet.create({
     width: 42, height: 42, borderRadius: 12,
     backgroundColor: c.goldMuted, alignItems: 'center', justifyContent: 'center',
   },
-  templateTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink },
+  templateTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink },
   templateSub: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 3, lineHeight: 17 },
 
   // ── Result — non-legal ─────────────────────────────────────────────────
@@ -1103,10 +1103,10 @@ const styles = StyleSheet.create({
     backgroundColor: c.navySoft, borderRadius: 16, padding: 16, marginBottom: 16,
   },
   nonLegalTitle: {
-    fontFamily: theme.fonts.bodyBold, fontSize: 17, color: c.navy, lineHeight: 24,
+    fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.navy, lineHeight: 21,
   },
   nonLegalSub: {
-    fontFamily: theme.fonts.body, fontSize: 14, color: c.muted,
-    lineHeight: 21, marginBottom: 16, marginTop: 4,
+    fontFamily: theme.fonts.body, fontSize: 13, color: c.muted,
+    lineHeight: 18, marginBottom: 16, marginTop: 4,
   },
 });
