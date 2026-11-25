@@ -111,12 +111,19 @@ export default function TrustedCircle() {
 
   const add = async () => {
     const number = phone.replace(/[\s()-]/g, '');
-    if (!name.trim() || !/^\+?\d{10,15}$/.test(number)) { setStatus('Enter a name and a valid phone number (10–15 digits).'); return; }
-    if (TC_V2 && email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setStatus('Enter a valid email address or leave it blank.'); return; }
+    if (!name.trim() || !/^\+?\d{10,15}$/.test(number)) {
+      setStatus('Enter a name and a valid phone number (10–15 digits).');
+      return;
+    }
+    // Email is now mandatory — it links the invitation when the guardian registers.
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setStatus('Enter a valid email address for this person. They need it to receive the invitation and to link their account.');
+      return;
+    }
     if (busy || list.length >= 3) return;
     if (list.some(ct => ct.phone === number)) { setStatus('This number is already in your circle.'); return; }
     const newContact: Contact = { id: Date.now().toString(), name: name.trim(), phone: number, notify: true };
-    if (TC_V2 && email.trim()) newContact.email = email.trim();
+    newContact.email = email.trim();
     if (relationship.trim()) newContact.relationship = relationship.trim();
     const next = [...list, newContact];
     setBusy(true);
@@ -334,7 +341,22 @@ export default function TrustedCircle() {
             <TextInput testID="circle-name" value={name} onChangeText={setName} placeholder="Name" placeholderTextColor={c.muted} style={styles.input} accessibilityLabel="Name" />
             <TextInput testID="circle-phone" value={phone} onChangeText={setPhone} placeholder="Phone number" placeholderTextColor={c.muted} keyboardType="phone-pad" style={styles.input} accessibilityLabel="Phone number" />
             <TextInput testID="circle-relationship" value={relationship} onChangeText={setRelationship} placeholder="Relationship (e.g. Friend, Family) — optional" placeholderTextColor={c.muted} style={styles.input} accessibilityLabel="Relationship, optional" />
-            {TC_V2 && <TextInput testID="circle-email" value={email} onChangeText={setEmail} placeholder="Email address (optional)" placeholderTextColor={c.muted} keyboardType="email-address" autoCapitalize="none" style={styles.input} accessibilityLabel="Email address, optional" />}
+            {/* Email is now mandatory — the guardian must register with this exact
+                phone number and email for the invitation to link to their account. */}
+            <TextInput
+              testID="circle-email"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Email address (required)"
+              placeholderTextColor={c.muted}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              style={styles.input}
+              accessibilityLabel="Email address, required"
+            />
+            <Text style={styles.helperText}>
+              Your guardian must register on Dhara with this exact phone number and email address for the invitation to link automatically.
+            </Text>
             <Pressable
               testID="circle-add"
               disabled={busy}
@@ -376,6 +398,7 @@ const styles = StyleSheet.create({
   addBtn: { backgroundColor: c.navy, borderRadius: 12, paddingVertical: 14, alignItems: 'center', minHeight: UI_REVISION_V1 ? 48 : undefined, justifyContent: 'center' },
   addBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 16 },
   full: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, marginTop: 8 },
+  helperText: { fontFamily: theme.fonts.body, fontSize: 12, color: c.navy, lineHeight: 17, marginBottom: 12, paddingHorizontal: 2 },
   inviteRow: { marginTop: -6, marginBottom: 10, paddingLeft: 56 },
   // NF-UI-REV-07: this link was bare text with no padding — under 44px.
   inviteLinkBtn: { minHeight: UI_REVISION_V1 ? 44 : undefined, justifyContent: 'center' },

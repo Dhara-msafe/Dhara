@@ -610,3 +610,43 @@ class TestWhisperPromptHintB106:
         client = make_client("some transcript")
         await transcribe_with_retry(AUDIO, FNAME, CTYPE, "te", client, script_check_fn=fake_script_check)
         assert seen["lang"] == "te"
+
+
+# ── No-speech guard (2026-11-25) ──────────────────────────────────────────────
+
+from engine.stt_engine import NoSpeechDetected, is_no_speech_filler  # noqa: E402
+
+
+class TestNoSpeechFiller:
+    @pytest.mark.parametrize("text", ["you", "You", " you. ", "YOU!", "", "   ", None,
+                                      "Thanks for watching!", "Thank you for watching."])
+    def test_fillers_are_detected(self, text):
+        assert is_no_speech_filler(text) is True
+
+    @pytest.mark.parametrize("text", [
+        "thank you",                       # a user can genuinely say this
+        "you are my lawyer",
+        "Can you help me file an FIR?",
+        "मुझे मदद चाहिए",
+        "எனக்கு உதவி வேண்டும்",
+    ])
+    def test_real_speech_is_not_flagged(self, text):
+        assert is_no_speech_filler(text) is False
+
+
+@pytest.mark.asyncio
+class TestNoSpeechGuardInTranscribe:
+    async def test_silence_filler_raises_instead_of_returning_you(self):
+        client = MagicMock()
+        client.audio.transcriptions.create = AsyncMock(return_value=MagicMock(text="you"))
+        with pytest.raises(NoSpeechDetected):
+            await transcribe_with_retry(b"x" * 2048, "audio.m4a", "audio/m4a", "en", client)
+        # Not retried: a no-speech verdict is final, and a retry would bill twice.
+        assert client.audio.transcriptions.create.await_count == 1
+
+    async def test_real_transcript_still_returned(self):
+        client = MagicMock()
+        client.audio.transcriptions.create = AsyncMock(
+            return_value=MagicMock(text="Can you help me?"))
+        out = await transcribe_with_retry(b"x" * 2048, "audio.m4a", "audio/m4a", "en", client)
+        assert out["text"] == "Can you help me?"

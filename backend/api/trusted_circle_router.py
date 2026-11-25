@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends, Form
@@ -44,6 +44,8 @@ from html import escape
 
 from dependencies import db, current_user, logger
 from services import guardian_email as ge
+
+INVITE_TOKEN_DAYS = 30   # links in email inboxes expire after this many days
 
 try:
     from push import send_push
@@ -65,9 +67,10 @@ class PermissionsIn(BaseModel):
 class InviteIn(BaseModel):
     name: str = Field(..., min_length=1, max_length=80)
     phone: str = Field(..., min_length=6, max_length=20)
-    # A43: how to reach a trusted person who does not have DHARA. Optional,
-    # because an invitation to an existing user still works by phone alone.
-    email: Optional[str] = Field(default=None, max_length=254)
+    # Email is now MANDATORY — it is both the channel for reaching someone who
+    # doesn't have DHARA and the fallback lookup key when they later register.
+    # Validate format; guardian_email.normalise_email() does the same check.
+    email: str = Field(..., max_length=254)
     permissions: PermissionsIn = PermissionsIn()
     relationship: Optional[str] = Field(default=None, max_length=30)
 
@@ -104,6 +107,7 @@ def _public_link(link: dict) -> dict:
         "owner_name": link.get("owner_name"),
         "contact_name": link.get("contact_name"),
         "contact_phone": link.get("contact_phone"),
+        "contact_email": link.get("contact_email"),
         "relationship": link.get("relationship"),
         "invitee_user_id": link.get("invitee_user_id"),
         "permissions": link.get("permissions", {}),
@@ -111,6 +115,7 @@ def _public_link(link: dict) -> dict:
         "muted": bool(link.get("muted", False)),
         "created_at": link["created_at"],
         "responded_at": link.get("responded_at"),
+        "invite_token_expires_at": link.get("invite_token_expires_at"),
     }
 
 
@@ -165,6 +170,7 @@ async def _send_invite_email(link: dict, invite_token: str) -> bool:
             accept_url=f"{accept_url}?r=accept",
             decline_url=f"{accept_url}?r=decline",
             shares_location=bool((link.get("permissions") or {}).get("temp_location")),
+            expire_days=INVITE_TOKEN_DAYS,
         )
         await send_email(to=address, subject=subject, html=html, channel=EMAIL)
         return True
@@ -180,12 +186,7 @@ async def _link_by_invite_token(token: str) -> Optional[dict]:
 @router.get("/trusted-circle/invitation/email/{token}", response_class=HTMLResponse,
             include_in_schema=False)
 async def email_invitation_page(token: str, r: Optional[str] = None):
-    """A44: the page the invitation email links to. No app, no account.
-
-    Deliberately identical for an unknown, used or withdrawn token: a page
-    that said "no such invitation" would confirm to a stranger which links
-    are real.
-    """
+    """A44: the page the invitation email links to. No app, no account."""
     link = await _link_by_invite_token(token)
     if not link or link.get("status") in ("revoked", "left"):
         return _page(
@@ -195,6 +196,20 @@ async def email_invitation_page(token: str, r: Optional[str] = None):
             "and you do not need to do anything.</p>",
         )
 
+    # Check whether the token has expired (INVITE_TOKEN_DAYS after creation).
+    exp_iso = link.get("invite_token_expires_at")
+    if exp_iso:
+        try:
+            if datetime.fromisoformat(exp_iso) < datetime.now(timezone.utc):
+                return _page(
+                    "This invitation has expired",
+                    "<p>The link in the email was only valid for "
+                    f"{INVITE_TOKEN_DAYS} days. If you still want to be her safety "
+                    "contact, ask her to send a fresh invitation.</p>"
+                    "<p class=\"muted\">Nothing has been shared with you.</p>",
+                )
+        except ValueError:
+            pass
     owner = escape(link.get("owner_name") or "A DHARA user")
     shares = bool((link.get("permissions") or {}).get("temp_location"))
 
@@ -283,56 +298,63 @@ async def email_invitation_respond(token: str = Form(...), action: str = Form(..
 
 @router.post("/trusted-circle/invite")
 async def invite(body: InviteIn, user: dict = Depends(current_user)):
+    # ── 1. Validate & normalise the mandatory email ───────────────────────────
+    email = ge.normalise_email(body.email)
+    if not email:
+        raise HTTPException(400, "A valid email address is required")
+
+    # ── 2. Find an existing DHARA account: try phone first, then email ────────
     norm = _normalize_phone(body.phone)
     invitee = None
     if norm:
-        async for u in db.users.find({}, {"id": 1, "phone": 1}):
+        async for u in db.users.find({}, {"id": 1, "phone": 1, "email": 1}):
             if _normalize_phone(u.get("phone", "")) == norm and u["id"] != user["id"]:
                 invitee = u
                 break
+    if not invitee:
+        # Also check by email (case-insensitive) — catches Google-auth users
+        # who may have never entered their phone number.
+        invitee = await db.users.find_one(
+            {"email": email, "id": {"$ne": user["id"]}},
+            {"id": 1, "phone": 1, "email": 1},
+        )
 
     now = datetime.now(timezone.utc).isoformat()
     link_id = str(uuid.uuid4())
+
+    # ── 3. Build the invite token (ALWAYS, since email is now mandatory) ──────
+    invite_token, token_hash = ge.new_token()
+    view_token = ge.view_token_for(link_id)
+    expires_at = (datetime.now(timezone.utc) + timedelta(days=INVITE_TOKEN_DAYS)).isoformat()
+
     doc = {
-        "id": link_id,
-        "owner_id": user["id"],
-        "owner_name": user.get("name") or "A DHARA user",
-        "contact_name": body.name.strip(),
-        "contact_phone": body.phone.strip(),
+        "id":              link_id,
+        "owner_id":        user["id"],
+        "owner_name":      user.get("name") or "A DHARA user",
+        "contact_name":    body.name.strip(),
+        "contact_phone":   body.phone.strip(),
+        "contact_email":   email,
         "invitee_user_id": invitee["id"] if invitee else None,
-        "permissions": body.permissions.dict(),
-        "relationship": body.relationship.strip() if body.relationship else None,
-        "status": "pending",
-        "muted": False,
-        "created_at": now,
-        "responded_at": None,
+        "permissions":     body.permissions.dict(),
+        "relationship":    body.relationship.strip() if body.relationship else None,
+        "status":          "pending",
+        "muted":           False,
+        "created_at":      now,
+        "responded_at":    None,
+        # Email invite fields — always populated now that email is mandatory.
+        "channel":               "email",
+        "invite_token_hash":     token_hash,
+        "view_token_hash":       ge.hash_token(view_token) if view_token else None,
+        "email_invited_at":      now,
+        "invite_token_expires_at": expires_at,
     }
-    # A43: a trusted person without a DHARA account can be invited by email.
-    # Only when no account matched the phone number: an existing user is
-    # already reachable in the app, and two invitations would be confusing.
-    email = ge.normalise_email(body.email) if not invitee else None
-    invite_token = None
-    if email:
-        invite_token, token_hash = ge.new_token()
-        # The "see her last known area" token is derived from the link id and
-        # a server secret, so every alert email can rebuild the same address
-        # without the plain token ever being stored. Only its hash is kept,
-        # for the lookup when someone opens it.
-        view_token = ge.view_token_for(link_id)
-        doc.update({
-            "contact_email":      email,
-            "channel":            "email",
-            "invite_token_hash":  token_hash,   # the token itself is only ever in the email
-            "view_token_hash":    ge.hash_token(view_token) if view_token else None,
-            "email_invited_at":   ge.utc_now_iso(),
-        })
 
     await db.trusted_circle_links.insert_one(doc)
 
-    emailed = False
-    if email and invite_token:
-        emailed = await _send_invite_email(doc, invite_token)
+    # ── 4. Send the email invite (always when email is given) ─────────────────
+    emailed = await _send_invite_email(doc, invite_token)
 
+    # ── 5. If we found an existing DHARA user, also push them in-app ─────────
     if invitee:
         try:
             await send_push(
@@ -351,10 +373,8 @@ async def invite(body: InviteIn, user: dict = Depends(current_user)):
         "ok": True,
         "id": link_id,
         "matched_existing_user": invitee is not None,
-        # A43: the app tells her what actually happened, so she is not left
-        # believing someone was contacted when nothing went out.
         "invited_by_email": emailed,
-        "email_pending": bool(email) and not emailed,
+        "email_pending": not emailed,
     }
 
 

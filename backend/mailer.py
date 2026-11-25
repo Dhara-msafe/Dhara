@@ -218,11 +218,24 @@ def upi_status_email(*, name: str, status: str, message: str) -> tuple[str, str]
 # and how to refuse — in the first line, not the small print.
 
 
-def guardian_invite_email(*, owner_name: str, contact_name: str,
-                          accept_url: str, decline_url: str,
-                          shares_location: bool) -> tuple[str, str]:
-    """Invitation to be someone's trusted contact, with no app needed."""
-    subject = f"{owner_name} has asked you to be their safety contact on Dhara"
+def guardian_invite_email(
+    *,
+    owner_name: str,
+    contact_name: str,
+    accept_url: str,
+    decline_url: str,
+    shares_location: bool,
+    expire_days: int = 30,
+) -> tuple[str, str]:
+    """Invitation to be someone's trusted safety contact, with no app needed.
+
+    New requirements (profile-fields-email-invites):
+      • 'who' — owner_name appears in subject AND opening paragraph.
+      • 'why' — the safety use-case is explained up front.
+      • expiry — the link expires after expire_days days.
+      • register CTA — tells them to use the exact phone/email to link.
+    """
+    subject = f"{owner_name} has invited you to be their safety contact on Dhara"
     shared = (
         "the area she is in while a journey is running, and the time she expects to arrive"
         if shares_location else
@@ -231,12 +244,17 @@ def guardian_invite_email(*, owner_name: str, contact_name: str,
     inner = (
         '<tr><td style="font-size:22px;font-weight:700;padding-bottom:8px">Dhara</td></tr>'
         f'<tr><td style="font-size:15px;line-height:22px">Hi {escape(contact_name or "there")}, '
-        f"<b>{escape(owner_name)}</b> uses Dhara, an app that watches over her when she "
-        "travels. She has asked for you to be told if she does not arrive safely.</td></tr>"
+        f"<b>{escape(owner_name)}</b> uses Dhara — an app that watches over her personal "
+        "safety when she travels. She has asked you specifically to be notified if she "
+        "does not arrive safely.</td></tr>"
         '<tr><td style="font-size:15px;line-height:22px;padding-top:14px">'
-        f"If you agree, you would be sent an email when she starts a journey and if she "
-        f"misses her check-in. You would see {escape(shared)}. Nothing else, and only while "
-        "a journey is running.</td></tr>"
+        f"If you agree, you will receive an email when she starts a journey and again if "
+        f"she misses her expected check-in. You would see {escape(shared)}. "
+        "Nothing else, and only while a journey is active.</td></tr>"
+        '<tr><td style="font-size:14px;line-height:21px;color:#4A5568;padding-top:12px">'
+        "You do not need the Dhara app or an account to accept. If you do join Dhara "
+        "later, please register with the same phone number and email address so your "
+        "safety contacts are linked automatically.</td></tr>"
         '<tr><td align="center" style="padding:22px 0 6px">'
         f'<a href="{escape(accept_url)}" style="background:#12203A;color:#FFFFFF;'
         'text-decoration:none;font-size:16px;font-weight:700;border-radius:10px;'
@@ -244,9 +262,10 @@ def guardian_invite_email(*, owner_name: str, contact_name: str,
         '<tr><td align="center" style="padding-bottom:18px">'
         f'<a href="{escape(decline_url)}" style="color:#4A5568;font-size:14px">'
         "No, do not contact me</a></td></tr>"
-        '<tr><td style="font-size:14px;line-height:21px;color:#4A5568">'
-        "You do not need the app, and you do not need an account. If you do nothing, "
-        "you will not be contacted again about this.</td></tr>"
+        '<tr><td style="font-size:13px;line-height:20px;color:#8A93A6">'
+        f"This link expires in {escape(str(expire_days))} days. After that, ask "
+        f"{escape(owner_name)} to send a fresh invitation. If you do nothing, you will "
+        "not be contacted again.</td></tr>"
     )
     return subject, _shell(inner)
 
