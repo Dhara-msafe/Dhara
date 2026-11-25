@@ -136,7 +136,11 @@
     "production": {
       "distribution": "store",
       "env": {
-        "EXPO_PUBLIC_HEADOUT_DEMO": "false"
+        "EXPO_PUBLIC_HEADOUT_DEMO": "false",
+        "EXPO_PUBLIC_OUTBOUND_MODE": "live",
+        "EXPO_PUBLIC_OUTBOUND_PROFILE": "production",
+        "EXPO_PUBLIC_ALERT_SIMULATION_MODE": "false",
+        "EXPO_PUBLIC_ENABLE_ISSUE_REPORTER": "false"
       },
       "android": {
         "buildType": "app-bundle"
