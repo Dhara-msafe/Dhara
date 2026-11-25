@@ -16,7 +16,7 @@ export default function Complaints() {
   // as soon as there is one complaint (or while loading / on error).
   const [listEmpty, setListEmpty] = useState(false);
   const hideHeaderAdd = UI_V22_SWEEP && listEmpty;
-  return <SafeAreaView style={styles.safe} edges={['top']} testID="complaints-screen">
+  return <SafeAreaView style={styles.safe} edges={[]} testID="complaints-screen">
     <View style={styles.header}>
       <Pressable testID="complaints-back" accessibilityRole="button" accessibilityLabel="Back to Home" style={styles.icon} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/home')}><Ionicons name="arrow-back" size={24} color={colors.primary} /></Pressable>
       <Text testID="complaints-title" style={styles.title}>Your complaints</Text>

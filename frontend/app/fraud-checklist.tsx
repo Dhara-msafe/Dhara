@@ -181,7 +181,7 @@ export default function FraudChecklist() {
   const isStale = elapsed >= 86400;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']} testID="fraud-checklist-screen">
+    <SafeAreaView style={styles.safe} edges={[]} testID="fraud-checklist-screen">
       <View style={styles.header}>
         <Pressable testID="fraud-back" onPress={() => router.back()} hitSlop={12}>
           <Ionicons name="chevron-back" size={26} color={theme.colors.onBrandPrimary} />

@@ -518,7 +518,7 @@ export default function IpcBnsLookup() {
   const totalInDb   = guard?.total_in_db ?? 655;
 
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView edges={['bottom']} style={s.safe}>
       {/* Header */}
       <View style={s.header}>
         <Pressable

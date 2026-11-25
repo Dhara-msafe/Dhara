@@ -32,7 +32,7 @@ export default function LookupWebView() {
 
   if (!decodedUrl) {
     return (
-      <SafeAreaView style={s.container}>
+      <SafeAreaView edges={['bottom']} style={s.container}>
         <View style={s.header}>
           <TouchableOpacity onPress={() => router.back()} style={s.btn}>
             <Ionicons name="arrow-back-outline" size={22} color={GOLD} />
@@ -47,7 +47,7 @@ export default function LookupWebView() {
   }
 
   return (
-    <SafeAreaView style={s.container} edges={['top']}>
+    <SafeAreaView style={s.container} edges={[]}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.btn}>
           <Ionicons name="arrow-back-outline" size={22} color={GOLD} />

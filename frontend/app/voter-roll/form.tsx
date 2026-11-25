@@ -178,7 +178,7 @@ export default function VoterFormScreen() {
   // ── Registration gate ─────────────────────────────────────────────────────
   if (phase === 'gate') {
     return (
-      <SafeAreaView style={st.safe} edges={['top']}>
+      <SafeAreaView style={st.safe} edges={[]}>
         <Pressable onPress={() => router.back()} style={st.backBtn}>
           <Text style={st.backText}>← {lang === 'hi' ? 'वापस' : lang === 'mr' ? 'मागे' : 'Back'}</Text>
         </Pressable>
@@ -206,7 +206,7 @@ export default function VoterFormScreen() {
   // ── Generating PDF ────────────────────────────────────────────────────────
   if (phase === 'generating') {
     return (
-      <SafeAreaView style={st.safe} edges={['top']}>
+      <SafeAreaView style={st.safe} edges={[]}>
         <View style={st.centred}>
           <ActivityIndicator size="large" color={NAVY} />
           <Text style={st.genText}>
@@ -233,7 +233,7 @@ export default function VoterFormScreen() {
     const dlLabel = lang === 'hi' ? 'PDF डाउनलोड / शेयर करें' : lang === 'mr' ? 'PDF डाउनलोड / शेअर करा' : 'Download / Share PDF';
 
     return (
-      <SafeAreaView style={st.safe} edges={['top']}>
+      <SafeAreaView style={st.safe} edges={[]}>
         <ScrollView contentContainerStyle={st.scrollContent}>
           <View style={st.successBanner}>
             <Text style={st.successEmoji}>✅</Text>
@@ -282,7 +282,7 @@ export default function VoterFormScreen() {
   if (!currentQ) return null;
 
   return (
-    <SafeAreaView style={st.safe} edges={['top']}>
+    <SafeAreaView style={st.safe} edges={[]}>
       <KeyboardSafeView
         style={{ flex: 1 }}
         behavior="padding"

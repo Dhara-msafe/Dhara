@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useLightStatusBar } from '@/src/ui/kit';
 import {
   View,
   Text,
@@ -53,6 +54,7 @@ type Pricing = {
 };
 
 export default function Upgrade() {
+  useLightStatusBar(); // redesign v3: white status-bar icons over the dark header
   const { token, user, refreshUser, language } = useAuth();
   const router = useRouter();
 

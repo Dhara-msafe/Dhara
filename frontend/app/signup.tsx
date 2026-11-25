@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLightStatusBar } from '@/src/ui/kit';
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Modal, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Link } from 'expo-router';
@@ -9,6 +10,7 @@ import { passwordMeetsRule, PASSWORD_RULE_MSG } from '@/src/passwordRule';
 import { PasswordLabelWithRules } from '@/src/components/PasswordLabelWithRules';
 
 export default function Signup() {
+  useLightStatusBar(); // redesign v3: white status-bar icons over the dark header
   const { register } = useAuth();
   const router = useRouter();
   const [name, setName] = useState('');

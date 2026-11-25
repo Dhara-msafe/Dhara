@@ -121,7 +121,7 @@ export default function MissingAttachments() {
     finally { setBusy(false); }
   }
   const openMap = (location: MissingLocation) => openExternal(mapUrl(location)).catch(() => setError('Could not open Maps. Please use the coordinates shown.'));
-  return <SafeAreaView edges={['top', 'bottom']} style={s.safe} testID="missing-attachments-screen">
+  return <SafeAreaView edges={['bottom']} style={s.safe} testID="missing-attachments-screen">
     <View style={s.header}><Action id="missing-attachments-back" icon="arrow-back" label="Back" onPress={() => router.back()} disabled={busy} /><Text testID="missing-attachments-title" style={s.title}>Photos & location</Text></View>
     <KeyboardSafeView style={s.flex} behavior="padding">
       <ScrollView testID="missing-attachments-scroll" contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">

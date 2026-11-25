@@ -260,7 +260,7 @@ export default function Settings() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']} testID="settings-screen">
+    <SafeAreaView style={styles.safe} edges={[]} testID="settings-screen">
       <View style={styles.header}>
         <Text style={styles.h1}>{t('settings.title', language.code)}</Text>
         <Text style={styles.h2}>{t('settings.subtitle', language.code)}</Text>

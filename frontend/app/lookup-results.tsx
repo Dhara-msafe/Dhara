@@ -230,7 +230,7 @@ export default function LookupResults() {
     : `"${nameParam}"${params.stateName ? ` · ${params.stateName}` : ''}${params.districtName ? `, ${params.districtName}` : ''}`;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={[]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={10}>
           <Ionicons name="arrow-back-outline" size={22} color={GOLD} />

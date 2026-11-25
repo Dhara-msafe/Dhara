@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLightStatusBar } from '@/src/ui/kit';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -25,6 +26,7 @@ import { UI_V22_S3 } from '@/src/uiV22Flags';
 const c = theme.colors;
 
 export default function Emergency() {
+  useLightStatusBar(); // redesign v3: white status-bar icons over the dark header
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { language } = useAuth();

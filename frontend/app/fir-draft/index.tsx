@@ -1338,13 +1338,13 @@ ${data.bot_message}`);
   if (!sessionStarted) {
     if (checkingResume) {
       return (
-        <SafeAreaView style={[styles.root, { justifyContent: 'center', alignItems: 'center' }]}>
+        <SafeAreaView edges={['bottom']} style={[styles.root, { justifyContent: 'center', alignItems: 'center' }]}>
           <ActivityIndicator size="large" color={NAVY} />
         </SafeAreaView>
       );
     }
     return (
-      <SafeAreaView testID="fir-start-screen" style={styles.root}>
+      <SafeAreaView edges={['bottom']} testID="fir-start-screen" style={styles.root}>
         <View style={styles.preHeader}>
           <Pressable testID="fir-start-back" onPress={() => router.back()} style={(s) => [styles.backBtn, focusRingStyle(s)]} hitSlop={12} accessibilityRole="button" accessibilityLabel="Go back">
             <Ionicons name="arrow-back" size={22} color={NAVY} />
@@ -1463,7 +1463,7 @@ ${data.bot_message}`);
   // SESSION ACTIVE: Chat UI
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={styles.root}>
+    <SafeAreaView edges={['bottom']} style={styles.root}>
       {/* v3.3: Emergency overlay */}
       {showEmergencyScreen && (
         <EmergencyOverlay

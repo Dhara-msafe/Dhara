@@ -242,7 +242,7 @@ pre{white-space:pre-wrap;font-size:13px;line-height:1.7;font-family:'Courier New
 
   if (draftLoading) {
     return (
-      <SafeAreaView testID="fir-result-loading" style={styles.root}>
+      <SafeAreaView edges={['bottom']} testID="fir-result-loading" style={styles.root}>
         <View style={styles.center}>
           <ActivityIndicator size="large" color={NAVY} />
           <Text style={styles.loadingText}>Loading your draft…</Text>
@@ -253,7 +253,7 @@ pre{white-space:pre-wrap;font-size:13px;line-height:1.7;font-family:'Courier New
 
   if (draftError || !draftText) {
     return (
-      <SafeAreaView testID="fir-result-error" style={styles.root}>
+      <SafeAreaView edges={['bottom']} testID="fir-result-error" style={styles.root}>
         <View style={styles.center}>
           <Ionicons name="alert-circle-outline" size={48} color={RED} />
           <Text style={[styles.loadingText, { color: RED, marginTop: 12 }]}>{draftError || 'Draft could not be loaded.'}</Text>
@@ -266,7 +266,7 @@ pre{white-space:pre-wrap;font-size:13px;line-height:1.7;font-family:'Courier New
   }
 
   return (
-    <SafeAreaView testID="fir-result-screen" style={styles.root}>
+    <SafeAreaView edges={['bottom']} testID="fir-result-screen" style={styles.root}>
       {/* Header */}
       <View style={styles.header}>
         <Pressable testID="fir-result-back" accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={(s) => [styles.backBtn, focusRingStyle(s)]} hitSlop={12}>

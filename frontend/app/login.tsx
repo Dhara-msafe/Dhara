@@ -302,8 +302,9 @@ const styles = StyleSheet.create({
   centred: { textAlign: 'center' },
   label: { color: theme.colors.onSurfaceSecondary, marginTop: theme.spacing.lg, marginBottom: theme.spacing.sm, fontWeight: '600' },
   input: { borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, padding: theme.spacing.md, fontSize: 14, color: theme.colors.onSurface, backgroundColor: theme.colors.surfaceSecondary },
-  pwWrap: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceSecondary },
-  pwInput: { flex: 1, padding: theme.spacing.md, fontSize: 14, color: theme.colors.onSurface },
+  pwWrap: { flexDirection: 'row', alignItems: 'center', overflow: 'hidden', borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceSecondary },
+  // minWidth 0 lets the field shrink, so the eye button stays inside the box.
+  pwInput: { flex: 1, minWidth: 0, padding: theme.spacing.md, fontSize: 14, color: theme.colors.onSurface },
   eyeBtn: { paddingHorizontal: theme.spacing.md, paddingVertical: theme.spacing.md, justifyContent: 'center', alignItems: 'center' },
   btn: { backgroundColor: theme.colors.brand, padding: theme.spacing.lg, borderRadius: theme.radius.md, alignItems: 'center', marginTop: theme.spacing.xl, minHeight: 52 },
   btnText: { color: theme.colors.onBrandPrimary, fontWeight: '700', fontSize: 14 },

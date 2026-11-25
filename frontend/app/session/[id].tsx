@@ -107,7 +107,7 @@ export default function SessionView() {
   }, [speakingId, language, token, stopSpeaking]);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']} testID="session-view">
+    <SafeAreaView style={styles.safe} edges={[]} testID="session-view">
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} testID="back-btn" hitSlop={10}>
           <Ionicons name="arrow-back" size={26} color={theme.colors.brand} />

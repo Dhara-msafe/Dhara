@@ -49,7 +49,7 @@ export default function SavedScreen() {
   // Guest Mode: saved/bookmarked answers require a registered account.
   if (user?.is_guest) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']} testID="saved-screen">
+      <SafeAreaView style={styles.safe} edges={[]} testID="saved-screen">
         <View style={styles.header}>
           <View style={styles.titleRow}>
             <Pressable testID="saved-back" onPress={() => router.navigate(tabBackTarget(from) as any)} hitSlop={8} style={(s) => [styles.backBtn, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
@@ -72,14 +72,14 @@ export default function SavedScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']} testID="saved-screen">
+      <SafeAreaView style={styles.safe} edges={[]} testID="saved-screen">
         <ActivityIndicator style={{ marginTop: 40 }} color={theme.colors.brand} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']} testID="saved-screen">
+    <SafeAreaView style={styles.safe} edges={[]} testID="saved-screen">
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <Pressable testID="saved-back" onPress={() => router.navigate(tabBackTarget(from) as any)} hitSlop={8} style={(s) => [styles.backBtn, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">

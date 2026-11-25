@@ -311,7 +311,7 @@ ${card.rights.map(r => `<div class="panel"><div class="phead">${t(r.heading, lan
 
   if (loading) {
     return (
-      <SafeAreaView style={s.safe} edges={['top']}>
+      <SafeAreaView style={s.safe} edges={[]}>
         <View style={s.centred}>
           <ActivityIndicator size="large" color={NAVY} />
         </View>
@@ -320,7 +320,7 @@ ${card.rights.map(r => `<div class="panel"><div class="phead">${t(r.heading, lan
   }
 
   return (
-    <SafeAreaView testID="missing-result-screen" style={s.safe} edges={['top', 'bottom']}>
+    <SafeAreaView testID="missing-result-screen" style={s.safe} edges={['bottom']}>
       <ScrollView contentContainerStyle={s.scroll}>
         {/* Header */}
         <Pressable
