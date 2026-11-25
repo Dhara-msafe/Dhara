@@ -355,7 +355,7 @@ def build_system_prompt(
 
     disclaimer_line = (
         "\n\nAt the end of your reply, add exactly this line, WRITTEN IN " + lang_display + ":\n"
-        '"⚠️ Legal information, not legal advice. Consult an advocate. © Callistus Moses · MSafe Solutions."'
+        '"⚠️ Legal information, not legal advice. Consult an advocate."'
     )
     verified_block = ""
     if corpus_context:
