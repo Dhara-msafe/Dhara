@@ -186,7 +186,7 @@ function ScreenCaptureLock() {
 }
 /** Inner component so the hook runs only when rendered (i.e. on native). */
 function NativeCaptureLock() {
-  // usePreventScreenCapture(); // disabled — screenshots allowed
+  usePreventScreenCapture();
   return null;
 }
 
