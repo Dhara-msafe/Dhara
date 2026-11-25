@@ -25,6 +25,7 @@ import { theme } from '@/src/theme';
 import { trackEvent } from '@/src/analytics';
 import { getConfiguredSTT, whisperTranscribeFile, sttErrorToMessage, MAX_AUDIO_BYTES, AUDIO_TOO_LARGE_MESSAGE } from '@/src/voice/stt';
 import { claimMic, MIC_BUSY_MESSAGE, withMicLease, isMicHeldByEvidenceLocker, TTS_BLOCKED_BY_LOCKER_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
+import { classifyCapture, createPeakTracker, CAPTURE_SILENT_MESSAGE, CAPTURE_TOO_SHORT_MESSAGE } from '@/src/voice/core/captureCheck';
 import { canSpeakNow, noteAudioInterruption, noteSpeakIntent, VOICE_COMPANION_ENABLED, VOICE_OFF_HINT } from '@/src/voice/speechGate';
 import { VoiceStateMachine } from '@/src/voice/core/voiceStateMachine';
 import { needsConfirmation } from '@/src/voice/core/voicePolicy';
@@ -57,6 +58,10 @@ import { focusRingStyle } from '@/src/a11yFocus';
 
 const CANCEL_THRESHOLD = -80; // px the user must drag left to cancel
 const LOCK_THRESHOLD = -55; // px the user must drag up to lock hands-free recording
+// Ask-mic recorder options: the stock preset plus level metering, which the
+// silent-capture guard (src/voice/core/captureCheck.ts) reads. Module-level
+// so the object identity/JSON is stable across renders.
+const ASK_RECORDING_OPTIONS = { ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true };
 
 
 
@@ -173,7 +178,17 @@ export default function ChatScreen() {
   // "listening" waveform looks and behaves identically on every phone.
   const waveBars = useRef([0, 1, 2, 3, 4].map(() => new Animated.Value(0.3))).current;
   const scrollRef = useRef<ScrollView>(null);
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorder = useAudioRecorder(ASK_RECORDING_OPTIONS);
+  // Silent-capture guard: samples the real mic level while recording (refs
+  // only — no re-render) so stopRecording() can refuse to upload a recording
+  // that contains no sound. See src/voice/core/captureCheck.ts.
+  const captureStartedAtRef = useRef(0);
+  const capturePeakRef = useRef(createPeakTracker());
+  const captureMeterTimerRef = useRef<any>(null);
+  const stopCaptureMeter = useCallback(() => {
+    if (captureMeterTimerRef.current) { clearInterval(captureMeterTimerRef.current); captureMeterTimerRef.current = null; }
+  }, []);
+  useEffect(() => stopCaptureMeter, [stopCaptureMeter]);
   const nativeSTTHandleRef = useRef<{ stop: () => Promise<any> } | null>(null);
   // Web MediaRecorder refs — used for browser-based audio recording
   const webRecorderRef = useRef<any>(null);
@@ -1263,6 +1278,19 @@ export default function ChatScreen() {
           }
           micLeaseRef.current = claimResult.lease;
           recorder.record();
+          captureStartedAtRef.current = Date.now();
+          capturePeakRef.current = createPeakTracker();
+          stopCaptureMeter();
+          captureMeterTimerRef.current = setInterval(() => {
+            // Self-terminating: every cancel/preempt/unmount path stops the
+            // recorder, so the sampler ends with it without needing a hook
+            // in each of those paths.
+            try {
+              const st = recorder.getStatus();
+              if (!st?.isRecording) { stopCaptureMeter(); return; }
+              capturePeakRef.current.add(st.metering);
+            } catch { stopCaptureMeter(); }
+          }, 200);
           started = true;
           setRecording(true);
         } finally {
@@ -1290,7 +1318,7 @@ export default function ChatScreen() {
         webStreamRef.current = null;
       }
     }
-  }, [recorder, token, stopCloudTTS, notify, micPulse]);
+  }, [recorder, token, stopCloudTTS, notify, micPulse, stopCaptureMeter]);
 
   // Talk to DHARA — Step 5: CONFIRMING + needsConfirmation(). Inert (no-op
   // beyond the existing modal) when VOICE_COMPANION_ENABLED is OFF.
@@ -1475,6 +1503,13 @@ export default function ChatScreen() {
         // builds — every other recorder.stop() call in this file is
         // guarded the same way; this one was the odd one out and could
         // leave the mic UI stuck or surface as an unhandled rejection.
+        stopCaptureMeter();
+        try { capturePeakRef.current.add(recorder.getStatus()?.metering); } catch {}
+        const captureStats = {
+          elapsedMs: captureStartedAtRef.current ? Date.now() - captureStartedAtRef.current : 0,
+          ...capturePeakRef.current.read(),
+        };
+        captureStartedAtRef.current = 0;
         try { await recorder.stop(); } catch {}
         const uri = recorder.uri;
         // P0-C: never flip allowsRecording:false while the Evidence Locker
@@ -1492,6 +1527,15 @@ export default function ChatScreen() {
         if (!uri) {
           setTranscribing(false);
           notify('Microphone', sttErrorToMessage(new Error('__no_recording__')));
+          return;
+        }
+        // Silent-capture guard: numbers only (duration, level, sample count)
+        // — no audio content, no transcript. Diagnostic code DHARA/VOICE_CAPTURE.
+        const captureVerdict = classifyCapture(captureStats);
+        console.warn('DHARA/VOICE_CAPTURE', captureVerdict, Math.round(captureStats.elapsedMs), captureStats.peakDb === null ? 'no-meter' : Math.round(captureStats.peakDb), captureStats.samples);
+        if (captureVerdict !== 'ok') {
+          setTranscribing(false);
+          notify('Microphone', captureVerdict === 'silent' ? CAPTURE_SILENT_MESSAGE : CAPTURE_TOO_SHORT_MESSAGE);
           return;
         }
         if (!token) { setTranscribing(false); return; }
@@ -1519,7 +1563,7 @@ export default function ChatScreen() {
       // per status, with a Retry that resends the same recording.
       showTranscriptionError(e, retryTranscription);
     }
-  }, [recorder, token, language, notify, forceLogout, showTranscriptionError, retryTranscription, deleteRetryAudio]);
+  }, [recorder, token, language, notify, forceLogout, showTranscriptionError, retryTranscription, deleteRetryAudio, stopCaptureMeter]);
 
   // WhatsApp-style hold-to-talk handlers
   const onMicPressIn = useCallback(() => {

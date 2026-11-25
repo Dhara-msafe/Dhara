@@ -2092,8 +2092,10 @@ async def read_validated_audio(audio: UploadFile) -> tuple[bytes, str, str]:
 async def whisper_transcribe(audio: tuple[bytes, str, str], language: Optional[str]) -> dict:
     """FastAPI-facing wrapper; delegates core logic to ``stt_engine``.
     ``audio`` must come from ``read_validated_audio``."""
-    from engine.stt_engine import transcribe_with_retry
+    from engine.stt_engine import transcribe_with_retry, NoSpeechDetected
     data, filename, ctype = audio
+    # Size and container only — never audio content or transcript text.
+    logger.info("voice transcribe: %d bytes, %s", len(data), ctype)
     try:
         oc = openai_client()
         return await transcribe_with_retry(
@@ -2103,6 +2105,12 @@ async def whisper_transcribe(audio: tuple[bytes, str, str], language: Optional[s
             language=language,
             openai_client=oc,
             script_check_fn=_script_check,
+        )
+    except NoSpeechDetected:
+        logger.info("voice transcribe: no speech detected (%d bytes)", len(data))
+        raise HTTPException(
+            400,
+            "We couldn't hear any speech in that recording. Please try again, speaking close to the phone.",
         )
     except Exception as e:
         err_msg = str(e).lower()
