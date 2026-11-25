@@ -3,6 +3,8 @@ import { View, Text, TextInput, Pressable, ScrollView, Platform, ActivityIndicat
 import { crossAlert } from '@/src/utils/crossAlert';
 import { alertPermissionBlocked } from '@/src/permissions/setup';
 import { useHeaderSosPresent } from '@/src/ui/headerSos';
+import { useLightStatusBar } from '@/src/ui/kit';
+import { useSizeClass } from '@/src/ui/useSizeClass';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -77,6 +79,8 @@ export default function ChatScreen() {
   // old `autoSpeak` value when the question was sent).
   // Redesign v3: this screen's own header carries SOS.
   useHeaderSosPresent();
+  useLightStatusBar();
+  const headerSize = useSizeClass();
   const autoSpeakRef = useRef(autoSpeak);
   autoSpeakRef.current = autoSpeak;
   const { primaryInterest } = useUserProfile();
@@ -1983,8 +1987,8 @@ export default function ChatScreen() {
             accessibilityRole="button"
             accessibilityLabel={`Change language. Current language: ${language.native}`}
           >
-            <Ionicons name="language-outline" size={12} color={theme.colors.brand} />
-            <Text style={styles.langChipText}>{language.native}</Text>
+            <Ionicons name="language-outline" size={12} color="#fff" />
+            <Text style={styles.langChipText} numberOfLines={1}>{language.native}</Text>
           </Pressable>
         </View>
 
@@ -1997,8 +2001,9 @@ export default function ChatScreen() {
             accessibilityRole="button"
             accessibilityLabel={t('home.newChat', language.code)}
           >
-            <Ionicons name="add" size={16} color={theme.colors.brand} />
-            <Text style={styles.newChatText}>{t('home.newChat', language.code)}</Text>
+            <Ionicons name="add" size={20} color="#fff" />
+            {/* Redesign v3: the label shows only where the row has room for it. */}
+            {headerSize.windowWidth >= 412 && <Text style={styles.newChatText}>{t('home.newChat', language.code)}</Text>}
           </Pressable>
           <Pressable
             testID="history-header-btn"
@@ -2008,7 +2013,7 @@ export default function ChatScreen() {
             accessibilityRole="button"
             accessibilityLabel="Chat history"
           >
-            <Ionicons name="time-outline" size={22} color={theme.colors.brand} />
+            <Ionicons name="time-outline" size={22} color="#fff" />
           </Pressable>
           <Pressable
             testID="ask-mute-btn"
@@ -2019,7 +2024,7 @@ export default function ChatScreen() {
             accessibilityState={{ selected: !autoSpeak }}
             accessibilityLabel={autoSpeak ? 'Mute: stop reading answers aloud' : 'Unmute: read answers aloud'}
           >
-            <Ionicons name={autoSpeak ? 'volume-high-outline' : 'volume-mute-outline'} size={22} color={autoSpeak ? theme.colors.brand : theme.colors.onSurfaceSecondary} />
+            <Ionicons name={autoSpeak ? 'volume-high-outline' : 'volume-mute-outline'} size={22} color={autoSpeak ? '#fff' : theme.colors.gold} />
           </Pressable>
           {/* UI_V22_ONE_SOS (B-122): SOS sits in the header row, in normal
               layout, instead of the tab layout's floating pill that covered

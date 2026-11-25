@@ -19,7 +19,9 @@ export const WEB_CHAT_MAX_WIDTH = 800;
 export const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
+    // Redesign v3: navy, so the status-bar space above the navy header is
+    // navy too (the SafeAreaView's top padding takes this colour).
+    backgroundColor: theme.colors.deepNavy,
     // Web: the outer viewport gets a subtly different backdrop so the
     // centered chat column (webContentWrap) reads as a distinct "page"
     // instead of the mobile UI stretching edge-to-edge across a wide
@@ -29,23 +31,23 @@ export const styles = StyleSheet.create({
   webContentWrap: {
     flex: 1,
     width: '100%',
+    backgroundColor: theme.colors.background,
     ...(Platform.OS === 'web' ? { maxWidth: WEB_CHAT_MAX_WIDTH, backgroundColor: theme.colors.surface } : {}),
   },
   header: {
+    // Redesign v3: the same navy header as every other screen, on one row.
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.xl,
-    paddingVertical: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.divider,
-    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 10,
+    backgroundColor: theme.colors.deepNavy,
   },
-  headerBrand: { flexShrink: 0 },
-  headerButtons: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, maxWidth: '100%' },
-  title: { fontFamily: theme.fonts.display, fontSize: 22, fontWeight: '700', color: theme.colors.brand },
+  headerBrand: { flexShrink: 1, minWidth: 0 },
+  headerButtons: { flexDirection: 'row', alignItems: 'center', gap: 7, flexShrink: 0 },
+  title: { fontFamily: theme.fonts.brand, fontSize: 20, letterSpacing: 1.5, color: '#FFFFFF', textTransform: 'uppercase' },
   subtitle: { color: theme.colors.onSurfaceSecondary, fontSize: 12, marginTop: 2 },
   // Language indicator chip below the title — tappable so users can switch language directly
   langChip: {
@@ -56,12 +58,10 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: theme.radius.pill,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surfaceSecondary,
+    backgroundColor: 'rgba(255,255,255,0.14)',
     alignSelf: 'flex-start',
   },
-  langChipText: { color: theme.colors.brand, fontSize: 12, fontWeight: '600' },
+  langChipText: { color: '#FFFFFF', fontFamily: theme.fonts.bodySemiBold, fontSize: 12 },
   badge: {
     backgroundColor: theme.colors.surfaceTertiary,
     borderRadius: theme.radius.pill,
@@ -73,23 +73,21 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    justifyContent: 'center',
     borderRadius: theme.radius.pill,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
-    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 10,
+    minWidth: 44,
+    backgroundColor: 'rgba(255,255,255,0.14)',
     // NF-UI-REV-03: 44pt was the pre-revision minimum (iOS); bumped to the
     // 48px Android/Material minimum under the flag.
     minHeight: UI_REVISION_V1 ? 48 : 44,
   },
-  newChatText: { color: theme.colors.brand, fontSize: 12, fontWeight: '500' },
+  newChatText: { color: '#FFFFFF', fontFamily: theme.fonts.bodySemiBold, fontSize: 12 },
   historyHeaderBtn: {
     width: UI_REVISION_V1 ? 48 : 44, height: UI_REVISION_V1 ? 48 : 44,
     borderRadius: UI_REVISION_V1 ? 24 : 22, flexShrink: 0,
     alignItems: 'center', justifyContent: 'center',
-    backgroundColor: theme.colors.surfaceSecondary,
-    borderWidth: 1, borderColor: theme.colors.border,
+    backgroundColor: 'rgba(255,255,255,0.14)',
   },
   usageRow: {
     flexDirection: 'row',
@@ -239,7 +237,7 @@ export const styles = StyleSheet.create({
   chatZone: {
     flex: 1,
     minHeight: 0,
-    backgroundColor: theme.colors.surfaceSecondary,
+    backgroundColor: theme.colors.background,
   },
   chatScroll: { flex: 1, minHeight: 0 },
 
