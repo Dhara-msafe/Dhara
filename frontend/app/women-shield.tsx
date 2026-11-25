@@ -5,11 +5,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBarCap } from '@/src/ui/kit';
+import { StatusBarCap, SosPill112 } from '@/src/ui/kit';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
-import { SosPill, Divider } from '@/src/components/dhara/SosPill';
+import { Divider } from '@/src/components/dhara/SosPill';
 import { fetchFlags, fetchHelplines, safetyRoute, setCheckin as persistCheckin, getCheckin, getCircle, type Helpline } from '@/src/women/api';
 import { loadVisibleRecordings, releaseRecordings } from '@/src/women/evidenceStore'; // Fix (S1-2): count only visible (non-segment) items
 import { noteQuickExit } from '@/src/voice/speechGate';
@@ -198,7 +198,7 @@ export default function WomenShield() {
                 <Ionicons name="exit-outline" size={16} color={c.navy} />
                 <Text style={styles.quickExitTxt}>{tr('ws.quickexit', lang)}</Text>
               </Pressable>
-              <SosPill />
+              <SosPill112 testID="ws-sos" />
             </View>
           </View>
           <View style={styles.titleRow}>

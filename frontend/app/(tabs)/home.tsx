@@ -1,8 +1,8 @@
-import { View, Text, ScrollView, Pressable, StyleSheet, Image, useWindowDimensions, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, ScrollView, Pressable, StyleSheet, useWindowDimensions, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBarCap } from '@/src/ui/kit';
+import { AppHeader, Panel, Body, Tile, TileGrid, Button } from '@/src/ui/kit';
+import { useSizeClass } from '@/src/ui/useSizeClass';
 import { useState, useEffect, useCallback } from 'react';
 import { theme } from '@/src/theme';
 import { UI_REVISION_V1 } from '@/src/designRevision';
@@ -23,7 +23,7 @@ const c = theme.colors;
 const TRUSTED_CIRCLE_RECIPIENT = process.env.EXPO_PUBLIC_TRUSTED_CIRCLE_RECIPIENT === 'true';
 
 export default function Home() {
-  const insets = useSafeAreaInsets();
+  const size = useSizeClass();
   const router = useRouter();
   const { user, language, token } = useAuth();
   const lang = language.code;
@@ -156,30 +156,23 @@ export default function Home() {
 
   return (
     <View style={styles.root}>
-      <StatusBarCap />
+      {/* Redesign v3, stage 3: the shared navy header (wordmark + SOS 112),
+          fixed above the scroll. Wide web has the desktop frame instead. */}
+      {!isWide && <AppHeader showBack={false} testID="home-header" />}
       <ScrollView contentContainerStyle={{ paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
-        {/* ── Navy header ─────────────────────────────── */}
-        <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-          {!isWide && (
-          <View style={styles.headerRow}>
-            <View style={styles.brandRow}>
-              <View style={styles.logo}>
-                <Image source={require('../../assets/images/dhara_mark.png')} style={styles.logoImg} resizeMode="contain" />
-              </View>
-              <View>
-                <Text style={styles.brand}>DHARA</Text>
-                <Text style={styles.tagline}>धारा · {tr('shell.tagline', lang)}</Text>
-              </View>
-            </View>
+        {/* ── Greeting + voice ─────────────────────────── */}
+        <View style={[styles.hero, { paddingHorizontal: size.margin }]}>
+          <View style={styles.heroTop}>
+            <Text style={styles.eyebrow} numberOfLines={1}>{place} · {tr('home.offline', lang)}</Text>
             <View style={styles.headerActions}>
               {/* 22 Nov (Vivek): language pill first, then the bell. */}
-              <Pressable style={(state) => [styles.langPill, focusRingStyle(state)]} onPress={() => router.push('/language')} accessibilityRole="button" accessibilityLabel={`Change language, currently ${language.native}`}>
-                <Ionicons name="globe-outline" size={14} color="#fff" />
+              <Pressable style={(state) => [styles.langPill, focusRingStyle(state)]} onPress={() => router.push('/language')} accessibilityRole="button" accessibilityLabel={`Change language, currently ${language.native}`} testID="home-language-pill">
+                <Ionicons name="globe-outline" size={14} color={c.navy} />
                 <Text style={styles.langTxt} numberOfLines={1}>{language.native}</Text>
               </Pressable>
               {TRUSTED_CIRCLE_RECIPIENT && (
-                <Pressable style={(state) => [styles.bellBtn, focusRingStyle(state)]} onPress={() => router.push('/alerts' as any)} testID="home-alerts-bell" accessibilityRole="button" accessibilityLabel={alertCount > 0 ? `View alerts, ${alertCount} unread` : 'View alerts'}>
-                  <Ionicons name="notifications-outline" size={20} color="#fff" />
+                <Pressable style={(state) => [styles.bellBtn, focusRingStyle(state)]} onPress={() => router.push('/alerts' as any)} testID="home-alerts-bell" accessibilityRole="button" accessibilityLabel={alertCount > 0 ? `Alerts, ${alertCount} unread` : 'Alerts'}>
+                  <Ionicons name="notifications-outline" size={19} color={c.navy} />
                   {alertCount > 0 && (
                     <View style={styles.bellBadge}><Text style={styles.bellBadgeTxt}>{alertCount > 9 ? '9+' : alertCount}</Text></View>
                   )}
@@ -187,39 +180,45 @@ export default function Home() {
               )}
             </View>
           </View>
-          )}
+          <Text style={[styles.greeting, { fontSize: size.title + 1 }]} numberOfLines={2}>{tr('home.greeting', lang)}, {name}</Text>
+          <Text style={styles.heroSub}>{tr('home.askSub', lang)}</Text>
 
-          <Text style={styles.greeting}>{tr('home.greeting', lang)}, {name}</Text>
-          <View style={styles.metaRow}>
-            <View style={styles.metaChip}>
-              <Ionicons name="location-outline" size={13} color="#fff" />
-              <Text style={styles.metaTxt}>{place}</Text>
+          <Pressable style={(state) => [styles.micBtn, size.short && styles.micBtnShort, focusRingStyle(state)]} onPress={() => router.push({ pathname: '/(tabs)', params: { autostartMic: Date.now().toString() } })} testID="home-mic" accessibilityRole="button" accessibilityLabel="Ask DHARA a question by voice">
+            <View style={[styles.micCore, size.short && styles.micCoreShort]}>
+              <Ionicons name="mic" size={size.short ? 30 : 36} color={c.navy} />
             </View>
-            <View style={styles.metaChip}>
-              <Ionicons name="checkmark-circle-outline" size={13} color="#fff" />
-              <Text style={styles.metaTxt}>{tr('home.offline', lang)}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* ── Ask card ─────────────────────────────────── */}
-        <View style={styles.askCard}>
-          <Text style={styles.askTitle}>{tr('home.askTitle', lang)}</Text>
-          <Text style={styles.askSub}>{tr('home.askSub', lang)}</Text>
-          <Pressable style={(state) => [styles.micBtn, focusRingStyle(state)]} onPress={() => router.push({ pathname: '/(tabs)', params: { autostartMic: Date.now().toString() } })} testID="home-mic" accessibilityRole="button" accessibilityLabel="Ask DHARA a question by voice">
-            <Ionicons name="mic" size={40} color="#fff" />
           </Pressable>
           <Text style={styles.holdTxt}>{tr('home.holdToSpeak', lang)}</Text>
           <View style={styles.askActions}>
-            <Pressable style={styles.askAction} onPress={() => router.push('/(tabs)')} testID="home-type-button" accessibilityRole="button" accessibilityLabel="Type your question instead">
+            <Pressable style={(state) => [styles.askAction, focusRingStyle(state)]} onPress={() => router.push('/(tabs)')} testID="home-type-button" accessibilityRole="button" accessibilityLabel="Type your question instead">
               <Ionicons name="create-outline" size={18} color={c.navy} />
               <Text style={styles.askActionTxt}>{tr('home.type', lang)}</Text>
             </Pressable>
-            <Pressable style={styles.askAction} onPress={() => router.push('/scan')} accessibilityRole="button" accessibilityLabel="Scan a document">
+            <Pressable style={(state) => [styles.askAction, focusRingStyle(state)]} onPress={() => router.push('/scan')} testID="home-scan-button" accessibilityRole="button" accessibilityLabel="Scan a document">
               <Ionicons name="camera-outline" size={18} color={c.navy} />
               <Text style={styles.askActionTxt}>{tr('home.scan', lang)}</Text>
             </Pressable>
           </View>
+        </View>
+
+        {/* ── Women's Shield: the four safety tools, one tap from Home ── */}
+        <View style={{ paddingHorizontal: size.margin }}>
+          <Panel tone="blue" title="Women’s Shield" testID="home-shield-panel">
+            <Body>Safe journeys, trusted people, your records and emergency help.</Body>
+            <View style={{ height: 10 }} />
+            <TileGrid columns={2} inset={32}>
+              <Tile icon="navigate-outline" label="Head Out" hint="Plan a safe check-in" testID="home-tile-headout" onPress={() => router.push(HEAD_OUT_ENABLED ? '/women/head-out' : '/women-shield')} />
+              <Tile icon="people-outline" label="Trusted Circle" hint="Choose your people" testID="home-tile-circle" onPress={() => router.push('/women/trusted-circle')} />
+              <Tile icon="warning-outline" label="Emergency" hint="112 and other options" alert testID="home-tile-emergency" onPress={() => router.push('/emergency')} />
+              <Tile icon="lock-closed-outline" label="Evidence Locker" hint="Keep records private" testID="home-tile-locker" onPress={() => router.push('/women/evidence-locker')} />
+            </TileGrid>
+            <View style={{ height: 10 }} />
+            <Button label="Open Women’s Shield" variant="outline" full testID="home-open-shield" onPress={() => router.push('/women-shield')} />
+          </Panel>
+        </View>
+
+        {/* ── Try saying ───────────────────────────────── */}
+        <View style={[styles.trySection, { paddingHorizontal: size.margin }]}>
           <Text style={styles.tryLabel}>{tr('home.trySaying', lang).toUpperCase()}</Text>
           {(primaryInterest
             ? primaryInterest.homeTryQuestions
@@ -235,6 +234,7 @@ export default function Home() {
                 router.push({ pathname: '/(tabs)', params: { draft: clean, entry: Date.now().toString() } } as any);
               }}
             >
+              <Ionicons name="chatbubble-ellipses-outline" size={15} color={c.blue} />
               <Text style={styles.tryChipTxt}>{q}</Text>
             </Pressable>
           ))}
@@ -251,7 +251,7 @@ export default function Home() {
               accessibilityLabel="Set your interests on the Me tab to personalize suggestions"
             >
               <View style={{ flex: 1 }}>
-                <Text style={styles.onboardTitle}>✨ What matters to you?</Text>
+                <Text style={styles.onboardTitle}>What matters to you?</Text>
                 <Text style={styles.onboardBody}>
                   Pick your interests on the Me tab and DHARA will personalize these suggestions for you.
                 </Text>
@@ -442,6 +442,15 @@ export default function Home() {
           )}
         </View>
         )}
+
+        {/* ── Know your rights ─────────────────────────── */}
+        <View style={{ paddingHorizontal: size.margin, marginTop: 8 }}>
+          <Panel title="Know your rights" testID="home-rights-panel">
+            <Body>Understand your next steps from official sources.</Body>
+            <View style={{ height: 10 }} />
+            <Button label="Explore rights and next steps" full testID="home-rights-cta" onPress={() => router.push('/(tabs)/rights')} />
+          </Panel>
+        </View>
       </ScrollView>
     </View>
   );
@@ -449,41 +458,32 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
-  header: { backgroundColor: c.navy, paddingHorizontal: 16, paddingBottom: 54, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
-  // 22 Nov: centre the bell and language pill with the logo and wordmark.
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logo: { width: 44, height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: c.gold, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  logoImg: { width: '100%', height: '100%' },
-  brand: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 21, letterSpacing: 1 },
-  tagline: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 12 },
-  // 22 Nov: no right margin; the 72px was kept for a floating help button that is hidden on Home.
+  hero: { paddingTop: 16, paddingBottom: 6 },
+  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6 },
+  eyebrow: { flex: 1, fontFamily: theme.fonts.bodyBold, fontSize: 12, letterSpacing: 1, color: c.goldText, textTransform: 'uppercase' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  // UI-revision pilot (reversible via UI_REVISION_V1): 40x40 was below the
-  // 48px minimum touch target.
-  bellBtn: { width: UI_REVISION_V1 ? 48 : 40, height: UI_REVISION_V1 ? 48 : 40, borderRadius: UI_REVISION_V1 ? 24 : 20, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
+  // Touch targets stay 48 tall (hitSlop makes up the visual 36).
+  bellBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.paper, borderWidth: 1, borderColor: c.outlineBorder, alignItems: 'center', justifyContent: 'center' },
   bellBadge: { position: 'absolute', top: -2, right: -2, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: c.error, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
   bellBadgeTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 9 },
-  // UI-revision pilot: 40px height was below the 48px minimum touch target.
-  langPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 12, height: UI_REVISION_V1 ? 48 : 40, borderRadius: 999, maxWidth: 92 },
-  langTxt: { color: '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 12 },
-  greeting: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 22, marginTop: 18 },
-  metaRow: { flexDirection: 'row', gap: 10, marginTop: 12, flexWrap: 'wrap' },
-  metaChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
-  metaTxt: { color: '#fff', fontFamily: theme.fonts.bodyMedium, fontSize: 12 },
+  langPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: c.paper, borderWidth: 1, borderColor: c.outlineBorder, paddingHorizontal: 12, height: 40, borderRadius: 999, maxWidth: 120 },
+  langTxt: { color: c.navy, fontFamily: theme.fonts.bodySemiBold, fontSize: 12 },
+  greeting: { color: c.ink, fontFamily: theme.fonts.displayBold, fontSize: 25 },
+  heroSub: { fontFamily: theme.fonts.body, fontSize: 13, lineHeight: 19, color: c.muted, marginTop: 4 },
 
-  askCard: { backgroundColor: c.surface, marginHorizontal: 16, marginTop: -36, borderRadius: 24, padding: 22, alignItems: 'center', shadowColor: c.shadow, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 1, shadowRadius: 16, elevation: 4 },
-  askTitle: { fontFamily: theme.fonts.displayBold, fontSize: 21, color: c.ink, textAlign: 'center' },
-  askSub: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, textAlign: 'center', marginTop: 4 },
-  micBtn: { width: 110, height: 110, borderRadius: 55, backgroundColor: c.navy, alignItems: 'center', justifyContent: 'center', marginVertical: 20, shadowColor: c.navy, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 6 },
-  holdTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.ink },
-  askActions: { flexDirection: 'row', gap: 12, marginTop: 18, width: '100%' },
-  askAction: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: c.lines, borderRadius: 14, paddingVertical: 14 },
-  askActionTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy },
-  tryLabel: { alignSelf: 'flex-start', fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.onSurfaceTertiary, letterSpacing: 1, marginTop: 20, marginBottom: 8 },
-  // UI-revision pilot: paddingVertical 10 (~40px effective height) was below the 48px minimum.
-  tryChip: { alignSelf: 'flex-start', backgroundColor: c.surfaceSecondary, borderRadius: 999, paddingHorizontal: 16, paddingVertical: UI_REVISION_V1 ? 14 : 10, marginBottom: 8 },
-  tryChipTxt: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink },
+  // The prototype's gold voice button: pale ring, gold core.
+  micBtn: { alignSelf: 'center', width: 128, height: 128, borderRadius: 64, backgroundColor: c.goldLight, alignItems: 'center', justifyContent: 'center', marginTop: 14, marginBottom: 8 },
+  micBtnShort: { width: 104, height: 104, borderRadius: 52, marginTop: 10 },
+  micCore: { width: 84, height: 84, borderRadius: 42, backgroundColor: c.gold, alignItems: 'center', justifyContent: 'center' },
+  micCoreShort: { width: 68, height: 68, borderRadius: 34 },
+  holdTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink, textAlign: 'center' },
+  askActions: { flexDirection: 'row', gap: 9, marginTop: 14 },
+  askAction: { flex: 1, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.paper, borderWidth: 1, borderColor: c.outlineBorder, borderRadius: 12 },
+  askActionTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.navy },
+  trySection: { marginTop: 10 },
+  tryLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.goldText, letterSpacing: 1, marginBottom: 8 },
+  tryChip: { flexDirection: 'row', alignItems: 'center', gap: 9, minHeight: 48, backgroundColor: c.paper, borderWidth: 1, borderColor: c.lines, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 },
+  tryChipTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, lineHeight: 18, color: c.ink },
 
   section: { paddingHorizontal: 16, marginTop: 18 },
   sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
   // UI_V22_HOME_SIMPLE: one card, full width, no horizontal scroll, so
   // nothing is ever clipped mid-card at 390px.
   shelfSingle: { paddingHorizontal: 16, paddingTop: 14 },
-  forYouCard: { width: 280, borderRadius: 20, padding: 18, justifyContent: 'space-between', minHeight: 170 },
+  forYouCard: { width: 280, borderRadius: 17, padding: 16, justifyContent: 'space-between', minHeight: 170 },
   forYouCardFull: { width: '100%' },
   forYouCardLight: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines },
   forYouTag: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
@@ -510,8 +510,8 @@ const styles = StyleSheet.create({
   navyBtn: { backgroundColor: c.navy, borderRadius: 12, paddingVertical: UI_REVISION_V1 ? 14 : 11, alignItems: 'center', alignSelf: 'flex-start', paddingHorizontal: 18 },
   navyBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: '#fff' },
 
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
-  tile: { width: '47%', backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.lines, padding: 16, gap: 6, minHeight: 112 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 9 },
+  tile: { width: '48%', backgroundColor: c.tileBg, borderRadius: 13, borderWidth: 1, borderColor: c.tileBorder, paddingVertical: 14, paddingHorizontal: 12, gap: 4, minHeight: 100 },
   tileNavy: { backgroundColor: c.navy, borderColor: c.navy },
   tileForYou: { borderWidth: 2, borderColor: c.navy + '30' },
   tileTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink, marginTop: 4 },
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
   forYouBadge: { position: 'absolute', top: 12, right: 12, backgroundColor: c.navy, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   forYouBadgeTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 8, color: '#fff', letterSpacing: 0.5 },
 
-  onboardCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#EFF6FF', borderRadius: 14, borderWidth: 1.5, borderColor: c.navy + '30', padding: 16, marginTop: 12, width: '100%' },
+  onboardCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.blueBg, borderRadius: 13, borderWidth: 1, borderColor: c.blueBorder, padding: 16, marginTop: 12, width: '100%' },
   onboardTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink, marginBottom: 3 },
   onboardBody: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 17 },
 

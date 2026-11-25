@@ -62,6 +62,7 @@ export default function Rights() {
   return (
     <SafeAreaView style={styles.safe} edges={[]} testID="rights-screen">
       <View style={styles.header}>
+        <Text style={styles.eyebrow}>DHARA · YOUR RIGHTS</Text>
         <Text style={styles.h1}>
           {/* DEF-008 fix: labels like "Women's Rights" / "Consumer Rights"
               already end in "Rights" — appending " Rights" unconditionally
@@ -209,11 +210,12 @@ export default function Rights() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: theme.colors.surface },
-  header: { padding: theme.spacing.xl, paddingBottom: theme.spacing.md, borderBottomWidth: 1, borderBottomColor: theme.colors.divider },
-  h1: { fontFamily: theme.fonts.display, fontSize: 24, color: theme.colors.brand, fontWeight: '700' },
-  h2: { color: theme.colors.onSurfaceSecondary, marginTop: 4 },
-  scroll: { padding: theme.spacing.lg, gap: theme.spacing.md, paddingBottom: theme.spacing.xxl },
+  safe: { flex: 1, backgroundColor: theme.colors.background },
+  header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4 },
+  eyebrow: { fontFamily: theme.fonts.bodyBold, fontSize: 12, letterSpacing: 1, color: theme.colors.goldText, marginBottom: 6 },
+  h1: { fontFamily: theme.fonts.displayBold, fontSize: 24, lineHeight: 29, color: theme.colors.ink },
+  h2: { fontFamily: theme.fonts.body, fontSize: 13, lineHeight: 19, color: theme.colors.muted, marginTop: 4 },
+  scroll: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 28 },
   firCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -231,25 +233,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  firCardTitle: { color: '#fff', fontSize: 14, fontWeight: '800' },
-  firCardSub: { color: 'rgba(255,255,255,0.85)', fontSize: 12.5, marginTop: 2, lineHeight: 17 },
+  firCardTitle: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 15 },
+  firCardSub: { color: 'rgba(255,255,255,0.85)', fontFamily: theme.fonts.body, fontSize: 12, marginTop: 2, lineHeight: 17 },
   // Card is now a plain (non-pressable) container — only the header below
   // is interactive, so it owns no padding of its own (see cardHeadPressable).
   card: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.colors.border, marginBottom: theme.spacing.md, overflow: 'hidden' },
   // 48px-minimum touch target for the expand/collapse toggle (NF-UI-REV-02).
   cardHeadPressable: { padding: theme.spacing.lg, minHeight: UI_REVISION_V1 ? 48 : undefined },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
-  iconWrap: { width: 44, height: 44, borderRadius: 22, backgroundColor: theme.colors.surfaceSecondary, alignItems: 'center', justifyContent: 'center' },
-  cardTitle: { fontFamily: theme.fonts.display, fontSize: 15, fontWeight: '700', color: theme.colors.onSurface },
-  cardSummary: { color: theme.colors.onSurfaceSecondary, marginTop: 2, fontSize: 12 },
+  iconWrap: { width: 44, height: 44, borderRadius: 13, backgroundColor: theme.colors.tileBg, alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: theme.colors.ink },
+  cardSummary: { fontFamily: theme.fonts.body, color: theme.colors.muted, marginTop: 2, fontSize: 12, lineHeight: 17 },
   body: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg, paddingTop: theme.spacing.lg, borderTopWidth: 1, borderTopColor: theme.colors.divider },
   lawPill: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: theme.colors.surfaceSecondary, paddingHorizontal: theme.spacing.md, paddingVertical: theme.spacing.sm, borderRadius: theme.radius.pill, marginBottom: theme.spacing.md },
-  lawText: { color: theme.colors.brandSecondary, fontSize: 12, fontWeight: '600' },
+  lawText: { color: theme.colors.brandSecondary, fontFamily: theme.fonts.bodySemiBold, fontSize: 12 },
   point: { flexDirection: 'row', gap: theme.spacing.sm, marginBottom: theme.spacing.sm },
   bullet: { color: theme.colors.brandSecondary, fontSize: 16, lineHeight: 19 },
-  pointText: { flex: 1, color: theme.colors.onSurface, lineHeight: 19, fontSize: 13 },
+  pointText: { flex: 1, fontFamily: theme.fonts.body, color: theme.colors.ink, lineHeight: 19, fontSize: 13 },
   askBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: theme.colors.brand, borderRadius: theme.radius.md, padding: theme.spacing.md, marginTop: theme.spacing.md, minHeight: UI_REVISION_V1 ? 48 : undefined },
-  askText: { color: theme.colors.onBrandPrimary, fontWeight: '700' },
+  askText: { color: theme.colors.onBrandPrimary, fontFamily: theme.fonts.bodyBold, fontSize: 14 },
   noticeBox: { flexDirection: 'row', gap: theme.spacing.sm, backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md, padding: theme.spacing.md, marginBottom: theme.spacing.md },
   noticeText: { flex: 1, color: theme.colors.onSurfaceSecondary, fontSize: 12.5, lineHeight: 16 },
   citeWrap: { marginTop: theme.spacing.sm, paddingTop: theme.spacing.sm, borderTopWidth: 1, borderTopColor: theme.colors.divider },
