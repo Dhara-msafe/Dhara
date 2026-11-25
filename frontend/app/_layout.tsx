@@ -16,6 +16,7 @@ import { useAppFonts } from "@/src/hooks/use-app-fonts";
 import { DesktopFrame } from "@/src/components/dhara/DesktopFrame";
 import { GlobalHelpButton } from "@/src/components/dhara/GlobalHelpButton";
 import { QaModeBanner } from "@/src/components/dhara/QaModeBanner";
+import { QaInsetFrame } from "@/src/components/dhara/QaModeBanner";
 import { IssueReporterButton } from "@/src/components/IssueReporterButton";
 import { DockedStack } from "@/src/components/dhara/FloatingDock";
 import { UI_V22_DOCK } from "@/src/uiV22Flags";
@@ -474,7 +475,9 @@ export default function RootLayout() {
                   </DockedStack>
                 ) : (
                 <View style={{ flex: 1 }}>
-                  <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.surface } }} />
+                  <QaInsetFrame>
+                    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.surface } }} />
+                  </QaInsetFrame>
                   <GlobalHelpButton />
                   <IssueReporterButton />
                 </View>

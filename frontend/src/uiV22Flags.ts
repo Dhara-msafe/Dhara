@@ -83,7 +83,12 @@ export const UI_V22_P7 = process.env.EXPO_PUBLIC_UI_V22_P7 === 'true';
  *   EXPO_PUBLIC_ENABLE_ISSUE_REPORTER=true (test builds). Production builds,
  *   which do not set it, never show it.
  */
-export const UI_V22_DOCK = process.env.EXPO_PUBLIC_UI_V22_DOCK === 'true';
+// Redesign v3, stage 2 (26 Nov 2026): the bottom dock is retired. It put a
+// full-width strip under every screen for one SOS button, and on the tabs it
+// stacked with the layout's own bottom inset, leaving an empty band. SOS now
+// sits in the header (src/ui/headerSos.ts), so this is always off whatever
+// the build sets; the dock code stays in place, inert.
+export const UI_V22_DOCK: boolean = false;
 
 /**
  * Phase 9: Head Out (look only; journey logic, alerts and server calls are

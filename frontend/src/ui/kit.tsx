@@ -24,11 +24,13 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { setStatusBarStyle } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/src/theme';
 import { useSizeClass } from './useSizeClass';
 import { FONT_SCALE_CAP, columnWidth } from './sizeClass';
+import { useHeaderSosPresent } from './headerSos';
 
 const c = theme.colors;
 const f = theme.fonts;
@@ -37,8 +39,32 @@ type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 // ── Header ──────────────────────────────────────────────────────────────
 
+/**
+ * Light status-bar icons while a dark (navy) header is on the focused screen;
+ * back to dark icons when it loses focus. Imperative because tab screens stay
+ * mounted, so a mounted <StatusBar> on a hidden tab would win.
+ */
+export function useLightStatusBar(): void {
+  useFocusEffect(React.useCallback(() => {
+    setStatusBarStyle('light');
+    return () => setStatusBarStyle('dark');
+  }, []));
+}
+
+/**
+ * Solid strip behind the status bar, for screens whose header scrolls with
+ * the content: without it, scrolled content shows through under the clock.
+ */
+export function StatusBarCap({ color = c.deepNavy }: { color?: string }) {
+  const insets = useSafeAreaInsets();
+  useLightStatusBar();
+  if (!insets.top) return null;
+  return <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: color, zIndex: 50 }} />;
+}
+
 export function SosPill112({ onPress, testID = 'header-sos' }: { onPress?: () => void; testID?: string }) {
   const router = useRouter();
+  useHeaderSosPresent();
   return (
     <Pressable
       testID={testID}
@@ -62,6 +88,7 @@ export function AppHeader({
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const size = useSizeClass();
+  useLightStatusBar();
   return (
     <LinearGradient
       testID={testID}

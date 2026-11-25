@@ -1,9 +1,10 @@
 import { Tabs, useRouter, usePathname } from 'expo-router';
-import { View, Platform, StyleSheet } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Platform, StyleSheet, useWindowDimensions } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets, SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { useEffect } from 'react';
 import { theme } from '@/src/theme';
 import { AppTabBar } from '@/src/components/AppTabBar';
+import { AppHeader } from '@/src/ui/kit';
 import { SosPill } from '@/src/components/dhara/SosPill';
 import { UI_V22_ONE_SOS } from '@/src/uiV22Flags';
 import { WEB_CHAT_MAX_WIDTH } from '@/src/chat/chatStyles';
@@ -15,6 +16,10 @@ import { addNotificationTapListener } from '@/src/push';
  * Every other legacy screen stays reachable (href:null) via navigation / the
  * All help hub / the Me hub, so no functionality is lost.
  */
+const HEADER_TAB_PATHS = new Set([
+  '/rights', '/myfiles', '/me', '/(tabs)/rights', '/(tabs)/myfiles', '/(tabs)/me',
+]);
+
 export default function TabsLayout() {
   const { token, loading } = useAuth();
   const router = useRouter();
@@ -32,6 +37,13 @@ export default function TabsLayout() {
   // persistent SOS pill on the Ask screen — exactly the reported bug (no
   // header SOS, no sidebar "SOS - Emergency" on "/").
   const onHome = pathname === '/(tabs)/home' || pathname === '/home';
+  // Redesign v3, stage 2: Rights, My files and Me get the shared navy header
+  // (wordmark + SOS 112). Its colour runs behind the status bar, so those
+  // screens are told the top inset is already taken (top: 0 below). Home and
+  // Ask keep their own headers until they are rebuilt. On wide web the
+  // desktop frame's sidebar is the navigation, so no header there.
+  const { width } = useWindowDimensions();
+  const showHeader = HEADER_TAB_PATHS.has(pathname ?? '') && !(Platform.OS === 'web' && width >= 768);
   // UI_V22_ONE_SOS: on phones the tab SOS never floats over a screen (the
   // 390px sweep found it covering headings and cards on Ask (B-122), Rights,
   // My files, Me and Settings). Each tab keeps one red emergency entry that
@@ -59,7 +71,9 @@ export default function TabsLayout() {
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom']} testID="tabs-layout">
+      {showHeader && <AppHeader showBack={false} testID="tabs-header" />}
       <View style={styles.content}>
+        <SafeAreaInsetsContext.Provider value={showHeader ? { ...insets, top: 0 } : insets}>
         <Tabs
           initialRouteName="home"
           tabBar={props => <AppTabBar {...props} />}
@@ -81,6 +95,7 @@ export default function TabsLayout() {
           <Tabs.Screen name="settings" options={hidden} />
           <Tabs.Screen name="history" options={hidden} />
         </Tabs>
+        </SafeAreaInsetsContext.Provider>
         {/* Global persistent SOS — visible on every tab screen except Home
             (moved there into the Me tab, see me.tsx), never scrolls away.
             B-122: on web this used to anchor to the raw browser-window edge
@@ -107,7 +122,9 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.colors.background },
+  // Same colour as the tab bar, so the space beside the phone's gesture bar
+  // reads as part of the tab bar instead of an empty cream band.
+  root: { flex: 1, backgroundColor: theme.colors.surface },
   content: { flex: 1, minHeight: 0 },
   // B-122: an outer full-width frame that centers its child on web (same
   // pattern as chatStyles' `safe`), so the inner, width-capped box below

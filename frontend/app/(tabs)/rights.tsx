@@ -60,7 +60,7 @@ export default function Rights() {
   }, [topics, primaryInterest]);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']} testID="rights-screen">
+    <SafeAreaView style={styles.safe} edges={[]} testID="rights-screen">
       <View style={styles.header}>
         <Text style={styles.h1}>
           {/* DEF-008 fix: labels like "Women's Rights" / "Consumer Rights"
