@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontFamily: theme.fonts.body,
-    fontSize: 11,
+    fontSize: 12,
     color: c.muted,
     marginTop: 6,
     lineHeight: 15,

@@ -5,7 +5,7 @@
  * Android's own classes put every phone in one group ("compact" = width
  * under 600), which is too coarse here, so phones get three steps. The
  * "regular" row is the approved prototype's own values (drawn 396 wide).
- * Spacing and titles change by class; body text stays 14 on every phone.
+ * Spacing and titles change by class; body text stays 13 on every phone.
  */
 export type WidthClass = 'small' | 'regular' | 'large' | 'tablet';
 
@@ -41,9 +41,9 @@ export function widthClassFor(width: number): WidthClass {
 
 const TABLE: Record<WidthClass, Omit<SizeClass, 'width' | 'short'>> = {
   small:   { margin: 12, gap: 10, title: 21, button: 48, tileColumns: 2, choiceColumns: 2, maxContentWidth: 600 },
-  regular: { margin: 16, gap: 12, title: 24, button: 50, tileColumns: 2, choiceColumns: 3, maxContentWidth: 600 },
-  large:   { margin: 18, gap: 12, title: 24, button: 52, tileColumns: 2, choiceColumns: 3, maxContentWidth: 600 },
-  tablet:  { margin: 24, gap: 14, title: 26, button: 52, tileColumns: 4, choiceColumns: 3, maxContentWidth: 640 },
+  regular: { margin: 16, gap: 12, title: 24, button: 48, tileColumns: 2, choiceColumns: 3, maxContentWidth: 600 },
+  large:   { margin: 18, gap: 12, title: 24, button: 50, tileColumns: 2, choiceColumns: 3, maxContentWidth: 600 },
+  tablet:  { margin: 24, gap: 14, title: 26, button: 50, tileColumns: 4, choiceColumns: 3, maxContentWidth: 640 },
 };
 
 export function sizeClassFor(width: number, height: number): SizeClass {

@@ -28,9 +28,9 @@ export function VoiceNotice({ message, onPlay, onDismiss, testID }: {
 
 const styles = StyleSheet.create({
   container: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: theme.colors.surfaceSecondary, flexShrink: 0 },
-  message: { color: theme.colors.onSurfaceSecondary, fontSize: 13, lineHeight: 19 },
+  message: { color: theme.colors.onSurfaceSecondary, fontSize: 12, lineHeight: 17 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   button: { minHeight: 44, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  label: { color: theme.colors.brand, fontSize: 13, fontWeight: '600' },
+  label: { color: theme.colors.brand, fontSize: 12, fontWeight: '600' },
   pressed: { opacity: 0.6 },
 });

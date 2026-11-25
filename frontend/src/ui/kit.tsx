@@ -12,8 +12,9 @@
  *   Tile        icon + label + one small line, for 2-per-row grids
  *   Chip, Badge, KeyValueRow, ProgressSteps, TileGrid
  *
- * Differences from the prototype, on purpose: body text is 14 (drawn 12-13),
- * nothing is under 12, every tap target is at least 48, and icons are the
+ * Sizes follow the prototype (title 24, card heading 15, body 13). Two
+ * differences on purpose: nothing is under 12 and every tap target is at
+ * least 48 (the prototype draws some at 10-11 and 34-44); and icons are the
  * app's line icons instead of emoji so they look the same on every phone.
  */
 import React from 'react';
@@ -331,11 +332,11 @@ const s = StyleSheet.create({
   titleBlock: { marginBottom: 14 },
   eyebrow: { color: c.goldText, fontFamily: f.displayBold, fontSize: t.eyebrow, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 },
   title: { color: c.ink, fontFamily: f.displayBold, letterSpacing: -0.4 },
-  sub: { color: c.muted, fontFamily: f.body, fontSize: t.body, lineHeight: 21, marginTop: 6 },
+  sub: { color: c.muted, fontFamily: f.body, fontSize: t.body, lineHeight: 19, marginTop: 6 },
 
   panel: { borderWidth: 1, borderRadius: theme.radius.lg, padding: 15 },
   panelTitle: { color: c.ink, fontFamily: f.bodyBold, fontSize: t.panelTitle, marginBottom: 8 },
-  body: { color: '#50677D', fontFamily: f.body, fontSize: t.body, lineHeight: 21 },
+  body: { color: '#50677D', fontFamily: f.body, fontSize: t.body, lineHeight: 19 },
 
   btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderRadius: theme.radius.md, paddingHorizontal: 15, paddingVertical: 12 },
   btnFull: { alignSelf: 'stretch', marginTop: 8 },
@@ -346,7 +347,7 @@ const s = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   tile: { backgroundColor: c.tileBg, borderWidth: 1, borderColor: c.tileBorder, borderRadius: theme.radius.tile, paddingVertical: 15, paddingHorizontal: 12, minHeight: 104, flexGrow: 1 },
   tileAlert: { backgroundColor: '#FFF0EF', borderColor: c.dangerBorder },
-  tileLabel: { color: c.navy, fontFamily: f.displayBold, fontSize: 15, marginTop: 8 },
+  tileLabel: { color: c.navy, fontFamily: f.displayBold, fontSize: 14, marginTop: 8 },
   tileHint: { color: '#5D6F84', fontFamily: f.body, fontSize: t.small, lineHeight: 16, marginTop: 4 },
 
   chip: { paddingVertical: 7, paddingHorizontal: 11, borderRadius: 999, backgroundColor: '#EDF3FD' },

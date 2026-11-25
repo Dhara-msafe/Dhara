@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   map: { height: 220, width: '100%', borderRadius: 14 },
   hint: {
     fontFamily: theme.fonts.body,
-    fontSize: 11,
+    fontSize: 12,
     color: c.muted,
     marginTop: 6,
     lineHeight: 15,

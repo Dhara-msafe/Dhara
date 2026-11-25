@@ -60,14 +60,14 @@ export function Divider() {
 }
 
 const styles = StyleSheet.create({
-  sos: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.emergencyRed, paddingHorizontal: 20, height: 48, borderRadius: 999 },
+  sos: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.emergencyRed, paddingHorizontal: 16, height: 48, borderRadius: 999 },
   sosCompact: { paddingHorizontal: 14 },
-  sosTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14, letterSpacing: 0.3 },
-  qe: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff', paddingHorizontal: 20, height: 48, borderRadius: 999 },
+  sosTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 13, letterSpacing: 0.3 },
+  qe: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff', paddingHorizontal: 16, height: 48, borderRadius: 999 },
   qeDark: { backgroundColor: 'rgba(255,255,255,0.14)' },
-  qeTxt: { color: c.navy, fontFamily: theme.fonts.bodyBold, fontSize: 14 },
+  qeTxt: { color: c.navy, fontFamily: theme.fonts.bodyBold, fontSize: 13 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 12, height: 34, borderRadius: 999 },
   chipLight: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines },
-  chipTxt: { color: '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 13 },
+  chipTxt: { color: '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 12 },
   divider: { height: 1, backgroundColor: c.lines },
 });

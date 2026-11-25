@@ -131,9 +131,9 @@ export const theme = {
   spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 },
   // Redesign v3: button 12, field 11, tile 13, panel 17 (prototype values).
   radius: { sm: 8, md: 12, lg: 17, xl: 22, pill: 999, cardLg: 16, field: 11, tile: 13 },
-  // Redesign v3 text scale. The prototype draws body text at 12-13; the app
-  // uses 14 with nothing under 12 so it stays readable on a phone outdoors.
-  type: { title: 24, greeting: 25, section: 17, panelTitle: 16, body: 14, button: 15, small: 12, eyebrow: 12, tab: 12 },
+  // Redesign v3 text scale — the approved prototype's sizes: title 24, card
+  // heading 15, body 13, small 12. Nothing is under 12 in the shared parts.
+  type: { title: 24, greeting: 25, section: 16, panelTitle: 15, body: 13, button: 14, small: 12, eyebrow: 12, tab: 12 },
   // ── v2.2 layout tokens (design-tokens.json) ───────────────────────
   // touchTarget.min: minimum tap-target size; breakpoints: the package's
   // phone/tablet/desktop widths. Inert until later rollout phases.

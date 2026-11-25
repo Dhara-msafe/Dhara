@@ -91,8 +91,8 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#1e4d7a',
   },
   btn:   { padding: 6 },
-  title: { flex: 1, color: '#FFFFFF', fontSize: 15, fontWeight: '600', marginHorizontal: 8 },
+  title: { flex: 1, color: '#FFFFFF', fontSize: 13, fontWeight: '600', marginHorizontal: 8 },
   loadingBar: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F8F6F0', paddingHorizontal: 16, paddingVertical: 8 },
-  loadingText: { color: NAVY, fontSize: 13 },
+  loadingText: { color: NAVY, fontSize: 12 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 });

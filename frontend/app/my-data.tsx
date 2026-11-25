@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     color: theme.colors.onSurfaceSecondary,
-    fontSize: 14,
+    fontSize: 13,
   },
   // Header
   header: {
@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '700',
     color: theme.colors.onSurface,
   },
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(30, 58, 138, 0.04)',
   },
   cardTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: theme.colors.brand,
     textTransform: 'uppercase',
@@ -412,12 +412,12 @@ const styles = StyleSheet.create({
   // UI_V22_MYDATA: multi-line values align to the top of the row.
   dataRowWrap: { alignItems: 'flex-start' },
   dataLabel: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.colors.onSurfaceSecondary,
     flex: 1,
   },
   dataValue: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: theme.colors.onSurface,
     flex: 1.5,
@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
   exportBtnText: {
     color: '#fff',
     fontWeight: '700',
-    fontSize: 15,
+    fontSize: 13,
   },
   deleteLink: {
     flexDirection: 'row',
@@ -453,12 +453,12 @@ const styles = StyleSheet.create({
   },
   deleteLinkText: {
     color: theme.colors.error,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   // Legal note
   legalNote: {
-    fontSize: 11,
+    fontSize: 12,
     // NF-UI-REV-12: onSurfaceTertiary directly on this screen's cream root
     // background measured ~4.33:1 — under 4.5:1. onSurfaceSecondary clears ~6.5:1.
     color: UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : theme.colors.onSurfaceTertiary,

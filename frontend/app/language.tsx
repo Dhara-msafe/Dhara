@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     fontFamily: theme.fonts.display,
-    fontSize: 18,
+    fontSize: 16,
     color: theme.colors.navy,
   },
   iconBtn: {
@@ -209,12 +209,12 @@ const styles = StyleSheet.create({
   }),
   title: {
     fontFamily: theme.fonts.display,
-    fontSize: 28,
+    fontSize: 24,
     color: theme.colors.navy,
     marginBottom: 10,
   },
   // Descriptive subtitle replacing the multilingual hint
-  sub: { color: theme.colors.muted, fontSize: 15, lineHeight: 22 },
+  sub: { color: theme.colors.muted, fontSize: 13, lineHeight: 19 },
 
   // ── Search field ─────────────────────────────────────────────────────────
   searchWrap: {
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
   searchIcon: { opacity: 0.7 },
   searchInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 13,
     color: theme.colors.navy,
     paddingVertical: theme.spacing.sm,
     // No hardcoded height — flex fills available space naturally
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    fontSize: 15,
+    fontSize: 13,
     color: theme.colors.muted,
     textAlign: 'center',
   },
@@ -258,20 +258,20 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
-    minHeight: 60,
+    minHeight: 52,
     borderWidth: 1.5,
     borderColor: theme.colors.lines,
   },
   // Selected: gold border (#8A6A1E) + warm tinted background — matches design token
   rowActive: { borderWidth: 2.5, borderColor: '#8A6A1E', backgroundColor: '#FFF8E7' },
-  native: { color: theme.dhara.textPrimary, fontSize: 18, fontWeight: '600' },
+  native: { color: theme.dhara.textPrimary, fontSize: 16, fontWeight: '600' },
   nativeActive: { color: theme.colors.navy },
   // English translation: textSecondary on surface — 6.81:1 ✅; weight 500 for Indic script legibility
-  name: { color: theme.dhara.textSecondary, fontSize: 13, marginTop: 2, fontWeight: '500' },
+  name: { color: theme.dhara.textSecondary, fontSize: 12, marginTop: 2, fontWeight: '500' },
   selectedWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   selectedLabel: {
     fontFamily: theme.fonts.bodyBold,
-    fontSize: 13,
+    fontSize: 12,
     color: '#6B4F10',
   },
 
@@ -285,5 +285,5 @@ const styles = StyleSheet.create({
     minHeight: 52,
     justifyContent: 'center',
   },
-  btnText: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 16 },
+  btnText: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14 },
 });

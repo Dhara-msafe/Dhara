@@ -143,12 +143,12 @@ export default function JourneyPreview() {
 
 const styles = StyleSheet.create({
   group: { gap: 10 },
-  groupTitle: { fontFamily: theme.fonts.displayBold, fontSize: 16, color: c.ink, marginTop: 4 },
+  groupTitle: { fontFamily: theme.fonts.displayBold, fontSize: 14, color: c.ink, marginTop: 4 },
   msgCard: { backgroundColor: c.surface, borderRadius: theme.radius.md, borderWidth: 1, borderColor: c.border, padding: 14 },
-  msgKind: { fontFamily: theme.fonts.bodyBold, fontSize: 11, color: c.muted, letterSpacing: 0.4 },
+  msgKind: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.muted, letterSpacing: 0.4 },
   msgBubble: { backgroundColor: c.surfaceSecondary, borderRadius: theme.radius.md, padding: 14, marginTop: 10, gap: 4 },
   msgFrom: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
   msgFromTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.navy, letterSpacing: 0.3 },
-  msgHeading: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink },
-  msgBody: { fontFamily: theme.fonts.body, fontSize: 14, color: c.ink, lineHeight: 20 },
+  msgHeading: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink },
+  msgBody: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, lineHeight: 18 },
 });

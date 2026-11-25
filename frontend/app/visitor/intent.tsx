@@ -146,9 +146,9 @@ export default function VisitorIntent() {
 
 const s = StyleSheet.create({
   // v2.2 phase 6 follow-up: dial status line (selectable = number fallback).
-  dialStatus: { fontSize: 14, lineHeight: 20, color: C.ink, textAlign: 'center', marginTop: 10 },
+  dialStatus: { fontSize: 13, lineHeight: 18, color: C.ink, textAlign: 'center', marginTop: 10 },
   safe:    { flex: 1, backgroundColor: C.background },
-  content: { padding: 20, paddingBottom: 40, flexGrow: 1 },
+  content: { padding: 16, paddingBottom: 40, flexGrow: 1 },
 
   topBadge:     {
     flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -157,8 +157,8 @@ const s = StyleSheet.create({
   },
   topBadgeText: { fontSize: 12, color: C.primary, fontWeight: '600' },
 
-  heading: { fontSize: 24, fontWeight: '800', color: C.primary, marginBottom: 6 },
-  sub:     { fontSize: 14, color: C.onSurfaceTertiary, marginBottom: 24, lineHeight: 20 },
+  heading: { fontSize: 21, fontWeight: '800', color: C.primary, marginBottom: 6 },
+  sub:     { fontSize: 13, color: C.onSurfaceTertiary, marginBottom: 18, lineHeight: 18 },
 
   workflows: { gap: 14 },
   card:      {
@@ -167,16 +167,16 @@ const s = StyleSheet.create({
   },
   iconWrap:  { width: 56, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   cardText:  { flex: 1 },
-  cardTitle: { fontSize: 17, fontWeight: '800', marginBottom: 4 },
+  cardTitle: { fontSize: 15, fontWeight: '800', marginBottom: 4 },
   cardSub:   { fontSize: 12, color: C.onSurfaceTertiary, lineHeight: 17 },
 
   alwaysNote: {
-    fontSize: 13, color: C.onSurfaceTertiary, textAlign: 'center',
-    marginTop: 24, marginBottom: 12, lineHeight: 19,
+    fontSize: 12, color: C.onSurfaceTertiary, textAlign: 'center',
+    marginTop: 18, marginBottom: 12, lineHeight: 17,
   },
   callBtn:     {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 10, backgroundColor: C.error, borderRadius: 14, paddingVertical: 16,
   },
-  callBtnText: { fontSize: 16, fontWeight: '800', color: '#fff' },
+  callBtnText: { fontSize: 14, fontWeight: '800', color: '#fff' },
 });

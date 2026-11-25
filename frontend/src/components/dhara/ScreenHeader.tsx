@@ -29,6 +29,6 @@ const styles = StyleSheet.create({
   // v2.2 (UI_V22_S2): component-specifications.md's "Min 48px target" —
   // the shared back button was 40x40 across every screen that uses it.
   back: { width: UI_V22_S2 ? 48 : 40, height: UI_V22_S2 ? 48 : 40, alignItems: 'center', justifyContent: 'center' },
-  title: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 22 },
-  sub: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 13, marginTop: 2 },
+  title: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 19 },
+  sub: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 12, marginTop: 2 },
 });

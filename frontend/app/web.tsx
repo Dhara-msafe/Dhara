@@ -510,13 +510,13 @@ const styles = S.create({
   },
   brandName: {
     fontFamily: theme.fonts.display,
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: '700',
     color: theme.dhara.textOnNavy,
     letterSpacing: 0.3,
   },
   brandSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: theme.dhara.gold,
     fontWeight: '600',
     letterSpacing: 0.5,
@@ -609,7 +609,7 @@ const styles = S.create({
   errorText: {
     flex: 1,
     color: theme.colors.error,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
 
@@ -648,18 +648,18 @@ const styles = S.create({
   },
   emptyTitle: {
     fontFamily: theme.fonts.display,
-    fontSize: 24,
+    fontSize: 21,
     fontWeight: '700',
     color: theme.dhara.textPrimary,
     textAlign: 'center',
     marginBottom: 8,
   },
   emptySubtitle: {
-    fontSize: 15,
+    fontSize: 13,
     color: theme.dhara.textSecondary,
     textAlign: 'center',
     maxWidth: 460,
-    lineHeight: 22,
+    lineHeight: 19,
     marginBottom: theme.spacing.xxl,
   },
 
@@ -684,9 +684,9 @@ const styles = S.create({
     }),
   },
   quickText: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.dhara.textPrimary,
-    lineHeight: 18,
+    lineHeight: 16,
     fontWeight: '500',
   },
 
@@ -717,7 +717,7 @@ const styles = S.create({
   },
   avatarText: {
     color: theme.dhara.gold,
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '800',
   },
 
@@ -742,15 +742,15 @@ const styles = S.create({
     }),
   },
   bubbleText: {
-    fontSize: 15,
-    lineHeight: 23,
+    fontSize: 13,
+    lineHeight: 20,
     color: theme.dhara.textPrimary,
   },
   bubbleTextUser: {
     color: theme.dhara.textOnNavy,
   },
   thinkingText: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.dhara.textSecondary,
     fontStyle: 'italic',
   },
@@ -771,7 +771,7 @@ const styles = S.create({
     marginBottom: 4,
   },
   citHeaderText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     color: theme.colors.brand,
     letterSpacing: 0.5,
@@ -797,16 +797,16 @@ const styles = S.create({
   },
   citChipText: {
     color: theme.colors.onBrandPrimary,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.3,
   },
   citDate: {
-    fontSize: 10,
+    fontSize: 11,
     color: theme.colors.onSurfaceSecondary,
   },
   citStaleRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  citStaleText: { fontSize: 10, color: theme.colors.warning, fontWeight: '600' },
+  citStaleText: { fontSize: 11, color: theme.colors.warning, fontWeight: '600' },
   citTitle: {
     fontSize: 12,
     fontWeight: '700',
@@ -815,7 +815,7 @@ const styles = S.create({
   citBody: {
     fontSize: 12,
     color: theme.dhara.textSecondary,
-    lineHeight: 18,
+    lineHeight: 16,
   },
 
   // ── Input bar ────────────────────────────────────────────────────────────────
@@ -848,11 +848,11 @@ const styles = S.create({
   },
   input: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 13,
     color: theme.colors.onSurface,
     minHeight: 24,
     maxHeight: 120,
-    lineHeight: 22,
+    lineHeight: 19,
     outlineStyle: 'none' as any,
   },
   sendBtn: {
@@ -874,7 +874,7 @@ const styles = S.create({
     }),
   },
   disclaimer: {
-    fontSize: 11,
+    fontSize: 12,
     color: theme.colors.onSurfaceTertiary,
     textAlign: 'center',
     lineHeight: 16,

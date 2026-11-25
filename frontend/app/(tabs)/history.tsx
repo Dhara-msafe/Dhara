@@ -123,15 +123,15 @@ const styles = StyleSheet.create({
   // Subtitle starts under the heading text, not under the arrow.
   h2Indented: { marginLeft: 28 },
   header: { padding: theme.spacing.xl, paddingBottom: theme.spacing.md, borderBottomWidth: 1, borderBottomColor: theme.colors.divider },
-  h1: { flexShrink: 1, fontFamily: theme.fonts.display, fontSize: 28, color: theme.colors.brand, fontWeight: '700' },
+  h1: { flexShrink: 1, fontFamily: theme.fonts.display, fontSize: 24, color: theme.colors.brand, fontWeight: '700' },
   h2: { color: theme.colors.onSurfaceSecondary, marginTop: 4 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: theme.spacing.xl },
-  emptyTitle: { fontFamily: theme.fonts.display, fontSize: 20, color: theme.colors.onSurface, marginTop: theme.spacing.lg, fontWeight: '700' },
+  emptyTitle: { fontFamily: theme.fonts.display, fontSize: 17, color: theme.colors.onSurface, marginTop: theme.spacing.lg, fontWeight: '700' },
   emptySub: { color: theme.colors.onSurfaceSecondary, marginTop: theme.spacing.sm, textAlign: 'center' },
   startBtn: { backgroundColor: theme.colors.brand, borderRadius: theme.radius.md, paddingHorizontal: theme.spacing.xl, paddingVertical: theme.spacing.md, marginTop: theme.spacing.xl },
   startBtnText: { color: theme.colors.onBrandPrimary, fontWeight: '700' },
   row: { flexDirection: 'row', alignItems: 'center', padding: theme.spacing.lg, backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md, marginBottom: theme.spacing.sm, borderWidth: 1, borderColor: theme.colors.border },
-  title: { color: theme.colors.onSurface, fontSize: 15, fontWeight: '600' },
+  title: { color: theme.colors.onSurface, fontSize: 13, fontWeight: '600' },
   meta: { color: theme.colors.onSurfaceTertiary, fontSize: 12, marginTop: 2 },
 });

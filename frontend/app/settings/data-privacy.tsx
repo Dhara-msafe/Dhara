@@ -812,7 +812,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
   },
   backBtn: { width: 40, height: 40, alignItems: 'flex-start', justifyContent: 'center' },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: theme.colors.onSurface },
+  headerTitle: { fontSize: 15, fontWeight: '700', color: theme.colors.onSurface },
   scroll: { flex: 1 },
   scrollContent: {
     padding: theme.spacing.lg,
@@ -832,7 +832,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
   accordionTitle: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '700',
     color: PRIMARY,
     flex: 1,
@@ -869,7 +869,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  collectLabel: { fontSize: 13, fontWeight: '700', color: theme.colors.onSurface },
+  collectLabel: { fontSize: 12, fontWeight: '700', color: theme.colors.onSurface },
   collectRetention: {
     fontSize: 12,
     color: theme.colors.onSurfaceSecondary,
@@ -877,7 +877,7 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   paymentsNote: {
-    fontSize: 11,
+    fontSize: 12,
     color: theme.colors.onSurfaceTertiary,
     lineHeight: 16,
     marginTop: theme.spacing.sm,
@@ -903,9 +903,9 @@ const styles = StyleSheet.create({
   },
   bulletText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     color: theme.colors.onSurface,
-    lineHeight: 19,
+    lineHeight: 17,
   },
 
   // ── Section header (non-accordion) ─────────────────────────────────────────
@@ -947,7 +947,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   actionTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: theme.colors.onSurface,
   },
@@ -957,7 +957,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   actionFooter: {
-    fontSize: 11,
+    fontSize: 12,
     color: theme.colors.onSurfaceTertiary,
     marginTop: 3,
     fontStyle: 'italic',
@@ -976,7 +976,7 @@ const styles = StyleSheet.create({
     borderColor: '#BBF7D0',
   },
   successBannerText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: BADGE_TEXT,
     flex: 1,
@@ -1002,7 +1002,7 @@ const styles = StyleSheet.create({
     color: BADGE_TEXT,
   },
   operatorNote: {
-    fontSize: 11,
+    fontSize: 12,
     // NF-UI-REV-12: onSurfaceTertiary directly on this screen's cream root
     // background measured ~4.33:1 — under 4.5:1. onSurfaceSecondary clears ~6.5:1.
     color: UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : theme.colors.onSurfaceTertiary,
@@ -1012,7 +1012,7 @@ const styles = StyleSheet.create({
   reviewNote: {
     fontSize: 12,
     color: theme.colors.onSurfaceSecondary,
-    lineHeight: 18,
+    lineHeight: 16,
   },
 
   // ── Consent record card (Screen 54) ───────────────────────────────────────
@@ -1027,14 +1027,14 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   crLabel: v22SectionLabel({
-    fontSize: 11,
+    fontSize: 12,
     color: theme.colors.onSurfaceTertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
     marginBottom: 2,
   }),
   crValue: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: theme.colors.onSurface,
   },
@@ -1056,7 +1056,7 @@ const styles = StyleSheet.create({
   // ── P10 (v2.2 consent settings look) ──
   p10TitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   p10OptionalBadge: { backgroundColor: theme.consentState.notGiven.bg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
-  p10OptionalBadgeText: { fontSize: 11, fontWeight: '700', color: theme.consentState.notGiven.fg },
+  p10OptionalBadgeText: { fontSize: 12, fontWeight: '700', color: theme.consentState.notGiven.fg },
   p10StatusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' },
   p10StateChip: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
   p10StateChipText: { fontSize: 12, fontWeight: '700' },
@@ -1087,17 +1087,17 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   historyEvent: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: theme.colors.onSurface,
   },
   historyTime: {
-    fontSize: 11,
+    fontSize: 12,
     color: theme.colors.onSurfaceTertiary,
     marginTop: 2,
   },
   historyVersion: {
-    fontSize: 10,
+    fontSize: 11,
     color: theme.colors.onSurfaceTertiary,
     marginTop: 4,
     fontStyle: 'italic',
@@ -1112,7 +1112,7 @@ const styles = StyleSheet.create({
     borderTopColor: theme.colors.divider,
   },
   viewAllText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: PRIMARY,
   },

@@ -406,7 +406,7 @@ const s = StyleSheet.create({
 
   header: { padding: 16, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: C.divider },
   langBadge: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
-  langBadgeText: { fontSize: 16, fontWeight: '800', color: C.primary },
+  langBadgeText: { fontSize: 14, fontWeight: '800', color: C.primary },
   headerSub:     { fontSize: 12, color: C.onSurfaceTertiary },
   langSwitch:    { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: C.navySoft },
   langSwitchTxt: { fontSize: 12, fontWeight: '700', color: C.primary },
@@ -430,23 +430,23 @@ const s = StyleSheet.create({
   historyContent: { padding: 12, paddingBottom: 8 },
 
   emptyHint: { alignItems: 'center', paddingVertical: 40, gap: 10 },
-  emptyText: { fontSize: 13, color: C.border },
+  emptyText: { fontSize: 12, color: C.border },
 
   bubble:          { borderRadius: 14, padding: 14, marginBottom: 10, maxWidth: '90%' },
   bubbleTourist:   { backgroundColor: C.navySoft, alignSelf: 'flex-end' },
   bubbleOfficial:  { backgroundColor: '#F0FFF4', alignSelf: 'flex-start', borderWidth: 1, borderColor: '#A7F3D0' },
-  bubbleLabel:     v22SectionLabel({ fontSize: 10, fontWeight: '700', color: C.onSurfaceTertiary, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }),
-  bubbleOriginal:  { fontSize: 14, color: C.onSurface, lineHeight: 20 },
+  bubbleLabel:     v22SectionLabel({ fontSize: 11, fontWeight: '700', color: C.onSurfaceTertiary, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }),
+  bubbleOriginal:  { fontSize: 13, color: C.onSurface, lineHeight: 18 },
   bubbleDivider:   { height: 1, backgroundColor: C.divider, marginVertical: 6 },
-  bubbleTranslated:{ fontSize: 14, color: C.primary, fontWeight: '600', lineHeight: 20 },
+  bubbleTranslated:{ fontSize: 13, color: C.primary, fontWeight: '600', lineHeight: 18 },
 
   liveCard: {
     backgroundColor: C.surface, borderRadius: 14, padding: 14,
     borderWidth: 1, borderColor: C.border, marginBottom: 8, gap: 6,
   },
   liveStatus:     { fontSize: 12, color: C.onSurfaceTertiary, fontStyle: 'italic' },
-  liveTranscript: { fontSize: 14, color: C.onSurface },
-  liveTranslation:{ fontSize: 14, color: '#059669', fontWeight: '700' },
+  liveTranscript: { fontSize: 13, color: C.onSurface },
+  liveTranslation:{ fontSize: 13, color: '#059669', fontWeight: '700' },
 
   micRow:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, gap: 20 },
   micBtn:          {

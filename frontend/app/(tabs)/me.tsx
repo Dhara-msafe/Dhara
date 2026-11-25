@@ -54,7 +54,7 @@ export default function Me() {
 
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 20, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>{tr('me.title', lang)}</Text>
 
         <View style={styles.profile}>
@@ -189,38 +189,38 @@ export default function Me() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
-  title: { fontFamily: theme.fonts.displayBold, fontSize: 28, color: c.ink, marginBottom: 18 },
+  title: { fontFamily: theme.fonts.displayBold, fontSize: 24, color: c.ink, marginBottom: 18 },
   profile: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: c.navy, borderRadius: 18, padding: 18 },
   avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: c.gold, alignItems: 'center', justifyContent: 'center' },
   avatarImg: { width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: c.gold },
-  avatarTxt: { fontFamily: theme.fonts.displayBold, fontSize: 26, color: c.navy },
-  name: { fontFamily: theme.fonts.displayBold, fontSize: 20, color: '#fff' },
-  email: { fontFamily: theme.fonts.body, fontSize: 13, color: c.onNavyMuted, marginTop: 2 },
+  avatarTxt: { fontFamily: theme.fonts.displayBold, fontSize: 22, color: c.navy },
+  name: { fontFamily: theme.fonts.displayBold, fontSize: 17, color: '#fff' },
+  email: { fontFamily: theme.fonts.body, fontSize: 12, color: c.onNavyMuted, marginTop: 2 },
   proPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.gold, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   proTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.navy },
   emergencyCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FEE2E2', borderRadius: 16, borderWidth: 1, borderColor: c.error, padding: 14, marginTop: 14 },
   emergencyCardTap: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   emergencyIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.error, alignItems: 'center', justifyContent: 'center' },
-  emergencyTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink },
+  emergencyTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink },
   emergencySub: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 1 },
   card: { backgroundColor: c.surface, borderRadius: 18, borderWidth: 1, borderColor: c.lines, paddingHorizontal: 16, marginTop: 18 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 16 },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: c.divider },
   rowIcon: { width: 40, height: 40, borderRadius: 11, backgroundColor: c.navySoft, alignItems: 'center', justifyContent: 'center' },
-  rowLabel: { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 16, color: c.ink },
-  rowValue: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, maxWidth: 120 },
+  rowLabel: { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.ink },
+  rowValue: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, maxWidth: 120 },
   // ── Interest picker ────────────────────────────────────────────────
   interestCard: { backgroundColor: c.surface, borderRadius: 18, borderWidth: 1, borderColor: c.lines, padding: 18, marginTop: 18 },
   interestHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 5 },
-  interestTitle: { fontFamily: theme.fonts.displayBold, fontSize: 16, color: c.ink },
-  interestSub: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, marginBottom: 16, lineHeight: 18 },
+  interestTitle: { fontFamily: theme.fonts.displayBold, fontSize: 14, color: c.ink },
+  interestSub: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginBottom: 16, lineHeight: 16 },
   interestGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   interestChip: { width: '47%', flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1.5, borderColor: c.lines, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11, backgroundColor: c.background },
-  chipEmoji: { fontSize: 18 },
-  chipLabel: { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.ink, lineHeight: 17 },
+  chipEmoji: { fontSize: 16 },
+  chipLabel: { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.ink, lineHeight: 17 },
   chipCheck: { width: 17, height: 17, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   interestSaved: { fontFamily: theme.fonts.body, fontSize: 12, color: '#059669', marginTop: 14, textAlign: 'center' },
   interestHint: { fontFamily: theme.fonts.body, fontSize: 12, color: c.onSurfaceTertiary, marginTop: 14, textAlign: 'center' },
   signout: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.lines, paddingVertical: 16, marginTop: 20 },
-  signoutTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.error },
+  signoutTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.error },
 });

@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     elevation: 8,
     zIndex: 999,
   },
-  floatingText: { color: '#FFFFFF', fontWeight: '900', fontSize: 13, letterSpacing: 0.5 },
+  floatingText: { color: '#FFFFFF', fontWeight: '900', fontSize: 12, letterSpacing: 0.5 },
   floatingInline: {
     position: 'relative',
     right: undefined,
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.xxl,
   },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.md },
-  sheetTitle: { flex: 1, fontFamily: theme.fonts.display, fontSize: 18, fontWeight: '700', color: theme.colors.onSurface },
+  sheetTitle: { flex: 1, fontFamily: theme.fonts.display, fontSize: 16, fontWeight: '700', color: theme.colors.onSurface },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowLabel: { flex: 1, color: theme.colors.onSurface, fontSize: 15, fontWeight: '600' },
+  rowLabel: { flex: 1, color: theme.colors.onSurface, fontSize: 13, fontWeight: '600' },
   numberPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -191,6 +191,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     paddingVertical: 6,
   },
-  numberText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
-  note: { color: theme.colors.onSurfaceTertiary, fontSize: 11, marginTop: theme.spacing.md, textAlign: 'center' },
+  numberText: { color: '#FFFFFF', fontWeight: '800', fontSize: 12 },
+  note: { color: theme.colors.onSurfaceTertiary, fontSize: 12, marginTop: theme.spacing.md, textAlign: 'center' },
 });

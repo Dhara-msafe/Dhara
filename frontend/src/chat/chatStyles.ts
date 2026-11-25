@@ -45,7 +45,7 @@ export const styles = StyleSheet.create({
   },
   headerBrand: { flexShrink: 0 },
   headerButtons: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, maxWidth: '100%' },
-  title: { fontFamily: theme.fonts.display, fontSize: 26, fontWeight: '700', color: theme.colors.brand },
+  title: { fontFamily: theme.fonts.display, fontSize: 22, fontWeight: '700', color: theme.colors.brand },
   subtitle: { color: theme.colors.onSurfaceSecondary, fontSize: 12, marginTop: 2 },
   // Language indicator chip below the title — tappable so users can switch language directly
   langChip: {
@@ -68,7 +68,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.xs,
   },
-  badgeText: { color: theme.colors.brand, fontSize: 11, fontWeight: '700' },
+  badgeText: { color: theme.colors.brand, fontSize: 12, fontWeight: '700' },
   newChatBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -83,7 +83,7 @@ export const styles = StyleSheet.create({
     // 48px Android/Material minimum under the flag.
     minHeight: UI_REVISION_V1 ? 48 : 44,
   },
-  newChatText: { color: theme.colors.brand, fontSize: 13, fontWeight: '500' },
+  newChatText: { color: theme.colors.brand, fontSize: 12, fontWeight: '500' },
   historyHeaderBtn: {
     width: UI_REVISION_V1 ? 48 : 44, height: UI_REVISION_V1 ? 48 : 44,
     borderRadius: UI_REVISION_V1 ? 24 : 22, flexShrink: 0,
@@ -110,7 +110,7 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
-  usagePillText: { color: theme.colors.onSurfaceSecondary, fontSize: 11, fontWeight: '600' },
+  usagePillText: { color: theme.colors.onSurfaceSecondary, fontSize: 12, fontWeight: '600' },
   // ── Web-only mic/permission banner (Alert.alert is a no-op on react-native-web) ──
   voiceBanner: {
     flexDirection: 'row',
@@ -124,7 +124,7 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.warning,
   },
-  voiceBannerTitle: { color: theme.colors.brand, fontWeight: '700', fontSize: 13 },
+  voiceBannerTitle: { color: theme.colors.brand, fontWeight: '700', fontSize: 12 },
   voiceBannerMessage: { color: theme.colors.onSurfaceSecondary, fontSize: 12, marginTop: 2, lineHeight: 17 },
   modeRow: {
     flexDirection: 'row',
@@ -136,8 +136,8 @@ export const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.divider,
   },
-  modeLabel: { color: theme.colors.brand, fontWeight: '700', fontSize: 13 },
-  modeSub: { color: theme.colors.onSurfaceSecondary, fontSize: 11, marginTop: 2 },
+  modeLabel: { color: theme.colors.brand, fontWeight: '700', fontSize: 12 },
+  modeSub: { color: theme.colors.onSurfaceSecondary, fontSize: 12, marginTop: 2 },
   // ── Compact controls bar (single row below header: mode toggle + upgrade chip) ──
   controlsBar: {
     flexDirection: 'row',
@@ -152,12 +152,12 @@ export const styles = StyleSheet.create({
   modeLabelCompact: {
     color: theme.colors.brand,
     fontWeight: '700',
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
   },
   modeSubCompact: {
     color: theme.colors.onSurfaceSecondary,
-    fontSize: 11,
+    fontSize: 12,
     lineHeight: 15,
   },
   upgradeChip: {
@@ -197,8 +197,8 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  firQuickActionTitle: { fontSize: 13.5, fontWeight: '800', color: theme.colors.onSurface },
-  firQuickActionSub: { fontSize: 11.5, color: theme.colors.onSurfaceSecondary, marginTop: 1 },
+  firQuickActionTitle: { fontSize: 12.5, fontWeight: '800', color: theme.colors.onSurface },
+  firQuickActionSub: { fontSize: 12.5, color: theme.colors.onSurfaceSecondary, marginTop: 1 },
   // v3.3: Continue your reports
   firResumeSection: {
     marginTop: 8, marginHorizontal: 12, marginBottom: 4,
@@ -213,8 +213,8 @@ export const styles = StyleSheet.create({
     borderRadius: 10, padding: 12, marginBottom: 6,
     borderWidth: 1, borderColor: theme.colors.border,
   },
-  firResumeCardTitle: { fontSize: 13, fontWeight: '700', color: theme.colors.onSurface },
-  firResumeCardSub: { fontSize: 11, color: theme.colors.onSurfaceSecondary, marginTop: 2 },
+  firResumeCardTitle: { fontSize: 12, fontWeight: '700', color: theme.colors.onSurface },
+  firResumeCardSub: { fontSize: 12, color: theme.colors.onSurfaceSecondary, marginTop: 2 },
   firIntentCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -223,10 +223,10 @@ export const styles = StyleSheet.create({
     padding: theme.spacing.md,
     borderRadius: theme.radius.md,
     backgroundColor: theme.colors.brand,
-    minHeight: 56,
+    minHeight: 50,
   },
-  firIntentTitle: { color: '#fff', fontSize: 14, fontWeight: '800' },
-  firIntentSub: { color: 'rgba(255,255,255,0.85)', fontSize: 11.5, marginTop: 2, lineHeight: 15 },
+  firIntentTitle: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  firIntentSub: { color: 'rgba(255,255,255,0.85)', fontSize: 12.5, marginTop: 2, lineHeight: 15 },
   scroll: { padding: theme.spacing.lg, paddingBottom: theme.spacing.xl },
 
   // ── Layout zones ─────────────────────────────────────────────────────────
@@ -262,7 +262,7 @@ export const styles = StyleSheet.create({
     } : { borderBottomWidth: 0 }),
   },
   chatDividerLabel: v22SectionLabel({
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.2,
     // NF-UI-REV-03: onSurfaceTertiary (#6B7682) on this label's cream
@@ -338,7 +338,7 @@ export const styles = StyleSheet.create({
     marginBottom: 14,
   },
   sheetTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '800',
     color: theme.colors.brand,
     letterSpacing: 0.3,
@@ -354,13 +354,13 @@ export const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontFamily: theme.fonts.display,
-    fontSize: 22,
+    fontSize: 19,
     color: theme.colors.onSurface,
     marginTop: theme.spacing.lg,
     textAlign: 'center',
     fontWeight: '700',
   },
-  emptySub: { color: theme.colors.onSurfaceSecondary, textAlign: 'center', marginTop: theme.spacing.sm, lineHeight: 22 },
+  emptySub: { color: theme.colors.onSurfaceSecondary, textAlign: 'center', marginTop: theme.spacing.sm, lineHeight: 19 },
   suggestion: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -371,9 +371,9 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     width: '100%',
-    minHeight: 56,
+    minHeight: 50,
   },
-  suggestionText: { color: theme.colors.onSurface, flex: 1, fontSize: 15, flexShrink: 1 },
+  suggestionText: { color: theme.colors.onSurface, flex: 1, fontSize: 13, flexShrink: 1 },
   msg: { marginBottom: 12, borderRadius: theme.radius.lg, padding: theme.spacing.lg },
   userMsg: {
     backgroundColor: theme.colors.brand,
@@ -410,7 +410,7 @@ export const styles = StyleSheet.create({
     borderColor: theme.colors.gold,
     minHeight: 48,
   },
-  stateCardText: { flex: 1, color: theme.colors.brand, fontSize: 13, fontWeight: '700', lineHeight: 18 },
+  stateCardText: { flex: 1, color: theme.colors.brand, fontSize: 12, fontWeight: '700', lineHeight: 16 },
   nextStep: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -421,7 +421,7 @@ export const styles = StyleSheet.create({
     backgroundColor: theme.colors.brandSecondary,
     minHeight: 48,
   },
-  nextStepText: { flex: 1, color: theme.colors.onBrandSecondary, fontSize: 13, fontWeight: '800' },
+  nextStepText: { flex: 1, color: theme.colors.onBrandSecondary, fontSize: 12, fontWeight: '800' },
   stateNote: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -433,7 +433,7 @@ export const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: theme.colors.gold,
   },
-  stateNoteText: { flex: 1, color: theme.colors.onSurfaceSecondary, fontSize: 12, lineHeight: 18 },
+  stateNoteText: { flex: 1, color: theme.colors.onSurfaceSecondary, fontSize: 12, lineHeight: 16 },
   followUpChipsWrap: {
     flexDirection: 'column', gap: 6, marginTop: 8,
   },
@@ -447,7 +447,7 @@ export const styles = StyleSheet.create({
   msgRole: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
   userRole: { color: theme.colors.brandSecondary },
   aiRole: { color: theme.colors.brand },
-  msgText: { fontSize: 15, lineHeight: 22 },
+  msgText: { fontSize: 13, lineHeight: 19 },
   userText: { color: theme.colors.onBrandPrimary },
   aiText: { color: theme.colors.onSurface },
   citationsWrap: {
@@ -471,7 +471,7 @@ export const styles = StyleSheet.create({
     minHeight: UI_REVISION_V1 ? 44 : undefined,
   },
   detailsToggleText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: theme.colors.brand,
   },
@@ -483,7 +483,7 @@ export const styles = StyleSheet.create({
     marginBottom: 6,
   },
   citationsHeader: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     color: theme.colors.brand,
     letterSpacing: 0.5,
@@ -509,27 +509,27 @@ export const styles = StyleSheet.create({
   },
   citationChipText: {
     color: theme.colors.onBrandPrimary,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.3,
   },
   citationVerified: {
-    fontSize: 10,
+    fontSize: 11,
     // NF-UI-REV-03: onSurfaceTertiary on this card's '#FFFBEC' background
     // measured ~4.46:1 — just under 4.5:1. onSurfaceSecondary clears ~6.7:1.
     color: UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : theme.colors.onSurfaceTertiary,
   },
   staleWarningRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  staleWarningText: { fontSize: 10, color: theme.colors.warning, fontWeight: '600' },
+  staleWarningText: { fontSize: 11, color: theme.colors.warning, fontWeight: '600' },
   ipcNoticeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: '#FEF3C7', borderRadius: 8, padding: 8, marginTop: 6 },
-  ipcNoticeText: { flex: 1, fontSize: 11, color: '#92400E', lineHeight: 15, fontWeight: '600' },
+  ipcNoticeText: { flex: 1, fontSize: 12, color: '#92400E', lineHeight: 15, fontWeight: '600' },
   /** Graduate Fix 2 — registry gap note. Blue tint, distinct from amber ipcNoticeRow. */
   gapNoteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: '#EFF6FF', borderRadius: 8, padding: 8, marginTop: 6 },
-  gapNoteText: { flex: 1, fontSize: 11, color: '#1E3A8A', lineHeight: 15 },
+  gapNoteText: { flex: 1, fontSize: 12, color: '#1E3A8A', lineHeight: 15 },
   citationTitle: { fontSize: 12, fontWeight: '700', color: theme.colors.brand },
   citationText: { fontSize: 12, color: theme.colors.onSurface, lineHeight: 17, fontStyle: 'italic' },
   citationSource: {
-    fontSize: 11,
+    fontSize: 12,
     color: theme.colors.brand,
     fontWeight: '600',
     textDecorationLine: 'underline',
@@ -561,7 +561,7 @@ export const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: theme.colors.divider,
   },
-  guestWarningText: { flex: 1, color: theme.colors.onSurface, fontSize: 13, fontWeight: '600', lineHeight: 18 },
+  guestWarningText: { flex: 1, color: theme.colors.onSurface, fontSize: 12, fontWeight: '600', lineHeight: 16 },
   guestLimitBar: {
     backgroundColor: theme.colors.surface,
     borderTopWidth: 1,
@@ -569,12 +569,12 @@ export const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     gap: theme.spacing.md,
   },
-  guestLimitText: { color: theme.colors.onSurface, fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  guestLimitText: { color: theme.colors.onSurface, fontSize: 13, fontWeight: '700', textAlign: 'center' },
   guestLimitBtnRow: { flexDirection: 'row', gap: theme.spacing.sm },
   guestLimitPrimaryBtn: { flex: 1, backgroundColor: theme.colors.brand, borderRadius: theme.radius.md, padding: theme.spacing.md, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  guestLimitPrimaryBtnText: { color: theme.colors.onBrandPrimary, fontWeight: '700', fontSize: 15 },
+  guestLimitPrimaryBtnText: { color: theme.colors.onBrandPrimary, fontWeight: '700', fontSize: 13 },
   guestLimitSecondaryBtn: { flex: 1, borderWidth: 1.5, borderColor: theme.colors.border, borderRadius: theme.radius.md, padding: theme.spacing.md, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  guestLimitSecondaryBtnText: { color: theme.colors.onSurface, fontWeight: '700', fontSize: 15 },
+  guestLimitSecondaryBtnText: { color: theme.colors.onSurface, fontWeight: '700', fontSize: 13 },
   input: {
     flex: 1,
     minHeight: 48,
@@ -585,7 +585,7 @@ export const styles = StyleSheet.create({
     paddingTop: theme.spacing.md,
     paddingBottom: theme.spacing.md,
     color: theme.colors.onSurface,
-    fontSize: 15,
+    fontSize: 13,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
@@ -630,7 +630,7 @@ export const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: theme.radius.pill,
   },
-  proBadgeText: { color: theme.colors.onBrandSecondary, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  proBadgeText: { color: theme.colors.onBrandSecondary, fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
   upgradeBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -639,7 +639,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
   },
-  upgradeBannerText: { flex: 1, color: theme.colors.onBrandSecondary, fontWeight: '700', fontSize: 13 },
+  upgradeBannerText: { flex: 1, color: theme.colors.onBrandSecondary, fontWeight: '700', fontSize: 12 },
   sttHint: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -653,7 +653,7 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
-  sttHintText: { color: theme.colors.brand, fontSize: 11, fontWeight: '600' },
+  sttHintText: { color: theme.colors.brand, fontSize: 12, fontWeight: '600' },
   // WhatsApp-style recording bar (replaces input bar)
   recordingBar: {
     flexDirection: 'row',
@@ -747,7 +747,7 @@ export const styles = StyleSheet.create({
   recTimer: {
     fontVariant: ['tabular-nums'],
     fontWeight: '700',
-    fontSize: 15,
+    fontSize: 13,
     color: theme.colors.error,
     minWidth: 46,
   },
@@ -765,7 +765,7 @@ export const styles = StyleSheet.create({
     // NF-UI-REV-03: onSurfaceTertiary on the recording bar's '#FFF5F5'
     // background measured ~4.33:1. onSurfaceSecondary clears ~6.5:1.
     color: UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : theme.colors.onSurfaceTertiary,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
   },
   cancelActive: {
@@ -775,7 +775,7 @@ export const styles = StyleSheet.create({
   },
   cancelActiveText: {
     color: theme.colors.error,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
   },
   // Playback speed chip
@@ -789,7 +789,7 @@ export const styles = StyleSheet.create({
   },
   speedChipText: {
     color: theme.colors.brand,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.3,
   },
@@ -811,14 +811,14 @@ export const styles = StyleSheet.create({
   },
   tcTitle: {
     fontFamily: theme.fonts.display,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: theme.colors.brand,
   },
   tcText: {
     color: theme.colors.onSurface,
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 19,
     fontStyle: 'italic',
     marginBottom: theme.spacing.lg,
   },
@@ -844,8 +844,8 @@ export const styles = StyleSheet.create({
     padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
   },
-  tcMismatchText: { flex: 1, color: theme.colors.error, fontSize: 13, lineHeight: 18, fontWeight: '600' },
-  tcSendText: { color: theme.colors.onBrandPrimary, fontWeight: '800', fontSize: 15 },
+  tcMismatchText: { flex: 1, color: theme.colors.error, fontSize: 12, lineHeight: 16, fontWeight: '600' },
+  tcSendText: { color: theme.colors.onBrandPrimary, fontWeight: '800', fontSize: 13 },
   tcRow: { flexDirection: 'row', gap: theme.spacing.md },
   tcSecondaryBtn: {
     flex: 1,
@@ -861,7 +861,7 @@ export const styles = StyleSheet.create({
     // NF-UI-REV-03: ~38px tall pre-revision — under the 44/48px minimum.
     minHeight: UI_REVISION_V1 ? 48 : undefined,
   },
-  tcSecondaryText: { color: theme.colors.brand, fontWeight: '700', fontSize: 13 },
+  tcSecondaryText: { color: theme.colors.brand, fontWeight: '700', fontSize: 12 },
   pwOverlay: {
     flex: 1,
     backgroundColor: 'rgba(10,28,58,0.85)',
@@ -890,15 +890,15 @@ export const styles = StyleSheet.create({
   },
   pwTitle: {
     fontFamily: theme.fonts.display,
-    fontSize: 22,
+    fontSize: 19,
     fontWeight: '700',
     color: theme.colors.brand,
     marginBottom: theme.spacing.sm,
   },
   pwBody: {
     color: theme.colors.onSurfaceSecondary,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
     textAlign: 'center',
     marginBottom: theme.spacing.lg,
   },
@@ -910,11 +910,11 @@ export const styles = StyleSheet.create({
   },
   pwPrice: {
     fontFamily: theme.fonts.display,
-    fontSize: 32,
+    fontSize: 26,
     fontWeight: '800',
     color: theme.colors.brand,
   },
-  pwPriceOr: { color: theme.colors.onSurfaceTertiary, fontSize: 13 },
+  pwPriceOr: { color: theme.colors.onSurfaceTertiary, fontSize: 12 },
   pwPriceMeta: { color: theme.colors.onSurfaceTertiary, fontSize: 12, marginBottom: theme.spacing.lg },
   pwUpgrade: {
     flexDirection: 'row',
@@ -928,10 +928,10 @@ export const styles = StyleSheet.create({
     minWidth: '80%',
     marginBottom: theme.spacing.md,
   },
-  pwUpgradeText: { color: theme.colors.onBrandPrimary, fontWeight: '800', fontSize: 15 },
+  pwUpgradeText: { color: theme.colors.onBrandPrimary, fontWeight: '800', fontSize: 13 },
   pwContinue: {
     color: theme.colors.brand,
-    fontSize: 13,
+    fontSize: 12,
     textDecorationLine: 'underline',
     fontWeight: '600',
   },
@@ -960,7 +960,7 @@ export const styles = StyleSheet.create({
     borderColor: 'rgba(30, 58, 138, 0.18)',
   },
   crimeTypeBadgeText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     color: theme.colors.primary,
   },
@@ -987,7 +987,7 @@ export const styles = StyleSheet.create({
     flexShrink: 0,
   },
   proUpgradeTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     color: theme.colors.onBrandPrimary,
   },

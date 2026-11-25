@@ -22,4 +22,4 @@ export function MissingDraftShortcut() {
     <Text testID="complaints-missing-local-note" style={s.body}>Saved on this device · Continue complaint →</Text>
   </Pressable>;
 }
-const s = StyleSheet.create({ card: { padding: 16, marginBottom: 16, borderRadius: 14, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.divider, gap: 6 }, title: { color: theme.colors.primary, fontSize: 16, fontWeight: '700' }, body: { color: theme.colors.onSurfaceTertiary, fontSize: 13, lineHeight: 20 } });
+const s = StyleSheet.create({ card: { padding: 16, marginBottom: 16, borderRadius: 14, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.divider, gap: 6 }, title: { color: theme.colors.primary, fontSize: 14, fontWeight: '700' }, body: { color: theme.colors.onSurfaceTertiary, fontSize: 12, lineHeight: 18 } });

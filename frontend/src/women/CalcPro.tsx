@@ -270,7 +270,7 @@ const s = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   displayArea: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingBottom: 4,
     alignItems: 'flex-end',
     justifyContent: 'flex-end',

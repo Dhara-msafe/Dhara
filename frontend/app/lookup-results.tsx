@@ -340,32 +340,32 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: 'rgba(211,182,117,0.25)',
   },
   backBtn: { padding: 4 },
-  headerTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  headerTitle: { color: '#fff', fontSize: 14, fontWeight: '700' },
   headerSub: { color: GOLD, fontSize: 12, fontWeight: '500', marginTop: 2 },
 
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 12 },
-  loadingText: { color: NAVY, fontSize: 14, fontWeight: '500' },
-  errorText: { color: '#374151', fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  loadingText: { color: NAVY, fontSize: 13, fontWeight: '500' },
+  errorText: { color: '#374151', fontSize: 13, textAlign: 'center', lineHeight: 18 },
   retryBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: NAVY, paddingHorizontal: 18, paddingVertical: 11, borderRadius: 10, marginTop: 4 },
-  retryBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  emptyText: { color: '#374151', fontSize: 15, fontWeight: '600', textAlign: 'center' },
-  emptyHint: { color: HINT, fontSize: 13, textAlign: 'center', lineHeight: 18 },
+  retryBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  emptyText: { color: '#374151', fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  emptyHint: { color: HINT, fontSize: 12, textAlign: 'center', lineHeight: 16 },
 
   contentPad: { padding: 16, gap: 12, flex: 1 },
   listContent: { padding: 16, gap: 12, flexGrow: 1 },
 
   card: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', padding: 14, gap: 6, marginBottom: 12 },
   cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 },
-  cardTitle: { flex: 1, fontSize: 14, fontWeight: '700', color: NAVY, lineHeight: 19 },
+  cardTitle: { flex: 1, fontSize: 13, fontWeight: '700', color: NAVY, lineHeight: 17 },
   statusChip: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 6 },
-  statusChipText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
+  statusChipText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.3 },
 
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   metaText: { fontSize: 12.5, color: '#4B5563', flex: 1 },
 
   dateRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
   dateChip: { backgroundColor: '#F3F4F6', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
-  dateChipLabel: { fontSize: 10, color: HINT, fontWeight: '600' },
+  dateChipLabel: { fontSize: 11, color: HINT, fontWeight: '600' },
   dateChipValue: { fontSize: 12.5, color: '#1F2937', fontWeight: '700' },
 
   viewMoreRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 4 },
@@ -374,9 +374,9 @@ const styles = StyleSheet.create({
   partiesCard: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', padding: 14, gap: 12 },
   partyBlock: { gap: 4 },
   partyLabel: { fontSize: 12, fontWeight: '800', color: NAVY, letterSpacing: 0.2, marginBottom: 2 },
-  partyName: { fontSize: 13.5, color: '#374151', lineHeight: 19 },
+  partyName: { fontSize: 12.5, color: '#374151', lineHeight: 17 },
 
-  disclaimer: { fontSize: 11.5, color: HINT, lineHeight: 16, textAlign: 'center', paddingHorizontal: 8, marginTop: 4, marginBottom: 8 },
+  disclaimer: { fontSize: 12.5, color: HINT, lineHeight: 16, textAlign: 'center', paddingHorizontal: 8, marginTop: 4, marginBottom: 8 },
   noteCard: { flexDirection: 'row', gap: 8, backgroundColor: '#EEF2FF', borderRadius: 10, padding: 12, alignItems: 'flex-start', marginBottom: 12 },
   noteText: { flex: 1, fontSize: 12.5, color: NAVY, lineHeight: 17 },
 });

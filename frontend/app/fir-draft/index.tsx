@@ -1353,7 +1353,7 @@ ${data.bot_message}`);
         </View>
         <MarqueeBanner variant="light" />
         <ScrollView contentContainerStyle={styles.preBody}>
-          {resumeError ? <Text testID="fir-resume-error" accessibilityRole="alert" style={{ color: theme.colors.error, lineHeight: 22 }}>{resumeError}</Text> : null}
+          {resumeError ? <Text testID="fir-resume-error" accessibilityRole="alert" style={{ color: theme.colors.error, lineHeight: 19 }}>{resumeError}</Text> : null}
           {/* v3.3: Resume banner */}
           {savedSessionId && (
             <Pressable testID="fir-resume-saved" style={(s) => [styles.resumeCard, focusRingStyle(s)]} onPress={() => resumeSession(savedSessionId)} accessibilityRole="button" accessibilityLabel="Continue your complaint. You have an unfinished session, tap to resume.">
@@ -2317,31 +2317,31 @@ const eStyles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 9999,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   card: {
     backgroundColor: '#fff',
     borderRadius: 16,
-    padding: 24,
+    padding: 18,
     width: '100%',
     maxWidth: 400,
   },
-  title: { fontSize: 20, fontWeight: '700', color: '#B91C1C', marginBottom: 8, textAlign: 'center' },
-  subtitle: { fontSize: 14, color: '#374151', marginBottom: 16, textAlign: 'center', lineHeight: 20 },
+  title: { fontSize: 17, fontWeight: '700', color: '#B91C1C', marginBottom: 8, textAlign: 'center' },
+  subtitle: { fontSize: 13, color: '#374151', marginBottom: 16, textAlign: 'center', lineHeight: 18 },
   callBtn: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#B91C1C', borderRadius: 10,
     padding: 14, marginBottom: 10,
   },
-  callLabel: { color: '#fff', fontSize: 13, fontWeight: '600' },
-  callNum: { color: '#fecaca', fontSize: 20, fontWeight: '700', letterSpacing: 1 },
+  callLabel: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  callNum: { color: '#fecaca', fontSize: 17, fontWeight: '700', letterSpacing: 1 },
   continueBtn: {
     backgroundColor: theme.colors.primary, borderRadius: 10,
     paddingVertical: 14, alignItems: 'center', marginTop: 8,
   },
-  continueBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  continueBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   exitBtn: { paddingVertical: 12, alignItems: 'center', marginTop: 6, minHeight: UI_REVISION_V1 ? 48 : undefined, justifyContent: 'center' },
-  exitBtnText: { color: '#6B7280', fontSize: 14 },
+  exitBtnText: { color: '#6B7280', fontSize: 13 },
 });
 
 // ── Styles ────────────────────────────────────────────────────────────────────
@@ -2354,37 +2354,37 @@ const styles = StyleSheet.create({
     backgroundColor: CREAM, borderRadius: 12, padding: 12, marginHorizontal: 16,
     marginBottom: 8, borderWidth: 1, borderColor: GOLD,
   },
-  voiceConfirmText: { fontSize: 13, color: NAVY, marginTop: 4, marginBottom: 10, lineHeight: 18 },
+  voiceConfirmText: { fontSize: 12, color: NAVY, marginTop: 4, marginBottom: 10, lineHeight: 16 },
   voiceConfirmRow: { flexDirection: 'row', gap: 10 },
   voiceConfirmYesBtn: {
     flex: 1, backgroundColor: NAVY, borderRadius: 8, paddingVertical: 10, alignItems: 'center',
   },
-  voiceConfirmYesText: { color: SURFACE, fontSize: 13, fontWeight: '700' },
+  voiceConfirmYesText: { color: SURFACE, fontSize: 12, fontWeight: '700' },
   voiceConfirmDiscardBtn: {
     flex: 1, backgroundColor: 'transparent', borderRadius: 8, paddingVertical: 10,
     alignItems: 'center', borderWidth: 1, borderColor: BORDER,
   },
-  voiceConfirmDiscardText: { color: MUTED, fontSize: 13, fontWeight: '600' },
+  voiceConfirmDiscardText: { color: MUTED, fontSize: 12, fontWeight: '600' },
 
   // Pre-session
   preHeader: {
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12,
     borderBottomWidth: 1, borderBottomColor: BORDER,
   },
-  preTitle: { fontSize: 17, fontWeight: '700', color: NAVY, marginLeft: 12 },
-  preBody: { padding: 20, paddingBottom: 40 },
+  preTitle: { fontSize: 15, fontWeight: '700', color: NAVY, marginLeft: 12 },
+  preBody: { padding: 16, paddingBottom: 40 },
   welcomeCard: {
-    backgroundColor: CREAM, borderRadius: 16, padding: 24,
-    alignItems: 'center', marginBottom: 24,
+    backgroundColor: CREAM, borderRadius: 16, padding: 18,
+    alignItems: 'center', marginBottom: 18,
   },
-  welcomeIcon: { fontSize: 40, marginBottom: 12 },
-  welcomeTitle: { fontSize: 20, fontWeight: '700', color: NAVY, textAlign: 'center', marginBottom: 8 },
-  welcomeSubtitle: { fontSize: 14, color: MUTED, textAlign: 'center', lineHeight: 20, marginBottom: 16 },
+  welcomeIcon: { fontSize: 32, marginBottom: 12 },
+  welcomeTitle: { fontSize: 17, fontWeight: '700', color: NAVY, textAlign: 'center', marginBottom: 8 },
+  welcomeSubtitle: { fontSize: 13, color: MUTED, textAlign: 'center', lineHeight: 18, marginBottom: 16 },
   welcomeFeatures: { width: '100%', gap: 8 },
   featureRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  featureDot: { fontSize: 14, color: GREEN, fontWeight: '700', width: 16 },
-  featureText: { fontSize: 13, color: NAVY, flex: 1 },
-  langLabel: { fontSize: 14, fontWeight: '600', color: NAVY, marginBottom: 10 },
+  featureDot: { fontSize: 13, color: GREEN, fontWeight: '700', width: 16 },
+  featureText: { fontSize: 12, color: NAVY, flex: 1 },
+  langLabel: { fontSize: 13, fontWeight: '600', color: NAVY, marginBottom: 10 },
   langRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
   langChip: {
     paddingHorizontal: 14, paddingVertical: 8,
@@ -2392,7 +2392,7 @@ const styles = StyleSheet.create({
     backgroundColor: SURFACE,
   },
   langChipActive: { backgroundColor: NAVY, borderColor: NAVY },
-  langChipText: { fontSize: 13, color: MUTED, fontWeight: '500' },
+  langChipText: { fontSize: 12, color: MUTED, fontWeight: '500' },
   langChipTextActive: { color: '#fff' },
   // ── Module grid ────────────────────────────────────────────────────────────
   moduleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 22 },
@@ -2402,22 +2402,22 @@ const styles = StyleSheet.create({
     borderColor: BORDER, paddingVertical: 10, paddingHorizontal: 10, minHeight: 66,
   },
   moduleEmojiBadge: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  moduleEmoji: { fontSize: 20 },
+  moduleEmoji: { fontSize: 17 },
   moduleInfo: { flex: 1, minWidth: 0 },
   moduleLabel: { fontSize: 12.5, fontWeight: '700', color: NAVY, lineHeight: 17 },
-  moduleSub: { fontSize: 10.5, color: MUTED, marginTop: 1, lineHeight: 14 },
-  moduleBns: { fontSize: 10, fontWeight: '600', marginTop: 2 },
+  moduleSub: { fontSize: 11.5, color: MUTED, marginTop: 1, lineHeight: 14 },
+  moduleBns: { fontSize: 11, fontWeight: '600', marginTop: 2 },
   moduleCheck: { position: 'absolute', top: 6, right: 6 },
   disclaimer: {
     flexDirection: 'row', gap: 8, backgroundColor: '#F0F4FF',
-    borderRadius: 10, padding: 12, marginBottom: 24,
+    borderRadius: 10, padding: 12, marginBottom: 18,
   },
   disclaimerText: { fontSize: 12, color: MUTED, flex: 1, lineHeight: 17 },
   startBtn: {
     backgroundColor: NAVY, borderRadius: 14, paddingVertical: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
   },
-  startBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  startBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 
   // Chat header
   headerShell: { backgroundColor: theme.dhara.navy, flexShrink: 0 },
@@ -2427,7 +2427,7 @@ const styles = StyleSheet.create({
   },
   headerActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 8, paddingHorizontal: 12, paddingBottom: 8 },
   headerCenter: { flex: 1, minWidth: 0 },
-  headerTitle: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  headerTitle: { fontSize: 13, fontWeight: '700', color: '#fff' },
   headerLang: { fontSize: 12, color: GOLD },
   backBtn: { width: UI_REVISION_V1 ? 48 : 44, minHeight: UI_REVISION_V1 ? 48 : 44, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   pauseBtn: { width: UI_REVISION_V1 ? 44 : 38, minHeight: UI_REVISION_V1 ? 48 : 44, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
@@ -2450,11 +2450,11 @@ const styles = StyleSheet.create({
     backgroundColor: NAVY, alignItems: 'center', justifyContent: 'center',
     marginBottom: 2,
   },
-  botAvatarText: { fontSize: 14 },
+  botAvatarText: { fontSize: 13 },
   bubble: { maxWidth: '80%', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
   bubbleBot: { backgroundColor: NAVY, borderBottomLeftRadius: 4 },
   bubbleUser: { backgroundColor: CREAM, borderBottomRightRadius: 4 },
-  bubbleText: { fontSize: 14, lineHeight: 20 },
+  bubbleText: { fontSize: 13, lineHeight: 18 },
   // B-119: inline bold span for **...** segments inside a bot bubble.
   bubbleTextBold: { fontWeight: '700' },
   bubbleTextBot: { color: '#fff' },
@@ -2473,15 +2473,15 @@ const styles = StyleSheet.create({
     backgroundColor: NAVY, borderWidth: 0, minHeight: UI_REVISION_V1 ? 44 : undefined, justifyContent: 'center',
   },
   chipSkip: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: BORDER },
-  chipText: { fontSize: 13, color: '#fff', fontWeight: '600' },
+  chipText: { fontSize: 12, color: '#fff', fontWeight: '600' },
   chipTextSkip: { color: MUTED },
 
   // Text input
   textRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 4 },
-  textRowRecording: { alignItems: 'center', minHeight: 56 },
+  textRowRecording: { alignItems: 'center', minHeight: 50 },
   textBox: {
     flex: 1, borderWidth: 1.5, borderColor: BORDER, borderRadius: 12,
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: NAVY,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: NAVY,
     maxHeight: 120, backgroundColor: SURFACE,
   },
   micBtn: {
@@ -2495,13 +2495,13 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: { backgroundColor: BORDER },
   skipRow: { alignItems: 'center', paddingVertical: 8 },
-  skipText: { fontSize: 13, color: MUTED, textDecorationLine: 'underline' },
+  skipText: { fontSize: 12, color: MUTED, textDecorationLine: 'underline' },
 
   // WhatsApp-style mic gesture — hands-free locked recording bar (replaces
   // the composer entirely once the user drags the mic up and releases).
   lockedBar: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 10, minHeight: 56,
+    paddingVertical: 10, minHeight: 50,
   },
   lockedIconBtn: {
     width: UI_REVISION_V1 ? 48 : 40, height: UI_REVISION_V1 ? 48 : 40, borderRadius: UI_REVISION_V1 ? 24 : 20,
@@ -2530,14 +2530,14 @@ const styles = StyleSheet.create({
   recLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 90 },
   recDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: RED },
   recTimer: {
-    fontVariant: ['tabular-nums'], fontWeight: '700', fontSize: 14,
+    fontVariant: ['tabular-nums'], fontWeight: '700', fontSize: 13,
     color: RED, minWidth: 40,
   },
   recCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   slideHint: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   slideHintText: { color: MUTED, fontSize: 12, fontWeight: '500' },
   cancelActive: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  cancelActiveText: { color: RED, fontSize: 13, fontWeight: '700' },
+  cancelActiveText: { color: RED, fontSize: 12, fontWeight: '700' },
 
   // GPS widget
   widgetWrap: { paddingBottom: 4, gap: 8 },
@@ -2546,7 +2546,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: NAVY, borderRadius: 12, paddingVertical: 14,
   },
-  gpsBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  gpsBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
 
   // TTS button below bot bubble
   ttsBubbleBtn: {
@@ -2556,7 +2556,7 @@ const styles = StyleSheet.create({
     borderRadius: 10, backgroundColor: CREAM,
     borderWidth: 1, borderColor: BORDER,
   },
-  ttsBubbleBtnText: { fontSize: 11, color: MUTED, fontWeight: '500' },
+  ttsBubbleBtnText: { fontSize: 12, color: MUTED, fontWeight: '500' },
 
   // Paperclip attach button in text input bar
   attachBtn: {
@@ -2585,7 +2585,7 @@ const styles = StyleSheet.create({
     width: 40, height: 40, borderRadius: 6, backgroundColor: '#EEF2FF',
     alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
-  attachChipName: { fontSize: 11, color: NAVY, flex: 1 },
+  attachChipName: { fontSize: 12, color: NAVY, flex: 1 },
   attachAddBtn: {
     width: 44, height: 44, borderRadius: 8, borderWidth: 1.5,
     borderColor: BORDER, borderStyle: 'dashed',
@@ -2611,19 +2611,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFAF8',
     fontStyle: 'italic',
   },
-  evidenceItemText: { fontSize: 13, color: NAVY, flex: 1 },
+  evidenceItemText: { fontSize: 12, color: NAVY, flex: 1 },
   evidenceBtns: { flexDirection: 'row', gap: 8 },
   evidenceAddBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     borderWidth: 1.5, borderColor: NAVY, borderRadius: 10, paddingVertical: 10, borderStyle: 'dashed',
     minHeight: UI_REVISION_V1 ? 48 : undefined,
   },
-  evidenceAddText: { fontSize: 14, color: NAVY, fontWeight: '600' },
+  evidenceAddText: { fontSize: 13, color: NAVY, fontWeight: '600' },
   evidenceDoneBtn: {
     backgroundColor: GREEN, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16,
     alignItems: 'center', justifyContent: 'center', minHeight: UI_REVISION_V1 ? 48 : undefined,
   },
-  evidenceDoneText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  evidenceDoneText: { color: '#fff', fontSize: 13, fontWeight: '700' },
 
   // Confirm
   confirmWrap: { gap: 8, paddingBottom: 4 },
@@ -2631,29 +2631,29 @@ const styles = StyleSheet.create({
     backgroundColor: GREEN, borderRadius: 12, paddingVertical: 14,
     alignItems: 'center',
   },
-  confirmYesText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  confirmYesText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   confirmNo: {
     backgroundColor: 'transparent', borderWidth: 1.5, borderColor: BORDER,
     borderRadius: 12, paddingVertical: 12, alignItems: 'center', minHeight: UI_REVISION_V1 ? 48 : undefined, justifyContent: 'center',
   },
-  confirmNoText: { color: MUTED, fontSize: 14 },
+  confirmNoText: { color: MUTED, fontSize: 13 },
 
   // View draft
   viewDraftBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
     backgroundColor: NAVY, borderRadius: 14, paddingVertical: 16, marginBottom: 4,
   },
-  viewDraftBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  viewDraftBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 
   // v3.3: New styles
   resumeCard: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: NAVY, borderRadius: 12, padding: 14, marginBottom: 12,
   },
-  resumeTitle: { color: GOLD, fontSize: 14, fontWeight: '700' },
+  resumeTitle: { color: GOLD, fontSize: 13, fontWeight: '700' },
   resumeSubtitle: { color: '#94a3b8', fontSize: 12, marginTop: 2 },
   saveLaterRow: { alignItems: 'center', paddingVertical: 8, marginTop: 4, minHeight: UI_REVISION_V1 ? 44 : undefined, justifyContent: 'center' },
-  saveLaterText: { color: MUTED, fontSize: 13, textDecorationLine: 'underline' },
+  saveLaterText: { color: MUTED, fontSize: 12, textDecorationLine: 'underline' },
   evidenceThumb: { width: 36, height: 36, borderRadius: 6, marginRight: 4 },
   evidenceRemoveBtn: { padding: 2 },
   chipDanger: { backgroundColor: '#FEF2F2', borderColor: '#B91C1C' },

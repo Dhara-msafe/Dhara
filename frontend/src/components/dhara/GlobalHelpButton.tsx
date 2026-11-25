@@ -32,7 +32,10 @@ export function isGlobalHelpHidden(pathname: string | null | undefined): boolean
   // language list. Help/emergency is one tap away again the moment the user is in.
   const isAuthOnboarding =
     pathname === '/login' || pathname === '/signup' ||
-    pathname === '/consent' || pathname === '/language';
+    pathname === '/consent' || pathname === '/language' ||
+    // Redesign v3: this screen has SOS in its own header row, so the floating
+    // button no longer covers the last point on the list.
+    pathname === '/how-it-helps';
   // Head Out wizard substeps (/women/head-out/destination|radius|circle) have
   // their own bottom footers and dropdown rows exactly where this FAB floats —
   // on step 3 it covered the "Notify my circle" dropdown (owner finding 10,
@@ -88,5 +91,5 @@ const styles = StyleSheet.create({
   },
   // UI_V22_DOCK: sits in the bottom dock's row, in normal layout flow.
   btnDocked: { position: 'relative', right: undefined, bottom: undefined, minHeight: 48, elevation: 0, shadowOpacity: 0 },
-  txt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14 },
+  txt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 13 },
 });

@@ -221,15 +221,15 @@ function NoteEditor({ initial, onSave, onCancel }: { initial: string; onSave: (t
         placeholder="Add context for this recording…"
         placeholderTextColor={tc.muted}
         multiline
-        style={{ borderWidth: 1, borderColor: tc.lines, borderRadius: 10, padding: 10, fontFamily: theme.fonts.body, fontSize: 14, color: tc.ink, minHeight: 70, backgroundColor: tc.background }}
+        style={{ borderWidth: 1, borderColor: tc.lines, borderRadius: 10, padding: 10, fontFamily: theme.fonts.body, fontSize: 13, color: tc.ink, minHeight: 70, backgroundColor: tc.background }}
         testID="evidence-note-input"
       />
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <Pressable onPress={() => onSave(text)} style={(s) => [{ flex: 1, backgroundColor: tc.navy, borderRadius: 10, padding: 10, alignItems: 'center' }, focusRingStyle(s)]} testID="evidence-note-save" accessibilityRole="button" accessibilityLabel="Save note">
-          <Text style={{ color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14 }}>Save note</Text>
+          <Text style={{ color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 13 }}>Save note</Text>
         </Pressable>
         <Pressable onPress={onCancel} style={(s) => [{ flex: 1, borderWidth: 1, borderColor: tc.lines, borderRadius: 10, padding: 10, alignItems: 'center' }, focusRingStyle(s)]} testID="evidence-note-cancel" accessibilityRole="button" accessibilityLabel="Cancel note">
-          <Text style={{ color: tc.muted, fontFamily: theme.fonts.body, fontSize: 14 }}>Cancel</Text>
+          <Text style={{ color: tc.muted, fontFamily: theme.fonts.body, fontSize: 13 }}>Cancel</Text>
         </Pressable>
       </View>
     </View>
@@ -1480,49 +1480,49 @@ export default function EvidenceLocker() {
   );
 }
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: c.background }, content: { padding: 20, gap: 18 },
+  root: { flex: 1, backgroundColor: c.background }, content: { padding: 16, gap: 18 },
   disabledBlock: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 },
-  disabledTitle: { fontFamily: theme.fonts.displayBold, fontSize: 20, color: c.ink, textAlign: 'center' },
-  disabledBody: { fontFamily: theme.fonts.body, fontSize: 15, lineHeight: 23, color: c.muted, textAlign: 'center' },
-  note: { fontFamily: theme.fonts.body, fontSize: 15, lineHeight: 23, color: c.muted },
-  timer: { fontFamily: theme.fonts.bodyBold, fontSize: 22, color: c.emergencyRed },
-  heading: { fontFamily: theme.fonts.displayBold, fontSize: 23, color: c.ink, marginTop: 10 },
-  button: { minHeight: 56, backgroundColor: c.navy, borderRadius: 14, padding: 16, alignItems: 'center' },
-  buttonText: { fontFamily: theme.fonts.bodyBold, fontSize: 17, color: c.onBrandPrimary },
+  disabledTitle: { fontFamily: theme.fonts.displayBold, fontSize: 17, color: c.ink, textAlign: 'center' },
+  disabledBody: { fontFamily: theme.fonts.body, fontSize: 13, lineHeight: 20, color: c.muted, textAlign: 'center' },
+  note: { fontFamily: theme.fonts.body, fontSize: 13, lineHeight: 20, color: c.muted },
+  timer: { fontFamily: theme.fonts.bodyBold, fontSize: 19, color: c.emergencyRed },
+  heading: { fontFamily: theme.fonts.displayBold, fontSize: 20, color: c.ink, marginTop: 10 },
+  button: { minHeight: 50, backgroundColor: c.navy, borderRadius: 14, padding: 16, alignItems: 'center' },
+  buttonText: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.onBrandPrimary },
   secondary: { borderRadius: 14, borderWidth: 1, borderColor: c.lines, padding: 16, backgroundColor: c.surface },
-  label: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.navy },
+  label: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.navy },
   control: { minHeight: UI_REVISION_V1 ? 48 : 44, justifyContent: 'center', marginTop: 8 },
   toast: {
     position: 'absolute', left: 20, right: 20, backgroundColor: c.navy, borderRadius: 12,
     paddingVertical: 14, paddingHorizontal: 16,
   },
-  toastTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.onBrandPrimary, textAlign: 'center' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(14,39,64,0.45)', justifyContent: 'center', padding: 20 },
-  modalCard: { backgroundColor: c.surface, borderRadius: 16, padding: 20, gap: 12 },
-  modalTitle: { fontFamily: theme.fonts.displayBold, fontSize: 21, color: c.ink },
-  modalBody: { fontFamily: theme.fonts.body, fontSize: 15, lineHeight: 23, color: c.muted },
-  modalError: { fontFamily: theme.fonts.bodyBold, fontSize: 15, lineHeight: 22, color: c.emergencyRed },
+  toastTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.onBrandPrimary, textAlign: 'center' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(14,39,64,0.45)', justifyContent: 'center', padding: 16 },
+  modalCard: { backgroundColor: c.surface, borderRadius: 16, padding: 16, gap: 12 },
+  modalTitle: { fontFamily: theme.fonts.displayBold, fontSize: 18, color: c.ink },
+  modalBody: { fontFamily: theme.fonts.body, fontSize: 13, lineHeight: 20, color: c.muted },
+  modalError: { fontFamily: theme.fonts.bodyBold, fontSize: 13, lineHeight: 19, color: c.emergencyRed },
   modalDanger: { minHeight: 52, borderRadius: 12, backgroundColor: c.emergencyRed, alignItems: 'center', justifyContent: 'center' },
-  modalDangerTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 17, color: c.onBrandPrimary },
+  modalDangerTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.onBrandPrimary },
   modalKeep: { minHeight: 52, borderRadius: 12, borderWidth: 1, borderColor: c.lines, alignItems: 'center', justifyContent: 'center' },
-  modalKeepTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 17, color: c.navy },
+  modalKeepTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.navy },
   controlDanger: { borderRadius: 8, backgroundColor: '#fff0f0', paddingHorizontal: 8, borderWidth: 1, borderColor: '#fecaca' },
   vaultRow: { marginTop: 4, gap: 6, borderTopWidth: 1, borderTopColor: c.lines, paddingTop: 8 },
   captureRow: { flexDirection: 'row', gap: 12 },
-  captureBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 56 },
+  captureBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 50 },
   thumb: { width: '100%', height: 160, borderRadius: 10, marginTop: 8, backgroundColor: c.lines },
   videoPlaceholder: { width: '100%', height: 100, borderRadius: 10, marginTop: 8, backgroundColor: c.lines, alignItems: 'center', justifyContent: 'center' },
   videoPreview: { width: '100%', height: 200, borderRadius: 10, marginTop: 8, backgroundColor: '#000' },
-  heading2: { fontFamily: theme.fonts.displayBold, fontSize: 22, color: c.ink },
-  note2: { fontFamily: theme.fonts.body, fontSize: 14, lineHeight: 20, color: c.muted, textAlign: 'center', marginTop: 8, marginBottom: 20 },
-  pinInput: { fontFamily: theme.fonts.bodyBold, fontSize: 28, letterSpacing: 8, textAlign: 'center', borderWidth: 1, borderColor: c.lines, borderRadius: 12, padding: 14, width: 180, marginBottom: 12, color: c.ink },
+  heading2: { fontFamily: theme.fonts.displayBold, fontSize: 19, color: c.ink },
+  note2: { fontFamily: theme.fonts.body, fontSize: 13, lineHeight: 18, color: c.muted, textAlign: 'center', marginTop: 8, marginBottom: 20 },
+  pinInput: { fontFamily: theme.fonts.bodyBold, fontSize: 24, letterSpacing: 8, textAlign: 'center', borderWidth: 1, borderColor: c.lines, borderRadius: 12, padding: 14, width: 180, marginBottom: 12, color: c.ink },
   // B5 (Phase 0.5)
   // v2.2 phase 7 notice card (v2.2 tokens from phase 1).
   noticeCard: { backgroundColor: c.redBg, borderColor: c.redDeep, borderWidth: 1, borderRadius: theme.radius.cardLg, padding: 14, marginTop: 10, gap: 6 },
-  noticeTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.redDeep },
-  noticeBody: { fontFamily: theme.fonts.body, fontSize: 15, lineHeight: 21, color: c.ink },
-  noticeDetail: { fontFamily: theme.fonts.body, fontSize: 13, lineHeight: 18, color: c.muted },
+  noticeTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.redDeep },
+  noticeBody: { fontFamily: theme.fonts.body, fontSize: 13, lineHeight: 18, color: c.ink },
+  noticeDetail: { fontFamily: theme.fonts.body, fontSize: 12, lineHeight: 16, color: c.muted },
   changePinBtn: { alignSelf: 'flex-end', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: c.lines, minHeight: 48, justifyContent: 'center' },
-  changePinText: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted },
-  cpInput: { fontFamily: theme.fonts.bodyBold, fontSize: 26, letterSpacing: 8, textAlign: 'center', borderWidth: 1, borderColor: c.lines, borderRadius: 12, padding: 14, width: 180, marginVertical: 10, color: c.ink },
+  changePinText: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted },
+  cpInput: { fontFamily: theme.fonts.bodyBold, fontSize: 22, letterSpacing: 8, textAlign: 'center', borderWidth: 1, borderColor: c.lines, borderRadius: 12, padding: 14, width: 180, marginVertical: 10, color: c.ink },
 });

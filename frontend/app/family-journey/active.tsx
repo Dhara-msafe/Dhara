@@ -306,5 +306,5 @@ export default function ActiveJourney() {
 
 const styles = StyleSheet.create({
   calmCard: { backgroundColor: c.surfaceSecondary, borderColor: c.borderStrong },
-  calmOk: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.success },
+  calmOk: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.success },
 });

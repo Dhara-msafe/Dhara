@@ -235,7 +235,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 14,
   },
   headerText:  { flex: 1 },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: '#fff' },
+  headerTitle: { fontSize: 16, fontWeight: '800', color: '#fff' },
   headerSub:   { fontSize: 12, color: '#C5CEEA', marginTop: 3 },
 
   embassyCard: {
@@ -243,18 +243,18 @@ const s = StyleSheet.create({
     gap: 6,
   },
   embassyRow:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  embassyTitle:{ fontSize: 14, fontWeight: '700', color: '#fff', flex: 1 },
+  embassyTitle:{ fontSize: 13, fontWeight: '700', color: '#fff', flex: 1 },
   embassyChange:{ fontSize: 12, fontWeight: '700', color: C.gold, textDecorationLine: 'underline' },
   embassyCity: { fontSize: 12, color: '#C5CEEA', marginLeft: 28 },
   embassyCall: { flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 28, marginTop: 4 },
-  embassyPhone:{ fontSize: 15, fontWeight: '700', color: C.gold },
+  embassyPhone:{ fontSize: 13, fontWeight: '700', color: C.gold },
 
   nationalityCard: {
     backgroundColor: C.surface, borderRadius: 14, padding: 16, marginBottom: 14,
     borderWidth: 1, borderColor: C.divider, gap: 10,
   },
-  nationalityTitle: { fontSize: 15, fontWeight: '800', color: C.onSurface },
-  nationalitySub:   { fontSize: 12, color: C.onSurfaceTertiary, lineHeight: 18 },
+  nationalityTitle: { fontSize: 13, fontWeight: '800', color: C.onSurface },
+  nationalitySub:   { fontSize: 12, color: C.onSurfaceTertiary, lineHeight: 16 },
   nationalityConfirmBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: C.primary, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 10,
@@ -274,32 +274,32 @@ const s = StyleSheet.create({
     width: 28, height: 28, borderRadius: 14, backgroundColor: C.primary,
     alignItems: 'center', justifyContent: 'center',
   },
-  stepNumText: { color: '#fff', fontWeight: '800', fontSize: 13 },
-  stepTitle:   { flex: 1, fontSize: 15, fontWeight: '700', color: C.onSurface },
-  stepBody:    { fontSize: 13, color: C.onSurfaceTertiary, lineHeight: 20, marginBottom: 12 },
+  stepNumText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+  stepTitle:   { flex: 1, fontSize: 13, fontWeight: '700', color: C.onSurface },
+  stepBody:    { fontSize: 12, color: C.onSurfaceTertiary, lineHeight: 18, marginBottom: 12 },
 
   actionBtn:     {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, borderRadius: 10, paddingVertical: 12, marginBottom: 8,
   },
-  actionBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  actionBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
 
-  speakLabel: { fontSize: 11, fontWeight: '700', color: C.primary, letterSpacing: 0.5, marginBottom: 6 },
+  speakLabel: { fontSize: 12, fontWeight: '700', color: C.primary, letterSpacing: 0.5, marginBottom: 6 },
   speakBox:   {
     backgroundColor: C.navySoft, borderRadius: 10, padding: 12,
     borderLeftWidth: 3, borderLeftColor: C.primary,
   },
-  speakText:  { fontSize: 14, color: C.primary, lineHeight: 22, fontStyle: 'italic' },
+  speakText:  { fontSize: 13, color: C.primary, lineHeight: 19, fontStyle: 'italic' },
 
   firCard: {
     flexDirection: 'row', gap: 10, backgroundColor: '#EFF6FF',
     borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#BFDBFE',
     alignItems: 'flex-start', marginBottom: 12,
   },
-  firText: { flex: 1, fontSize: 13, color: C.primary, lineHeight: 19 },
+  firText: { flex: 1, fontSize: 12, color: C.primary, lineHeight: 17 },
 
   footnote: {
-    fontSize: 11, color: C.onSurfaceTertiary, textAlign: 'center',
+    fontSize: 12, color: C.onSurfaceTertiary, textAlign: 'center',
     lineHeight: 17, marginTop: 4,
   },
 });

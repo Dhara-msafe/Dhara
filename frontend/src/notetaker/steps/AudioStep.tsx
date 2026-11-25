@@ -46,12 +46,12 @@ export default function AudioStep({
 }
 
 const styles = StyleSheet.create({
-  wrap: { padding: 20, gap: 4 },
-  heading: { fontFamily: theme.fonts.display, fontSize: 20, color: c.navy, marginBottom: 6 },
-  body: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, lineHeight: 20, marginBottom: 16 },
+  wrap: { padding: 16, gap: 4 },
+  heading: { fontFamily: theme.fonts.display, fontSize: 17, color: c.navy, marginBottom: 6 },
+  body: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18, marginBottom: 16 },
   fileCard: { backgroundColor: c.surface, borderRadius: 12, borderWidth: 1, borderColor: c.border, padding: 14, marginBottom: 16 },
-  fileName: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.ink },
+  fileName: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.ink },
   fileMeta: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 2 },
   primaryBtn: { backgroundColor: c.navy, borderRadius: 12, paddingVertical: 16, alignItems: 'center' },
-  primaryBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 16, color: '#fff' },
+  primaryBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: '#fff' },
 });

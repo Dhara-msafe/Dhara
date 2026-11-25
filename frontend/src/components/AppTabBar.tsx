@@ -81,7 +81,7 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
 const styles = StyleSheet.create({
   wrap: { backgroundColor: c.surface, flexShrink: 0 },
   // Redesign v3: five flat tabs, 58 tall (prototype .footer-nav).
-  tabs: { flexDirection: 'row', alignItems: 'stretch', minHeight: 58, paddingHorizontal: 6, paddingVertical: 3, borderTopWidth: 1, borderColor: '#E5E7EB' },
+  tabs: { flexDirection: 'row', alignItems: 'stretch', minHeight: 50, paddingHorizontal: 6, paddingVertical: 3, borderTopWidth: 1, borderColor: '#E5E7EB' },
   tab: { flex: 1, minHeight: 52, justifyContent: 'center', alignItems: 'center', gap: 2, paddingHorizontal: 2 },
   label: { color: c.tabInactive, fontSize: theme.type.tab, lineHeight: 16, fontFamily: theme.fonts.bodyMedium, textAlign: 'center' },
   labelActive: { color: c.blue, fontFamily: theme.fonts.bodyBold },

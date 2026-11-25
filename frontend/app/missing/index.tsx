@@ -111,23 +111,23 @@ export default function MissingEntryScreen() {
 const s = StyleSheet.create({
   back: { width: 44, height: 44, justifyContent: 'center', marginBottom: 8 },
   attachmentBtn: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginBottom: 16, borderRadius: 14, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface },
-  attachmentTitle: { color: NAVY, fontSize: 15, fontWeight: '700' },
+  attachmentTitle: { color: NAVY, fontSize: 13, fontWeight: '700' },
   attachmentSub: { fontSize: 12, color: theme.colors.onSurfaceTertiary, marginTop: 4 },
   safe:          { flex: 1, backgroundColor: BG },
-  scroll:        { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
+  scroll:        { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 40 },
 
   header:        { marginBottom: 16 },
-  title:         { fontSize: 28, fontWeight: '800', color: NAVY, letterSpacing: -0.5, marginBottom: 12 },
+  title:         { fontSize: 24, fontWeight: '800', color: NAVY, letterSpacing: -0.5, marginBottom: 12 },
 
   urgentBadge:   {
     backgroundColor: '#FFF0F0', borderRadius: 10, padding: 12,
     borderLeftWidth: 4, borderLeftColor: RED,
   },
-  urgentText:    { fontSize: 13, color: RED, lineHeight: 19, fontWeight: '600' },
+  urgentText:    { fontSize: 12, color: RED, lineHeight: 17, fontWeight: '600' },
 
-  body:          { fontSize: 15, color: '#444', lineHeight: 23, marginBottom: 24 },
+  body:          { fontSize: 13, color: '#444', lineHeight: 20, marginBottom: 18 },
 
-  callSection:   { gap: 12, marginBottom: 24 },
+  callSection:   { gap: 12, marginBottom: 18 },
   callBtn:       {
     backgroundColor: RED, borderRadius: 16, padding: 18,
     flexDirection: 'row', alignItems: 'center', gap: 14,
@@ -135,20 +135,20 @@ const s = StyleSheet.create({
     elevation: 4,
   },
   callBtnSecondary: { backgroundColor: '#E65C00' },
-  callIcon:      { fontSize: 28 },
+  callIcon:      { fontSize: 24 },
   callInfo:      { flex: 1 },
-  callNumber:    { fontSize: 28, fontWeight: '800', color: '#FFF', letterSpacing: 1 },
-  callLabel:     { fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
+  callNumber:    { fontSize: 24, fontWeight: '800', color: '#FFF', letterSpacing: 1 },
+  callLabel:     { fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
 
-  divider:       { height: 1, backgroundColor: '#E5E7EB', marginBottom: 24 },
+  divider:       { height: 1, backgroundColor: '#E5E7EB', marginBottom: 18 },
 
   continueBtn:   {
-    backgroundColor: NAVY, borderRadius: 14, paddingVertical: 18,
+    backgroundColor: NAVY, borderRadius: 14, paddingVertical: 14,
     alignItems: 'center', marginBottom: 14,
     shadowColor: NAVY, shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
-  continueBtnText: { fontSize: 17, fontWeight: '700', color: '#FFF' },
+  continueBtnText: { fontSize: 15, fontWeight: '700', color: '#FFF' },
 
   // UI-revision pilot (reversible via UI_REVISION_V1): #888 measured ~3.6:1
   // against this screen's cream background, below the 4.5:1 minimum for

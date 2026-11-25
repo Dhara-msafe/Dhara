@@ -211,7 +211,7 @@ export default function Rights() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.surface },
   header: { padding: theme.spacing.xl, paddingBottom: theme.spacing.md, borderBottomWidth: 1, borderBottomColor: theme.colors.divider },
-  h1: { fontFamily: theme.fonts.display, fontSize: 28, color: theme.colors.brand, fontWeight: '700' },
+  h1: { fontFamily: theme.fonts.display, fontSize: 24, color: theme.colors.brand, fontWeight: '700' },
   h2: { color: theme.colors.onSurfaceSecondary, marginTop: 4 },
   scroll: { padding: theme.spacing.lg, gap: theme.spacing.md, paddingBottom: theme.spacing.xxl },
   firCard: {
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  firCardTitle: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  firCardTitle: { color: '#fff', fontSize: 14, fontWeight: '800' },
   firCardSub: { color: 'rgba(255,255,255,0.85)', fontSize: 12.5, marginTop: 2, lineHeight: 17 },
   // Card is now a plain (non-pressable) container — only the header below
   // is interactive, so it owns no padding of its own (see cardHeadPressable).
@@ -240,23 +240,23 @@ const styles = StyleSheet.create({
   cardHeadPressable: { padding: theme.spacing.lg, minHeight: UI_REVISION_V1 ? 48 : undefined },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
   iconWrap: { width: 44, height: 44, borderRadius: 22, backgroundColor: theme.colors.surfaceSecondary, alignItems: 'center', justifyContent: 'center' },
-  cardTitle: { fontFamily: theme.fonts.display, fontSize: 17, fontWeight: '700', color: theme.colors.onSurface },
-  cardSummary: { color: theme.colors.onSurfaceSecondary, marginTop: 2, fontSize: 13 },
+  cardTitle: { fontFamily: theme.fonts.display, fontSize: 15, fontWeight: '700', color: theme.colors.onSurface },
+  cardSummary: { color: theme.colors.onSurfaceSecondary, marginTop: 2, fontSize: 12 },
   body: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg, paddingTop: theme.spacing.lg, borderTopWidth: 1, borderTopColor: theme.colors.divider },
   lawPill: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: theme.colors.surfaceSecondary, paddingHorizontal: theme.spacing.md, paddingVertical: theme.spacing.sm, borderRadius: theme.radius.pill, marginBottom: theme.spacing.md },
   lawText: { color: theme.colors.brandSecondary, fontSize: 12, fontWeight: '600' },
   point: { flexDirection: 'row', gap: theme.spacing.sm, marginBottom: theme.spacing.sm },
-  bullet: { color: theme.colors.brandSecondary, fontSize: 18, lineHeight: 22 },
-  pointText: { flex: 1, color: theme.colors.onSurface, lineHeight: 22, fontSize: 14 },
+  bullet: { color: theme.colors.brandSecondary, fontSize: 16, lineHeight: 19 },
+  pointText: { flex: 1, color: theme.colors.onSurface, lineHeight: 19, fontSize: 13 },
   askBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: theme.colors.brand, borderRadius: theme.radius.md, padding: theme.spacing.md, marginTop: theme.spacing.md, minHeight: UI_REVISION_V1 ? 48 : undefined },
   askText: { color: theme.colors.onBrandPrimary, fontWeight: '700' },
   noticeBox: { flexDirection: 'row', gap: theme.spacing.sm, backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md, padding: theme.spacing.md, marginBottom: theme.spacing.md },
-  noticeText: { flex: 1, color: theme.colors.onSurfaceSecondary, fontSize: 12.5, lineHeight: 18 },
+  noticeText: { flex: 1, color: theme.colors.onSurfaceSecondary, fontSize: 12.5, lineHeight: 16 },
   citeWrap: { marginTop: theme.spacing.sm, paddingTop: theme.spacing.sm, borderTopWidth: 1, borderTopColor: theme.colors.divider },
-  citeHeading: v22SectionLabel({ fontSize: 11, fontWeight: '700', color: theme.colors.onSurfaceSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }),
+  citeHeading: v22SectionLabel({ fontSize: 12, fontWeight: '700', color: theme.colors.onSurfaceSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }),
   // 44px-minimum tap target via hitSlop above; visual row height stays
   // compact so the citation list doesn't balloon (NF-UI-REV-02).
   citeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4, minHeight: 28 },
-  citeText: { color: theme.colors.brand, fontSize: 13, textDecorationLine: 'underline', flex: 1 },
-  verifiedText: { color: theme.colors.onSurfaceSecondary, fontSize: 11, marginTop: 4, fontStyle: 'italic' },
+  citeText: { color: theme.colors.brand, fontSize: 12, textDecorationLine: 'underline', flex: 1 },
+  verifiedText: { color: theme.colors.onSurfaceSecondary, fontSize: 12, marginTop: 4, fontStyle: 'italic' },
 });

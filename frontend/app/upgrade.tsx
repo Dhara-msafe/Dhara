@@ -308,12 +308,12 @@ export default function Upgrade() {
           <Text style={styles.headerTitle}>Dhara Pro</Text>
           <View style={{ width: 26 }} />
         </View>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12, backgroundColor: theme.colors.background }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 18, gap: 12, backgroundColor: theme.colors.background }}>
           <Ionicons name="time-outline" size={40} color={theme.colors.brand} />
-          <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.onSurface, textAlign: 'center' }}>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: theme.colors.onSurface, textAlign: 'center' }}>
             Pro isn&apos;t available in this version yet
           </Text>
-          <Text style={{ fontSize: 13, color: theme.colors.onSurfaceSecondary, textAlign: 'center', lineHeight: 20 }}>
+          <Text style={{ fontSize: 12, color: theme.colors.onSurfaceSecondary, textAlign: 'center', lineHeight: 18 }}>
             Every DHARA feature you can see today is free to use. We&apos;ll let you know here when Pro becomes available.
           </Text>
         </View>
@@ -571,7 +571,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: theme.colors.onBrandPrimary,
     fontFamily: theme.fonts.display,
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: '700',
   },
   scroll: {
@@ -599,7 +599,7 @@ const styles = StyleSheet.create({
   heroTitle: {
     color: theme.colors.onBrandPrimary,
     fontFamily: theme.fonts.display,
-    fontSize: 24,
+    fontSize: 21,
     fontWeight: '700',
   },
   heroSub: { color: theme.colors.brandSecondary, marginTop: 4 },
@@ -607,10 +607,10 @@ const styles = StyleSheet.create({
   price: {
     color: theme.colors.onBrandPrimary,
     fontFamily: theme.fonts.display,
-    fontSize: 40,
+    fontSize: 32,
     fontWeight: '700',
   },
-  priceMeta: { color: '#D1D5DB', fontSize: 13, marginTop: 2 },
+  priceMeta: { color: '#D1D5DB', fontSize: 12, marginTop: 2 },
   priceAlt: { color: theme.colors.brandSecondary, fontSize: 12, marginTop: 6 },
   card: {
     backgroundColor: theme.colors.surface,
@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
   },
   section: {
     fontFamily: theme.fonts.display,
-    fontSize: 17,
+    fontSize: 15,
     color: theme.colors.brand,
     marginBottom: theme.spacing.md,
     fontWeight: '700',
@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
     marginBottom: theme.spacing.sm,
   },
-  featureText: { flex: 1, color: theme.colors.onSurface, lineHeight: 20 },
+  featureText: { flex: 1, color: theme.colors.onSurface, lineHeight: 18 },
   langIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -654,7 +654,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.divider,
   },
-  compareLabel: { flex: 1, color: theme.colors.onSurface, fontSize: 13 },
+  compareLabel: { flex: 1, color: theme.colors.onSurface, fontSize: 12 },
   disclaimerBox: {
     flexDirection: 'row',
     gap: theme.spacing.sm,
@@ -678,10 +678,10 @@ const styles = StyleSheet.create({
   },
   ctaRazor: { backgroundColor: theme.colors.brandSecondary },
   ctaStripe: { backgroundColor: '#635BFF' },
-  ctaText: { color: theme.colors.onBrandPrimary, fontWeight: '800', fontSize: 15 },
-  ctaSub: { color: theme.colors.onBrandPrimary, fontSize: 11, opacity: 0.85, marginTop: 2 },
+  ctaText: { color: theme.colors.onBrandPrimary, fontWeight: '800', fontSize: 13 },
+  ctaSub: { color: theme.colors.onBrandPrimary, fontSize: 12, opacity: 0.85, marginTop: 2 },
   alreadyPaidLink: { alignItems: 'center', marginTop: 8 },
-  alreadyPaidText: { color: theme.colors.brand, fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' },
+  alreadyPaidText: { color: theme.colors.brand, fontSize: 12, fontWeight: '600', textDecorationLine: 'underline' },
   alreadyPro: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -699,7 +699,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: theme.colors.onSurfaceTertiary,
     marginTop: theme.spacing.lg,
-    fontSize: 11,
+    fontSize: 12,
   },
   errorBox: {
     flexDirection: 'row',
@@ -712,7 +712,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     marginTop: theme.spacing.lg,
   },
-  errorText: { flex: 1, color: theme.colors.error, fontSize: 13, fontWeight: '600' },
+  errorText: { flex: 1, color: theme.colors.error, fontSize: 12, fontWeight: '600' },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
@@ -731,8 +731,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: theme.spacing.md,
   },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: theme.colors.brand, fontFamily: theme.fonts.display },
-  modalBody: { color: theme.colors.onSurface, fontSize: 13, lineHeight: 19, marginBottom: theme.spacing.md },
+  modalTitle: { fontSize: 16, fontWeight: '800', color: theme.colors.brand, fontFamily: theme.fonts.display },
+  modalBody: { color: theme.colors.onSurface, fontSize: 12, lineHeight: 17, marginBottom: theme.spacing.md },
   mono: { fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }), fontWeight: '700' },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   input: {
@@ -741,7 +741,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: theme.radius.md,
     padding: theme.spacing.md,
-    fontSize: 14,
+    fontSize: 13,
     color: theme.colors.onSurface,
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
     backgroundColor: theme.colors.surfaceSecondary,
@@ -756,6 +756,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
-  pasteBtnText: { color: theme.colors.brand, fontWeight: '700', fontSize: 13 },
-  reopenLink: { textAlign: 'center', color: theme.colors.brand, textDecorationLine: 'underline', fontSize: 13 },
+  pasteBtnText: { color: theme.colors.brand, fontWeight: '700', fontSize: 12 },
+  reopenLink: { textAlign: 'center', color: theme.colors.brand, textDecorationLine: 'underline', fontSize: 12 },
 });
