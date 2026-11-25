@@ -6,6 +6,7 @@ import {
 import { KeyboardSafeView } from '@/src/components/KeyboardSafeView';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
+import { alertPermissionBlocked } from '@/src/permissions/setup';
 import { Ionicons } from '@expo/vector-icons';
 import { useAudioRecorder, RecordingPresets, setAudioModeAsync, AudioModule } from 'expo-audio';
 import { API_BASE } from '@/src/auth';
@@ -101,7 +102,11 @@ export default function ClientIntake() {
       }
       const { status } = permResult;
       if (status !== 'granted') {
-        alert('Microphone permission denied. Please allow microphone access in Settings, or type your answer.');
+        if (permResult.canAskAgain === false) {
+          alertPermissionBlocked('Microphone is turned off', 'Allow Microphone for DHARA in your phone settings, or type your answer.');
+        } else {
+          alert('Microphone permission denied. Please allow microphone access in Settings, or type your answer.');
+        }
         return;
       }
       // BATCH A1: claim the mic lease BEFORE touching the shared audio

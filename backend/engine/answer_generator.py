@@ -360,7 +360,7 @@ def build_cannot_verify_response(
         f"- If this is urgent, dial 112; women in distress can dial 1091.\n\n"
         f"SOURCES (status shown transparently)\n"
         f"{sources_block}\n\n"
-        f"⚠️ Legal information, not legal advice. Consult an advocate. © Callistus Moses · MSafe Solutions."
+        f"⚠️ Legal information, not legal advice. Consult an advocate."
     )
     # If the user's language is not English, keep the English fallback but tag
     # it so an upstream translator (langpolicy.repair_prompt) can convert if
