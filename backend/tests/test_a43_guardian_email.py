@@ -86,6 +86,8 @@ class TestInviteByEmail:
         sent = _Sent()
         db = MagicMock()
         db.users.find = MagicMock(return_value=_empty())
+        # PR-159: invite now also does a find_one for the email-lookup path
+        db.users.find_one = AsyncMock(return_value=None)
         db.trusted_circle_links.insert_one = AsyncMock()
         with patch.object(tc, "db", db), \
              patch.object(mailer, "send_email", new=sent), \
@@ -99,12 +101,15 @@ class TestInviteByEmail:
         assert doc["contact_email"] == "asha@example.com", "stored lower-cased and trimmed"
         assert doc["channel"] == "email"
         assert len(sent) == 1 and sent[0]["to"] == "asha@example.com"
+        # PR-159: invite_token_expires_at must always be stored
+        assert "invite_token_expires_at" in doc
 
     @pytest.mark.asyncio
     async def test_the_plain_token_is_never_stored(self, env):
         sent = _Sent()
         db = MagicMock()
         db.users.find = MagicMock(return_value=_empty())
+        db.users.find_one = AsyncMock(return_value=None)  # PR-159: email-lookup path
         db.trusted_circle_links.insert_one = AsyncMock()
         with patch.object(tc, "db", db), \
              patch.object(mailer, "send_email", new=sent), \
@@ -121,6 +126,7 @@ class TestInviteByEmail:
         sent = _Sent()
         db = MagicMock()
         db.users.find = MagicMock(return_value=_empty())
+        db.users.find_one = AsyncMock(return_value=None)  # PR-159: email-lookup path
         db.trusted_circle_links.insert_one = AsyncMock()
         with patch.object(tc, "db", db), \
              patch.object(mailer, "send_email", new=sent), \
@@ -133,10 +139,14 @@ class TestInviteByEmail:
         assert sent[0]["channel"] == "email", "guardian mail is not gated as account mail"
 
     @pytest.mark.asyncio
-    async def test_an_existing_app_user_is_not_emailed_as_well(self, env):
+    async def test_an_existing_app_user_is_also_emailed(self, env):
+        """PR-159 changed behaviour: email is mandatory and is ALWAYS sent,
+        even when the phone matched an existing DHARA account.  The existing
+        user also receives a push notification via send_push."""
         sent = _Sent()
         db = MagicMock()
-        db.users.find = MagicMock(return_value=_one({"id": "u2", "phone": "+919876500000"}))
+        db.users.find = MagicMock(return_value=_one({"id": "u2", "phone": "+919876500000", "email": _ADDRESS}))
+        db.users.find_one = AsyncMock(return_value=None)  # phone matched first; find_one not reached
         db.trusted_circle_links.insert_one = AsyncMock()
         with patch.object(tc, "db", db), \
              patch.object(tc, "send_push", new=AsyncMock()), \
@@ -145,20 +155,30 @@ class TestInviteByEmail:
             out = await tc.invite(
                 tc.InviteIn(name="Asha", phone="+919876500000", email=_ADDRESS), user=_OWNER)
         assert out["matched_existing_user"] is True
-        assert out["invited_by_email"] is False
-        assert sent == [], "they are reachable in the app; two invitations would confuse"
+        # Email is now always sent when an email address is provided (PR-159)
+        assert out["invited_by_email"] is True
+        assert len(sent) == 1, "one email, to the contact's address"
 
     @pytest.mark.asyncio
-    async def test_a_malformed_address_is_ignored_rather_than_stored(self, env):
+    async def test_a_malformed_address_raises_400(self, env):
+        """PR-159: email is now MANDATORY and validated.  A malformed address
+        must raise an HTTP 400, not be silently ignored."""
         db = MagicMock()
         db.users.find = MagicMock(return_value=_empty())
+        db.users.find_one = AsyncMock(return_value=None)
         db.trusted_circle_links.insert_one = AsyncMock()
         with patch.object(tc, "db", db):
-            out = await tc.invite(
-                tc.InviteIn(name="Asha", phone="+919876500000", email="not-an-address"), user=_OWNER)
-        doc = db.trusted_circle_links.insert_one.await_args.args[0]
-        assert "contact_email" not in doc
-        assert out["invited_by_email"] is False
+            with pytest.raises(Exception) as exc:
+                await tc.invite(
+                    tc.InviteIn(name="Asha", phone="+919876500000", email="not-an-address"),
+                    user=_OWNER,
+                )
+        # Must be a 4xx error, not a 5xx crash
+        err = str(exc.value)
+        assert "400" in err or "email" in err.lower(), \
+            f"Expected 400/email error, got: {err}"
+        # Nothing must have been persisted
+        db.trusted_circle_links.insert_one.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_without_a_public_url_nothing_is_sent_and_she_is_told(self, env):
@@ -166,6 +186,7 @@ class TestInviteByEmail:
         sent = _Sent()
         db = MagicMock()
         db.users.find = MagicMock(return_value=_empty())
+        db.users.find_one = AsyncMock(return_value=None)  # PR-159: email-lookup path
         db.trusted_circle_links.insert_one = AsyncMock()
         with patch.object(tc, "db", db), \
              patch.object(mailer, "send_email", new=sent), \
@@ -180,6 +201,7 @@ class TestInviteByEmail:
         sent = _Sent()
         db = MagicMock()
         db.users.find = MagicMock(return_value=_empty())
+        db.users.find_one = AsyncMock(return_value=None)  # PR-159: email-lookup path
         db.trusted_circle_links.insert_one = AsyncMock()
         with patch.object(tc, "db", db), \
              patch.object(mailer, "send_email", new=sent), \
