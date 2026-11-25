@@ -5,6 +5,7 @@ import { alertPermissionBlocked } from '@/src/permissions/setup';
 import { useHeaderSosPresent } from '@/src/ui/headerSos';
 import { useLightStatusBar } from '@/src/ui/kit';
 import { useSizeClass } from '@/src/ui/useSizeClass';
+import { VoiceSheet, driveVoiceLevel } from '@/src/chat/VoiceSheet';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -71,6 +72,12 @@ const ASK_RECORDING_OPTIONS = { ...RecordingPresets.HIGH_QUALITY, isMeteringEnab
 
 // Batch FREE-V1-001: Pro upgrade / Stripe / Razorpay payment UI gated off for v1.
 const PRO_UPGRADE_ENABLED = process.env.EXPO_PUBLIC_PRO_UPGRADE_ENABLED === 'true';
+/**
+ * Redesign v3, stage 8: the voice pop-up (src/chat/VoiceSheet.tsx). On by
+ * default. Set EXPO_PUBLIC_VOICE_SHEET=false in a build to go back to the old
+ * press-and-hold mic with the red recording bar; that code is untouched.
+ */
+const VOICE_SHEET = process.env.EXPO_PUBLIC_VOICE_SHEET !== 'false';
 
 export default function ChatScreen() {
   const { token, user, language, autoSpeak, setAutoSpeak, ttsVolume, ttsVoiceMode, refreshUser, forceLogout } = useAuth();
@@ -81,6 +88,8 @@ export default function ChatScreen() {
   useHeaderSosPresent();
   useLightStatusBar();
   const headerSize = useSizeClass();
+  // Loudness for the voice pop-up's rings, 0 to 1. Stable for the screen's life.
+  const voiceLevel = useRef(new Animated.Value(0)).current;
   const autoSpeakRef = useRef(autoSpeak);
   autoSpeakRef.current = autoSpeak;
   const { primaryInterest } = useUserProfile();
@@ -1311,6 +1320,7 @@ export default function ChatScreen() {
               const st = recorder.getStatus();
               if (!st?.isRecording) { stopCaptureMeter(); return; }
               capturePeakRef.current.add(st.metering);
+              if (VOICE_SHEET) driveVoiceLevel(voiceLevel, st.metering);
             } catch { stopCaptureMeter(); }
           }, 200);
           started = true;
@@ -1954,6 +1964,17 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']} testID="chat-screen">
+      {VOICE_SHEET && (
+        <VoiceSheet
+          visible={recording || transcribing}
+          phase={recording ? 'listening' : 'understanding'}
+          elapsedSeconds={holdElapsed}
+          level={voiceLevel}
+          languageName={language.native}
+          onDone={onMicPressOut}
+          onCancel={onLockedCancel}
+        />
+      )}
       {/* Web-only: centers the chat column on wide desktop viewports instead
           of stretching mobile-width UI across the whole browser window.
           `styles.safe` (the full-viewport backdrop) and this wrapper share
@@ -2697,7 +2718,9 @@ export default function ChatScreen() {
               >
                 <Ionicons name="arrow-up" size={24} color={theme.colors.onBrandPrimary} />
               </Pressable>
-            ) : Platform.OS === 'web' ? (
+            ) : (Platform.OS === 'web' || VOICE_SHEET) ? (
+              // With the voice pop-up on, phones use the same tap-to-start mic as
+              // the web: one tap opens the pop-up, Done or Cancel closes it.
               <Pressable
                 testID="mic-button"
                 onPress={onWebMicPress}
