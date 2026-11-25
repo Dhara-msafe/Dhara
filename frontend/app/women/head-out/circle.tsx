@@ -25,6 +25,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '@/src/theme';
 import { UI_V22_P9, headOutBottomGutter } from '@/src/uiV22Flags';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
+import { StepStrip } from '@/src/ui/kit';
 import { useAuth } from '@/src/auth';
 import { useHeadOutWizard } from '@/src/women/headOutWizardStore';
 // NF-UI-REV-13 (Group G follow-up, DHARA UI Revision v2.2.1): visible
@@ -223,6 +224,8 @@ export default function TrustedCircleAndRules() {
         title={UI_V22_P9 ? 'Head out safely' : 'Trusted Circle & Rules'}
         subtitle={UI_V22_P9 ? 'Step 3 of 3 — Who can see your journey, and for how long' : 'Step 3 of 3'}
       />
+      {/* Redesign v3, stage 6: gold step bar, as in the prototype. */}
+      <StepStrip step={3} total={3} />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + headOutBottomGutter(110) }]}>
 
         {RECIPIENTS_ENABLED && (
