@@ -20,6 +20,7 @@ import { grievanceOfficerName, grievanceContactEmail, isGrievanceContactPlacehol
 // NF-UI-REV-12 (Group J, DHARA UI Revision v2.2.1): visible keyboard-focus
 // ring only. No consent/age/purposes logic changes.
 import { focusRingStyle } from '@/src/a11yFocus';
+import { isPermissionSetupDone } from '@/src/permissions/setup';
 
 const colors = theme.colors;
 
@@ -167,6 +168,14 @@ export default function ConsentScreen() {
           const raw = await AsyncStorage.getItem('gk_token');
           if (raw) resolvedToken = JSON.parse(raw) as string;
         } catch { /* storage unavailable; will redirect to login */ }
+      }
+      // First-run permission setup (25 Nov): the first time this phone
+      // finishes the notice, show "Set up DHARA" (microphone, location,
+      // notifications) once, then carry on to the same destination as below.
+      if (!(await isPermissionSetupDone())) {
+        const dest = resolvedToken ? 'home' : next === 'signup' ? 'signup' : next === 'guest' ? 'guest' : 'login';
+        router.replace({ pathname: '/permissions-setup', params: { next: dest } } as any);
+        return;
       }
       if (resolvedToken) { router.replace('/(tabs)/home'); return; }
       // 22 Nov (Vivek): the notice was opened by "Create an account" or
