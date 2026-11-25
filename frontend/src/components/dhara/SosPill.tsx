@@ -25,7 +25,7 @@ export function SosPill({ onPress, compact }: { onPress?: () => void; compact?: 
       style={({ pressed }) => [styles.sos, compact && styles.sosCompact, pressed && { opacity: 0.85 }]}
     >
       <Ionicons name="warning-outline" size={16} color="#fff" />
-      <Text style={styles.sosTxt}>SOS</Text>
+      <Text style={styles.sosTxt}>SOS 112</Text>
     </Pressable>
   );
 }
@@ -62,7 +62,7 @@ export function Divider() {
 }
 
 const styles = StyleSheet.create({
-  sos: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.emergencyRed, paddingHorizontal: 16, height: 48, borderRadius: 999 },
+  sos: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.sosRed, borderWidth: 1, borderColor: c.sosBorder, paddingHorizontal: 16, height: 48, borderRadius: 999 },
   sosCompact: { paddingHorizontal: 14 },
   sosTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 13, letterSpacing: 0.3 },
   qe: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff', paddingHorizontal: 16, height: 48, borderRadius: 999 },

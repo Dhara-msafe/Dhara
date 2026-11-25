@@ -443,7 +443,7 @@ export default function MyFiles() {
   return (
     <View style={styles.root}>
       <ScrollView
-        contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 32 }}
+        contentContainerStyle={{ paddingTop: insets.top + 16, paddingHorizontal: 16, paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}

@@ -114,7 +114,7 @@ export default function DraftForm() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Ionicons name="chevron-back" size={26} color={theme.colors.onBrandPrimary} />
+          <Ionicons name="chevron-back" size={26} color={theme.colors.navy} />
         </Pressable>
         <Text style={styles.h1} numberOfLines={1}>{spec.title}</Text>
         <View style={{ width: 26 }} />
@@ -235,9 +235,9 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.surface },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: theme.spacing.lg, backgroundColor: theme.colors.brand, gap: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg, paddingVertical: 12, backgroundColor: theme.colors.background, borderBottomWidth: 1, borderBottomColor: theme.colors.lines, gap: theme.spacing.md,
   },
-  h1: { flex: 1, textAlign: 'center', fontFamily: theme.fonts.display, fontSize: 15, color: theme.colors.onBrandPrimary, fontWeight: '700' },
+  h1: { flex: 1, textAlign: 'center', fontFamily: theme.fonts.display, fontSize: 15, color: theme.colors.ink, fontWeight: '700' },
   scroll: { padding: theme.spacing.lg, gap: theme.spacing.md, paddingBottom: theme.spacing.xxl },
   deadlineCard: {
     flexDirection: 'row', gap: theme.spacing.sm, alignItems: 'flex-start',

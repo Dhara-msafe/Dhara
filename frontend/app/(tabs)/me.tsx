@@ -54,7 +54,7 @@ export default function Me() {
 
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 16, paddingHorizontal: 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>{tr('me.title', lang)}</Text>
 
         <View style={styles.profile}>

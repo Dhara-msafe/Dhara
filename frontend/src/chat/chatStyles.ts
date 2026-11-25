@@ -604,7 +604,7 @@ export const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: theme.colors.brandSecondary,
+    backgroundColor: theme.colors.gold, // the same gold mic as Home
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -612,7 +612,7 @@ export const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: theme.colors.brandSecondary,
+    backgroundColor: theme.colors.gold, // the same gold mic as Home
     alignItems: 'center',
     justifyContent: 'center',
     // Slight shadow for lift effect while held

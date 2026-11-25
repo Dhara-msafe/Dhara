@@ -10,7 +10,7 @@
  *   result     — structured legal or non-legal result
  */
 import React, { useState, useRef, useCallback } from 'react';
-import { useLightStatusBar } from '@/src/ui/kit';
+import { useLightStatusBar, SosPill112 } from '@/src/ui/kit';
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Linking, Image, Platform, TextInput } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -189,6 +189,7 @@ function ScanHeader({
         <Text style={headerStyles.title} numberOfLines={1}>{title}</Text>
         {sub ? <Text style={headerStyles.sub} numberOfLines={1}>{sub}</Text> : null}
       </View>
+      <SosPill112 testID="scan-header-sos" />
     </View>
   );
 }

@@ -184,7 +184,7 @@ export default function FraudChecklist() {
     <SafeAreaView style={styles.safe} edges={[]} testID="fraud-checklist-screen">
       <View style={styles.header}>
         <Pressable testID="fraud-back" onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="chevron-back" size={26} color={theme.colors.onBrandPrimary} />
+          <Ionicons name="chevron-back" size={26} color={theme.colors.navy} />
         </Pressable>
         <Text style={styles.h1}>Fraud golden hour</Text>
         <View style={{ width: 26 }} />
@@ -242,7 +242,7 @@ export default function FraudChecklist() {
                   style={styles.actionBtn}
                   onPress={() => open(s.action!.url)}
                 >
-                  <Ionicons name={s.action.icon} size={16} color={theme.colors.onBrandSecondary} />
+                  <Ionicons name={s.action.icon} size={16} color="#FFFFFF" />
                   <Text style={styles.actionText}>{s.action.label}</Text>
                 </Pressable>
               )}
@@ -263,9 +263,9 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.surface },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: theme.spacing.lg, backgroundColor: theme.colors.brand,
+    paddingHorizontal: theme.spacing.lg, paddingVertical: 12, backgroundColor: theme.colors.background, borderBottomWidth: 1, borderBottomColor: theme.colors.lines,
   },
-  h1: { fontFamily: theme.fonts.display, fontSize: 16, color: theme.colors.onBrandPrimary, fontWeight: '700' },
+  h1: { fontFamily: theme.fonts.display, fontSize: 16, color: theme.colors.ink, fontWeight: '700' },
   timerBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.md,
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
   scroll: { padding: theme.spacing.lg, gap: theme.spacing.md, paddingBottom: theme.spacing.xxxl },
   intro: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 13, lineHeight: 18 },
   card: {
-    backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.paper, borderRadius: theme.radius.md,
     borderWidth: 1, borderColor: theme.colors.border, padding: theme.spacing.lg, gap: theme.spacing.md,
   },
   cardDone: { borderColor: theme.colors.success, backgroundColor: '#F0F7F3' },
@@ -298,9 +298,9 @@ const styles = StyleSheet.create({
   stepDetail: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 12, lineHeight: 17, marginTop: 4 },
   actionBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: theme.colors.brandSecondary, borderRadius: theme.radius.md, minHeight: 46,
+    backgroundColor: theme.colors.navy, borderRadius: theme.radius.md, minHeight: 48,
   },
-  actionText: { color: theme.colors.onBrandSecondary, fontFamily: 'InterExtraBold', fontSize: 13 },
+  actionText: { color: '#FFFFFF', fontFamily: 'InterExtraBold', fontSize: 13 },
   reset: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     minHeight: 48, marginTop: theme.spacing.md,

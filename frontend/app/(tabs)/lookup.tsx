@@ -379,7 +379,7 @@ export default function LookupScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerRow}>
-          <Ionicons name="search-outline" size={20} color="#fff" />
+          <Ionicons name="search-outline" size={20} color={NAVY} />
           <Text style={styles.headerTitle}>Dhara Lookup</Text>
         </View>
         <Text style={styles.headerSub}>Search Indian court cases via eCourtsIndia</Text>
@@ -671,10 +671,10 @@ const ps = StyleSheet.create({
 
 const styles = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: CREAM },
-  header: { backgroundColor: NAVY, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(211,182,117,0.25)' },
+  header: { backgroundColor: '#FFFAF2', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E6DFD1' },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 },
-  headerTitle: { fontSize: 17, fontFamily: 'InterBold', color: '#fff' },
-  headerSub: { fontSize: 12, color: GOLD, fontFamily: 'InterMedium'},
+  headerTitle: { fontSize: 17, fontFamily: 'InterBold', color: '#102A45' },
+  headerSub: { fontSize: 12, color: '#64788A', fontFamily: 'InterMedium'},
   scroll:  { flex: 1 },
   scrollContent: { padding: 16, gap: 14, paddingBottom: 48 },
 

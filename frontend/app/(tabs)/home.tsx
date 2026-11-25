@@ -163,7 +163,7 @@ export default function Home() {
         {/* ── Greeting + voice ─────────────────────────── */}
         <View style={[styles.hero, { paddingHorizontal: size.margin }]}>
           <View style={styles.heroTop}>
-            <Text style={styles.eyebrow} numberOfLines={1}>{place} · {tr('home.offline', lang)}</Text>
+            <Text style={styles.eyebrow} numberOfLines={1}>{place}</Text>
             <View style={styles.headerActions}>
               {/* 22 Nov (Vivek): language pill first, then the bell. */}
               <Pressable style={(state) => [styles.langPill, focusRingStyle(state)]} onPress={() => router.push('/language')} accessibilityRole="button" accessibilityLabel={`Change language, currently ${language.native}`} testID="home-language-pill">

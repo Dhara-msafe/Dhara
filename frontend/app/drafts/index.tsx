@@ -22,11 +22,11 @@ export default function DraftsList() {
     <SafeAreaView style={styles.safe} edges={[]} testID="drafts-screen">
       <View style={styles.header}>
         <Pressable testID="drafts-back" onPress={() => router.back()} hitSlop={12} style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
-          <Ionicons name="chevron-back" size={26} color={theme.colors.onBrandPrimary} />
+          <Ionicons name="chevron-back" size={26} color={theme.colors.navy} />
         </Pressable>
         <Text style={styles.h1}>Ready notices</Text>
         <Pressable testID="drafts-history-nav" onPress={() => router.push('/drafts/history')} hitSlop={12} style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="View notice history">
-          <Ionicons name="time-outline" size={24} color={theme.colors.onBrandPrimary} />
+          <Ionicons name="time-outline" size={24} color={theme.colors.navy} />
         </Pressable>
       </View>
 
@@ -85,9 +85,9 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.surface },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: theme.spacing.lg, backgroundColor: theme.colors.brand,
+    paddingHorizontal: theme.spacing.lg, paddingVertical: 12, backgroundColor: theme.colors.background, borderBottomWidth: 1, borderBottomColor: theme.colors.lines,
   },
-  h1: { fontFamily: theme.fonts.display, fontSize: 17, color: theme.colors.onBrandPrimary, fontWeight: '700' },
+  h1: { fontFamily: theme.fonts.display, fontSize: 17, color: theme.colors.ink, fontWeight: '700' },
   scroll: { padding: theme.spacing.lg, gap: theme.spacing.md, paddingBottom: theme.spacing.xxxl },
   intro: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 13, lineHeight: 18 },
   quotaCard: {
@@ -98,13 +98,13 @@ const styles = StyleSheet.create({
   quotaText: { flex: 1, color: theme.colors.brand, fontFamily: 'InterBold', fontSize: 12 },
   historyCard: {
     flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm,
-    backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.paper, borderRadius: theme.radius.md,
     borderWidth: 1, borderColor: theme.colors.border, padding: theme.spacing.md,
   },
   historyCardText: { flex: 1, color: theme.colors.onSurface, fontFamily: 'InterSemiBold', fontSize: 12 },
   card: {
     flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing.md,
-    backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.paper, borderRadius: theme.radius.md,
     borderWidth: 1, borderColor: theme.colors.border, padding: theme.spacing.lg,
   },
   iconWrap: {

@@ -2734,9 +2734,9 @@ export default function ChatScreen() {
                 accessibilityLabel={recording ? 'Stop recording and send' : 'Record a voice message'}
               >
                 {transcribing ? (
-                  <ActivityIndicator color={theme.colors.onBrandPrimary} />
+                  <ActivityIndicator color={theme.colors.navy} />
                 ) : (
-                  <Ionicons name={recording ? 'stop' : 'mic'} size={26} color={theme.colors.onBrandPrimary} />
+                  <Ionicons name={recording ? 'stop' : 'mic'} size={26} color={theme.colors.navy} />
                 )}
               </Pressable>
             ) : (
@@ -2759,12 +2759,12 @@ export default function ChatScreen() {
                 {...micPanResponder.panHandlers}
               >
                 {transcribing ? (
-                  <ActivityIndicator color={theme.colors.onBrandPrimary} />
+                  <ActivityIndicator color={theme.colors.navy} />
                 ) : (
                   <Ionicons
                     name={recording && slideCancelled ? 'trash' : 'mic'}
                     size={26}
-                    color={theme.colors.onBrandPrimary}
+                    color={theme.colors.navy}
                   />
                 )}
               </Animated.View>
