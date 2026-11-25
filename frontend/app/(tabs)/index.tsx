@@ -1987,9 +1987,12 @@ export default function ChatScreen() {
           Does NOT scroll with the chat conversation. */}
       <View style={styles.topZone}>
 
-      {/* ── HEADER — title · lang chip · usage pill · New Chat ─────────────── */}
+      {/* ── HEADER (redesign v3, stage 9) ─────────────────────────────────
+          The navy bar now carries only the brand and SOS, like every other
+          screen. New chat, History and Sound moved to a slim, labelled row
+          under it: three unlabelled round buttons were filling the header
+          and nobody could tell what they did. */}
       <View style={styles.header}>
-        {/* Left: branding + language chip */}
         <View style={styles.headerBrand}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Text style={styles.title}>Dhara</Text>
@@ -2000,58 +2003,60 @@ export default function ChatScreen() {
               </View>
             )}
           </View>
-          <Pressable
-            testID="header-lang-chip"
-            style={(s) => [styles.langChip, focusRingStyle(s)]}
-            onPress={() => router.push('/(tabs)/settings')}
-            hitSlop={UI_REVISION_V1 ? 14 : 6}
-            accessibilityRole="button"
-            accessibilityLabel={`Change language. Current language: ${language.native}`}
-          >
-            <Ionicons name="language-outline" size={12} color="#fff" />
-            <Text style={styles.langChipText} numberOfLines={1}>{language.native}</Text>
-          </Pressable>
+          {!headerSize.short && <Text style={styles.headerTagline} numberOfLines={1}>Your legal rights. Always with you.</Text>}
         </View>
+        {/* UI_V22_ONE_SOS (B-122): SOS sits in the header row, in normal
+            layout. Hidden inside the desktop frame (sidebar SOS). */}
+        {UI_V22_ONE_SOS && <SosPill compact />}
+      </View>
 
-        {/* Right: New Chat + History — clean header, no usage clutter */}
-        <View style={styles.headerButtons}>
-          <Pressable
-            testID="new-chat-button"
-            style={(s) => [styles.newChatBtn, focusRingStyle(s)]}
-            onPress={startNewChat}
-            accessibilityRole="button"
-            accessibilityLabel={t('home.newChat', language.code)}
-          >
-            <Ionicons name="add" size={20} color="#fff" />
-            {/* Redesign v3: the label shows only where the row has room for it. */}
-            {headerSize.windowWidth >= 412 && <Text style={styles.newChatText}>{t('home.newChat', language.code)}</Text>}
-          </Pressable>
-          <Pressable
-            testID="history-header-btn"
-            style={(s) => [styles.historyHeaderBtn, focusRingStyle(s)]}
-            onPress={() => router.push('/(tabs)/history?from=ask' as any)}
-            hitSlop={6}
-            accessibilityRole="button"
-            accessibilityLabel="Chat history"
-          >
-            <Ionicons name="time-outline" size={22} color="#fff" />
-          </Pressable>
-          <Pressable
-            testID="ask-mute-btn"
-            style={(s) => [styles.historyHeaderBtn, focusRingStyle(s)]}
-            onPress={toggleMute}
-            hitSlop={6}
-            accessibilityRole="button"
-            accessibilityState={{ selected: !autoSpeak }}
-            accessibilityLabel={autoSpeak ? 'Mute: stop reading answers aloud' : 'Unmute: read answers aloud'}
-          >
-            <Ionicons name={autoSpeak ? 'volume-high-outline' : 'volume-mute-outline'} size={22} color={autoSpeak ? '#fff' : theme.colors.gold} />
-          </Pressable>
-          {/* UI_V22_ONE_SOS (B-122): SOS sits in the header row, in normal
-              layout, instead of the tab layout's floating pill that covered
-              "New chat". Hidden inside the desktop frame (sidebar SOS). */}
-          {UI_V22_ONE_SOS && <SosPill compact />}
-        </View>
+      <View style={styles.askTools} testID="ask-tools">
+        <Pressable
+          testID="header-lang-chip"
+          style={(s) => [styles.toolChip, focusRingStyle(s)]}
+          onPress={() => router.push('/(tabs)/settings')}
+          hitSlop={{ top: 6, bottom: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel={`Change language. Current language: ${language.native}`}
+        >
+          <Ionicons name="language-outline" size={16} color={theme.colors.navy} />
+          <Text style={styles.toolChipText} numberOfLines={1}>{language.native}</Text>
+        </Pressable>
+        <View style={{ flex: 1 }} />
+        <Pressable
+          testID="new-chat-button"
+          style={(s) => [styles.toolChip, focusRingStyle(s)]}
+          onPress={startNewChat}
+          hitSlop={{ top: 6, bottom: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('home.newChat', language.code)}
+        >
+          <Ionicons name="add" size={18} color={theme.colors.navy} />
+          <Text style={styles.toolChipText} numberOfLines={1}>{t('home.newChat', language.code)}</Text>
+        </Pressable>
+        <Pressable
+          testID="history-header-btn"
+          style={(s) => [styles.toolChip, focusRingStyle(s)]}
+          onPress={() => router.push('/(tabs)/history?from=ask' as any)}
+          hitSlop={{ top: 6, bottom: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel="Chat history"
+        >
+          <Ionicons name="time-outline" size={16} color={theme.colors.navy} />
+          {headerSize.windowWidth >= 360 && <Text style={styles.toolChipText}>History</Text>}
+        </Pressable>
+        <Pressable
+          testID="ask-mute-btn"
+          style={(s) => [styles.toolChip, !autoSpeak && styles.toolChipOff, focusRingStyle(s)]}
+          onPress={toggleMute}
+          hitSlop={{ top: 6, bottom: 6 }}
+          accessibilityRole="button"
+          accessibilityState={{ selected: !autoSpeak }}
+          accessibilityLabel={autoSpeak ? 'Mute: stop reading answers aloud' : 'Unmute: read answers aloud'}
+        >
+          <Ionicons name={autoSpeak ? 'volume-high-outline' : 'volume-mute-outline'} size={17} color={autoSpeak ? theme.colors.navy : theme.colors.muted} />
+          {headerSize.windowWidth >= 400 && <Text style={[styles.toolChipText, !autoSpeak && { color: theme.colors.muted }]}>{autoSpeak ? 'Sound on' : 'Sound off'}</Text>}
+        </Pressable>
       </View>
 
       {/* ── Verified-sources scrolling ticker ────────────────────────────── */}
