@@ -1,112 +1,121 @@
-# DHARA Advocate Consultation Notetaker — Phase 1 Plan
+# Debug Log Dashboard
 
-DHARA already serves advocates through a dedicated tab covering client intakes, legal research, and IPC-BNS cross-reference. This feature extends that tab with a structured consultation notetaking workflow: an advocate opens or creates a matter, records participant consent, captures notes or imports a transcript, reviews and corrects the transcript, generates a structured draft note with source references, approves an exact version, and exports it or converts it to local tasks.
+Dhara's backend captures every API request and response in full — including scrubbed request and
+response bodies and Python stack traces — and streams them to a password-protected web page you
+open on any laptop or desktop browser. The page auto-refreshes every three seconds so you can
+watch exactly what is happening in production or preview while you reproduce a bug.
 
 ## Who it is for
 
-Registered DHARA advocates handling in-person or remote legal consultations who need a structured, auditable record of what was said, what was advised, and what must happen next — without fabricating facts or using unapproved AI inference.
+Developers and admins debugging live issues: tracing why a specific user action fails, confirming
+what the backend actually received and returned, and reading the exact Python exception without
+needing SSH or server access.
 
----
+## Core features and experience
 
-## Core Features and Experience
+**Full-detail capture**
+A single FastAPI middleware layer intercepts every request before it reaches any route and every
+response before it leaves. It records: ISO timestamp, user identity (id + email, or "anonymous"),
+HTTP method, full path with query string, HTTP status code, duration in milliseconds, the
+request body as JSON (scrubbed), the response body as JSON (scrubbed), and — for any 5xx error —
+the complete Python stack trace.
 
-**Matter list.** The advocate dashboard gains a "Consultation Notes" card. Tapping it opens a list of matters the advocate owns, with a creation action. A matter is a named client case that holds all consultations for that client.
+A scrubber runs before anything is stored. It recursively walks the body dictionaries and blanks
+out any key whose name contains: `password`, `token`, `secret`, `key`, `authorization`,
+`aadhaar`, `otp`, `pin`, `hash`. The value is replaced with `[redacted]`; the key name is kept
+so the structure is still readable. The Authorization request header value is always dropped.
 
-**Consultation setup.** Inside a matter, the advocate creates a consultation: gives it a date and purpose, picks the input method (manual notes, transcript text import, or audio file import), and optionally notes the language. Unsupported input methods are hidden or labelled unavailable.
+Logs are written to a MongoDB collection named `debug_logs` with a TTL index set to 7 days.
+Automatic deletion requires no cron job.
 
-**Participant consent.** Before any capture begins, the screen shows a notice to all participants. The advocate records each participant's decision (given / declined / withdrawn) individually. A decline or withdrawal blocks recording and processing for that participant. The advocate's own attestation is not treated as proof of individual consent.
+**Web dashboard — live feed**
+Opening `https://<your-app-url>/api/admin/logs?key=<ADMIN_KEY>` in a browser shows the
+dashboard. No login screen — the key in the URL is the gate. The page is pure HTML and
+JavaScript served directly by FastAPI; no extra server or build step is needed.
 
-**Input: manual notes.** A free-text editor. The advocate types during or after the consultation. No recording, no transcription.
+The dashboard has three views selectable by tab:
 
-**Input: transcript import.** The advocate uploads a plain-text (.txt) transcript. The system stores the original unmodified. The advocate can then correct text and assign provisional speaker labels.
+| Tab | What it shows |
+|---|---|
+| **Live feed** | Last 200 requests, newest first, auto-refreshing every 3 seconds |
+| **User drill-down** | Type a user email or id; shows only that user's requests in sequence |
+| **Errors** | Only 4xx and 5xx responses, with the stack trace pre-expanded |
 
-**Input: audio file import.** The advocate uploads a supported audio file (.mp3, .wav, .m4a). The file is validated (size, format, duration, hash), stored privately, and queued for Whisper transcription. The advocate sees truthful processing states and can cancel before transcription starts.
+Each row shows: time, user, method + path, status badge (green/amber/red), duration. Clicking a
+row expands it to show the full scrubbed request body, response body, and stack trace (if any)
+formatted as pretty-printed JSON.
 
-**Transcript review.** Both imported and transcribed transcripts are shown with the original preserved separately. The advocate edits a working copy, assigns or corrects provisional speaker labels (plain names, not inferred identities), and approves the reviewed transcript before note generation proceeds. Timestamps are shown only when the source file provides them; they are never invented.
+**Filters (all tabs)**
+- Date/time range (from / to, defaults to last 2 hours)
+- Status filter: All / 2xx / 4xx / 5xx
+- Path prefix search (e.g. `/api/trusted-circle`)
+- Free-text search across the error message field
 
-**Structured draft note.** The system generates a draft that separates: verified client facts, client instructions, advocate advice given, open uncertainties, and proposed actions / next steps. Each extracted fact carries a reference back to the transcript passage it came from. The Legal Truth pipeline provides any statute citations; no facts are inferred beyond what the transcript contains.
+**Export**
+A Download CSV button on any tab exports the currently filtered rows as a CSV file (one row per
+request; body columns are JSON-stringified). Stack traces are included in a final column.
 
-**Advocate edits and approval.** The advocate edits the draft in-place. Approving captures the reviewer identity and an exact version hash. Subsequent edits create a new version; the approved version is immutable.
+## User flow
 
-**Export and tasks.** An approved note can be exported as a PDF or plain text. Proposed actions can be saved as local task drafts within the app. All exports enforce matter access; no data leaves without an explicit advocate action.
+1. Developer opens a browser on their laptop and navigates to
+   `https://<app-url>/api/admin/logs?key=<ADMIN_KEY>`.
+2. The Live feed tab is active; new rows appear every 3 seconds at the top.
+3. While a tester reproduces a bug on their phone, the developer watches the matching request
+   appear, clicks it, and reads the exact error and stack trace.
+4. Developer switches to User drill-down, enters the tester's email, and sees the full sequence
+   of calls for that session to identify where the flow broke.
+5. Optionally downloads CSV and pastes it into a bug report or shares with the team.
 
----
+## UI/UX feel
 
-## User Flow
+Minimal developer-tool aesthetic — dark background (`#0f172a`), monospace font for bodies and
+stack traces, colour-coded status badges (green 2xx, amber 4xx, red 5xx). No branding, no
+illustrations — it is a tool, not a product screen. Rows highlight on hover. Expanded bodies
+use syntax-highlighted JSON (via a lightweight inline library, no external CDN dependency).
+Auto-refresh can be paused with a toggle so the table stops moving while you read a row.
 
-```
-Advocate tab (registered)
-  → Consultation Notes card
-      → Matter list  [empty state → create matter]
-          → Matter detail  [consultation list → create consultation]
-              → Consultation setup  (title, date, input method, language)
-                  → Participant consent  (per-person: given / declined / withdrawn)
-                      → Input screen
-                          Manual notes  →  Review note draft
-                          Transcript import  →  Transcript review  →  Review note draft
-                          Audio import  →  Upload progress  →  Processing state  →  Transcript review  →  Review note draft
-                      → Note review and editing
-                          → Approve version
-                              → Approved note + export / task drafts
-```
+## Implementation phases
 
-Error and interruption paths surface at every step with truthful state labels (FAILED, CANCELLED, INTERRUPTED). Retry is explicit; nothing retries silently.
+**Phase 1 — MVP (built now)**
+- `middleware/request_logger.py`: async FastAPI middleware; captures req/res; calls scrubber;
+  writes to `debug_logs`; never raises (logging must not break requests).
+- `services/log_scrubber.py`: recursive key-based scrubber; list of banned key substrings is
+  configurable via an environment variable so new sensitive fields can be added without a deploy.
+- `api/debug_log_router.py`: one route serving the HTML dashboard page; one JSON data route
+  the dashboard polls; one CSV export route. All three require `?key=` matching `ADMIN_KEY`.
+- MongoDB `debug_logs` collection + TTL index (7 days) created on first startup.
+- Dashboard HTML/JS: three tabs, filters, auto-refresh with pause toggle, row expand, CSV export.
+- Registered in `server.py`; zero changes to any existing route.
 
----
+**Phase 2 — enhancements**
+- Server-Sent Events (SSE) feed replaces polling so new rows push instantly to the browser.
+- Session replay: group calls within a 30-minute window into a named session and step through
+  them one by one.
+- Anomaly highlight: any request taking over 2 000 ms is flagged with an orange clock icon.
+- Configurable redaction list editable from the dashboard itself (saved to DB).
 
-## UI/UX Feel
-
-Screens reuse the existing DHARA advocate palette: deep navy header, gold accents, white card surfaces, 14 px body text at 1.5× line height. No new design language is introduced. The seven screens described in the UI/UX handoff map directly onto the flow above.
-
-Consent and transcript screens are intentionally plain and legible — no animations, no progress-bar theatrics. State labels are literal (PROCESSING, TRANSCRIPT_REVIEW, APPROVED) so the advocate always knows what the system is doing and what they must do next. Touch targets follow the existing 48 dp minimum. Screens are accessible by keyboard and screen reader.
-
----
-
-## Implementation Phases
-
-### Phase 1 — MVP (built now)
-
-- Matter data model and backend router (create, list, get — advocate-scoped).
-- Consultation data model and state machine (DRAFT → CONSENT_PENDING → READY → IMPORTING → AUDIO_REVIEW → PROCESSING → TRANSCRIPT_REVIEW → NOTE_DRAFT → APPROVED, plus FAILED / CANCELLED / INTERRUPTED).
-- Participant consent record per consultation.
-- Manual notes input and direct draft generation.
-- Text transcript import, correction, and provisional speaker labelling.
-- Audio file import, Emergent Object Storage upload, Whisper STT via existing `stt_engine.py`, truthful processing states, cancellation.
-- Draft note generation (facts / instructions / advice / uncertainties / actions) using the existing AI pipeline with source references to transcript passages.
-- Advocate edit, versioned approval, immutable approved artefact.
-- PDF/text export and local task draft creation.
-- Seven frontend screens inside the advocate section, fully responsive and accessible.
-- Server-enforced tenant and matter authorisation on every endpoint.
-- Synthetic test data only; no production database records touched.
-
-### Phase 2 — Live microphone capture
-
-- In-person microphone capture on iOS and web using the existing voice platform (`voicePlatform.ts`).
-- Streaming or chunked upload to Whisper with live status display.
-- Audio level indicator.
-- Interruption handling: app background, OS permission revoked, storage full.
-- Consent withdrawal mid-recording halts capture immediately.
-
-### Phase 3 — Engine replacement and advanced features
-
-- Swap Whisper for the future DHARA-controlled speech engine via the replaceable STT interface built in Phase 1; no other code changes required.
-- Multi-language transcript support beyond Hindi/English.
-- Speaker diarisation when available from the engine.
-- Direct call and WhatsApp recording (requires separate feasibility study; outside current scope).
-
----
+**Phase 3 — future**
+- Correlation IDs: a `X-Request-Id` header is generated per request and returned in the
+  response so the mobile app can log the same ID and the two traces can be joined.
+- Frontend event log: the app sends screen-view and button-tap events to `/api/events` and
+  they appear interleaved with the backend calls in the User drill-down view.
+- Alert on sustained error rate: email or Slack message if error rate exceeds a threshold
+  over a rolling 5-minute window.
 
 ## Assumptions
 
-- **Advocate authentication**: Matters are owned by the authenticated advocate user. The existing `useAuth` token and advocate profile record are used; no new auth layer is added.
-- **Matter as a new model**: Matters do not currently exist in the backend. They will be a new MongoDB collection. The existing "intake" concept is not reused — intakes are outbound client links; matters are advocate-side case records.
-- **Backend router placement**: A new `advocate_notetaker_router.py` is added alongside existing routers and registered in `server.py`. No existing router is modified.
-- **STT provider**: OpenAI Whisper via the existing `engine/stt_engine.py` and Emergent LLM key. No new API key or billing activation required.
-- **Storage**: Emergent Object Storage via the existing `services/object_storage.py`. Audio files are stored privately, scoped by matter ID. No new storage account required.
-- **Draft note generation**: The existing `engine/pipeline.py` and `engine/answer_generator.py` are called with a structured prompt derived from the reviewed transcript. Legal Truth (`legal.py`) provides statute citations only when explicitly requested. No new LLM provider is introduced.
-- **Audio constraints**: Files up to 25 MB, formats mp3/wav/m4a, duration up to 90 minutes, matching Whisper limits. Files outside these limits are rejected before upload begins.
-- **Missing documents**: The Technical Blueprint and Speech Engine Strategy documents were not found in the codebase and were not uploaded. This plan is based on the Implementation Brief and UI/UX Handoff alone. If the Blueprint contains conflicting architecture decisions they should be raised before build starts.
-- **No production impact**: All new collections, routes, and screens are isolated behind a `FEATURE_ADVOCATE_NOTETAKER` flag that is off in production. Existing Legal Truth, safety, voice, and guardian features are not modified.
-- **Export format**: PDF export uses the device share sheet on native and the browser print dialog on web. No external PDF service required.
-- **Consent is advocate-managed**: The system records what the advocate attests each participant said. It cannot independently verify participant identity or consent. This limitation is disclosed on the consent screen.
-- **Speaker labels**: Plain free-text strings entered by the advocate (e.g., "Client", "Advocate", "Witness 1"). No automatic speaker identification is performed.
+- The dashboard is served by the existing FastAPI backend on the same domain; no new server
+  or hosting is needed.
+- `ADMIN_KEY` already exists in the backend environment; the dashboard reuses it. If it is not
+  set, the route returns 503 to avoid accidentally exposing logs with no protection.
+- Request and response bodies are stored after scrubbing. This means non-sensitive user content
+  such as destination names, rights-card queries, and FIR draft text WILL appear in the logs.
+  This is intentional for debugging; treat the dashboard URL as a secret.
+- The scrubber is best-effort on body size: bodies larger than 50 KB are truncated before
+  storage to keep the collection size manageable.
+- The dashboard page is self-contained HTML + inline JavaScript; no React, no npm, no build
+  step, no external CDN. It loads instantly even on a slow connection.
+- Auto-refresh polls every 3 seconds; this adds negligible load to the backend at normal traffic
+  volumes.
+- Retention is fixed at 7 days via TTL index; changing it requires an index rebuild which takes
+  a few seconds on a small collection.
