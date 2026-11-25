@@ -502,3 +502,131 @@ class TestShareableInvitation:
         body = page.body.decode()
         assert "Yes, I will be her contact" in body
         assert "No, do not contact me" in body
+
+
+# ── A49: he accepted through a shared link, so we have no address for him ──
+
+class TestA49AskHimWhereToReachHim:
+    """She sends the link herself over WhatsApp, he taps accept — and until
+    now that left him accepted but unreachable, because the only address we
+    ever had was one she typed. Nothing would have reached him on the night
+    it mattered, and neither of them would have known. He is asked for his
+    own address at the one moment he is in front of us."""
+
+    @pytest.mark.asyncio
+    async def test_the_accept_page_asks_for_an_address_when_we_have_none(self, env):
+        db = MagicMock()
+        db.trusted_circle_links.find_one = AsyncMock(
+            return_value=_link(status="pending", contact_email=None))
+        with patch.object(tc, "db", db):
+            body = (await tc.email_invitation_page("tok")).body.decode()
+        assert 'name="email"' in body
+        assert "Without it we cannot tell you anything" in body
+
+    @pytest.mark.asyncio
+    async def test_it_does_not_ask_again_when_she_already_gave_one(self, env):
+        db = MagicMock()
+        db.trusted_circle_links.find_one = AsyncMock(return_value=_link(status="pending"))
+        with patch.object(tc, "db", db):
+            body = (await tc.email_invitation_page("tok")).body.decode()
+        assert 'name="email"' not in body, "asking twice invites a typo"
+
+    @pytest.mark.asyncio
+    async def test_the_address_he_types_is_stored_with_his_consent(self, env):
+        db = MagicMock()
+        db.trusted_circle_links.find_one = AsyncMock(
+            return_value=_link(status="pending", contact_email=None))
+        db.trusted_circle_links.update_one = AsyncMock()
+        with patch.object(tc, "db", db), \
+             patch.object(mailer, "send_email", new=AsyncMock()) as sent, \
+             patch.object(mailer, "email_configured", return_value=True):
+            page = await tc.email_invitation_respond(
+                token="tok", action="accept", email="  Asha@Example.COM ")
+        saved = db.trusted_circle_links.update_one.await_args[0][1]["$set"]
+        assert saved["contact_email"] == "asha@example.com", "trimmed and lower-cased"
+        assert saved["reachable"] is True
+        assert saved["email_consent_at"], "his agreement is timestamped, not hers"
+        assert sent.await_count == 1, "a confirmation proves the address before it is needed"
+        assert "asha@example.com" in page.body.decode()
+
+    @pytest.mark.asyncio
+    async def test_accepting_with_no_address_says_plainly_that_nothing_will_reach_him(self, env):
+        db = MagicMock()
+        db.trusted_circle_links.find_one = AsyncMock(
+            return_value=_link(status="pending", contact_email=None))
+        db.trusted_circle_links.update_one = AsyncMock()
+        with patch.object(tc, "db", db), patch.object(mailer, "send_email", new=AsyncMock()) as sent:
+            page = await tc.email_invitation_respond(token="tok", action="accept", email="  ")
+        saved = db.trusted_circle_links.update_one.await_args[0][1]["$set"]
+        assert saved["status"] == "accepted"
+        assert saved["reachable"] is False
+        assert "contact_email" not in saved, "a blank must never overwrite a real address"
+        assert sent.await_count == 0
+        body = page.body.decode()
+        assert "nothing can reach you" in body
+        assert "we cannot tell you when she starts a journey" in body
+        assert "Keep this link" in body, "the one thing he can still do"
+
+    @pytest.mark.asyncio
+    async def test_he_can_come_back_to_the_link_and_add_an_address(self, env):
+        """He accepted in a hurry without typing one. Re-opening the link is
+        the only route he has left, so it must offer the field, not a dead
+        'you already accepted' page."""
+        db = MagicMock()
+        db.trusted_circle_links.find_one = AsyncMock(
+            return_value=_link(status="accepted", contact_email=None))
+        with patch.object(tc, "db", db):
+            body = (await tc.email_invitation_page("tok")).body.decode()
+        assert 'name="email"' in body
+        assert "you will not be told" in body
+
+    @pytest.mark.asyncio
+    async def test_an_address_she_gave_still_works_if_he_types_nothing(self, env):
+        db = MagicMock()
+        db.trusted_circle_links.find_one = AsyncMock(return_value=_link(status="pending"))
+        db.trusted_circle_links.update_one = AsyncMock()
+        with patch.object(tc, "db", db), \
+             patch.object(mailer, "send_email", new=AsyncMock()), \
+             patch.object(mailer, "email_configured", return_value=True):
+            await tc.email_invitation_respond(token="tok", action="accept", email=None)
+        saved = db.trusted_circle_links.update_one.await_args[0][1]["$set"]
+        assert saved["contact_email"] == _ADDRESS
+        assert saved["reachable"] is True
+
+    @pytest.mark.asyncio
+    async def test_a_failed_confirmation_does_not_lose_his_acceptance(self, env):
+        """The address may be mistyped. He has still agreed, and that must be
+        recorded; the page is what tells him it did not arrive."""
+        db = MagicMock()
+        db.trusted_circle_links.find_one = AsyncMock(
+            return_value=_link(status="pending", contact_email=None))
+        db.trusted_circle_links.update_one = AsyncMock()
+        with patch.object(tc, "db", db), \
+             patch.object(mailer, "email_configured", return_value=True), \
+             patch.object(mailer, "send_email", new=AsyncMock(side_effect=RuntimeError("smtp"))):
+            page = await tc.email_invitation_respond(
+                token="tok", action="accept", email="asha@example.com")
+        assert db.trusted_circle_links.update_one.await_count == 1
+        assert page.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_a_nonsense_address_is_refused_rather_than_stored(self, env):
+        db = MagicMock()
+        db.trusted_circle_links.find_one = AsyncMock(
+            return_value=_link(status="pending", contact_email=None))
+        db.trusted_circle_links.update_one = AsyncMock()
+        with patch.object(tc, "db", db), patch.object(mailer, "send_email", new=AsyncMock()):
+            await tc.email_invitation_respond(token="tok", action="accept", email="not-an-address")
+        saved = db.trusted_circle_links.update_one.await_args[0][1]["$set"]
+        assert saved["reachable"] is False
+        assert "contact_email" not in saved
+
+    def test_she_is_told_which_of_her_contacts_can_actually_be_reached(self):
+        """Her list showed 'accepted' either way. That is the false comfort
+        this closes."""
+        def shown(**over):
+            return tc._public_link(_link(created_at=_iso(0), **over))["reachable"]
+        assert shown() is True
+        assert shown(contact_email=None) is False
+        assert shown(contact_email=None, invitee_user_id="u2") is True
+        assert shown(muted=True) is False, "muted reaches no one"

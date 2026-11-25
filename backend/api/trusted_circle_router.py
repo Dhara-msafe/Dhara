@@ -109,6 +109,12 @@ def _public_link(link: dict) -> dict:
         "permissions": link.get("permissions", {}),
         "status": link["status"],
         "muted": bool(link.get("muted", False)),
+        # A49: can anything actually reach this person? An accepted contact
+        # with no app and no address is a false sense of safety, so say so
+        # rather than letting her assume he will be told.
+        "reachable": bool(
+            link.get("invitee_user_id") or link.get("contact_email")
+        ) and not link.get("muted", False),
         "created_at": link["created_at"],
         "responded_at": link.get("responded_at"),
     }
@@ -199,14 +205,34 @@ async def email_invitation_page(token: str, r: Optional[str] = None):
     shares = bool((link.get("permissions") or {}).get("temp_location"))
 
     if link.get("status") == "accepted":
-        return _page(
-            "You are already her safety contact",
-            f"<p>You agreed to be {owner}&rsquo;s safety contact. She will email you when "
-            "she starts a journey and if she misses her check-in.</p>"
-            f"<form method=\"post\" action=\"respond\"><input type=\"hidden\" name=\"token\" "
-            f"value=\"{escape(token)}\"><button class=\"btn ghost\" name=\"action\" "
-            "value=\"decline\">Stop contacting me</button></form>",
-        )
+        if link.get("contact_email"):
+            body = (
+                f"<p>You agreed to be {owner}&rsquo;s safety contact. We will email you at "
+                f"<b>{escape(link['contact_email'])}</b> when she starts a journey and if she "
+                "misses her check-in.</p>"
+                f"<form method=\"post\" action=\"respond\"><input type=\"hidden\" name=\"token\" "
+                f"value=\"{escape(token)}\"><button class=\"btn ghost\" name=\"action\" "
+                "value=\"decline\">Stop contacting me</button></form>"
+            )
+        else:
+            # A49: he accepted without leaving an address, so nothing can
+            # reach him. Say so plainly and offer to fix it in one step.
+            body = (
+                f"<p>You agreed to be {owner}&rsquo;s safety contact, but we have no way to "
+                "reach you, so <b>you will not be told if she misses a check-in</b>.</p>"
+                f"<form method=\"post\" action=\"respond\">"
+                f"<input type=\"hidden\" name=\"token\" value=\"{escape(token)}\">"
+                '<label for="email" style="display:block;font-size:15px;margin:6px 0 6px">'
+                "Your email address</label>"
+                '<input id="email" name="email" type="email" inputmode="email" '
+                'autocomplete="email" placeholder="you@example.com" style="width:100%;'
+                'box-sizing:border-box;font-size:16px;padding:13px 12px;border:1px solid #D7D2C8;'
+                'border-radius:10px;background:#fff">'
+                '<button class="btn" name="action" value="accept">Save it</button>'
+                '<button class="btn ghost" name="action" value="decline">Stop contacting me</button>'
+                "</form>"
+            )
+        return _page("You are her safety contact", body)
 
     if link.get("status") == "declined":
         return _page(
@@ -218,6 +244,20 @@ async def email_invitation_page(token: str, r: Optional[str] = None):
         "the area she is in while a journey is running, and when she expects to arrive"
         if shares else
         "when she starts a journey and whether she arrives safely"
+    )
+    # A49: if she did not have his address, ask him for it here. This is the
+    # only moment we can: after this page there is no way to reach him at
+    # all. His own address, typed by him, is also better than one she
+    # guessed — and it is his consent, not hers.
+    ask_email = "" if link.get("contact_email") else (
+        '<label for="email" style="display:block;font-size:15px;margin:18px 0 6px">'
+        "Your email address, so we can tell you</label>"
+        '<input id="email" name="email" type="email" inputmode="email" autocomplete="email" '
+        'placeholder="you@example.com" style="width:100%;box-sizing:border-box;font-size:16px;'
+        'padding:13px 12px;border:1px solid #D7D2C8;border-radius:10px;background:#fff">'
+        '<p class="muted" style="margin-top:8px">Without it we cannot tell you anything. '
+        "You could still open this link yourself to check on her, but nothing would reach "
+        "you when it matters.</p>"
     )
     pre = ""
     if r in ("accept", "decline"):
@@ -232,6 +272,7 @@ async def email_invitation_page(token: str, r: Optional[str] = None):
         f"{pre}"
         f"<form method=\"post\" action=\"respond\">"
         f"<input type=\"hidden\" name=\"token\" value=\"{escape(token)}\">"
+        f"{ask_email}"
         "<button class=\"btn\" name=\"action\" value=\"accept\">Yes, I will be her contact</button>"
         "<button class=\"btn ghost\" name=\"action\" value=\"decline\">No, do not contact me</button>"
         "</form>"
@@ -242,7 +283,8 @@ async def email_invitation_page(token: str, r: Optional[str] = None):
 
 @router.post("/trusted-circle/invitation/email/respond", response_class=HTMLResponse,
              include_in_schema=False)
-async def email_invitation_respond(token: str = Form(...), action: str = Form(...)):
+async def email_invitation_respond(token: str = Form(...), action: str = Form(...),
+                                   email: Optional[str] = Form(default=None)):
     """A44: her trusted person accepts or declines, from the email, with no
     account. The answer is a POST, so opening the link cannot answer for them
     and no mail scanner can accept on their behalf."""
@@ -253,18 +295,51 @@ async def email_invitation_respond(token: str = Form(...), action: str = Form(..
 
     now = ge.utc_now_iso()
     if action == "accept":
-        await db.trusted_circle_links.update_one(
-            {"id": link["id"]},
-            {"$set": {"status": "accepted", "responded_at": now,
-                      "email_consent_at": now, "channel": "email"}},
-        )
-        logger.info("[trusted_circle] an email invitation was accepted")
+        # A49: his own address, typed by him. Without one there is no channel
+        # to him at all — he is accepted but unreachable, and both he and she
+        # have to be told that plainly.
+        typed = email if isinstance(email, str) else None
+        given = ge.normalise_email(typed) or ge.normalise_email(link.get("contact_email"))
+        update = {"status": "accepted", "responded_at": now, "email_consent_at": now}
+        if given:
+            update.update({"contact_email": given, "channel": "email", "reachable": True})
+        else:
+            update["reachable"] = False
+        await db.trusted_circle_links.update_one({"id": link["id"]}, {"$set": update})
+        logger.info("[trusted_circle] an invitation was accepted (reachable=%s)", bool(given))
+
+        if given:
+            # A confirmation now also proves the address works, while there is
+            # still time to correct it — rather than finding out on the night
+            # it matters.
+            try:
+                from mailer import guardian_accepted_email, send_email, email_configured
+                from services.outbound_guard import EMAIL
+                if email_configured() and ge.may_email(given):
+                    subject, html = guardian_accepted_email(
+                        owner_name=link.get("owner_name") or "She",
+                        contact_name=link.get("contact_name") or "",
+                    )
+                    await send_email(to=given, subject=subject, html=html, channel=EMAIL)
+            except Exception as e:
+                logger.warning("[trusted_circle] confirmation email failed: %s", e)
+            return _page(
+                "Thank you — you are now her safety contact",
+                f"<p>{escape(link.get('owner_name') or 'She')} will be told that you agreed.</p>"
+                f"<p>We will email you at <b>{escape(given)}</b> when she starts a journey, and "
+                "again if she does not check in on time. Nothing else.</p>"
+                "<p class=\"muted\">We have just sent you a note to confirm the address works. "
+                "If it does not arrive, open this link again and correct it. Every email we "
+                "send has a link to stop.</p>",
+            )
+
         return _page(
-            "Thank you — you are now her safety contact",
+            "You are her safety contact — but nothing can reach you",
             f"<p>{escape(link.get('owner_name') or 'She')} will be told that you agreed.</p>"
-            "<p>You will get an email when she starts a journey, and a second one if she "
-            "does not check in on time. Nothing else.</p>"
-            "<p class=\"muted\">Every email we send you has a link to stop.</p>",
+            "<p><b>Because you did not leave an email address, we cannot tell you when she "
+            "starts a journey or if she misses a check-in.</b> Keep this link and open it "
+            "when you want to check on her.</p>"
+            "<p class=\"muted\">Open this link again at any time to add an address.</p>",
         )
 
     await db.trusted_circle_links.update_one(

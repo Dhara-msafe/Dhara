@@ -323,3 +323,23 @@ def guardian_journey_safe_email(*, owner_name: str, contact_name: str) -> tuple[
         "location is no longer being shared.</td></tr>"
     )
     return subject, _shell(inner)
+
+
+def guardian_accepted_email(*, owner_name: str, contact_name: str) -> tuple[str, str]:
+    """Sent the moment he agrees, so a wrong address is found out now and not
+    on the night she needs him. (A49)"""
+    subject = f"You are now {owner_name}'s safety contact"
+    inner = (
+        '<tr><td style="font-size:22px;font-weight:700;padding-bottom:8px">Dhara</td></tr>'
+        f'<tr><td style="font-size:15px;line-height:22px">Hi {escape(contact_name or "there")}, '
+        f"you agreed to be <b>{escape(owner_name)}</b>&rsquo;s safety contact. This note is "
+        "only to confirm that this address works.</td></tr>"
+        '<tr><td style="font-size:15px;line-height:22px;padding-top:12px">'
+        "We will write to you when she starts a journey, and again if she does not check in "
+        "on time. Nothing else — no marketing, and never her location unless she is sharing "
+        "it.</td></tr>"
+        '<tr><td style="font-size:14px;line-height:21px;color:#4A5568;padding-top:12px">'
+        "If you did not expect this, ignore it and tell her. Every email we send you has a "
+        "link to stop.</td></tr>"
+    )
+    return subject, _shell(inner)
