@@ -13,6 +13,7 @@ import {
   reconcileBgTracking,
 } from '@/src/women/headOutBgTracking';
 import { BgTrackingDisclosure } from '@/src/women/BgTrackingDisclosure';
+import { updateDwell, shouldPromptDwell, acknowledgeDwell, dwellMinutes, type DwellState } from '@/src/women/headOutDwell';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { getCircle, type Contact } from '@/src/women/api';
 import { useAuth } from '@/src/auth';
@@ -252,6 +253,11 @@ export default function HeadOut() {
   const distanceHistoryRef = useRef<number[]>([]);   // recent distance-to-destination readings, oldest first
   const [arrivedDismissedAt, setArrivedDismissedAt] = useState<number | null>(null);
   const [deviatedDismissedAt, setDeviatedDismissedAt] = useState<number | null>(null);
+  // DWELL (Final Flow trigger row): a private "Are you okay?" after too long
+  // without movement. In-app ONLY — never alerts the circle by itself
+  // (row-25 precedent); the deadline and "Need help" stay the only alert paths.
+  const dwellRef = useRef<DwellState | null>(null);
+  const [dwellPromptMinutes, setDwellPromptMinutes] = useState<number | null>(null);
   const [extending, setExtending] = useState(false);
   // Fix 6 (21 Nov): after "I'm safe" is confirmed by the server, show a
   // "You're marked safe" screen instead of silently bouncing to wizard step 1.
@@ -1033,6 +1039,35 @@ export default function HeadOut() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeInfo]);
 
+  // DWELL detection: fold each fresh, accurate fix into the episode; a 30 s
+  // tick also re-evaluates while she is still (a stationary phone can stop
+  // producing new fixes, so time must pass without a new fix firing this).
+  useEffect(() => {
+    if (!GO1B_GPS_ENABLED || !session || expired || session.pendingSafe || !gps.tracking) {
+      dwellRef.current = null;
+      return;
+    }
+    const evaluate = () => {
+      if (isValidCoord(gps.latitude, gps.longitude) && gps.lastFixAt) {
+        dwellRef.current = updateDwell(dwellRef.current, {
+          latitude: gps.latitude!, longitude: gps.longitude!,
+          accuracy: gps.accuracy ?? null, lastFixAt: gps.lastFixAt,
+        });
+      }
+      // Arrived or already talking about the route: stillness is expected or
+      // a prompt is already on screen — don't stack a second question.
+      if (hasArrived || hasDeviated) return;
+      const t = Date.now();
+      if (shouldPromptDwell(dwellRef.current, t)) {
+        setDwellPromptMinutes(dwellMinutes(dwellRef.current!, t));
+        dwellRef.current = acknowledgeDwell(dwellRef.current);   // once per episode
+      }
+    };
+    evaluate();
+    const timer = setInterval(evaluate, 30_000);
+    return () => clearInterval(timer);
+  }, [session, expired, gps.tracking, gps.latitude, gps.longitude, gps.lastFixAt, gps.accuracy, hasArrived, hasDeviated]);
+
   const now = Date.now();
   const arrivedDismissed = !!arrivedDismissedAt && now - arrivedDismissedAt < DISMISS_COOLDOWN_MS;
   const deviatedDismissed = !!deviatedDismissedAt && now - deviatedDismissedAt < DISMISS_COOLDOWN_MS;
@@ -1575,6 +1610,42 @@ export default function HeadOut() {
               onAgree={() => { void handleBgDisclosureAgree(); }}
               onDecline={handleBgDisclosureDecline}
             />
+            {/* DWELL private check-in — her screen only. Answering never
+                pings anyone; "Need help" below is the same explicit path as
+                everywhere else. */}
+            {dwellPromptMinutes != null && journeyPhase === 'normal' && (
+              <View style={[styles.activeCard, styles.dwellCard]} testID="headout-dwell-prompt">
+                <View style={styles.activeHeader}>
+                  <Ionicons name="time-outline" size={24} color={c.navy} />
+                  <Text style={styles.activeTitle}>Are you okay?</Text>
+                </View>
+                <Text style={styles.dwellBody}>
+                  {`You haven't moved for about ${dwellPromptMinutes} minute${dwellPromptMinutes === 1 ? '' : 's'}. Just checking in — this stays between you and DHARA.`}
+                </Text>
+                <Pressable
+                  testID="headout-dwell-okay"
+                  style={(s) => [styles.button, styles.safeButton, focusRingStyle(s)]}
+                  onPress={() => setDwellPromptMinutes(null)}
+                  accessibilityRole="button"
+                  accessibilityLabel="I'm okay — continue the journey"
+                >
+                  <Text style={styles.buttonText}>{"I'm okay — continue"}</Text>
+                </Pressable>
+                <Pressable
+                  testID="headout-dwell-need-help"
+                  style={(s) => [styles.button, styles.alertButton, focusRingStyle(s)]}
+                  onPress={() => { setDwellPromptMinutes(null); void requestHelp(); }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Need help — ask your Trusted Circle for help"
+                >
+                  <Ionicons name="warning-outline" size={18} color="#fff" />
+                  <Text style={styles.buttonText}>Need help</Text>
+                </Pressable>
+                <Text style={styles.disclosureNote}>
+                  {'Nobody is told about this pause automatically. Your Trusted Circle is only alerted if you tap "Need help" or miss your check-in deadline.'}
+                </Text>
+              </View>
+            )}
             <View style={styles.activeCard} testID="headout-active-card">
               {/* P9 (v2.2 'On the way'): say plainly when the chosen people
                   can see the journey. Reads existing state only — shown
@@ -1988,6 +2059,8 @@ const styles = StyleSheet.create({
   },
   buttonText: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: '#fff' },
   safeButton: { backgroundColor: c.verifiedGreen },
+  dwellCard: { borderWidth: 1.5, borderColor: c.navy, marginBottom: 12 },
+  dwellBody: { fontFamily: theme.fonts.body, fontSize: 14.5, color: c.ink, lineHeight: 21, marginBottom: 10 },
   bgTrackingNote: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 17, marginTop: 4 },
   // P9 'Sharing is on' banner (v2.2 On the way header, green)
   sharingOnBanner: {
