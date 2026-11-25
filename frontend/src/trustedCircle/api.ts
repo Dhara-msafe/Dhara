@@ -57,7 +57,7 @@ export type InviteLink = {
 // A43: `email` lets a trusted person who does NOT have DHARA be invited —
 // they accept from the email itself and are alerted the same way. The server
 // uses it only when no DHARA account matches the phone number.
-export async function inviteContact(token: string, body: { name: string; phone: string; email?: string; permissions?: Partial<Permissions>; relationship?: string }): Promise<{ ok: boolean; id: string; matched_existing_user: boolean; invited_by_email?: boolean; email_pending?: boolean }> {
+export async function inviteContact(token: string, body: { name: string; phone: string; email?: string; permissions?: Partial<Permissions>; relationship?: string }): Promise<{ ok: boolean; id: string; matched_existing_user: boolean; invited_by_email?: boolean; email_pending?: boolean; invite_path?: string | null; invite_url?: string | null }> {
   const r = await fetch(`${base}/trusted-circle/invite`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders(token) }, body: JSON.stringify(body),
   });

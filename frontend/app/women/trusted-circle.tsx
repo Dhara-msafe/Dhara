@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { View, Text, TextInput, Pressable, Switch, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, Pressable, Switch, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Share } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
+import { API_BASE } from '@/src/apiBase';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { getCircle, saveCircle, type Contact } from '@/src/women/api';
 import { openPhone } from '@/src/women/helpActions';
@@ -40,6 +41,20 @@ export default function TrustedCircle() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  // A48: the invitation link for the contact she just invited, so she can
+  // send it herself. Email is not the only way in, and in India it is often
+  // not the usual one.
+  const [inviteLink, setInviteLink] = useState<{ name: string; url: string } | null>(null);
+
+  async function shareInvitation(name: string, url: string) {
+    try {
+      await Share.share({
+        message:
+          `I've added you as my safety contact on DHARA. If I don't check in after a journey, you'll be told.\n\n` +
+          `Tap to accept (no app needed):\n${url}`,
+      });
+    } catch { /* she closed the share sheet */ }
+  }
   const [relationship, setRelationship] = useState('');
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(true);
@@ -79,16 +94,21 @@ export default function TrustedCircle() {
       setExpandedId(null);
       // Say what actually happened, so she is never left believing someone
       // was contacted when nothing went out.
+      // A48: whenever the server minted an invitation link, keep it so she
+      // can send it herself — WhatsApp, her own SMS, in person.
+      const link = res.invite_url || (res.invite_path ? `${API_BASE}${res.invite_path}` : null);
+      setInviteLink(link ? { name: ct.name, url: link } : null);
+
       if (res.invited_by_email) {
-        setStatus(`Invitation emailed to ${ct.name} at ${ct.email}. They can accept without installing DHARA.`);
+        setStatus(`Invitation emailed to ${ct.name} at ${ct.email}. They can accept without installing DHARA — or send them the link yourself below.`);
       } else if (res.email_pending) {
-        setStatus(`Saved, but the email to ${ct.name} could not be sent. Tell them to install DHARA, or try again later.`);
+        setStatus(`The email to ${ct.name} could not be sent. Send them the invitation link below instead — it works the same way.`);
       } else if (res.matched_existing_user) {
         setStatus(`Invitation sent to ${ct.name} in DHARA with the permissions you chose.`);
-      } else if (ct.email) {
-        setStatus(`Invitation saved for ${ct.name}.`);
+      } else if (link) {
+        setStatus(`Invitation ready for ${ct.name}. Send them the link below — they can accept without installing DHARA.`);
       } else {
-        setStatus(`Invitation saved for ${ct.name}. They have no DHARA account and no email address, so nothing could be sent — add an email address so they can be reached.`);
+        setStatus(`Invitation saved for ${ct.name}.`);
       }
     } catch {
       setStatus('Could not send invitation. Try again.');
@@ -146,6 +166,37 @@ export default function TrustedCircle() {
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 40 }}>
         <Text testID="circle-disclosure" style={styles.note}>Contacts are saved on this device. DHARA does not automatically alert them or monitor journeys. Tap the bell to choose whether a contact is suggested in Silent alert, or kept for calling only. Use Silent alert to prepare an SMS, then press Send in your messaging app.</Text>
         {!!status && <Text testID="circle-status" accessibilityLiveRegion="polite" style={styles.note}>{status}</Text>}
+
+        {/* A48: the invitation link, so an invitation never depends on email
+            alone. He opens it, taps Yes, and he is her safety contact — no
+            app, no account. */}
+        {!!inviteLink && (
+          <View style={styles.shareInviteBox} testID="circle-invite-link">
+            <Text style={styles.shareInviteTitle}>Send {inviteLink.name} their invitation</Text>
+            <Text style={styles.shareInviteBody}>
+              They do not need DHARA. They open the link, tap yes, and they will be told if you
+              miss a check-in.
+            </Text>
+            <Pressable
+              style={(st) => [styles.shareInviteBtn, focusRingStyle(st)]}
+              onPress={() => shareInvitation(inviteLink.name, inviteLink.url)}
+              accessibilityRole="button"
+              accessibilityLabel={`Share the invitation link for ${inviteLink.name}`}
+              testID="circle-invite-share"
+            >
+              <Ionicons name="share-outline" size={18} color="#fff" />
+              <Text style={styles.shareInviteBtnTxt}>Share invitation link</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setInviteLink(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Hide the invitation link"
+              testID="circle-invite-dismiss"
+            >
+              <Text style={styles.shareInviteDismiss}>Not now</Text>
+            </Pressable>
+          </View>
+        )}
 
         {list.map(ct => (
           <View key={ct.id} style={styles.row}>
@@ -360,6 +411,18 @@ export default function TrustedCircle() {
 }
 
 const styles = StyleSheet.create({
+  shareInviteBox: {
+    backgroundColor: '#EEF3FA', borderRadius: 14, padding: 16, marginTop: 12, gap: 8,
+  },
+  shareInviteTitle: { fontSize: 16, fontWeight: '700', color: c.navy },
+  shareInviteBody: { fontSize: 14, lineHeight: 20, color: '#4A5568' },
+  shareInviteBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: c.navy, borderRadius: 12, paddingVertical: 14, marginTop: 4,
+    minHeight: 48,
+  },
+  shareInviteBtnTxt: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  shareInviteDismiss: { textAlign: 'center', color: '#4A5568', fontSize: 14, paddingVertical: 8 },
   root: { flex: 1, backgroundColor: c.background },
   note: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, lineHeight: 21, marginBottom: 18 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.lines, padding: 14, marginBottom: 12 },

@@ -428,3 +428,77 @@ class TestLastAreaPage:
         env.delenv("GUARDIAN_LINK_SECRET")
         env.delenv("JWT_SECRET", raising=False)
         assert ge.view_token_for("L1") is None
+
+
+# ── A48: an invitation that does not depend on email ─────────────────────────
+
+class TestShareableInvitation:
+    """Email is not the only way in, and in India it is often not the usual
+    one. Every contact without a DHARA account gets a link she can send
+    herself — WhatsApp, her own SMS, in person."""
+
+    @pytest.mark.asyncio
+    async def test_a_contact_with_no_email_still_gets_an_invitation_link(self, env):
+        db = MagicMock()
+        db.users.find = MagicMock(return_value=_empty())
+        db.trusted_circle_links.insert_one = AsyncMock()
+        with patch.object(tc, "db", db):
+            out = await tc.invite(tc.InviteIn(name="Asha", phone="+919876500000"), user=_OWNER)
+        assert out["invite_path"], "no link means no way for him to accept"
+        assert out["invite_path"].startswith("/api/trusted-circle/invitation/email/")
+        doc = db.trusted_circle_links.insert_one.await_args.args[0]
+        assert doc["channel"] == "link"
+        assert "contact_email" not in doc
+
+    @pytest.mark.asyncio
+    async def test_the_link_in_the_reply_is_the_one_that_opens_the_page(self, env):
+        db = MagicMock()
+        db.users.find = MagicMock(return_value=_empty())
+        db.trusted_circle_links.insert_one = AsyncMock()
+        with patch.object(tc, "db", db):
+            out = await tc.invite(tc.InviteIn(name="Asha", phone="+919876500000"), user=_OWNER)
+        token = out["invite_path"].rsplit("/", 1)[-1]
+        doc = db.trusted_circle_links.insert_one.await_args.args[0]
+        assert ge.hash_token(token) == doc["invite_token_hash"]
+
+    @pytest.mark.asyncio
+    async def test_an_absolute_url_when_the_deployment_has_one(self, env):
+        db = MagicMock()
+        db.users.find = MagicMock(return_value=_empty())
+        db.trusted_circle_links.insert_one = AsyncMock()
+        with patch.object(tc, "db", db):
+            out = await tc.invite(tc.InviteIn(name="Asha", phone="+919876500000"), user=_OWNER)
+        assert out["invite_url"].startswith("https://dhara.example/api/trusted-circle/invitation/email/")
+
+    @pytest.mark.asyncio
+    async def test_without_a_base_url_the_path_is_still_returned(self, env):
+        """The app knows its own backend address, so it can build the link
+        even when the deployment has not been told its public name."""
+        env.delenv("PUBLIC_BASE_URL")
+        db = MagicMock()
+        db.users.find = MagicMock(return_value=_empty())
+        db.trusted_circle_links.insert_one = AsyncMock()
+        with patch.object(tc, "db", db):
+            out = await tc.invite(tc.InviteIn(name="Asha", phone="+919876500000"), user=_OWNER)
+        assert out["invite_url"] is None
+        assert out["invite_path"], "the path must still come back, or nothing can be shared"
+
+    @pytest.mark.asyncio
+    async def test_an_existing_app_user_gets_no_link(self, env):
+        db = MagicMock()
+        db.users.find = MagicMock(return_value=_one({"id": "u2", "phone": "+919876500000"}))
+        db.trusted_circle_links.insert_one = AsyncMock()
+        with patch.object(tc, "db", db), patch.object(tc, "send_push", new=AsyncMock()):
+            out = await tc.invite(tc.InviteIn(name="Asha", phone="+919876500000"), user=_OWNER)
+        assert out["invite_path"] is None, "they accept in the app; a link would be a second door"
+
+    @pytest.mark.asyncio
+    async def test_the_shared_link_opens_the_same_accept_page(self, env):
+        """What she shares is exactly what the email would have carried."""
+        db = MagicMock()
+        db.trusted_circle_links.find_one = AsyncMock(return_value=_link(status="pending", contact_email=None))
+        with patch.object(tc, "db", db):
+            page = await tc.email_invitation_page("tok")
+        body = page.body.decode()
+        assert "Yes, I will be her contact" in body
+        assert "No, do not contact me" in body

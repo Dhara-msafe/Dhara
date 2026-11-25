@@ -307,12 +307,18 @@ async def invite(body: InviteIn, user: dict = Depends(current_user)):
         "created_at": now,
         "responded_at": None,
     }
-    # A43: a trusted person without a DHARA account can be invited by email.
-    # Only when no account matched the phone number: an existing user is
-    # already reachable in the app, and two invitations would be confusing.
+    # A43/A48: a trusted person without a DHARA account needs some way in.
+    # An invitation link is minted for EVERY such contact, whether or not an
+    # address was given, because the link is what makes the invitation
+    # possible at all:
+    #   * we email it when there is an address and email is configured (A43);
+    #   * we hand it back to HER so she can send it however she likes —
+    #     WhatsApp, her own SMS, in person (A48).
+    # The second is the one that works everywhere: it needs no mail server,
+    # no DLT registration and no app on his phone.
     email = ge.normalise_email(body.email) if not invitee else None
     invite_token = None
-    if email:
+    if not invitee:
         invite_token, token_hash = ge.new_token()
         # The "see her last known area" token is derived from the link id and
         # a server secret, so every alert email can rebuild the same address
@@ -320,12 +326,14 @@ async def invite(body: InviteIn, user: dict = Depends(current_user)):
         # for the lookup when someone opens it.
         view_token = ge.view_token_for(link_id)
         doc.update({
-            "contact_email":      email,
-            "channel":            "email",
-            "invite_token_hash":  token_hash,   # the token itself is only ever in the email
+            "channel":            "email" if email else "link",
+            "invite_token_hash":  token_hash,   # the token itself is never stored
             "view_token_hash":    ge.hash_token(view_token) if view_token else None,
-            "email_invited_at":   ge.utc_now_iso(),
+            "invited_at":         ge.utc_now_iso(),
         })
+        if email:
+            doc["contact_email"] = email
+            doc["email_invited_at"] = ge.utc_now_iso()
 
     await db.trusted_circle_links.insert_one(doc)
 
@@ -355,6 +363,12 @@ async def invite(body: InviteIn, user: dict = Depends(current_user)):
         # believing someone was contacted when nothing went out.
         "invited_by_email": emailed,
         "email_pending": bool(email) and not emailed,
+        # A48: the invitation link, so she can send it herself. The path is
+        # always there; the absolute URL only when PUBLIC_BASE_URL is set, so
+        # the app falls back to its own backend address. Returned ONLY to the
+        # person who created the invitation.
+        "invite_path": f"/api/trusted-circle/invitation/email/{invite_token}" if invite_token else None,
+        "invite_url": ge.invite_url(invite_token) if invite_token else None,
     }
 
 
