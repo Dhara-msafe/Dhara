@@ -85,6 +85,39 @@ WHISPER_PROMPT_HINT: dict[str, str] = {
 }
 
 
+# NO-SPEECH GUARD (2026-11-25)
+# ---------------------------
+# Whisper does not return an empty string for a recording with no speech in
+# it — it returns a short filler phrase. On the SDK 55 Android build the Ask
+# mic uploaded valid-but-silent .m4a files and every one came back as the
+# single word "you", which the app then showed in its "We heard" card as if
+# the user had said it.
+#
+# The entries below are phrases Whisper is known to emit for silence AND that
+# cannot be a real question to a legal-information assistant on their own.
+# Keep this list short and exact-match only: a broad list would start
+# rejecting real speech ("thank you" is deliberately NOT here — a user can
+# genuinely say it). The app-side level check
+# (frontend/src/voice/core/captureCheck.ts) is the primary guard; this is
+# the backstop for clients without it.
+NO_SPEECH_FILLERS: frozenset[str] = frozenset({
+    "you",
+    "thanks for watching",
+    "thank you for watching",
+})
+
+
+class NoSpeechDetected(Exception):
+    """Whisper returned only a known silence filler — nothing was said."""
+
+
+def is_no_speech_filler(text: str | None) -> bool:
+    """True when *text* is empty or is exactly one known silence filler."""
+    cleaned = re.sub(r"[^\w\s]", "", (text or "").lower(), flags=re.UNICODE)
+    cleaned = " ".join(cleaned.split())
+    return cleaned == "" or cleaned in NO_SPEECH_FILLERS
+
+
 def normalize_language(language: str | None) -> str | None:
     """Strip BCP-47 subtag ('ta-IN' → 'ta') and lower-case.
 
@@ -181,10 +214,13 @@ async def transcribe_with_retry(
         elif prompt_hint:
             kwargs["prompt"] = prompt_hint
         result = await openai_client.audio.transcriptions.create(**kwargs)
+        if is_no_speech_filler(result.text):
+            raise NoSpeechDetected()
         return {"text": result.text, **script_check_fn(result.text, lang)}
 
-    except asyncio.CancelledError:
-        # Never retry a cancellation — propagate immediately.
+    except (asyncio.CancelledError, NoSpeechDetected):
+        # Never retry a cancellation or a no-speech verdict — propagate
+        # immediately.
         raise
 
     except Exception as first_err:
@@ -195,5 +231,7 @@ async def transcribe_with_retry(
                 lang_hint,
             )
             result = await openai_client.audio.transcriptions.create(**base_kwargs)
+            if is_no_speech_filler(result.text):
+                raise NoSpeechDetected()
             return {"text": result.text, **script_check_fn(result.text, lang)}
         raise

@@ -25,7 +25,8 @@ import { theme } from '@/src/theme';
 import { trackEvent } from '@/src/analytics';
 import { getConfiguredSTT, whisperTranscribeFile, sttErrorToMessage, MAX_AUDIO_BYTES, AUDIO_TOO_LARGE_MESSAGE } from '@/src/voice/stt';
 import { claimMic, MIC_BUSY_MESSAGE, withMicLease, isMicHeldByEvidenceLocker, TTS_BLOCKED_BY_LOCKER_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
-import { canSpeakNow, noteAudioInterruption, noteSpeakIntent, VOICE_COMPANION_ENABLED, VOICE_OFF_HINT } from '@/src/voice/speechGate';
+import { classifyCapture, createPeakTracker, CAPTURE_SILENT_MESSAGE, CAPTURE_TOO_SHORT_MESSAGE } from '@/src/voice/core/captureCheck';
+import { canSpeakNow, noteAudioInterruption, noteSpeakIntent, noteAutoReadQuestion, setVoiceReadAloud, VOICE_COMPANION_ENABLED, VOICE_OFF_HINT } from '@/src/voice/speechGate';
 import { VoiceStateMachine } from '@/src/voice/core/voiceStateMachine';
 import { needsConfirmation } from '@/src/voice/core/voicePolicy';
 import { classifyFact } from '@/src/voice/factClassifier';
@@ -57,6 +58,10 @@ import { focusRingStyle } from '@/src/a11yFocus';
 
 const CANCEL_THRESHOLD = -80; // px the user must drag left to cancel
 const LOCK_THRESHOLD = -55; // px the user must drag up to lock hands-free recording
+// Ask-mic recorder options: the stock preset plus level metering, which the
+// silent-capture guard (src/voice/core/captureCheck.ts) reads. Module-level
+// so the object identity/JSON is stable across renders.
+const ASK_RECORDING_OPTIONS = { ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true };
 
 
 
@@ -64,7 +69,12 @@ const LOCK_THRESHOLD = -55; // px the user must drag up to lock hands-free recor
 const PRO_UPGRADE_ENABLED = process.env.EXPO_PUBLIC_PRO_UPGRADE_ENABLED === 'true';
 
 export default function ChatScreen() {
-  const { token, user, language, autoSpeak, ttsVolume, ttsVoiceMode, refreshUser, forceLogout } = useAuth();
+  const { token, user, language, autoSpeak, setAutoSpeak, ttsVolume, ttsVoiceMode, refreshUser, forceLogout } = useAuth();
+  // Mute button: the live auto-read state. A ref, so a reply that is still
+  // loading when the user taps mute is not read aloud (send() captured the
+  // old `autoSpeak` value when the question was sent).
+  const autoSpeakRef = useRef(autoSpeak);
+  autoSpeakRef.current = autoSpeak;
   const { primaryInterest } = useUserProfile();
   // Phase 1: shared evidence recorder from provider (needed for safety trigger)
   const { startTriggerRecording } = useEvidenceRecorder();
@@ -173,7 +183,17 @@ export default function ChatScreen() {
   // "listening" waveform looks and behaves identically on every phone.
   const waveBars = useRef([0, 1, 2, 3, 4].map(() => new Animated.Value(0.3))).current;
   const scrollRef = useRef<ScrollView>(null);
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorder = useAudioRecorder(ASK_RECORDING_OPTIONS);
+  // Silent-capture guard: samples the real mic level while recording (refs
+  // only — no re-render) so stopRecording() can refuse to upload a recording
+  // that contains no sound. See src/voice/core/captureCheck.ts.
+  const captureStartedAtRef = useRef(0);
+  const capturePeakRef = useRef(createPeakTracker());
+  const captureMeterTimerRef = useRef<any>(null);
+  const stopCaptureMeter = useCallback(() => {
+    if (captureMeterTimerRef.current) { clearInterval(captureMeterTimerRef.current); captureMeterTimerRef.current = null; }
+  }, []);
+  useEffect(() => stopCaptureMeter, [stopCaptureMeter]);
   const nativeSTTHandleRef = useRef<{ stop: () => Promise<any> } | null>(null);
   // Web MediaRecorder refs — used for browser-based audio recording
   const webRecorderRef = useRef<any>(null);
@@ -430,6 +450,9 @@ export default function ChatScreen() {
     async (text: string) => {
       const q = text.trim();
       if (!q || streaming || !token) return;
+      // Auto-read is on by default: asking a question while not muted lets
+      // the reply be read aloud (see noteAutoReadQuestion in speechGate).
+      if (autoSpeakRef.current) noteAutoReadQuestion();
       // T1: a guest at the quota limit is normally blocked, BUT a present-danger
       // / distress message must still reach the backend (it replies with 112 and
       // consumes no quota). Ordinary messages at the limit stay blocked.
@@ -798,8 +821,10 @@ export default function ChatScreen() {
           setHasSosBanner(true);
         }
 
-        // Auto-speak the reply if the user has that setting on and we got real text
-        if (autoSpeak && displayText.trim().length && !hadError) {
+        // Auto-speak the reply unless the user has muted (header mute button
+        // / Settings switch — read live, so muting mid-reply works) and we
+        // got real text. speak() still passes the speech gate.
+        if (autoSpeakRef.current && displayText.trim().length && !hadError) {
           // slight delay so the message renders before speech starts
           setTimeout(() => {
             speakRef.current?.(assistantId, displayText, false);
@@ -1263,6 +1288,19 @@ export default function ChatScreen() {
           }
           micLeaseRef.current = claimResult.lease;
           recorder.record();
+          captureStartedAtRef.current = Date.now();
+          capturePeakRef.current = createPeakTracker();
+          stopCaptureMeter();
+          captureMeterTimerRef.current = setInterval(() => {
+            // Self-terminating: every cancel/preempt/unmount path stops the
+            // recorder, so the sampler ends with it without needing a hook
+            // in each of those paths.
+            try {
+              const st = recorder.getStatus();
+              if (!st?.isRecording) { stopCaptureMeter(); return; }
+              capturePeakRef.current.add(st.metering);
+            } catch { stopCaptureMeter(); }
+          }, 200);
           started = true;
           setRecording(true);
         } finally {
@@ -1290,7 +1328,7 @@ export default function ChatScreen() {
         webStreamRef.current = null;
       }
     }
-  }, [recorder, token, stopCloudTTS, notify, micPulse]);
+  }, [recorder, token, stopCloudTTS, notify, micPulse, stopCaptureMeter]);
 
   // Talk to DHARA — Step 5: CONFIRMING + needsConfirmation(). Inert (no-op
   // beyond the existing modal) when VOICE_COMPANION_ENABLED is OFF.
@@ -1475,6 +1513,13 @@ export default function ChatScreen() {
         // builds — every other recorder.stop() call in this file is
         // guarded the same way; this one was the odd one out and could
         // leave the mic UI stuck or surface as an unhandled rejection.
+        stopCaptureMeter();
+        try { capturePeakRef.current.add(recorder.getStatus()?.metering); } catch {}
+        const captureStats = {
+          elapsedMs: captureStartedAtRef.current ? Date.now() - captureStartedAtRef.current : 0,
+          ...capturePeakRef.current.read(),
+        };
+        captureStartedAtRef.current = 0;
         try { await recorder.stop(); } catch {}
         const uri = recorder.uri;
         // P0-C: never flip allowsRecording:false while the Evidence Locker
@@ -1492,6 +1537,15 @@ export default function ChatScreen() {
         if (!uri) {
           setTranscribing(false);
           notify('Microphone', sttErrorToMessage(new Error('__no_recording__')));
+          return;
+        }
+        // Silent-capture guard: numbers only (duration, level, sample count)
+        // — no audio content, no transcript. Diagnostic code DHARA/VOICE_CAPTURE.
+        const captureVerdict = classifyCapture(captureStats);
+        console.warn('DHARA/VOICE_CAPTURE', captureVerdict, Math.round(captureStats.elapsedMs), captureStats.peakDb === null ? 'no-meter' : Math.round(captureStats.peakDb), captureStats.samples);
+        if (captureVerdict !== 'ok') {
+          setTranscribing(false);
+          notify('Microphone', captureVerdict === 'silent' ? CAPTURE_SILENT_MESSAGE : CAPTURE_TOO_SHORT_MESSAGE);
           return;
         }
         if (!token) { setTranscribing(false); return; }
@@ -1519,7 +1573,7 @@ export default function ChatScreen() {
       // per status, with a Retry that resends the same recording.
       showTranscriptionError(e, retryTranscription);
     }
-  }, [recorder, token, language, notify, forceLogout, showTranscriptionError, retryTranscription, deleteRetryAudio]);
+  }, [recorder, token, language, notify, forceLogout, showTranscriptionError, retryTranscription, deleteRetryAudio, stopCaptureMeter]);
 
   // WhatsApp-style hold-to-talk handlers
   const onMicPressIn = useCallback(() => {
@@ -1716,6 +1770,24 @@ export default function ChatScreen() {
     });
     return () => sub.remove();
   }, [onLockedCancel, stopCloudTTS]);
+
+  // Ask header mute button. Muted = no automatic reading; it stays muted
+  // (saved on the phone, same value as the Settings "Answers spoken aloud
+  // automatically" switch) until the user taps the button again. The speaker
+  // icon on each reply still works while muted.
+  const toggleMute = useCallback(() => {
+    if (autoSpeakRef.current) {
+      autoSpeakRef.current = false;
+      stopCloudTTS();
+      stopNativeTTS();
+      void setAutoSpeak(false);
+    } else {
+      autoSpeakRef.current = true;
+      void setAutoSpeak(true);
+      // Unmuting is an explicit "I want to hear answers" tap.
+      void setVoiceReadAloud(true);
+    }
+  }, [setAutoSpeak, stopCloudTTS]);
 
   // PanResponder for the WhatsApp slide-to-cancel / slide-up-to-lock gestures
   // on the mic button.
@@ -1929,6 +2001,17 @@ export default function ChatScreen() {
             accessibilityLabel="Chat history"
           >
             <Ionicons name="time-outline" size={22} color={theme.colors.brand} />
+          </Pressable>
+          <Pressable
+            testID="ask-mute-btn"
+            style={(s) => [styles.historyHeaderBtn, focusRingStyle(s)]}
+            onPress={toggleMute}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityState={{ selected: !autoSpeak }}
+            accessibilityLabel={autoSpeak ? 'Mute: stop reading answers aloud' : 'Unmute: read answers aloud'}
+          >
+            <Ionicons name={autoSpeak ? 'volume-high-outline' : 'volume-mute-outline'} size={22} color={autoSpeak ? theme.colors.brand : theme.colors.onSurfaceSecondary} />
           </Pressable>
           {/* UI_V22_ONE_SOS (B-122): SOS sits in the header row, in normal
               layout, instead of the tab layout's floating pill that covered
