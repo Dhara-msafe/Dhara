@@ -1,13 +1,16 @@
 #!/bin/sh
 # Pod-local crons.yml change watcher: runs every minute from the same crontab.
 # When the live .emergent/crons.yml hash differs from the last-applied hash it
-# asks agent-service to reconcile PREVIEW crons (scope=preview keeps prod/AWS
+# re-renders the crons in the pod with the image's emergent-cron-boot (app-builder);
+# on an image without it, or when that render does not converge, it asks
+# agent-service to reconcile PREVIEW crons (scope=preview keeps prod/AWS
 # untouched). It never writes applied.hash (the install does, so a failed
 # reconcile retries next minute) and never exits non-zero.
 set -u
 
 YAML="${CRONS_YAML_FILE:-/app/.emergent/crons.yml}"
 APPLIED="${APPLIED_HASH_FILE:-/app/.emergent/cron/applied.hash}"
+BOOT="${CRON_BOOT:-/usr/local/bin/emergent-cron-boot}"
 JOB_ID="${JOB_ID:-}"
 CRON_API_URL="${CRON_API_URL:-}"
 
@@ -25,6 +28,14 @@ applied="$(cat "$APPLIED" 2>/dev/null || printf '')"
 
 # Converged: nothing to do.
 [ "$current" = "$applied" ] && exit 0
+
+# Image ships the pod-local renderer: install here, no control-plane call.
+if [ -x "$BOOT" ]; then
+	"$BOOT" --reload || true
+	applied="$(cat "$APPLIED" 2>/dev/null || printf '')"
+	[ "$current" = "$applied" ] && exit 0
+fi
+
 # No API URL baked (older pod) — can't reconcile; retry once one is present.
 [ -n "$CRON_API_URL" ] || exit 0
 
