@@ -111,6 +111,27 @@ export function noteSpeakIntent(): void {
   AsyncStorage.setItem(K_PREF_KNOWN, 'true').catch(() => {});
 }
 
+/**
+ * Ask DHARA auto-read (25 Nov): answers are read aloud by default, and the
+ * Ask header's mute button is the user's control. Call this when the user
+ * sends a question while auto-read is on (not muted):
+ *   - the first-run "no speaking choice yet" block lifts — auto-read being
+ *     on by default IS the starting choice now, and mute turns it off;
+ *   - an OLDER interruption (app was backgrounded, the mic-permission dialog,
+ *     a call that has ended) no longer blocks reading the NEW reply.
+ * Still honoured, unchanged: the Settings "Voice: read answers aloud" switch
+ * (Quiet), Women's Shield screens, Quick exit, and any interruption that
+ * happens AFTER this call while the reply is loading. A reply that was cut
+ * off is never restarted.
+ */
+export function noteAutoReadQuestion(): void {
+  flags = reduceGate(flags, { type: 'resume_requested' });
+  if (!speakingPreferenceKnown) {
+    speakingPreferenceKnown = true;
+    AsyncStorage.setItem(K_PREF_KNOWN, 'true').catch(() => {});
+  }
+}
+
 /** Persisted Quiet toggle — the USER's choice (Settings switch). */
 export async function setQuiet(v: boolean): Promise<void> {
   flags = { ...flags, quiet: v };

@@ -26,7 +26,7 @@ import { trackEvent } from '@/src/analytics';
 import { getConfiguredSTT, whisperTranscribeFile, sttErrorToMessage, MAX_AUDIO_BYTES, AUDIO_TOO_LARGE_MESSAGE } from '@/src/voice/stt';
 import { claimMic, MIC_BUSY_MESSAGE, withMicLease, isMicHeldByEvidenceLocker, TTS_BLOCKED_BY_LOCKER_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
 import { classifyCapture, createPeakTracker, CAPTURE_SILENT_MESSAGE, CAPTURE_TOO_SHORT_MESSAGE } from '@/src/voice/core/captureCheck';
-import { canSpeakNow, noteAudioInterruption, noteSpeakIntent, VOICE_COMPANION_ENABLED, VOICE_OFF_HINT } from '@/src/voice/speechGate';
+import { canSpeakNow, noteAudioInterruption, noteSpeakIntent, noteAutoReadQuestion, setVoiceReadAloud, VOICE_COMPANION_ENABLED, VOICE_OFF_HINT } from '@/src/voice/speechGate';
 import { VoiceStateMachine } from '@/src/voice/core/voiceStateMachine';
 import { needsConfirmation } from '@/src/voice/core/voicePolicy';
 import { classifyFact } from '@/src/voice/factClassifier';
@@ -69,7 +69,12 @@ const ASK_RECORDING_OPTIONS = { ...RecordingPresets.HIGH_QUALITY, isMeteringEnab
 const PRO_UPGRADE_ENABLED = process.env.EXPO_PUBLIC_PRO_UPGRADE_ENABLED === 'true';
 
 export default function ChatScreen() {
-  const { token, user, language, autoSpeak, ttsVolume, ttsVoiceMode, refreshUser, forceLogout } = useAuth();
+  const { token, user, language, autoSpeak, setAutoSpeak, ttsVolume, ttsVoiceMode, refreshUser, forceLogout } = useAuth();
+  // Mute button: the live auto-read state. A ref, so a reply that is still
+  // loading when the user taps mute is not read aloud (send() captured the
+  // old `autoSpeak` value when the question was sent).
+  const autoSpeakRef = useRef(autoSpeak);
+  autoSpeakRef.current = autoSpeak;
   const { primaryInterest } = useUserProfile();
   // Phase 1: shared evidence recorder from provider (needed for safety trigger)
   const { startTriggerRecording } = useEvidenceRecorder();
@@ -445,6 +450,9 @@ export default function ChatScreen() {
     async (text: string) => {
       const q = text.trim();
       if (!q || streaming || !token) return;
+      // Auto-read is on by default: asking a question while not muted lets
+      // the reply be read aloud (see noteAutoReadQuestion in speechGate).
+      if (autoSpeakRef.current) noteAutoReadQuestion();
       // T1: a guest at the quota limit is normally blocked, BUT a present-danger
       // / distress message must still reach the backend (it replies with 112 and
       // consumes no quota). Ordinary messages at the limit stay blocked.
@@ -813,8 +821,10 @@ export default function ChatScreen() {
           setHasSosBanner(true);
         }
 
-        // Auto-speak the reply if the user has that setting on and we got real text
-        if (autoSpeak && displayText.trim().length && !hadError) {
+        // Auto-speak the reply unless the user has muted (header mute button
+        // / Settings switch — read live, so muting mid-reply works) and we
+        // got real text. speak() still passes the speech gate.
+        if (autoSpeakRef.current && displayText.trim().length && !hadError) {
           // slight delay so the message renders before speech starts
           setTimeout(() => {
             speakRef.current?.(assistantId, displayText, false);
@@ -1761,6 +1771,24 @@ export default function ChatScreen() {
     return () => sub.remove();
   }, [onLockedCancel, stopCloudTTS]);
 
+  // Ask header mute button. Muted = no automatic reading; it stays muted
+  // (saved on the phone, same value as the Settings "Answers spoken aloud
+  // automatically" switch) until the user taps the button again. The speaker
+  // icon on each reply still works while muted.
+  const toggleMute = useCallback(() => {
+    if (autoSpeakRef.current) {
+      autoSpeakRef.current = false;
+      stopCloudTTS();
+      stopNativeTTS();
+      void setAutoSpeak(false);
+    } else {
+      autoSpeakRef.current = true;
+      void setAutoSpeak(true);
+      // Unmuting is an explicit "I want to hear answers" tap.
+      void setVoiceReadAloud(true);
+    }
+  }, [setAutoSpeak, stopCloudTTS]);
+
   // PanResponder for the WhatsApp slide-to-cancel / slide-up-to-lock gestures
   // on the mic button.
   const micPanResponder = useMemo(() => PanResponder.create({
@@ -1973,6 +2001,17 @@ export default function ChatScreen() {
             accessibilityLabel="Chat history"
           >
             <Ionicons name="time-outline" size={22} color={theme.colors.brand} />
+          </Pressable>
+          <Pressable
+            testID="ask-mute-btn"
+            style={(s) => [styles.historyHeaderBtn, focusRingStyle(s)]}
+            onPress={toggleMute}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityState={{ selected: !autoSpeak }}
+            accessibilityLabel={autoSpeak ? 'Mute: stop reading answers aloud' : 'Unmute: read answers aloud'}
+          >
+            <Ionicons name={autoSpeak ? 'volume-high-outline' : 'volume-mute-outline'} size={22} color={autoSpeak ? theme.colors.brand : theme.colors.onSurfaceSecondary} />
           </Pressable>
           {/* UI_V22_ONE_SOS (B-122): SOS sits in the header row, in normal
               layout, instead of the tab layout's floating pill that covered
