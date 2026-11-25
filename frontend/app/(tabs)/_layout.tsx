@@ -110,6 +110,8 @@ export default function TabsLayout() {
             column, so its own right edge always lines up with the header's,
             at every window width, on every platform. */}
         {!onHome && !UI_V22_ONE_SOS && (
+          // Redesign v3: screens with the shared header already show SOS 112.
+          showHeader ? null :
           <View style={[styles.sosOverlayFrame, { top: insets.top + 10 }]} pointerEvents="box-none">
             <View style={styles.sosOverlayInner} pointerEvents="box-none">
               <SosPill />
