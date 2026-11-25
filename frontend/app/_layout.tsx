@@ -187,6 +187,7 @@ function ScreenCaptureLock() {
 /** Inner component so the hook runs only when rendered (i.e. on native). */
 function NativeCaptureLock() {
   // usePreventScreenCapture(); // disabled — screenshots allowed
+  // TODO: re-enable + add expo-screen-capture plugin before public Play release
   return null;
 }
 

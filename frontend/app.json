@@ -43,7 +43,7 @@
         }
       },
       "permissions": [
-        "RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO",
         "android.permission.INTERNET",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.CAMERA",
@@ -112,6 +112,19 @@
           "icon": "./assets/images/dhara_icon.png",
           "color": "#48627E",
           "defaultChannel": "default"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose a photo as your profile picture or evidence",
+          "cameraPermission": "Take a photo as evidence for your complaint"
+        }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Detect a shake gesture to activate the discreet safety cover"
         }
       ]
     ],

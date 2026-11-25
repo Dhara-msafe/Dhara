@@ -72,7 +72,7 @@ export default function TrustedCircle() {
       // A43: send the email too. If this contact has no DHARA account, the
       // server invites them by email instead of leaving them unreachable.
       const res = await inviteContact(authToken, {
-        name: ct.name, phone: ct.phone, email: ct.email,
+        name: ct.name, phone: ct.phone, email: ct.email ?? '',
         permissions: perms, relationship: ct.relationship,
       });
       refreshInvites();
