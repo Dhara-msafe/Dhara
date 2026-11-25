@@ -4088,6 +4088,13 @@ expo-system-ui@~55.0.22:
     "@react-native/normalize-colors" "0.83.10"
     debug "^4.3.2"
 
+expo-task-manager@~55.0.6:
+  version "55.0.20"
+  resolved "https://registry.yarnpkg.com/expo-task-manager/-/expo-task-manager-55.0.20.tgz#952fae5a597c93fd2295efef4f21cb894f6c81ad"
+  integrity sha512-yxiERbkqibZYDArQ1QKbezKn7YkCxLyaDeiIO8DcyOqopBvUmXDkF3b7FtesW+YnAlg3g223geV8YiW1I4Suew==
+  dependencies:
+    unimodules-app-loader "~55.0.5"
+
 expo-video@~55.0.21:
   version "55.0.21"
   resolved "https://registry.yarnpkg.com/expo-video/-/expo-video-55.0.21.tgz#d763821ee3b1a713d599af41d59b72791fe58b12"
@@ -7113,6 +7120,11 @@ unicode-property-aliases-ecmascript@^2.0.0:
   version "2.2.0"
   resolved "https://registry.npmjs.org/unicode-property-aliases-ecmascript/-/unicode-property-aliases-ecmascript-2.2.0.tgz"
   integrity sha512-hpbDzxUY9BFwX+UeBnxv3Sh1q7HFxj48DTmXchNgRa46lO8uj3/1iEn3MiNUYTg1g9ctIqXCCERn8gYZhHC5lQ==
+
+unimodules-app-loader@~55.0.5:
+  version "55.0.5"
+  resolved "https://registry.yarnpkg.com/unimodules-app-loader/-/unimodules-app-loader-55.0.5.tgz#3542667367932ef1cb3fa6f52c6dd4120dab3ed8"
+  integrity sha512-2eLjtaAVQTK3EeiUAgRbfEnX78f6cMtw5Js8Ri4OcEdkrozsmvG3Wu8YVfr6kfhea17FHZkKZmO1m4dL/Ky2Bg==
 
 unpipe@~1.0.0:
   version "1.0.0"

@@ -1,11 +1,18 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, Linking, Modal, AppState, TextInput, Image, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, Linking, Modal, AppState, TextInput, Image, ActivityIndicator, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '@/src/theme';
 import { UI_V22_P9, headOutBottomGutter } from '@/src/uiV22Flags';
+import {
+  HEADOUT_BG_TRACKING,
+  startJourneyBgTracking,
+  stopJourneyBgTracking,
+  reconcileBgTracking,
+} from '@/src/women/headOutBgTracking';
+import { BgTrackingDisclosure } from '@/src/women/BgTrackingDisclosure';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { getCircle, type Contact } from '@/src/women/api';
 import { useAuth } from '@/src/auth';
@@ -187,6 +194,10 @@ export default function HeadOut() {
   // GPS permission-contract states (handle_permissions_contract)
   // locationConsentGiven: user tapped "Allow location" on the pre-OS rationale card
   const [locationConsentGiven, setLocationConsentGiven] = useState(false);
+  // D-42 live tracking: per-journey disclosure + what the service is doing.
+  const bgTrackingOffered = HEADOUT_BG_TRACKING && Platform.OS === 'android';
+  const [showBgDisclosure, setShowBgDisclosure] = useState(false);
+  const [bgTracking, setBgTracking] = useState<'off' | 'on' | 'bg_denied' | 'fg_denied' | 'failed'>('off');
   // showPermDeniedSettings: hook reported canAskAgain=false — show "Open Settings" prompt
   const [showPermDeniedSettings, setShowPermDeniedSettings] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -467,6 +478,7 @@ export default function HeadOut() {
     setCloseFailures(0);
     setRevokeFailures(0);
     setSafeConfirmed(true);   // fix 6: show the confirmation instead of jumping to step 1
+    void stopJourneyBgTracking();   // D-42 auto-stop: she is safe
     await AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
     // A40: the journey is over, so the location remembered on this phone for
     // it must not stay behind. (Not cleared on a missed check-in: she may
@@ -628,6 +640,7 @@ export default function HeadOut() {
     const current = createSessionRef.current;
     if (closeOutcome(status) === 'done') {
       setSharingRevoked(true);
+      void stopJourneyBgTracking();   // D-42 auto-stop: sharing withdrawn
       setRevokeFailures(0);
       if (current?.pendingRevoke) {
         const updated = { ...current, pendingRevoke: false };
@@ -861,6 +874,38 @@ export default function HeadOut() {
   // requestPermission and re-ran the GPS start/stop effect in a loop
   // ('Maximum update depth exceeded' after Allow for this journey).
   const handlePermDenied = useCallback(() => setShowPermDeniedSettings(true), []);
+
+  // D-42: she agreed to the prominent disclosure for THIS journey. Ask the OS
+  // (foreground, then Android's separate "Allow all the time") and start the
+  // foreground-service tracking; whatever the OS answers, in-app sharing
+  // continues exactly as before.
+  const handleBgDisclosureAgree = useCallback(async () => {
+    setShowBgDisclosure(false);
+    const result = await startJourneyBgTracking({
+      journeyToken: journeyToken ?? '',
+      expectedCheckinAt: session?.serverDeadlineAt ?? null,
+      disclosureAgreed: true,
+    });
+    setBgTracking(result === 'started' ? 'on'
+      : result === 'bg_denied' ? 'bg_denied'
+      : result === 'fg_denied' ? 'fg_denied'
+      : result === 'failed' ? 'failed' : 'off');
+    setLocationConsentGiven(true);
+  }, [journeyToken, session?.serverDeadlineAt]);
+
+  const handleBgDisclosureDecline = useCallback(() => {
+    setShowBgDisclosure(false);
+    setBgTracking('off');
+    setLocationConsentGiven(true);   // today's in-app-only sharing
+  }, []);
+  // D-42 safety net: on every (re)open, stop a service left over from a
+  // journey that no longer exists, is not this one, or has timed out. The
+  // task also self-stops past its deadline, so a killed app can't track on.
+  useEffect(() => {
+    if (!bgTrackingOffered) return;
+    void reconcileBgTracking(expired ? null : (journeyToken ?? null));
+  }, [bgTrackingOffered, journeyToken, expired]);
+
   const realGps = useJourneyGPS(
     journeyToken,
     // A35: once she has tapped "I'm safe", stop reading and sending location,
@@ -1524,6 +1569,12 @@ export default function HeadOut() {
               </Text>
             </View>
       ) : (
+          <>
+            <BgTrackingDisclosure
+              visible={showBgDisclosure}
+              onAgree={() => { void handleBgDisclosureAgree(); }}
+              onDecline={handleBgDisclosureDecline}
+            />
             <View style={styles.activeCard} testID="headout-active-card">
               {/* P9 (v2.2 'On the way'): say plainly when the chosen people
                   can see the journey. Reads existing state only — shown
@@ -1619,7 +1670,13 @@ export default function HeadOut() {
                         <Pressable
                           testID="gps-allow-btn"
                           style={(s) => [styles.gpsAllowBtn, focusRingStyle(s)]}
-                          onPress={() => setLocationConsentGiven(true)}
+                          onPress={() => {
+                            // D-42: the Play prominent disclosure comes BEFORE
+                            // any OS permission dialog. Decline falls back to
+                            // today's in-app-only sharing.
+                            if (bgTrackingOffered) setShowBgDisclosure(true);
+                            else setLocationConsentGiven(true);
+                          }}
                           accessibilityRole="button"
                           accessibilityLabel="Allow location sharing for this journey"
                         >
@@ -1651,6 +1708,18 @@ export default function HeadOut() {
                               : 'Starting location tracking…'}
                       </Text>
                     </View>
+                  )}
+                  {/* D-42: say plainly whether tracking survives the app closing. */}
+                  {bgTrackingOffered && locationConsentGiven && bgTracking !== 'off' && (
+                    <Text style={styles.bgTrackingNote} testID="headout-bg-tracking-note">
+                      {bgTracking === 'on'
+                        ? 'Live sharing stays on even if you close the app or lock the screen — a notification shows the whole time.'
+                        : bgTracking === 'bg_denied'
+                          ? '"Allow all the time" was not given, so sharing works only while the app is open.'
+                          : bgTracking === 'fg_denied'
+                            ? 'Location permission was not given — your circle will not see your location.'
+                            : 'Could not start background sharing — sharing works only while the app is open.'}
+                    </Text>
                   )}
 
                   {/* Step 3: permanent denial — canAskAgain=false — show Settings path */}
@@ -1794,6 +1863,7 @@ export default function HeadOut() {
                 )
               )}
             </View>
+          </>
       )}
 
           <Pressable
@@ -1918,6 +1988,7 @@ const styles = StyleSheet.create({
   },
   buttonText: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: '#fff' },
   safeButton: { backgroundColor: c.verifiedGreen },
+  bgTrackingNote: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 17, marginTop: 4 },
   // P9 'Sharing is on' banner (v2.2 On the way header, green)
   sharingOnBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
