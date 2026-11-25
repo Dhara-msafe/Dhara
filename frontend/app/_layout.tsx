@@ -378,7 +378,7 @@ export default function RootLayout() {
   // away before finishing a compliance step, but the same is true of
   // sign-in/sign-up and the account-deletion flows. These screens get the
   // plain, full-bleed layout even on a wide browser.
-  const STANDALONE_ROUTES = ['/consent', '/login', '/signup', '/forgot-password', '/delete-account'];
+  const STANDALONE_ROUTES = ['/consent', '/permissions-setup', '/login', '/signup', '/forgot-password', '/delete-account'];
   const isStandaloneScreen = STANDALONE_ROUTES.some(
     (r) => pathname === r || pathname?.startsWith(`${r}/`),
   );

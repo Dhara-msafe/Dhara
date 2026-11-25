@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, Platform, ActivityIndicator, Modal, Animated, PanResponder, AppState, type GestureResponderEvent, type PanResponderGestureState } from 'react-native';
 import { crossAlert } from '@/src/utils/crossAlert';
+import { alertPermissionBlocked } from '@/src/permissions/setup';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -1267,7 +1268,11 @@ export default function ChatScreen() {
             perm = await AudioModule.requestRecordingPermissionsAsync();
           }
           if (!perm.granted) {
-            notify('Microphone permission', 'Please enable microphone to speak your question.');
+            if (perm.canAskAgain === false) {
+              alertPermissionBlocked('Microphone is turned off', 'To ask by voice, allow Microphone for DHARA in your phone settings. You can still type your question.');
+            } else {
+              notify('Microphone permission', 'Please enable microphone to speak your question.');
+            }
             return;
           }
           if (!isMicHeldRef.current && !lockedRef.current) return;

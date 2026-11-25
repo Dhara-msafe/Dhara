@@ -64,7 +64,7 @@ const TOP_LANGUAGES: Language[] = [
 // Screens where the modal must NOT appear. '/state' added (P0 fix) — signup
 // briefly passes through /state?onboarding=1 before ConsentGuard redirects
 // to /consent; without this, the modal could open there and persist.
-const EXCLUDED_PATHS = ['/consent', '/language', '/login', '/register', '/welcome', '/state'];
+const EXCLUDED_PATHS = ['/consent', '/permissions-setup', '/language', '/login', '/register', '/welcome', '/state'];
 
 // B-73 (17 Nov 2026): the picker is a first-run prompt, so it only opens on
 // the Home tab (where every sign-in lands). Before, it opened on ANY page —

@@ -3,6 +3,8 @@ import { View, Text, Pressable, ScrollView, StyleSheet, ActivityIndicator, Switc
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
+import { alertPermissionBlocked } from '@/src/permissions/setup';
+import { pickEmergencyFix, EMERGENCY_FIX_TIMEOUT_MS } from '@/src/permissions/core';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
@@ -58,11 +60,28 @@ export default function SilentAlert() {
     const id = ++request.current;
     setBusy(true); setStatus('');
     try {
+      // GPS switched off: say so plainly instead of waiting for a fix that cannot come.
+      const servicesOn = await Location.hasServicesEnabledAsync().catch(() => true);
+      if (!servicesOn) throw new Error('Location is switched off on this phone. Turn it on in quick settings, or send the alert without it.');
       const permission = await Location.requestForegroundPermissionsAsync();
-      if (!permission.granted) throw new Error('Location permission was not granted. You can still prepare a message without it.');
-      const point = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      if (!permission.granted) {
+        if (permission.canAskAgain === false) {
+          alertPermissionBlocked('Location is turned off for DHARA', 'To add your location to alerts, allow Location for DHARA in your phone settings.');
+        }
+        throw new Error('Location permission was not granted. You can still prepare a message without it.');
+      }
+      // Never hang an emergency on a slow fix: wait at most 10 s, then use the
+      // phone's last known position if it is recent (src/permissions/core.ts).
+      const fresh = await Promise.race([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), EMERGENCY_FIX_TIMEOUT_MS)),
+      ]);
+      const last = fresh ? null : await Location.getLastKnownPositionAsync().catch(() => null);
       if (request.current !== id) return;
-      setLocation(`My location at ${new Date(point.timestamp).toLocaleString()}: https://maps.google.com/?q=${point.coords.latitude},${point.coords.longitude}`);
+      const fix = pickEmergencyFix(fresh, last, Date.now());
+      if (!fix) throw new Error('Could not find your location in time. Try again outdoors, or send the alert without it.');
+      const { point, stale } = fix;
+      setLocation(`My ${stale ? 'last known ' : ''}location at ${new Date(point.timestamp).toLocaleString()}: https://maps.google.com/?q=${point.coords.latitude},${point.coords.longitude}`);
     } catch (e: any) { if (request.current === id) setStatus(e.message || 'Location unavailable. Continue without location.'); }
     finally { if (request.current === id) setBusy(false); }
   };

@@ -2,6 +2,7 @@
  * Visitor Mode — Two-Way Interpreter
  * Tourist ↔ state's local language (default Hindi) live translation via Whisper STT + Claude Haiku TTS.
  */
+import { alertPermissionBlocked } from '@/src/permissions/setup';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ScrollView,
@@ -169,7 +170,11 @@ export default function InterpreterScreen() {
         if (!perm.granted) {
           perm = await AudioModule.requestRecordingPermissionsAsync();
         }
-        if (!perm.granted) { Alert.alert('Microphone permission denied'); return; }
+        if (!perm.granted) {
+          if (perm.canAskAgain === false) alertPermissionBlocked('Microphone is turned off', 'To use the interpreter by voice, allow Microphone for DHARA in your phone settings.');
+          else Alert.alert('Microphone permission denied');
+          return;
+        }
         // BATCH A1: claim the mic lease BEFORE touching the shared audio
         // session — setAudioModeAsync is global and must never run ahead of
         // a lease check, or it can disrupt an active Evidence Locker recording.
