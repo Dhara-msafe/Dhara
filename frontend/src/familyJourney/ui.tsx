@@ -3,13 +3,12 @@
  * Calm styling only: no red urgency, no countdown pressure, no danger badges.
  */
 import React from 'react';
-import { useLightStatusBar } from '@/src/ui/kit';
+import { useLightStatusBar, SosPill112 } from '@/src/ui/kit';
 import { View, Text, Pressable, StyleSheet, Modal, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
-import { SosPill } from '../components/dhara/SosPill';
 import { PREVIEW_LABEL, SEND_LABEL } from './previewCopy';
 import { FJ_SEND_ENABLED } from './flags';
 // NF-UI-REV-07 (Group G, DHARA UI Revision v2.2.1): presentation-only
@@ -36,7 +35,7 @@ export function JourneyHeader({ title, subtitle }: { title: string; subtitle?: s
         <Text style={styles.hTitle} numberOfLines={UI_V22_SWEEP ? 2 : 1}>{title}</Text>
         {subtitle ? <Text style={styles.hSub} numberOfLines={2}>{subtitle}</Text> : null}
       </View>
-      <SosPill />
+      <SosPill112 testID="fj-sos" />
     </View>
   );
 }

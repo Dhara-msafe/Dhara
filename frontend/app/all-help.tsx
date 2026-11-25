@@ -63,7 +63,7 @@ export default function AllHelp() {
 
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
         <View style={styles.headRow}>
           <Text style={styles.title}>{tr('all.title', lang)} <Text style={styles.titleHi}>सारी मदद</Text></Text>
         </View>

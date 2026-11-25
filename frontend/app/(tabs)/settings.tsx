@@ -423,7 +423,7 @@ export default function Settings() {
           </View>
           <Slider
             testID="tts-volume-slider"
-            style={{ width: '100%', height: 36, marginTop: theme.spacing.sm }}
+            style={{ alignSelf: 'stretch', height: 36, marginTop: theme.spacing.sm }}
             minimumValue={0}
             maximumValue={1}
             step={0.05}
@@ -829,8 +829,8 @@ function PickerModal({ visible, title, onClose, items, selectedId, onSelect, tes
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: theme.colors.surface },
-  header: { padding: theme.spacing.xl, paddingBottom: theme.spacing.md, borderBottomWidth: 1, borderBottomColor: theme.colors.divider },
+  safe: { flex: 1, backgroundColor: theme.colors.background },
+  header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
   h1: { fontFamily: theme.fonts.display, fontSize: 24, color: theme.colors.brand, fontWeight: '700' },
   h2: { color: theme.colors.onSurfaceSecondary, marginTop: 4 },
   scroll: { padding: theme.spacing.lg, paddingBottom: theme.spacing.xxxl },
@@ -840,8 +840,8 @@ const styles = StyleSheet.create({
   name: { color: theme.colors.onBrandPrimary, fontSize: 15, fontFamily: 'InterBold'},
   email: { color: '#E6DFD1', marginTop: 2, fontFamily: 'Inter', fontSize: 12 },
   section: { fontFamily: theme.fonts.display, fontSize: 14, color: theme.colors.brand, marginTop: theme.spacing.xl, marginBottom: theme.spacing.sm, fontWeight: '700' },
-  row: { flexDirection: 'row', alignItems: 'center', padding: theme.spacing.lg, backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md, marginBottom: theme.spacing.sm, borderWidth: 1, borderColor: theme.colors.border },
-  volumeCard: { padding: theme.spacing.lg, backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md, marginBottom: theme.spacing.sm, borderWidth: 1, borderColor: theme.colors.border },
+  row: { flexDirection: 'row', alignItems: 'center', padding: theme.spacing.lg, backgroundColor: theme.colors.paper, borderRadius: theme.radius.md, marginBottom: theme.spacing.sm, borderWidth: 1, borderColor: theme.colors.border },
+  volumeCard: { overflow: 'hidden', padding: theme.spacing.lg, backgroundColor: theme.colors.paper, borderRadius: theme.radius.md, marginBottom: theme.spacing.sm, borderWidth: 1, borderColor: theme.colors.border },
   voiceModeRow: {
     flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md,
     paddingVertical: theme.spacing.sm, paddingHorizontal: theme.spacing.md,
@@ -862,7 +862,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.md,
-    backgroundColor: theme.colors.surfaceSecondary,
+    backgroundColor: theme.colors.paper,
     borderRadius: theme.radius.md,
     borderWidth: 1,
     borderColor: theme.colors.border,
@@ -870,16 +870,16 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
     minHeight: 54,
   },
-  helpCard: { backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md, padding: theme.spacing.md, borderWidth: 1, borderColor: theme.colors.border },
+  helpCard: { backgroundColor: theme.colors.paper, borderRadius: theme.radius.md, padding: theme.spacing.md, borderWidth: 1, borderColor: theme.colors.border },
   helpRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: theme.spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.divider },
   helpLabel: { color: theme.colors.onSurface, fontFamily: 'Inter', fontSize: 13 },
   helpNumBadge: { backgroundColor: theme.colors.brandSecondary, paddingHorizontal: theme.spacing.md, paddingVertical: theme.spacing.xs, borderRadius: theme.radius.pill },
   helpNum: { color: theme.colors.onBrandSecondary, fontFamily: 'InterBold'},
-  aboutCard: { backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md, padding: theme.spacing.lg, borderWidth: 1, borderColor: theme.colors.border },
+  aboutCard: { backgroundColor: theme.colors.paper, borderRadius: theme.radius.md, padding: theme.spacing.lg, borderWidth: 1, borderColor: theme.colors.border },
   aboutText: { color: theme.colors.onSurfaceSecondary, lineHeight: 19, fontFamily: 'Inter', fontSize: 12 },
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: theme.spacing.lg, marginTop: theme.spacing.xl, borderWidth: 1, borderColor: theme.colors.error, borderRadius: theme.radius.md },
   logoutText: { color: theme.colors.error, fontFamily: 'InterBold'},
-  deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: theme.spacing.lg, marginTop: theme.spacing.sm, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceSecondary, borderWidth: 1, borderColor: theme.colors.border },
+  deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: theme.spacing.lg, marginTop: theme.spacing.sm, borderRadius: theme.radius.md, backgroundColor: theme.colors.paper, borderWidth: 1, borderColor: theme.colors.border },
   deleteHint: { color: theme.colors.onSurfaceTertiary, fontFamily: 'Inter', fontSize: 12, marginTop: theme.spacing.sm, textAlign: 'center', paddingHorizontal: theme.spacing.md },
   deleteModalBody: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 12, lineHeight: 17, marginTop: theme.spacing.md, marginBottom: theme.spacing.lg },
   deletePasswordInput: {
@@ -889,7 +889,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     fontFamily: 'Inter', fontSize: 14,
     color: theme.colors.onSurface,
-    backgroundColor: theme.colors.surfaceSecondary,
+    backgroundColor: theme.colors.paper,
   },
   dangerConfirmBtn: {
     backgroundColor: theme.colors.error,
@@ -917,14 +917,14 @@ const styles = StyleSheet.create({
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: theme.colors.border, alignSelf: 'center', marginBottom: theme.spacing.md },
   sheetTitle: { fontFamily: theme.fonts.display, fontSize: 17, color: theme.colors.brand, marginBottom: theme.spacing.md, fontWeight: '700' },
   opt: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: theme.spacing.md, paddingHorizontal: theme.spacing.md, borderRadius: theme.radius.md, marginBottom: 4 },
-  optSel: { backgroundColor: theme.colors.surfaceSecondary },
+  optSel: { backgroundColor: theme.colors.paper },
   optText: { color: theme.colors.onSurface, fontFamily: 'Inter', fontSize: 13 },
   optTextSel: { color: theme.colors.brand, fontFamily: 'InterBold'},
   pickerSearch: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: theme.colors.surfaceSecondary,
+    backgroundColor: theme.colors.paper,
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.radius.md,

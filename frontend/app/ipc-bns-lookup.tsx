@@ -528,7 +528,7 @@ export default function IpcBnsLookup() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+          <Ionicons name="arrow-back" size={22} color={NAVY} />
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={s.title}>IPC → BNS Lookup</Text>
@@ -692,15 +692,15 @@ const s = StyleSheet.create({
   // every other v2.2 screen (and IPCLookup.dc.html itself) uses.
   safe: { flex: 1, backgroundColor: UI_V22_S12 ? theme.colors.background : '#FDFBF7' },
   header: {
-    backgroundColor: NAVY, flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#FFFAF2', borderBottomWidth: 1, borderBottomColor: '#E6DFD1', flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16, gap: 12,
   },
   // NF-UI-REV-02: 22px icon + 4px padding (~30px) was below the 44px
   // minimum touch target; hitSlop above already helps, this widens the
   // visible hit area too so sighted users see where they can tap.
   backBtn:    { padding: UI_REVISION_V1 ? 10 : 4 },
-  title:      { fontSize: 16, fontFamily: 'InterExtraBold', color: '#fff' },
-  sub:        { fontFamily: 'Inter', fontSize: 12, color: '#94A3B8', marginTop: 1 },
+  title:      { fontSize: 16, fontFamily: 'InterExtraBold', color: '#102A45' },
+  sub:        { fontFamily: 'Inter', fontSize: 12, color: '#64788A', marginTop: 1 },
   guardPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: GOLD, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10,

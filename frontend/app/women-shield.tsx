@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   hideBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, height: 30, borderRadius: 15 },
   hideBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 12 },
-  quickExit: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#fff', paddingHorizontal: 12, height: 32, borderRadius: 16 },
+  quickExit: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#fff', paddingHorizontal: 12, height: 40, borderRadius: 20 },
   quickExitTxt: { color: c.navy, fontFamily: 'InterBold', fontSize: 12 },
   backBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 10 },

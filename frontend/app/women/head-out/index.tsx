@@ -1166,10 +1166,13 @@ export default function HeadOut() {
       keyboardShouldPersistTaps="handled"
       testID="head-out-screen"
     >
-      <ScreenHeader
-        title="Head out safely"
-        subtitle={authToken ? 'Your trusted circle is told only as per your settings' : 'Set a check-in timer — nothing is sent automatically'}
-      />
+      {/* Stage 10: the header sits inside the padded scroll, so pull it out to the screen edges. */}
+      <View style={{ marginHorizontal: -16, marginTop: -16 }}>
+        <ScreenHeader
+          title="Head out safely"
+          subtitle={authToken ? 'Your trusted circle is told only as per your settings' : 'Set a check-in timer — nothing is sent automatically'}
+        />
+      </View>
 
       {/* ── Demo controller banner — QA only, never shown in production ──── */}
       {HEADOUT_DEMO_ENABLED && (
@@ -1761,7 +1764,7 @@ export default function HeadOut() {
                 <>
                   <Pressable
                     testID="headout-need-help-emergency"
-                    style={(s) => [styles.button, styles.alertButton, { marginTop: 10 }, focusRingStyle(s)]}
+                    style={(s) => [styles.button, styles.alertButton, { marginTop: 10, alignSelf: 'stretch' }, focusRingStyle(s)]}
                     onPress={() => router.push('/emergency')}
                     accessibilityRole="button"
                     accessibilityLabel="Need help — open emergency numbers"

@@ -61,7 +61,7 @@ export default function DraftHistoryScreen() {
     <SafeAreaView style={styles.safe} edges={[]} testID="draft-history-screen">
       <View style={styles.header}>
         <Pressable testID="draft-history-back" onPress={() => router.back()} hitSlop={12} style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
-          <Ionicons name="chevron-back" size={26} color={theme.colors.onBrandPrimary} />
+          <Ionicons name="chevron-back" size={26} color={theme.colors.navy} />
         </Pressable>
         <Text style={styles.h1}>Notice history</Text>
         <View style={{ width: 26 }} />
@@ -161,9 +161,9 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.surface },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: theme.spacing.lg, backgroundColor: theme.colors.brand,
+    paddingHorizontal: theme.spacing.lg, paddingVertical: 12, backgroundColor: theme.colors.background, borderBottomWidth: 1, borderBottomColor: theme.colors.lines,
   },
-  h1: { fontFamily: theme.fonts.display, fontSize: 16, color: theme.colors.onBrandPrimary, fontWeight: '700' },
+  h1: { fontFamily: theme.fonts.display, fontSize: 16, color: theme.colors.ink, fontWeight: '700' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: theme.spacing.xxl },
   emptyTitle: { fontFamily: theme.fonts.display, fontSize: 17, color: theme.colors.brand, marginTop: theme.spacing.lg, fontWeight: '700' },
   emptySub: { color: theme.colors.onSurfaceSecondary, textAlign: 'center', marginTop: theme.spacing.sm, lineHeight: 18 },
