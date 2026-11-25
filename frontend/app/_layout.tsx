@@ -30,6 +30,10 @@ import { GuestRecoveryModal } from "@/src/women/GuestRecoveryModal";
 import { theme } from "@/src/theme";
 import { EvidenceRecorderProvider } from "@/src/women/EvidenceRecorderProvider";
 import { initSpeechGate, enterWomensShield, leaveWomensShield, isWomensShieldRoute } from "@/src/voice/speechGate";
+// D-42: registers the Head Out background-location task at app start, so
+// fixes delivered to a cold, headless process still reach the handler.
+// A no-op while EXPO_PUBLIC_HEADOUT_BG_TRACKING is off.
+import "@/src/women/headOutBgTracking";
 import { usePreventScreenCapture } from "expo-screen-capture";
 import { useShakeDetector } from "@/src/women/shakeActivation";
 import {
