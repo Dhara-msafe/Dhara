@@ -308,6 +308,7 @@ from api.journey_router  import (  # S3 Phase 2 — guardian status
 )
 from api.profile_router  import router as profile_router         # P1 — profile photo
 from api.trusted_circle_router import router as trusted_circle_router  # P3 — recipient invitations
+from api.age_verification_router import router as age_verification_router  # age-verification stub
 from api.alerts_router   import router as alerts_router           # P3/P4 — safety alerts inbox
 from api.upi_billing_router import router as upi_billing_router   # UPI payment page (outside the app)
 from api.advocate_notetaker_router import router as notetaker_router  # Consultation Notetaker (Phase 1)
@@ -326,6 +327,7 @@ api.include_router(scan_router)
 api.include_router(issues_router)   # In-app issue reporter (testers + users)
 api.include_router(profile_router)
 api.include_router(trusted_circle_router)
+api.include_router(age_verification_router)
 api.include_router(alerts_router)
 api.include_router(upi_billing_router)
 api.include_router(notetaker_router)   # Consultation Notetaker (Phase 1)

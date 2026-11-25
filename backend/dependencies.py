@@ -120,6 +120,14 @@ def public_user(u: dict) -> dict:
         # (it's required, not optional); analytics/updates default to false
         # for a user who never explicitly set them (e.g. pre-dates this field).
         "consent_purposes": u.get("consent_purposes") or {"core": True, "analytics": False, "updates": False},
+        # Optional demographic fields — absent for pre-existing accounts until
+        # the user explicitly sets them in Edit Profile.
+        "gender": u.get("gender"),          # female | male | other | prefer_not_to_say | None
+        "dob": u.get("dob"),                # YYYY-MM-DD string or None
+        # Age verification stub result (see api/age_verification_router.py).
+        # Only the boolean outcome is ever stored; Aadhaar numbers are never kept.
+        "age_verified": bool(u.get("age_verified", False)),
+        "age_verified_at": u.get("age_verified_at"),
     }
 
 

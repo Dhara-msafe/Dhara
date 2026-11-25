@@ -29,6 +29,7 @@ from services.login_guard import (
     normalize_email, client_ip,
 )
 from services.send_limit import check_and_record_send, clear_sends
+from services.invite_linker import link_pending_invites
 
 router = APIRouter()
 
@@ -162,6 +163,8 @@ async def register(body: RegisterIn):
         "accepted_at": now,
         "source": "register",
     })
+    # Link any pending Trusted Circle invites whose phone/email match the new account.
+    await link_pending_invites(db, uid, body.phone, body.email.lower())
     return {"token": make_token(uid), "user": public_user(doc), "is_new": True}
 
 INVALID_LOGIN_MSG = (
@@ -329,6 +332,8 @@ async def google_auth_session(body: GoogleSessionIn):
             "created_at":       now,
         }
         await db.users.insert_one(user)
+        # Link any pending Trusted Circle invites for the new Google account.
+        await link_pending_invites(db, uid, user.get("phone", ""), email)
 
     return {"token": make_token(uid, user.get("token_version", 0)), "user": public_user(user), "is_new": not bool(existing)}
 
