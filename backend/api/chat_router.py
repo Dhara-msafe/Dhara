@@ -85,6 +85,10 @@ from engine.approval_evidence import check_section_correspondence_approval as _c
 # AQF Phase 1b — jurisdiction-state unification (FEATURE_MATTER_CONTEXT_V2)
 from engine.models import FEATURE_MATTER_CONTEXT_V2, resolve_jurisdiction_state
 from engine.output_guard import validate_dhara_text, looks_like_refusal, CANNOT_CONFIRM_MESSAGE
+from engine.general_lane import (
+    general_answers_enabled, is_general_question, augment_prompt_with_general_lane,
+    find_unsupported_figures, figure_repair_prompt,
+)
 
 # DHARA P0 Legal-Answer-Engine audit — Phase 1 hotfix flag. Default OFF =
 # today's behaviour byte-for-byte (citations emitted immediately, streamed
@@ -1083,7 +1087,20 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
     # (c) If no retrieval hit AND no early refusal, we still refuse (no verified source).
     # db_hits = MongoDB verbatim sections; db_orphan = standalone judicial ruling
     # for an act not in the corpus.  Either of these counts as a verified source.
-    if not early_refusal and not retrieved and not state_hits and not db_hits and not db_orphan:
+    # General-question lane (engine/general_lane.py). False — and therefore a
+    # no-op everywhere below — unless FEATURE_GENERAL_ANSWERS=true AND this is
+    # confidently a general, explanatory legal question. Never for an
+    # emergency, advocate mode, or a message an earlier gate already refused.
+    _general_lane = bool(
+        general_answers_enabled()
+        and not early_refusal and not _emergency and not is_advocate_mode
+        and is_general_question(
+            getattr(_v2_lq, "normalized_query", None) or retrieval_text,
+            body.message,
+            informational_hint=(getattr(_v2_lq, "urgency", None) == "informational"),
+        )
+    )
+    if not early_refusal and not retrieved and not state_hits and not db_hits and not db_orphan and not _general_lane:
         early_refusal = REFUSAL_NO_CORPUS
         # P1 fix: a missing legal_sections record does NOT mean the section
         # doesn't exist — check the verified IPC<->BNS correspondence index
@@ -1507,6 +1524,21 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
             retrieved = [it for it in retrieved if not _DV_ACT_RE.search(str(it.get("act", "")) + " " + str(it.get("citation", "")))]
             db_hits = [h for h in db_hits if not _DV_ACT_RE.search(str(h.get("act_name", "")))]
 
+    # General-question lane: only if nothing after the sorter refused (e.g.
+    # the dead-provision check). Appended LAST so it is the final word on
+    # format and on the empty-SOURCES rule for this one reply.
+    _general_lane = bool(_general_lane and not early_refusal)
+    _general_lang_display = (
+        f"{body.language_name} ({lang_native})"
+        if lang_native and lang_native != body.language_name
+        else body.language_name
+    )
+    if _general_lane:
+        system_prompt = augment_prompt_with_general_lane(
+            system_prompt, _general_lang_display, has_sources=bool(corpus_context),
+        )
+        logger.info("general_lane | used | has_sources=%s", bool(corpus_context))
+
     chat = _ai_build_chat(session_id=session_id, system_message=system_prompt)
 
     def sse(obj: dict) -> bytes:
@@ -1786,7 +1818,8 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
 
         full = ""
         errored: Optional[str] = None
-        _buffering = CITATION_GUARD_ENABLED  # hold tokens, release only after the output guard passes
+        # General lane always buffers: its figure lock must run before the user sees any text.
+        _buffering = CITATION_GUARD_ENABLED or _general_lane  # hold tokens, release only after the output guard passes
         if _buffering:
             yield sse({"type": "status", "state": "thinking"})
         try:
@@ -1846,6 +1879,36 @@ async def chat_stream(body: ChatIn, user: dict = Depends(current_user)):
 
         # Append the personal-law disclaimer (see above) so the user always
         # sees which religion/marriage-type's law was applied.
+        # General lane hard-fact lock: a money amount, time period or
+        # percentage that is not in the retrieved source text gets ONE rewrite
+        # to remove it; if that fails, fall back to the strict path's
+        # "cannot confirm" text (the citation guard below then treats it like
+        # any other refusal). Logs counts only, never text.
+        if _general_lane and sanitized and not errored:
+            _bad_figs = find_unsupported_figures(sanitized, corpus_context)
+            if _bad_figs:
+                logger.info("general_lane | unsupported_figures | count=%d", len(_bad_figs))
+                _rewritten = ""
+                try:
+                    _figfix = _ai_build_chat(
+                        session_id=f"{session_id}-figfix",
+                        system_message=figure_repair_prompt(_general_lang_display, _bad_figs),
+                    )
+                    _rewritten = sanitize_model_output(
+                        str(await _figfix.send_message(UserMessage(text=sanitized)) or "")
+                    ).strip()
+                except Exception:
+                    logger.exception("general_lane figure rewrite failed")
+                if (
+                    _rewritten
+                    and not find_unsupported_figures(_rewritten, corpus_context)
+                    and not needs_language_repair(_rewritten, body.language)
+                ):
+                    sanitized = _rewritten
+                else:
+                    logger.warning("general_lane | figure_lock_fallback")
+                    sanitized = CANNOT_CONFIRM_MESSAGE
+
         if personal_law_note and not errored and (sanitized or full):
             sanitized = (sanitized or full) + f"\n\n{personal_law_note}"
 
