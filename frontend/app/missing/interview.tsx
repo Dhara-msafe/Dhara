@@ -125,7 +125,7 @@ export default function MissingInterviewScreen() {
   // Registration gate — show prompt if not logged in (after all hooks)
   if (!token) {
     return (
-      <SafeAreaView style={st.safe} edges={['top']}>
+      <SafeAreaView style={st.safe} edges={[]}>
         <Pressable onPress={() => router.back()} style={st.back}>
           <Text style={st.backText}>←</Text>
         </Pressable>
@@ -152,7 +152,7 @@ export default function MissingInterviewScreen() {
 
   if (saving || initializing) {
     return (
-      <SafeAreaView style={st.safe} edges={['top']}>
+      <SafeAreaView style={st.safe} edges={[]}>
         <View style={st.centred}>
           <ActivityIndicator size="large" color={NAVY} />
           <Text style={st.savingText}>
@@ -171,7 +171,7 @@ export default function MissingInterviewScreen() {
     : (lang === 'hi' ? 'लापता व्यक्ति की जानकारी' : lang === 'mr' ? 'बेपत्ता व्यक्तीची माहिती' : 'About the Missing Person');
 
   return (
-    <SafeAreaView testID="missing-interview-screen" style={st.safe} edges={['top', 'bottom']}>
+    <SafeAreaView testID="missing-interview-screen" style={st.safe} edges={['bottom']}>
       <KeyboardSafeView
         style={{ flex: 1 }}
         behavior="padding"

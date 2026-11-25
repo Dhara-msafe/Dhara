@@ -55,7 +55,7 @@ export default function VoterRollTab() {
   // ── Welcome / intro screen ─────────────────────────────────────────────────
   if (currentQId === null && outcome === null) {
     return (
-      <SafeAreaView testID="voter-roll-screen" style={s.safe} edges={['top']}>
+      <SafeAreaView testID="voter-roll-screen" style={s.safe} edges={[]}>
         <ScrollView contentContainerStyle={s.scrollContent}>
           {/* Header */}
           <View style={s.header}>
@@ -114,7 +114,7 @@ export default function VoterRollTab() {
     const label = t(outcomeData.label, lang);
 
     return (
-      <SafeAreaView style={s.safe} edges={['top']}>
+      <SafeAreaView style={s.safe} edges={[]}>
         <ScrollView contentContainerStyle={s.scrollContent}>
           <Pressable testID="voter-outcome-back" onPress={reset} style={s.backBtn}>
             <Text style={s.backText}>← {lang === 'hi' ? 'वापस' : lang === 'mr' ? 'मागे' : 'Back'}</Text>
@@ -196,7 +196,7 @@ export default function VoterRollTab() {
   const progress = ((qIndex) / questions.length) * 100;
 
   return (
-    <SafeAreaView style={s.safe} edges={['top']}>
+    <SafeAreaView style={s.safe} edges={[]}>
       <ScrollView contentContainerStyle={s.scrollContent}>
         <View style={s.progressRow}>
           <View style={s.progressBar}>

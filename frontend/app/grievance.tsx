@@ -111,7 +111,7 @@ export default function GrievanceScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.root} edges={['bottom']}>
       {/* Header */}
       <View style={styles.header}>
         <Pressable

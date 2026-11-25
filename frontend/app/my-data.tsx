@@ -141,7 +141,7 @@ export default function MyDataScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.root} edges={['bottom']}>
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="large" color={theme.colors.brand} />
           <Text style={styles.loadingText}>Loading your data summary…</Text>
@@ -152,7 +152,7 @@ export default function MyDataScreen() {
 
   if (loadFailed || !summary) {
     return (
-      <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.root} edges={['bottom']}>
         <View style={styles.loadingWrap}>
           <Ionicons name="cloud-offline-outline" size={36} color={theme.colors.onSurfaceSecondary} />
           <Text testID="my-data-load-failed" style={styles.loadingText}>We could not load your data right now.</Text>
@@ -170,7 +170,7 @@ export default function MyDataScreen() {
   const retention = summary?.retention_policy ?? {};
 
   return (
-    <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.root} edges={['bottom']}>
       {/* ── Header ── */}
       <View style={styles.header}>
         <Pressable onPress={() => goBackOr(router, '/(tabs)/settings')} hitSlop={8} style={(s) => [styles.backBtn, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">

@@ -63,7 +63,7 @@ export default function LawyerHome() {
   ];
 
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView edges={['bottom']} style={s.safe}>
       {/* Header */}
       <View style={s.header}>
         <View style={{ flex: 1 }}>

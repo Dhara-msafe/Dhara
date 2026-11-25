@@ -3,6 +3,7 @@
  * Calm styling only: no red urgency, no countdown pressure, no danger badges.
  */
 import React from 'react';
+import { useLightStatusBar } from '@/src/ui/kit';
 import { View, Text, Pressable, StyleSheet, Modal, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -22,6 +23,7 @@ const c = theme.colors;
 
 /** Header with back + title + always-visible SOS (help is never more than a tap away). */
 export function JourneyHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+  useLightStatusBar(); // redesign v3: white status-bar icons over the dark header
   const insets = useSafeAreaInsets();
   const router = useRouter();
   return (

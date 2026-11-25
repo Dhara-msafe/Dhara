@@ -19,7 +19,7 @@ export default function DraftsList() {
   const remaining = user?.drafts_remaining ?? 1;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']} testID="drafts-screen">
+    <SafeAreaView style={styles.safe} edges={[]} testID="drafts-screen">
       <View style={styles.header}>
         <Pressable testID="drafts-back" onPress={() => router.back()} hitSlop={12} style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={26} color={theme.colors.onBrandPrimary} />

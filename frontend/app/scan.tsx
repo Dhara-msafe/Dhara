@@ -10,6 +10,7 @@
  *   result     — structured legal or non-legal result
  */
 import React, { useState, useRef, useCallback } from 'react';
+import { useLightStatusBar } from '@/src/ui/kit';
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Linking, Image, Platform, TextInput } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -156,6 +157,7 @@ ${r.extracted_text ? `<div class="label">TEXT DHARA READ</div><div class="orig">
 function ScanHeader({
   step, onBack,
 }: { step: ScanStep; onBack: () => void }) {
+  useLightStatusBar(); // redesign v3: white status-bar icons over the dark header
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const titleMap: Record<ScanStep, { title: string; sub?: string }> = {

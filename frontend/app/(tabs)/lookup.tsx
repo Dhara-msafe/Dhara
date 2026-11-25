@@ -375,7 +375,7 @@ export default function LookupScreen() {
   const canSearch   = mode === 'cnr' ? cnrComplete : partyCanSearch;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={[]}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerRow}>

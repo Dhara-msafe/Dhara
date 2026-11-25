@@ -90,7 +90,7 @@ export default function StateSelect() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} testID="state-screen">
+    <SafeAreaView edges={['bottom']} style={styles.safe} testID="state-screen">
       <View style={styles.header}>
         <Text style={styles.brand}>Where do you live?</Text>
         <Text style={styles.sub}>

@@ -17,6 +17,7 @@ import { DesktopFrame } from "@/src/components/dhara/DesktopFrame";
 import { GlobalHelpButton } from "@/src/components/dhara/GlobalHelpButton";
 import { QaModeBanner } from "@/src/components/dhara/QaModeBanner";
 import { QaInsetFrame } from "@/src/components/dhara/QaModeBanner";
+import { AutoHeaderFrame } from "@/src/ui/AutoHeader";
 import { IssueReporterButton } from "@/src/components/IssueReporterButton";
 import { DockedStack } from "@/src/components/dhara/FloatingDock";
 import { UI_V22_DOCK } from "@/src/uiV22Flags";
@@ -476,7 +477,9 @@ export default function RootLayout() {
                 ) : (
                 <View style={{ flex: 1 }}>
                   <QaInsetFrame>
+                    <AutoHeaderFrame>
                     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.surface } }} />
+                    </AutoHeaderFrame>
                   </QaInsetFrame>
                   <GlobalHelpButton />
                   <IssueReporterButton />

@@ -18,6 +18,8 @@ import { addNotificationTapListener } from '@/src/push';
  */
 const HEADER_TAB_PATHS = new Set([
   '/rights', '/myfiles', '/me', '/(tabs)/rights', '/(tabs)/myfiles', '/(tabs)/me',
+  // Stage 5: tab-group screens that only had a light title row.
+  '/advocate', '/discover', '/lookup', '/voter-roll', '/history', '/saved', '/settings',
 ]);
 
 export default function TabsLayout() {

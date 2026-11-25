@@ -17,7 +17,7 @@ const tools = allTools.filter(t => t.id !== 'advocate' || ADVOCATE_MODE_ENABLED)
 
 export default function LookupHub() {
   const router = useRouter();
-  return <SafeAreaView testID="lookup-hub" edges={['top']} style={styles.safe}>
+  return <SafeAreaView testID="lookup-hub" edges={[]} style={styles.safe}>
     <View style={styles.header}><View style={styles.heading}><Text testID="lookup-hub-title" style={styles.title}>Lookup</Text><Text testID="lookup-hub-subtitle" style={styles.subtitle}>Your legal discovery tools</Text></View>
       <Pressable testID="lookup-profile" accessibilityRole="button" accessibilityLabel="Your profile" style={styles.profile} onPress={() => router.push('/(tabs)/settings')}><Ionicons name="person-outline" size={23} color={colors.primary} /></Pressable>
     </View>

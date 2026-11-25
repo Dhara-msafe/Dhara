@@ -34,7 +34,7 @@ test('dock is retired: the flag is hard off', () => {
 });
 
 test('flag OFF keeps the old floating layout exactly', () => {
-  assert.match(layout, /<View style=\{\{ flex: 1 \}\}>\s*\n\s*<QaInsetFrame>\s*\n\s*<Stack[^\n]*\/>\s*\n\s*<\/QaInsetFrame>\s*\n\s*<GlobalHelpButton \/>\s*\n\s*<IssueReporterButton \/>/);
+  assert.match(layout, /<View style=\{\{ flex: 1 \}\}>\s*\n\s*<QaInsetFrame>\s*\n\s*<AutoHeaderFrame>\s*\n\s*<Stack[^\n]*\/>\s*\n\s*<\/AutoHeaderFrame>\s*\n\s*<\/QaInsetFrame>\s*\n\s*<GlobalHelpButton \/>\s*\n\s*<IssueReporterButton \/>/);
 });
 
 test('flag ON on phones: the stack sits inside DockedStack (dock in layout flow)', () => {

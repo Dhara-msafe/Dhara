@@ -47,7 +47,7 @@ export default function MissingEntryScreen() {
   };
 
   return (
-    <SafeAreaView testID="missing-entry-screen" style={s.safe} edges={['top', 'bottom']}>
+    <SafeAreaView testID="missing-entry-screen" style={s.safe} edges={['bottom']}>
       <ScrollView contentContainerStyle={s.scroll}>
         <Pressable testID="missing-entry-back" accessibilityRole="button" accessibilityLabel="Back" style={s.back} onPress={() => router.back()}><Ionicons name="arrow-back" size={24} color={NAVY} /></Pressable>
         {/* Header */}

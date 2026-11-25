@@ -58,7 +58,7 @@ export default function DraftHistoryScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']} testID="draft-history-screen">
+    <SafeAreaView style={styles.safe} edges={[]} testID="draft-history-screen">
       <View style={styles.header}>
         <Pressable testID="draft-history-back" onPress={() => router.back()} hitSlop={12} style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={26} color={theme.colors.onBrandPrimary} />

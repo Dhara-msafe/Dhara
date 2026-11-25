@@ -45,7 +45,7 @@ export default function History() {
   // Guest Mode: persistent chat history requires a registered account.
   if (user?.is_guest) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']} testID="history-screen">
+      <SafeAreaView style={styles.safe} edges={[]} testID="history-screen">
         <View style={styles.header}>
           <View style={styles.titleRow}>
             <Pressable testID="history-back" onPress={() => router.navigate(tabBackTarget(from) as any)} hitSlop={8} style={(s) => [styles.backBtn, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
@@ -68,7 +68,7 @@ export default function History() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']} testID="history-screen">
+    <SafeAreaView style={styles.safe} edges={[]} testID="history-screen">
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <Pressable testID="history-back" onPress={() => router.navigate(tabBackTarget(from) as any)} hitSlop={8} style={(s) => [styles.backBtn, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">

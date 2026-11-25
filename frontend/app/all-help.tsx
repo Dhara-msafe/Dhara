@@ -6,7 +6,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
-import { SosPill } from '@/src/components/dhara/SosPill';
 import { UI_REVISION_V1 } from '@/src/designRevision';
 import { UI_V22_P8, UI_V22_S6 } from '@/src/uiV22Flags';
 import { focusRingStyle } from '@/src/a11yFocus';
@@ -67,7 +66,6 @@ export default function AllHelp() {
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
         <View style={styles.headRow}>
           <Text style={styles.title}>{tr('all.title', lang)} <Text style={styles.titleHi}>सारी मदद</Text></Text>
-          <SosPill />
         </View>
 
         <View style={styles.searchWrap}>

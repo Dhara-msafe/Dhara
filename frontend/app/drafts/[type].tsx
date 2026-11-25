@@ -39,7 +39,7 @@ export default function DraftForm() {
 
   if (!spec) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
+      <SafeAreaView style={styles.safe} edges={[]}>
         <Text style={styles.missing}>That notice type is not available.</Text>
       </SafeAreaView>
     );
@@ -104,7 +104,7 @@ export default function DraftForm() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']} testID="draft-form-screen">
+    <SafeAreaView style={styles.safe} edges={[]} testID="draft-form-screen">
       <View style={styles.header}>
         <Pressable
           testID="draft-back"
