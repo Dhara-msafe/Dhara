@@ -133,7 +133,7 @@ h2{color:#1B2B5B;font-size:18px;margin-bottom:2px;}
 .body{white-space:pre-wrap;font-size:14px;line-height:1.7;margin-top:6px;}
 .orig{background:#F7F7F7;border-left:3px solid #C9973A;padding:12px;font-size:12px;line-height:1.6;color:#444;white-space:pre-wrap;margin-top:8px;}
 .foot{color:#8A8A8A;font-size:11px;margin-top:26px;border-top:1px solid #E5E5E5;padding-top:10px;}
-.badge{display:inline-block;background:#E7EDF4;color:#1B2B5B;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;margin-bottom:12px;}
+.badge{display:inline-block;background:#EEF3FC;color:#1B2B5B;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;margin-bottom:12px;}
 .fact{display:flex;gap:12px;margin-bottom:6px;}
 .fk{color:#8A6A2A;font-size:12px;font-weight:700;min-width:130px;}
 .fv{font-size:12px;color:#1A1A1A;}

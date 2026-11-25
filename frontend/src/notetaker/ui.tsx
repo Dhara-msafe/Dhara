@@ -57,9 +57,9 @@ const headerStyles = StyleSheet.create({
 const TONES = {
   muted:   { bg: '#F4EFE3', fg: '#505B68' },
   warning: { bg: '#FEF3C7', fg: '#92400E' },
-  info:    { bg: '#E7EDF4', fg: '#1D4A78' },
-  success: { bg: '#E7F1EB', fg: '#1F6B4A' },
-  error:   { bg: '#FEE4E2', fg: '#B42318' },
+  info:    { bg: '#EEF3FC', fg: '#0D436B' },
+  success: { bg: '#E7F1EB', fg: '#087951' },
+  error:   { bg: '#FEE4E2', fg: '#C73236' },
 } as const;
 
 const STATE_META: Record<ConsultationState, { label: string; tone: keyof typeof TONES }> = {

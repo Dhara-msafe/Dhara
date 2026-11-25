@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   recordingText:  {
     fontFamily: theme.fonts.bodyBold, fontSize: 13,
     // NF-UI-REV-09: '#ef4444' on white measured ~3.76:1 — under 4.5:1.
-    // theme.colors.emergencyRed ('#B42318') clears ~5.9:1 on the same bg.
+    // theme.colors.emergencyRed ('#C73236') clears ~5.9:1 on the same bg.
     color: UI_REVISION_V1 ? c.emergencyRed : '#ef4444',
   },
   evidenceTip:     { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 16, paddingBottom: 14 },

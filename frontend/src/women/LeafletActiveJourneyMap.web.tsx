@@ -69,7 +69,7 @@ export default function LeafletActiveJourneyMap({
         <FitBounds hasCurrent={hasCurrent} currentLat={currentLat} currentLng={currentLng} destLat={destLat} destLng={destLng} />
 
         {!!routePolyline && routePolyline.length >= 2 && (
-          <LPolyline positions={routePolyline} pathOptions={{ color: '#14365A', weight: 4, opacity: 0.9 }} />
+          <LPolyline positions={routePolyline} pathOptions={{ color: '#082B4F', weight: 4, opacity: 0.9 }} />
         )}
 
         <LMarker position={[destLat, destLng]} icon={destIcon} />

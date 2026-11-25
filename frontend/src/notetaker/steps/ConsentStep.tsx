@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
   decisionDeclined: { backgroundColor: '#FEE4E2' },
   decisionUnknown: { backgroundColor: '#FEF3C7' },
   decisionText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 11, color: c.muted },
-  decisionTextGiven: { color: '#1F6B4A' },
+  decisionTextGiven: { color: '#087951' },
   decisionTextDeclined: { color: c.error },
   decisionTextUnknown: { color: '#92400E' },
   consentMetaRow: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },

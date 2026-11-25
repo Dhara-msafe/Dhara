@@ -175,8 +175,8 @@ export default function ApprovedStep({
 const styles = StyleSheet.create({
   wrap: { padding: 20, gap: 4 },
   approvedBanner: { backgroundColor: '#E7F1EB', borderRadius: 12, padding: 14, marginBottom: 16 },
-  approvedBannerText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: '#1F6B4A' },
-  hashText: { fontFamily: theme.fonts.body, fontSize: 11, color: '#1F6B4A', marginTop: 4 },
+  approvedBannerText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: '#087951' },
+  hashText: { fontFamily: theme.fonts.body, fontSize: 11, color: '#087951', marginTop: 4 },
   section: { marginTop: 14 },
   sectionTitle: { fontFamily: theme.fonts.bodySemiBold, fontSize: 15, color: c.navy, marginBottom: 8 },
   itemCard: { backgroundColor: c.surface, borderRadius: 10, borderWidth: 1, borderColor: c.border, padding: 12, marginBottom: 8 },

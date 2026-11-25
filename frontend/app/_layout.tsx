@@ -93,7 +93,7 @@ function ConsentGuard() {
     // they must open immediately for any visitor, with or without an account.
     // 'how-it-helps' added v2.2.1 Stage 4 Group D: new pre-login onboarding
     // screen shown right after /language, same exemption reason as 'language'.
-    if (loading || !segments.length || segments[0] === 'language' || segments[0] === 'how-it-helps' || segments[0] === 'consent' || segments[0] === 'emergency' || segments[0] === 'guardian' || segments[0] === 'pay-upi' || segments[0] === 'admin-upi-review' || segments[0] === 'admin-issues') return;
+    if (loading || !segments.length || segments[0] === 'language' || segments[0] === 'how-it-helps' || segments[0] === 'consent' || segments[0] === 'ui-kit' /* redesign v3 parts gallery: static, test builds only */ || segments[0] === 'emergency' || segments[0] === 'guardian' || segments[0] === 'pay-upi' || segments[0] === 'admin-upi-review' || segments[0] === 'admin-issues') return;
     // 22 Nov (Vivek): signing in to an existing account, or resetting its
     // password, needs no new notice. Whoever creates something new on this
     // device is asked: "Create an account" lands on /signup (redirected below
