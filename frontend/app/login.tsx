@@ -191,7 +191,7 @@ export default function Login() {
             {minorBlocked && (
               <View testID="login-minor-help" style={{ flexDirection: 'row', gap: 16, marginTop: 8 }}>
                 <Pressable onPress={() => router.push('/emergency')} accessibilityRole="button" accessibilityLabel="Emergency helplines" style={(s) => [focusRingStyle(s)]} hitSlop={8}>
-                  <Text style={{ color: theme.colors.primary, fontWeight: '600' }}>Emergency helplines</Text>
+                  <Text style={{ color: theme.colors.primary, fontFamily: 'InterSemiBold'}}>Emergency helplines</Text>
                 </Pressable>
               </View>
             )}
@@ -293,36 +293,37 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1, padding: theme.spacing.xl, justifyContent: 'center' },
   // DHARA icon mark — 1024×1024 transparent RGBA PNG; renders directly on navy background
   logo: { width: 160, height: 160, alignSelf: 'center', marginBottom: 8 },
-  brand: { fontFamily: theme.fonts.display, fontSize: 44, color: theme.colors.onBrandPrimary, textAlign: 'center', fontWeight: '700' },
+  brand: { fontFamily: theme.fonts.display, fontSize: 36, color: theme.colors.onBrandPrimary, textAlign: 'center', fontWeight: '700' },
   // Tagline: gold-on-navy — 6.29:1 ✅ WCAG AA
-  tag: { color: theme.dhara.gold, textAlign: 'center', marginTop: 8, fontSize: 15, fontWeight: '600' },
+  tag: { color: theme.dhara.gold, textAlign: 'center', marginTop: 8, fontSize: 13, fontFamily: 'InterSemiBold'},
   card: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, padding: theme.spacing.xl, marginTop: theme.spacing.xxl },
-  heading: { fontFamily: theme.fonts.display, fontSize: 24, color: theme.colors.onSurface, fontWeight: '700' },
+  heading: { fontFamily: theme.fonts.display, fontSize: 21, color: theme.colors.onSurface, fontWeight: '700' },
   sub: { color: theme.colors.onSurfaceSecondary, marginTop: 4 },
   centred: { textAlign: 'center' },
-  label: { color: theme.colors.onSurfaceSecondary, marginTop: theme.spacing.lg, marginBottom: theme.spacing.sm, fontWeight: '600' },
-  input: { borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, padding: theme.spacing.md, fontSize: 16, color: theme.colors.onSurface, backgroundColor: theme.colors.surfaceSecondary },
-  pwWrap: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceSecondary },
-  pwInput: { flex: 1, padding: theme.spacing.md, fontSize: 16, color: theme.colors.onSurface },
+  label: { color: theme.colors.onSurfaceSecondary, marginTop: theme.spacing.lg, marginBottom: theme.spacing.sm, fontFamily: 'InterSemiBold'},
+  input: { borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, padding: theme.spacing.md, fontFamily: 'Inter', fontSize: 14, color: theme.colors.onSurface, backgroundColor: theme.colors.surfaceSecondary },
+  pwWrap: { flexDirection: 'row', alignItems: 'center', overflow: 'hidden', borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceSecondary },
+  // minWidth 0 lets the field shrink, so the eye button stays inside the box.
+  pwInput: { flex: 1, minWidth: 0, padding: theme.spacing.md, fontFamily: 'Inter', fontSize: 14, color: theme.colors.onSurface },
   eyeBtn: { paddingHorizontal: theme.spacing.md, paddingVertical: theme.spacing.md, justifyContent: 'center', alignItems: 'center' },
   btn: { backgroundColor: theme.colors.brand, padding: theme.spacing.lg, borderRadius: theme.radius.md, alignItems: 'center', marginTop: theme.spacing.xl, minHeight: 52 },
-  btnText: { color: theme.colors.onBrandPrimary, fontWeight: '700', fontSize: 16 },
+  btnText: { color: theme.colors.onBrandPrimary, fontFamily: 'InterBold', fontSize: 14 },
   // 21 Nov: 16px (spacing.lg) between each element below Sign In.
   dividerRow: { flexDirection: 'row', alignItems: 'center', marginTop: theme.spacing.lg, marginBottom: theme.spacing.lg, gap: 8 },
   dividerLine: { flex: 1, height: 1, backgroundColor: theme.colors.border },
-  dividerText: { color: theme.colors.onSurfaceTertiary, fontSize: 13, fontWeight: '500' },
+  dividerText: { color: theme.colors.onSurfaceTertiary, fontSize: 12, fontFamily: 'InterMedium'},
   googleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1.5, borderColor: theme.colors.border, borderRadius: theme.radius.md, padding: theme.spacing.lg, minHeight: 52, backgroundColor: theme.colors.surface },
-  googleBtnText: { color: theme.colors.onSurface, fontWeight: '600', fontSize: 15 },
+  googleBtnText: { color: theme.colors.onSurface, fontFamily: 'InterSemiBold', fontSize: 13 },
   // 21 Nov: centre the row so the plain text and the link sit on one line.
   row: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: theme.spacing.lg },
   rowLead: { color: theme.colors.onSurfaceSecondary },
   // "Create an account" link: navy-on-cream — 11.92:1 ✅ + underline for link affordance
-  link: { color: theme.dhara.textPrimary, fontWeight: '700', textDecorationLine: 'underline' },
+  link: { color: theme.dhara.textPrimary, fontFamily: 'InterBold', textDecorationLine: 'underline' },
   // 21 Nov: centred under Sign In, with a little more space above it.
   forgotWrap: { alignItems: 'center', justifyContent: 'center', marginTop: theme.spacing.lg },
   forgotTap: { padding: 6, minHeight: UI_REVISION_V1 ? 44 : undefined, justifyContent: 'center' },
   // "Forgot password?": navy-on-cream — 11.92:1 ✅ (already had underline)
-  forgotLink: { color: theme.dhara.textPrimary, fontWeight: '600', fontSize: 14, textDecorationLine: 'underline' },
+  forgotLink: { color: theme.dhara.textPrimary, fontFamily: 'InterSemiBold', fontSize: 13, textDecorationLine: 'underline' },
   // NF-UI-REV-05: this link had zero padding/touch-target before — under 44px.
   signupLink: { minHeight: UI_REVISION_V1 ? 44 : undefined, justifyContent: 'center', paddingVertical: 6 },
   error: { color: theme.colors.error, marginTop: theme.spacing.md },
@@ -334,10 +335,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
-  guestHeading: { fontFamily: theme.fonts.display, fontSize: 17, color: theme.colors.onSurface, fontWeight: '700', textAlign: 'center' },
-  guestBody: { color: theme.colors.onSurfaceSecondary, fontSize: 13, textAlign: 'center', marginTop: theme.spacing.sm, lineHeight: 18 },
+  guestHeading: { fontFamily: theme.fonts.display, fontSize: 15, color: theme.colors.onSurface, fontWeight: '700', textAlign: 'center' },
+  guestBody: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 12, textAlign: 'center', marginTop: theme.spacing.sm, lineHeight: 16 },
   guestBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: theme.colors.border, borderRadius: theme.radius.md, padding: theme.spacing.md, minHeight: 48, marginTop: theme.spacing.md, backgroundColor: theme.colors.surfaceSecondary },
-  guestBtnText: { color: theme.colors.onSurface, fontWeight: '700', fontSize: 15 },
+  guestBtnText: { color: theme.colors.onSurface, fontFamily: 'InterBold', fontSize: 13 },
   sessionExpiredBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -347,19 +348,19 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     marginTop: theme.spacing.md,
   },
-  sessionExpiredText: { color: theme.colors.error, flex: 1, fontSize: 13, fontWeight: '600' },
+  sessionExpiredText: { color: theme.colors.error, flex: 1, fontSize: 12, fontFamily: 'InterSemiBold'},
   accountDeletedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.sm,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: '#EDFAF2',
     borderRadius: theme.radius.md,
     padding: theme.spacing.md,
     marginTop: theme.spacing.md,
   },
-  accountDeletedText: { color: theme.colors.brand, flex: 1, fontSize: 13, fontWeight: '600' },
+  accountDeletedText: { color: theme.colors.brand, flex: 1, fontSize: 12, fontFamily: 'InterSemiBold'},
   // Footer Sanskrit: gold-on-navy — 6.29:1 ✅
   footer: { textAlign: 'center', color: theme.dhara.gold, marginTop: theme.spacing.xxl, letterSpacing: 2 },
-  // Copyright: textOnNavyMuted (gold) on navy — 6.29:1 ✅  — NOT a raw gray (#8A93A6 fails)
-  copyright: { textAlign: 'center', color: theme.dhara.textOnNavyMuted, marginTop: theme.spacing.md, fontSize: 11, letterSpacing: 0.5 },
+  // Copyright: textOnNavyMuted (gold) on navy — 6.29:1 ✅  — NOT a raw gray (#64788A fails)
+  copyright: { textAlign: 'center', color: theme.dhara.textOnNavyMuted, marginTop: theme.spacing.md, fontFamily: 'Inter', fontSize: 12, letterSpacing: 0.5 },
 });

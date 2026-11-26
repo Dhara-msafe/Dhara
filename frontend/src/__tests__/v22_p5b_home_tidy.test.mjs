@@ -28,7 +28,9 @@ const frame = readFileSync(join(root, 'src', 'components', 'dhara', 'DesktopFram
 
 test('flag defaults OFF: only the exact string "true" enables phase 5b', () => {
   assert.match(flags, /export const UI_V22_P5_HOME = process\.env\.EXPO_PUBLIC_UI_V22_P5_HOME === 'true';/);
-  assert.match(home, /import \{ UI_V22_P5_HOME(, UI_V22_P8)? \} from '@\/src\/uiV22Flags';/);
+  // Match the flag, not the whole import list: pinning the exact set means
+  // every later flag added to Home breaks this test for no reason.
+  assert.match(home, /import \{[^}]*\bUI_V22_P5_HOME\b[^}]*\} from '@\/src\/uiV22Flags';/);
   assert.match(frame, /import \{ UI_V22_P5_HOME(, UI_V22_P6)?(, UI_V22_ONE_SOS)? \} from '\.\.\/\.\.\/uiV22Flags';/);
 });
 
@@ -39,7 +41,10 @@ test('Home: "All help" tile dropped with the flag on; header link kept', () => {
 });
 
 test('Home: empty My files card hidden with the flag on; shown once a case exists', () => {
-  assert.match(home, /\{\(!UI_V22_P5_HOME \|\| \(primaryCase && primaryProgress\)\) && \(/);
+  // UI_V22_HOME_SIMPLE later drops this section entirely, so the guard now
+  // has a leading term. What phase 5b cares about is that the P5_HOME rule
+  // is still there: no empty card, shown once a case exists.
+  assert.match(home, /\(!UI_V22_P5_HOME \|\| \(primaryCase && primaryProgress\)\) && \(/);
   // The For-you "Start your first case" card is untouched (the one start action).
   assert.match(home, /testID="foryou-start-case"/);
 });

@@ -28,11 +28,11 @@ export default function LookupWebView() {
   const { url, title } = useLocalSearchParams<{ url: string; title: string }>();
   const decodedUrl = decodeURIComponent(url ?? '');
   const [loading, setLoading] = useState(true);
-  const webRef = useRef<WebView>(null);
+  const webRef = useRef<React.ComponentRef<typeof WebView>>(null);
 
   if (!decodedUrl) {
     return (
-      <SafeAreaView style={s.container}>
+      <SafeAreaView edges={['bottom']} style={s.container}>
         <View style={s.header}>
           <TouchableOpacity onPress={() => router.back()} style={s.btn}>
             <Ionicons name="arrow-back-outline" size={22} color={GOLD} />
@@ -40,14 +40,14 @@ export default function LookupWebView() {
           <Text style={s.title}>eCourt Lookup</Text>
         </View>
         <View style={s.center}>
-          <Text style={{ color: '#374151' }}>No URL provided.</Text>
+          <Text style={{ color: '#102A45' }}>No URL provided.</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={s.container} edges={['top']}>
+    <SafeAreaView style={s.container} edges={[]}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.btn}>
           <Ionicons name="arrow-back-outline" size={22} color={GOLD} />
@@ -91,8 +91,8 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#1e4d7a',
   },
   btn:   { padding: 6 },
-  title: { flex: 1, color: '#FFFFFF', fontSize: 15, fontWeight: '600', marginHorizontal: 8 },
-  loadingBar: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F8F6F0', paddingHorizontal: 16, paddingVertical: 8 },
-  loadingText: { color: NAVY, fontSize: 13 },
+  title: { flex: 1, color: '#FFFFFF', fontSize: 13, fontFamily: 'InterSemiBold', marginHorizontal: 8 },
+  loadingBar: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFFAF2', paddingHorizontal: 16, paddingVertical: 8 },
+  loadingText: { color: NAVY, fontFamily: 'Inter', fontSize: 12 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 });

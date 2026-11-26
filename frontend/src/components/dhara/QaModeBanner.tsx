@@ -1,5 +1,6 @@
+import React from 'react';
 import { Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { theme } from '@/src/theme';
 import { OUTBOUND_PROFILE } from '@/src/outbound';
 
@@ -35,6 +36,28 @@ const c = theme.colors;
 // policy table marks dialler/SMS/share "live", the master-switch gate in
 // outbound.ts's shouldDispatch() still blocks every real dispatch — the
 // banner must not claim otherwise.
+/** Height of the test-build strip (12 text + 4 + 4 padding, rounded up). */
+export const QA_BANNER_HEIGHT = 24;
+
+/** True in the two test profiles that show the strip. */
+export const QA_BANNER_SHOWN = OUTBOUND_PROFILE === 'internal_qa' || OUTBOUND_PROFILE === 'closed_testing';
+
+/**
+ * Redesign v3: the strip floats over the top of every screen and used to
+ * cover the first 24 of each header. In test builds this tells the screens
+ * below that the top inset is 24 taller, so headers start under the strip.
+ * Production builds have no strip and are untouched.
+ */
+export function QaInsetFrame({ children }: { children: React.ReactNode }) {
+  const insets = useSafeAreaInsets();
+  if (!QA_BANNER_SHOWN) return <>{children}</>;
+  return (
+    <SafeAreaInsetsContext.Provider value={{ ...insets, top: insets.top + QA_BANNER_HEIGHT }}>
+      {children}
+    </SafeAreaInsetsContext.Provider>
+  );
+}
+
 export function QaModeBanner() {
   const insets = useSafeAreaInsets();
   if (OUTBOUND_PROFILE === 'production') return null;
@@ -56,7 +79,7 @@ export function QaModeBanner() {
         alignItems: 'center',
       }}
     >
-      <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 11, letterSpacing: 0.5 }}>
+      <Text style={{ color: '#FFFFFF', fontFamily: 'InterBold', fontSize: 12, letterSpacing: 0.5 }}>
         {isClosedTest
           ? 'CLOSED TEST — calls, SMS and sharing are simulated during this test'
           : 'QA MODE — calls, SMS and sharing are simulated'}

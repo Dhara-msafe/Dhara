@@ -51,6 +51,7 @@ test('the local PIN gate (PinGate) is untouched and still has no app-wide counte
 });
 
 test('PIN gate shares the main screen\'s styles, which already use v2.2 tokens', () => {
-  assert.match(screen, /heading: \{ fontFamily: theme\.fonts\.displayBold, fontSize: 23, color: c\.ink, marginTop: 10 \},/);
-  assert.match(screen, /button: \{ minHeight: 56, backgroundColor: c\.navy, borderRadius: 14, padding: 16, alignItems: 'center' \},/);
+  assert.match(screen, /heading: \{ fontFamily: theme\.fonts\.displayBold, fontSize: 20, color: c\.ink, marginTop: 10 \},/);
+  // Redesign v3, stage 6: prototype button (48 tall, radius 12).
+  assert.match(screen, /button: \{ minHeight: 48, backgroundColor: c\.navy, borderRadius: 12, paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' \},/);
 });

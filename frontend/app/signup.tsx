@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLightStatusBar } from '@/src/ui/kit';
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Modal, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Link } from 'expo-router';
@@ -9,6 +10,7 @@ import { passwordMeetsRule, PASSWORD_RULE_MSG } from '@/src/passwordRule';
 import { PasswordLabelWithRules } from '@/src/components/PasswordLabelWithRules';
 
 export default function Signup() {
+  useLightStatusBar(); // redesign v3: white status-bar icons over the dark header
   const { register } = useAuth();
   const router = useRouter();
   const [name, setName] = useState('');
@@ -157,33 +159,33 @@ export default function Signup() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.brand },
   scroll: { flexGrow: 1, padding: theme.spacing.xl, justifyContent: 'center' },
-  brand: { fontFamily: theme.fonts.display, fontSize: 44, color: theme.colors.onBrandPrimary, textAlign: 'center', fontWeight: '700' },
-  tag: { color: theme.colors.brandSecondary, textAlign: 'center', marginTop: 8, fontSize: 15 },
+  brand: { fontFamily: theme.fonts.display, fontSize: 36, color: theme.colors.onBrandPrimary, textAlign: 'center', fontWeight: '700' },
+  tag: { color: theme.colors.brandSecondary, textAlign: 'center', marginTop: 8, fontFamily: 'Inter', fontSize: 13 },
   card: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, padding: theme.spacing.xl, marginTop: theme.spacing.xxl },
-  heading: { fontFamily: theme.fonts.display, fontSize: 24, color: theme.colors.onSurface, fontWeight: '700' },
+  heading: { fontFamily: theme.fonts.display, fontSize: 21, color: theme.colors.onSurface, fontWeight: '700' },
   sub: { color: theme.colors.onSurfaceSecondary, marginTop: 4 },
-  label: { color: theme.colors.onSurfaceSecondary, marginTop: theme.spacing.lg, marginBottom: theme.spacing.sm, fontWeight: '600' },
-  input: { borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, padding: theme.spacing.md, fontSize: 16, color: theme.colors.onSurface, backgroundColor: theme.colors.surfaceSecondary },
+  label: { color: theme.colors.onSurfaceSecondary, marginTop: theme.spacing.lg, marginBottom: theme.spacing.sm, fontFamily: 'InterSemiBold'},
+  input: { borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, padding: theme.spacing.md, fontFamily: 'Inter', fontSize: 14, color: theme.colors.onSurface, backgroundColor: theme.colors.surfaceSecondary },
   pwWrap: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceSecondary },
-  pwInput: { flex: 1, padding: theme.spacing.md, fontSize: 16, color: theme.colors.onSurface },
+  pwInput: { flex: 1, padding: theme.spacing.md, fontFamily: 'Inter', fontSize: 14, color: theme.colors.onSurface },
   eyeBtn: { paddingHorizontal: theme.spacing.md, paddingVertical: theme.spacing.md, justifyContent: 'center', alignItems: 'center' },
   termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing.sm, marginTop: theme.spacing.lg, padding: theme.spacing.md, backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.border },
   checkbox: { width: 22, height: 22, borderRadius: 4, borderWidth: 2, borderColor: theme.colors.brand, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
   checkboxOn: { backgroundColor: theme.colors.brand },
-  termsText: { flex: 1, color: theme.colors.onSurface, fontSize: 12, lineHeight: 18 },
-  termsLink: { color: theme.colors.brandSecondary, fontWeight: '700', textDecorationLine: 'underline' },
+  termsText: { flex: 1, color: theme.colors.onSurface, fontFamily: 'Inter', fontSize: 12, lineHeight: 16 },
+  termsLink: { color: theme.colors.brandSecondary, fontFamily: 'InterBold', textDecorationLine: 'underline' },
   btn: { backgroundColor: theme.colors.brand, padding: theme.spacing.lg, borderRadius: theme.radius.md, alignItems: 'center', marginTop: theme.spacing.xl, minHeight: 52 },
-  btnText: { color: theme.colors.onBrandPrimary, fontWeight: '700', fontSize: 16 },
+  btnText: { color: theme.colors.onBrandPrimary, fontFamily: 'InterBold', fontSize: 14 },
   // 22 Nov: same as sign-in and reset: text and link on one line, link underlined.
   row: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: theme.spacing.lg },
   rowLead: { color: theme.colors.onSurfaceSecondary },
   linkUnderline: { textDecorationLine: 'underline' },
-  link: { color: theme.colors.brandSecondary, fontWeight: '700' },
+  link: { color: theme.colors.brandSecondary, fontFamily: 'InterBold'},
   error: { color: theme.colors.error, marginTop: theme.spacing.md },
-  copyright: { textAlign: 'center', color: '#8A93A6', marginTop: theme.spacing.xl, fontSize: 11, letterSpacing: 0.5 },
+  copyright: { textAlign: 'center', color: '#64788A', marginTop: theme.spacing.xl, fontFamily: 'Inter', fontSize: 12, letterSpacing: 0.5 },
   termsSafe: { flex: 1, backgroundColor: theme.colors.surface },
   termsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: theme.spacing.lg, backgroundColor: theme.colors.brand },
-  termsHeaderTitle: { color: theme.colors.onBrandPrimary, fontFamily: theme.fonts.display, fontSize: 20, fontWeight: '700' },
-  termsBody: { color: theme.colors.onSurface, fontSize: 13, lineHeight: 20 },
+  termsHeaderTitle: { color: theme.colors.onBrandPrimary, fontFamily: theme.fonts.display, fontSize: 17, fontWeight: '700' },
+  termsBody: { color: theme.colors.onSurface, fontFamily: 'Inter', fontSize: 12, lineHeight: 18 },
   termsFooter: { padding: theme.spacing.lg, borderTopWidth: 1, borderTopColor: theme.colors.divider },
 });

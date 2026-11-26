@@ -3,12 +3,12 @@
  * Calm styling only: no red urgency, no countdown pressure, no danger badges.
  */
 import React from 'react';
+import { useLightStatusBar, SosPill112 } from '@/src/ui/kit';
 import { View, Text, Pressable, StyleSheet, Modal, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
-import { SosPill } from '../components/dhara/SosPill';
 import { PREVIEW_LABEL, SEND_LABEL } from './previewCopy';
 import { FJ_SEND_ENABLED } from './flags';
 // NF-UI-REV-07 (Group G, DHARA UI Revision v2.2.1): presentation-only
@@ -22,6 +22,7 @@ const c = theme.colors;
 
 /** Header with back + title + always-visible SOS (help is never more than a tap away). */
 export function JourneyHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+  useLightStatusBar(); // redesign v3: white status-bar icons over the dark header
   const insets = useSafeAreaInsets();
   const router = useRouter();
   return (
@@ -34,7 +35,7 @@ export function JourneyHeader({ title, subtitle }: { title: string; subtitle?: s
         <Text style={styles.hTitle} numberOfLines={UI_V22_SWEEP ? 2 : 1}>{title}</Text>
         {subtitle ? <Text style={styles.hSub} numberOfLines={2}>{subtitle}</Text> : null}
       </View>
-      <SosPill />
+      <SosPill112 testID="fj-sos" />
     </View>
   );
 }
@@ -190,29 +191,29 @@ export const fjStyles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
   body: { padding: 16, paddingBottom: 220, gap: 14 },
   card: { backgroundColor: c.surface, borderRadius: theme.radius.md, borderWidth: 1, borderColor: c.border, padding: 16, gap: 8 },
-  cardTitle: { fontFamily: theme.fonts.displayBold, fontSize: 17, color: c.ink },
-  cardSub: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 19 },
-  label: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.ink, marginTop: 6 },
+  cardTitle: { fontFamily: theme.fonts.displayBold, fontSize: 15, color: c.ink },
+  cardSub: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 17 },
+  label: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.ink, marginTop: 6 },
   input: {
     backgroundColor: c.surfaceSecondary, borderRadius: theme.radius.sm, borderWidth: 1, borderColor: c.border,
-    paddingHorizontal: 12, paddingVertical: 10, fontFamily: theme.fonts.body, fontSize: 15, color: c.ink, minHeight: 44,
+    paddingHorizontal: 12, paddingVertical: 10, fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, minHeight: 44,
   },
-  primary: { backgroundColor: c.navy, borderRadius: theme.radius.pill, minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
-  primaryTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 15 },
+  primary: { backgroundColor: c.navy, borderRadius: theme.radius.pill, minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  primaryTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 13 },
   secondary: {
     backgroundColor: c.surface, borderRadius: theme.radius.pill, borderWidth: 1, borderColor: c.borderStrong,
-    minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20, flexDirection: 'row', gap: 8,
+    minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, flexDirection: 'row', gap: 8,
   },
-  secondaryTxt: { color: c.navy, fontFamily: theme.fonts.bodyBold, fontSize: 15 },
+  secondaryTxt: { color: c.navy, fontFamily: theme.fonts.bodyBold, fontSize: 13 },
   pill: { alignSelf: 'flex-start', backgroundColor: c.surfaceSecondary, borderRadius: theme.radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
-  pillTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 11, color: c.muted, letterSpacing: 0.2 },
-  empty: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 19 },
+  pillTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.muted, letterSpacing: 0.2 },
+  empty: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 17 },
 });
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.navy, paddingHorizontal: 12, paddingBottom: 14 },
   back: { width: UI_REVISION_V1 ? 48 : 44, height: UI_REVISION_V1 ? 48 : 44, alignItems: 'center', justifyContent: 'center' },
-  hTitle: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 21 },
+  hTitle: { color: '#fff', fontFamily: theme.fonts.displayBold, fontSize: 18 },
   hSub: { color: c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 12, marginTop: 2 },
 
   helpRow: { flexDirection: 'row', gap: 10 },
@@ -220,7 +221,7 @@ const styles = StyleSheet.create({
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: UI_REVISION_V1 ? 48 : 44,
     backgroundColor: c.surface, borderRadius: theme.radius.pill, borderWidth: 1, borderColor: c.borderStrong, paddingHorizontal: 12,
   },
-  helpTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy },
+  helpTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.navy },
 
   badge: {
     flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 8,
@@ -230,18 +231,18 @@ const styles = StyleSheet.create({
   badgeTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.darkGold, letterSpacing: 0.2 },
 
   phase: { backgroundColor: c.navySoft, borderRadius: theme.radius.md, borderWidth: 1, borderColor: c.border, padding: 14, gap: 6 },
-  phaseTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.navy },
-  phaseBody: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 19 },
+  phaseTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.navy },
+  phaseBody: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 17 },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(14,39,64,0.45)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: c.surface, borderTopLeftRadius: theme.radius.lg, borderTopRightRadius: theme.radius.lg,
-    padding: 20, paddingBottom: 28, gap: 12, maxHeight: '80%',
+    padding: 16, paddingBottom: 28, gap: 12, maxHeight: '80%',
   },
-  sheetTitle: { fontFamily: theme.fonts.displayBold, fontSize: 19, color: c.ink },
-  sheetBody: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, lineHeight: 20, marginTop: 6 },
+  sheetTitle: { fontFamily: theme.fonts.displayBold, fontSize: 16, color: c.ink },
+  sheetBody: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18, marginTop: 6 },
   primaryBtn: { backgroundColor: c.navy, borderRadius: theme.radius.pill, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  primaryBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 15 },
+  primaryBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 13 },
   ghostBtn: { minHeight: UI_REVISION_V1 ? 48 : 44, alignItems: 'center', justifyContent: 'center' },
-  ghostBtnTxt: { color: c.muted, fontFamily: theme.fonts.bodySemiBold, fontSize: 14 },
+  ghostBtnTxt: { color: c.muted, fontFamily: theme.fonts.bodySemiBold, fontSize: 13 },
 });

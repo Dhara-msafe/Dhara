@@ -41,16 +41,16 @@ const MAP_OPTIONS: google.maps.MapOptions = {
 };
 
 const CIRCLE_OPTIONS: google.maps.CircleOptions = {
-  fillColor: '#1A3F74',
+  fillColor: '#082B4F',
   fillOpacity: 0.12,
-  strokeColor: '#1A3F74',
+  strokeColor: '#082B4F',
   strokeOpacity: 0.55,
   strokeWeight: 1.5,
   clickable: false,
 };
 
 const ROUTE_OPTIONS: google.maps.PolylineOptions = {
-  strokeColor: '#14365A',
+  strokeColor: '#082B4F',
   strokeOpacity: 0.9,
   strokeWeight: 4,
   clickable: false,
@@ -131,7 +131,7 @@ export function ActiveJourneyMap({
             icon={{
               path: 0, // google.maps.SymbolPath.CIRCLE — numeric literal avoids a load-order dependency on the `google` global at module-eval time
               scale: 7,
-              fillColor: '#1D4ED8',
+              fillColor: '#1E5BD0',
               fillOpacity: 1,
               strokeColor: '#fff',
               strokeWeight: 2,
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontFamily: theme.fonts.body,
-    fontSize: 11,
+    fontSize: 12,
     color: c.muted,
     marginTop: 6,
     lineHeight: 15,

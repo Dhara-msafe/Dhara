@@ -22,11 +22,12 @@ Security (per the authorized spec):
 from __future__ import annotations
 
 import io
+import re
 import uuid
 from typing import Optional
 
 import jwt
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, date, timezone, timedelta
 
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
 from fastapi.responses import Response
@@ -36,6 +37,9 @@ from PIL import Image, UnidentifiedImageError
 from dependencies import db, current_user, current_user_optional, logger
 from config.settings import JWT_SECRET, JWT_ALG
 from services.object_storage import put_object, get_object, APP_NAME
+from services.invite_linker import link_pending_invites
+
+_GENDER_VALUES = frozenset({"female", "male", "other", "prefer_not_to_say"})
 
 _PHOTO_TOKEN_PURPOSE = "photo_view"
 _PHOTO_TOKEN_MINUTES = 30
@@ -73,8 +77,16 @@ class VisibilityIn(BaseModel):
     mode: str   # "only_me" | "accepted_circle"
 
 
+_PHONE_RE = re.compile(r"^\+?[\d\s\-().]{6,20}$")
+
+
 class EditProfileIn(BaseModel):
     name: Optional[str] = None
+    # Phone is editable; same 6-20-character rule as the register form.
+    phone: Optional[str] = None
+    # Optional demographic fields — absent keeps the existing stored value.
+    gender: Optional[str] = None   # female | male | other | prefer_not_to_say
+    dob: Optional[str] = None      # YYYY-MM-DD; server validates 18+
 
 
 def _process_image(raw: bytes) -> bytes:
@@ -167,14 +179,73 @@ async def set_photo_visibility(body: VisibilityIn, user: dict = Depends(current_
 
 @router.patch("/profile/me")
 async def edit_profile(body: EditProfileIn, user: dict = Depends(current_user)):
-    updates = {}
+    updates: dict = {}
+
+    # ── name ──────────────────────────────────────────────────────────────────
     if body.name is not None:
         name = body.name.strip()
         if not name:
             raise HTTPException(400, "Name cannot be empty")
         updates["name"] = name[:80]
-    if updates:
-        await db.users.update_one({"id": user["id"]}, {"$set": updates})
+
+    # ── phone (editable, same 6-20 rule as register) ─────────────────────────
+    if body.phone is not None:
+        phone = body.phone.strip()
+        if len(phone) < 6 or len(phone) > 20:
+            raise HTTPException(400, "Phone must be 6–20 characters")
+        if not _PHONE_RE.match(phone):
+            raise HTTPException(400, "Phone contains invalid characters")
+        updates["phone"] = phone
+
+    # ── gender ────────────────────────────────────────────────────────────────
+    if body.gender is not None:
+        if body.gender not in _GENDER_VALUES:
+            raise HTTPException(
+                400,
+                "gender must be one of: female, male, other, prefer_not_to_say",
+            )
+        updates["gender"] = body.gender
+
+    # ── date of birth (must make user 18+) ────────────────────────────────────
+    if body.dob is not None:
+        try:
+            dob_date = date.fromisoformat(body.dob)
+        except ValueError:
+            raise HTTPException(400, "dob must be a date in YYYY-MM-DD format")
+        today = datetime.now(timezone.utc).date()
+        # Accurate age: has the birthday this calendar year already passed?
+        age = (
+            today.year - dob_date.year
+            - ((today.month, today.day) < (dob_date.month, dob_date.day))
+        )
+        if age < 18:
+            raise HTTPException(
+                400,
+                "You must be 18 or older to use Dhara. "
+                "Helplines and Know Your Rights are available without an account.",
+            )
+        updates["dob"] = body.dob
+
+    if not updates:
+        return {"ok": True}
+
+    old_phone = (user.get("phone") or "").strip()
+    old_email = (user.get("email") or "").lower().strip()
+
+    await db.users.update_one({"id": user["id"]}, {"$set": updates})
+
+    # ── link any pending Trusted Circle invites whose contact matches ──────────
+    # We check on every phone/email change — harmless if nothing matches.
+    new_phone = updates.get("phone", old_phone)
+    new_email = updates.get("email", old_email)   # email editing not exposed yet
+    if "phone" in updates or "email" in updates:
+        linked = await link_pending_invites(db, user["id"], new_phone, new_email)
+        if linked:
+            logger.info(
+                "[profile/me] auto-linked %d pending TC invite(s) for user %s",
+                linked, user["id"],
+            )
+
     return {"ok": True}
 
 

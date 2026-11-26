@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLightStatusBar } from '@/src/ui/kit';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -13,7 +14,7 @@ import { focusRingStyle } from '@/src/a11yFocus';
 // Step S3 (Safety core, v2.2 design, 23 Nov handover): visual-only — the
 // background used the legacy `emergencyDeep` (#7A160F) constant, which
 // predates the v2.2 design package; Emergency.dc.html's authoritative
-// background is `redDeep` (#7F1D1D, design-tokens.json). Screen-manifest
+// background is `redDeep` (#690F16, design-tokens.json). Screen-manifest
 // id 25 is "Copy correction + Visual change" — the copy (no "Police
 // notified", "Open dialler for 112" label, visible number fallback) was
 // already correct, and the real 112 handler was already wired
@@ -25,6 +26,7 @@ import { UI_V22_S3 } from '@/src/uiV22Flags';
 const c = theme.colors;
 
 export default function Emergency() {
+  useLightStatusBar(); // redesign v3: white status-bar icons over the dark header
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { language } = useAuth();
@@ -120,25 +122,25 @@ export default function Emergency() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: UI_V22_S3 ? c.redDeep : c.emergencyDeep, paddingHorizontal: 20 },
+  root: { flex: 1, backgroundColor: UI_V22_S3 ? c.redDeep : c.emergencyDeep, paddingHorizontal: 16 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
   dangerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
-  danger: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 16, letterSpacing: 0.4, flexShrink: 1 },
-  callCircle: { alignSelf: 'center', width: 230, height: 230, borderRadius: 115, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginTop: 28 },
-  callNum: { color: c.emergencyRed, fontFamily: theme.fonts.displayBlack, fontSize: 68, lineHeight: 74 },
-  callTap: { color: c.emergencyRed, fontFamily: theme.fonts.bodyBold, fontSize: 17 },
+  danger: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14, letterSpacing: 0.4, flexShrink: 1 },
+  callCircle: { alignSelf: 'center', width: 230, height: 230, borderRadius: 115, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginTop: 22 },
+  callNum: { color: c.emergencyRed, fontFamily: theme.fonts.displayBlack, fontSize: 58, lineHeight: 65 },
+  callTap: { color: c.emergencyRed, fontFamily: theme.fonts.bodyBold, fontSize: 15 },
   callStatus: {
-    color: '#fff', fontFamily: theme.fonts.body, fontSize: 14, lineHeight: 20,
+    color: '#fff', fontFamily: theme.fonts.body, fontSize: 13, lineHeight: 18,
     textAlign: 'center', marginTop: 14, paddingHorizontal: 12,
   },
-  emergencySubtitle: { color: 'rgba(255,255,255,0.75)', fontFamily: theme.fonts.body, fontSize: 16, lineHeight: 22, marginBottom: 10 },
-  oneNumber: { color: '#fff', fontFamily: theme.fonts.body, fontSize: 17, textAlign: 'center', marginTop: 26 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 14, marginTop: 24 },
+  emergencySubtitle: { color: 'rgba(255,255,255,0.75)', fontFamily: theme.fonts.body, fontSize: 14, lineHeight: 19, marginBottom: 10 },
+  oneNumber: { color: '#fff', fontFamily: theme.fonts.body, fontSize: 15, textAlign: 'center', marginTop: 26 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 14, marginTop: 18 },
   tile: { width: '47%', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 16, padding: 18, minHeight: 120, justifyContent: 'center', gap: 8 },
-  tileTitle: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 17 },
-  tileSub: { color: 'rgba(255,255,255,0.82)', fontFamily: theme.fonts.body, fontSize: 13 },
+  tileTitle: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 15 },
+  tileSub: { color: 'rgba(255,255,255,0.82)', fontFamily: theme.fonts.body, fontSize: 12 },
   tipBox: { backgroundColor: 'rgba(0,0,0,0.22)', borderRadius: 14, padding: 16, marginTop: 20 },
-  tipTxt: { color: '#fff', fontFamily: theme.fonts.body, fontSize: 15, lineHeight: 22 },
-  safeBtn: { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.5)', borderRadius: 16, paddingVertical: 18, alignItems: 'center', marginTop: 8 },
-  safeTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 18 },
+  tipTxt: { color: '#fff', fontFamily: theme.fonts.body, fontSize: 13, lineHeight: 19 },
+  safeBtn: { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.5)', borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 8 },
+  safeTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 16 },
 });

@@ -61,9 +61,9 @@ const MAP_OPTIONS: google.maps.MapOptions = {
 };
 
 const CIRCLE_OPTIONS: google.maps.CircleOptions = {
-  fillColor: '#1A3F74',
+  fillColor: '#082B4F',
   fillOpacity: 0.12,
-  strokeColor: '#1A3F74',
+  strokeColor: '#082B4F',
   strokeOpacity: 0.55,
   strokeWeight: 1.5,
   clickable: false,
@@ -85,7 +85,7 @@ export interface Props {
 }
 
 const USER_DOT_OPTIONS: google.maps.CircleOptions = {
-  fillColor: '#1A73E8',
+  fillColor: '#1E5BD0',
   fillOpacity: 1,
   strokeColor: '#FFFFFF',
   strokeOpacity: 1,
@@ -95,9 +95,9 @@ const USER_DOT_OPTIONS: google.maps.CircleOptions = {
 };
 
 const USER_ACCURACY_OPTIONS: google.maps.CircleOptions = {
-  fillColor: '#1A73E8',
+  fillColor: '#1E5BD0',
   fillOpacity: 0.12,
-  strokeColor: '#1A73E8',
+  strokeColor: '#1E5BD0',
   strokeOpacity: 0.3,
   strokeWeight: 1,
   clickable: false,
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontFamily: theme.fonts.body,
-    fontSize: 11,
+    fontSize: 12,
     color: c.muted,
     marginTop: 6,
     lineHeight: 15,

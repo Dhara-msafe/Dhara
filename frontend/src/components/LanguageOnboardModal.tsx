@@ -64,7 +64,7 @@ const TOP_LANGUAGES: Language[] = [
 // Screens where the modal must NOT appear. '/state' added (P0 fix) — signup
 // briefly passes through /state?onboarding=1 before ConsentGuard redirects
 // to /consent; without this, the modal could open there and persist.
-const EXCLUDED_PATHS = ['/consent', '/language', '/login', '/register', '/welcome', '/state'];
+const EXCLUDED_PATHS = ['/consent', '/permissions-setup', '/language', '/login', '/register', '/welcome', '/state'];
 
 // B-73 (17 Nov 2026): the picker is a first-run prompt, so it only opens on
 // the Home tab (where every sign-in lands). Before, it opened on ANY page —
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
     backgroundColor: c.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 24,
     // iOS shadow
     shadowColor: '#000',
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: theme.fonts.display,
-    fontSize: 20,
+    fontSize: 17,
     color: c.ink,
     marginBottom: 2,
   },
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontFamily: theme.fonts.body,
-    fontSize: 13,
+    fontSize: 12,
     color: c.muted,
     marginBottom: 16,
   },
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   },
   chip: {
     flex: 1,
-    minHeight: 56,
+    minHeight: 50,
     borderRadius: 14,
     borderWidth: 1.5,
     borderColor: c.border,
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
   },
   chipNative: {
     fontFamily: theme.fonts.bodySemiBold,
-    fontSize: 15,
+    fontSize: 13,
     color: c.ink,
   },
   chipNativeActive: {
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
   },
   chipName: {
     fontFamily: theme.fonts.body,
-    fontSize: 11,
+    fontSize: 12,
     color: c.muted,
     marginTop: 2,
   },
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
   },
   moreTxt: {
     fontFamily: theme.fonts.bodySemiBold,
-    fontSize: 14,
+    fontSize: 13,
     color: c.primary,
   },
   continueBtn: {
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
   },
   continueTxt: {
     fontFamily: theme.fonts.display,
-    fontSize: 17,
+    fontSize: 15,
     color: '#fff',
   },
 });

@@ -85,7 +85,7 @@ export default function WebPortal() {
   const [langCode,  setLangCode]  = useState('en');
   const [error,     setError]     = useState<string | null>(null);
 
-  const scrollRef   = useRef<ScrollView>(null);
+  const scrollRef   = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const convKeyRef  = useRef(0);
 
   const selectedLang = LANGUAGES.find((l) => l.code === langCode) ?? LANGUAGES[0];
@@ -510,15 +510,15 @@ const styles = S.create({
   },
   brandName: {
     fontFamily: theme.fonts.display,
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: '700',
     color: theme.dhara.textOnNavy,
     letterSpacing: 0.3,
   },
   brandSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: theme.dhara.gold,
-    fontWeight: '600',
+    fontFamily: 'InterSemiBold',
     letterSpacing: 0.5,
   },
 
@@ -541,7 +541,7 @@ const styles = S.create({
   },
   langChipText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'InterSemiBold',
     color: theme.dhara.gold,
   },
   langChipTextActive: {
@@ -561,7 +561,7 @@ const styles = S.create({
   },
   newBtnText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'InterBold',
     color: theme.dhara.gold,
   },
 
@@ -578,7 +578,7 @@ const styles = S.create({
   },
   appBtnText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'InterSemiBold',
     color: theme.dhara.textOnNavyMuted,
   },
 
@@ -600,7 +600,7 @@ const styles = S.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: '#FFF0F0',
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.error,
     paddingHorizontal: theme.spacing.xl,
@@ -609,8 +609,8 @@ const styles = S.create({
   errorText: {
     flex: 1,
     color: theme.colors.error,
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontFamily: 'InterSemiBold',
   },
 
   // ── Scroll / Messages ───────────────────────────────────────────────────────
@@ -648,18 +648,18 @@ const styles = S.create({
   },
   emptyTitle: {
     fontFamily: theme.fonts.display,
-    fontSize: 24,
+    fontSize: 21,
     fontWeight: '700',
     color: theme.dhara.textPrimary,
     textAlign: 'center',
     marginBottom: 8,
   },
   emptySubtitle: {
-    fontSize: 15,
+    fontFamily: 'Inter', fontSize: 13,
     color: theme.dhara.textSecondary,
     textAlign: 'center',
     maxWidth: 460,
-    lineHeight: 22,
+    lineHeight: 19,
     marginBottom: theme.spacing.xxl,
   },
 
@@ -684,10 +684,10 @@ const styles = S.create({
     }),
   },
   quickText: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.dhara.textPrimary,
-    lineHeight: 18,
-    fontWeight: '500',
+    lineHeight: 16,
+    fontFamily: 'InterMedium',
   },
 
   // ── Message rows ────────────────────────────────────────────────────────────
@@ -717,8 +717,8 @@ const styles = S.create({
   },
   avatarText: {
     color: theme.dhara.gold,
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 13,
+    fontFamily: 'InterExtraBold',
   },
 
   // Bubble
@@ -742,17 +742,17 @@ const styles = S.create({
     }),
   },
   bubbleText: {
-    fontSize: 15,
-    lineHeight: 23,
+    fontFamily: 'Inter', fontSize: 13,
+    lineHeight: 20,
     color: theme.dhara.textPrimary,
   },
   bubbleTextUser: {
     color: theme.dhara.textOnNavy,
   },
   thinkingText: {
-    fontSize: 13,
+    fontFamily: 'Inter', fontSize: 12,
     color: theme.dhara.textSecondary,
-    fontStyle: 'italic',
+    
   },
 
   // ── Citations ────────────────────────────────────────────────────────────────
@@ -771,8 +771,8 @@ const styles = S.create({
     marginBottom: 4,
   },
   citHeaderText: {
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 12,
+    fontFamily: 'InterExtraBold',
     color: theme.colors.brand,
     letterSpacing: 0.5,
   },
@@ -781,7 +781,7 @@ const styles = S.create({
     borderColor: theme.colors.brandSecondary,
     borderRadius: theme.radius.md,
     padding: theme.spacing.md,
-    backgroundColor: '#FFFBEC',
+    backgroundColor: '#FFF4E6',
     gap: 6,
   },
   citTop: {
@@ -797,25 +797,25 @@ const styles = S.create({
   },
   citChipText: {
     color: theme.colors.onBrandPrimary,
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 11,
+    fontFamily: 'InterBold',
     letterSpacing: 0.3,
   },
   citDate: {
-    fontSize: 10,
+    fontFamily: 'Inter', fontSize: 11,
     color: theme.colors.onSurfaceSecondary,
   },
   citStaleRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  citStaleText: { fontSize: 10, color: theme.colors.warning, fontWeight: '600' },
+  citStaleText: { fontSize: 11, color: theme.colors.warning, fontFamily: 'InterSemiBold'},
   citTitle: {
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'InterBold',
     color: theme.dhara.textPrimary,
   },
   citBody: {
-    fontSize: 12,
+    fontFamily: 'Inter', fontSize: 12,
     color: theme.dhara.textSecondary,
-    lineHeight: 18,
+    lineHeight: 16,
   },
 
   // ── Input bar ────────────────────────────────────────────────────────────────
@@ -848,11 +848,11 @@ const styles = S.create({
   },
   input: {
     flex: 1,
-    fontSize: 15,
+    fontFamily: 'Inter', fontSize: 13,
     color: theme.colors.onSurface,
     minHeight: 24,
     maxHeight: 120,
-    lineHeight: 22,
+    lineHeight: 19,
     outlineStyle: 'none' as any,
   },
   sendBtn: {
@@ -874,7 +874,7 @@ const styles = S.create({
     }),
   },
   disclaimer: {
-    fontSize: 11,
+    fontFamily: 'Inter', fontSize: 12,
     color: theme.colors.onSurfaceTertiary,
     textAlign: 'center',
     lineHeight: 16,

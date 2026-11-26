@@ -22,11 +22,11 @@ const DRAWER_WIDTH = Math.min(320, SCREEN_WIDTH * 0.82);
 const NAVY   = theme.colors.primary;
 const GOLD   = theme.colors.gold;
 const CREAM  = theme.colors.surfaceSecondary;
-const SURFACE = '#FDFBF7';
+const SURFACE = '#FFFAF2';
 const MUTED  = '#4A5A6E';
-const BORDER = '#D1D5DB';
-const RED    = '#B91C1C';
-const GREEN  = '#166534';
+const BORDER = '#E6DFD1';
+const RED    = '#C73236';
+const GREEN  = '#087951';
 
 export interface SectionItem {
   section_number: string;
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     backgroundColor: CREAM,
   },
   drawerHeaderLeft: { flexDirection: 'row', alignItems: 'center' },
-  drawerTitle: { fontSize: 16, fontWeight: '700', color: NAVY },
+  drawerTitle: { fontSize: 14, fontFamily: 'InterBold', color: NAVY },
   closeBtn: { padding: 4 },
   drawerScroll: { flex: 1, paddingHorizontal: 16, paddingTop: 12 },
   sectionGroup: { marginBottom: 8 },
@@ -215,14 +215,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', marginBottom: 10,
   },
   groupDot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
-  groupLabel: { fontSize: 12, fontWeight: '600', color: MUTED, flex: 1 },
+  groupLabel: { fontSize: 12, fontFamily: 'InterSemiBold', color: MUTED, flex: 1 },
   jumpAllBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     paddingHorizontal: 8, paddingVertical: 3,
     backgroundColor: CREAM, borderRadius: 10,
     borderWidth: 1, borderColor: GOLD,
   },
-  jumpAllText: { fontSize: 11, color: GOLD, fontWeight: '600' },
+  jumpAllText: { fontSize: 12, color: GOLD, fontFamily: 'InterSemiBold'},
   sectionCard: {
     backgroundColor: CREAM,
     borderRadius: 10,
@@ -231,27 +231,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BORDER,
   },
-  droppedCard: { backgroundColor: '#FEF2F2', borderColor: '#FECACA', opacity: 0.8 },
+  droppedCard: { backgroundColor: '#FFF0F0', borderColor: '#EFC7C7', opacity: 0.8 },
   sectionCardTop: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6,
   },
   sectionBadge: {
     backgroundColor: NAVY, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3,
   },
-  sectionBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff', letterSpacing: 0.3 },
-  sectionHeading: { fontSize: 13, fontWeight: '600', color: NAVY, lineHeight: 18 },
-  sectionText: { fontSize: 11, color: MUTED, lineHeight: 16, marginTop: 4 },
+  sectionBadgeText: { fontSize: 12, fontFamily: 'InterBold', color: '#fff', letterSpacing: 0.3 },
+  sectionHeading: { fontSize: 12, fontFamily: 'InterSemiBold', color: NAVY, lineHeight: 16 },
+  sectionText: { fontFamily: 'Inter', fontSize: 12, color: MUTED, lineHeight: 16, marginTop: 4 },
   jumpBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 2,
-    backgroundColor: '#FEF9EC', borderRadius: 8,
+    backgroundColor: '#FFF4E6', borderRadius: 8,
     paddingHorizontal: 7, paddingVertical: 3,
     borderWidth: 1, borderColor: GOLD,
   },
-  jumpBtnText: { fontSize: 11, color: GOLD, fontWeight: '600' },
-  droppedReason: { fontSize: 11, color: '#B91C1C', marginTop: 4, lineHeight: 15 },
-  emptyState: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 20 },
+  jumpBtnText: { fontSize: 12, color: GOLD, fontFamily: 'InterSemiBold'},
+  droppedReason: { fontFamily: 'Inter', fontSize: 12, color: '#C73236', marginTop: 4, lineHeight: 15 },
+  emptyState: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 16 },
   emptyText: {
-    fontSize: 13, color: MUTED, textAlign: 'center', marginTop: 12, lineHeight: 20,
+    fontFamily: 'Inter', fontSize: 12, color: MUTED, textAlign: 'center', marginTop: 12, lineHeight: 18,
   },
   drawerFooter: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 6,
@@ -259,5 +259,5 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: BORDER,
     backgroundColor: CREAM,
   },
-  footerText: { fontSize: 10, color: MUTED, lineHeight: 14, flex: 1 },
+  footerText: { fontFamily: 'Inter', fontSize: 11, color: MUTED, lineHeight: 14, flex: 1 },
 });

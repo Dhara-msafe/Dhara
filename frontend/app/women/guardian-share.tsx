@@ -340,8 +340,8 @@ export default function GuardianShare() {
         </View>
         {statusUrl && (
           <View style={styles.journeyRow}>
-            <Ionicons name="link-outline" size={20} color={c.verifiedGreen ?? '#16a34a'} />
-            <Text style={[styles.journeyTxt, { color: c.verifiedGreen ?? '#16a34a', fontSize: 12, flex: 1 }]}>
+            <Ionicons name="link-outline" size={20} color={c.verifiedGreen ?? '#087951'} />
+            <Text style={[styles.journeyTxt, { color: c.verifiedGreen ?? '#087951', fontFamily: 'Inter', fontSize: 12, flex: 1 }]}>
               {gpsLive
                 ? 'Status page ready — it shows your area while sharing is on'
                 : 'Status page ready — it shows your check-in status, not your location'}
@@ -471,7 +471,7 @@ export default function GuardianShare() {
 
       {markedSafe && revoked && (
         <View style={styles.safeBanner} testID="guardian-safe-banner">
-          <Ionicons name="shield-checkmark" size={18} color="#16a34a" />
+          <Ionicons name="shield-checkmark" size={18} color="#087951" />
           <Text style={styles.safeBannerTxt}>
             {'Status page updated \u2014 arrived safely. Sharing had already been turned off, so no location was shown for this update.'}
           </Text>
@@ -479,7 +479,7 @@ export default function GuardianShare() {
       )}
       {markedSafe && !revoked && (
         <View style={styles.safeBanner} testID="guardian-safe-banner">
-          <Ionicons name="shield-checkmark" size={18} color="#16a34a" />
+          <Ionicons name="shield-checkmark" size={18} color="#087951" />
           <Text style={styles.safeBannerTxt}>
             {'Status page updated \u2014 your guardian can see you are safe.'}
           </Text>
@@ -507,8 +507,8 @@ export default function GuardianShare() {
             accessibilityLabel="Withdraw location sharing for this link"
           >
             {revoking
-              ? <ActivityIndicator color={c.error ?? '#dc2626'} size="small" />
-              : <Ionicons name="lock-closed-outline" size={18} color={c.error ?? '#dc2626'} />
+              ? <ActivityIndicator color={c.error ?? '#C73236'} size="small" />
+              : <Ionicons name="lock-closed-outline" size={18} color={c.error ?? '#C73236'} />
             }
             <Text style={styles.revokeSharingBtnTxt}>
               {revoking ? 'Withdrawing\u2026' : 'Withdraw sharing for this link'}
@@ -528,7 +528,7 @@ export default function GuardianShare() {
 
       {revoked && (
         <View style={styles.revokedBanner} testID="guardian-revoked-banner">
-          <Ionicons name="lock-closed" size={18} color={c.error ?? '#dc2626'} />
+          <Ionicons name="lock-closed" size={18} color={c.error ?? '#C73236'} />
           <Text style={styles.revokedBannerTxt}>
             Sharing withdrawn — the status link no longer shows your location to anyone, including anyone it was forwarded to. Missed-check-in alerts for this link are also off now; you can still tap &ldquo;I have arrived safely&rdquo; below at any time.
           </Text>
@@ -544,20 +544,20 @@ export default function GuardianShare() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
-  content: { padding: 20, gap: 16 },
+  content: { padding: 16, gap: 16 },
   journeyCard: {
     backgroundColor: c.surface, borderRadius: 14, borderWidth: 1,
     borderColor: c.lines, padding: 16, gap: 10,
   },
   journeyRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  journeyTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink },
-  sectionLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.ink, marginTop: 4 },
+  journeyTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink },
+  sectionLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink, marginTop: 4 },
   emptyCard: {
     backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.lines,
-    padding: 20, gap: 10, alignItems: 'center',
+    padding: 16, gap: 10, alignItems: 'center',
   },
-  emptyTxt: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, textAlign: 'center' },
-  linkTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.navy },
+  emptyTxt: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, textAlign: 'center' },
+  linkTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.navy },
   contactRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14,
     backgroundColor: c.surface, borderRadius: 14, borderWidth: 1.5, borderColor: c.lines,
@@ -568,18 +568,18 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   avatarSelected: { backgroundColor: c.navy },
-  avatarTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.navy },
-  contactName: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink },
-  contactPhone: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, marginTop: 2 },
+  avatarTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.navy },
+  contactName: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink },
+  contactPhone: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 2 },
   prepareBtn: {
     minHeight: 44, minWidth: 84, paddingHorizontal: 14, borderRadius: 12,
     borderWidth: 1.5, borderColor: c.navy, backgroundColor: c.surface,
     alignItems: 'center', justifyContent: 'center',
   },
-  prepareBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.navy },
+  prepareBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.navy },
   input: {
     backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 12,
-    paddingHorizontal: 14, minHeight: 48, fontFamily: theme.fonts.body, fontSize: 15, color: c.ink,
+    paddingHorizontal: 14, minHeight: 48, fontFamily: theme.fonts.body, fontSize: 13, color: c.ink,
   },
   inputLocked: { opacity: 0.6 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -588,60 +588,60 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: c.navy, backgroundColor: c.surface,
   },
   chipOn: { backgroundColor: c.navy },
-  chipTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy },
+  chipTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.navy },
   chipTxtOn: { color: '#fff' },
   chipInput: {
     minHeight: 44, minWidth: 90, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1,
     borderColor: c.lines, backgroundColor: c.surface, fontFamily: theme.fonts.body,
-    fontSize: 13, color: c.ink,
+    fontSize: 12, color: c.ink,
   },
   messagePreview: {
     backgroundColor: c.surfaceTertiary ?? '#F4F4F6', borderRadius: 12,
     borderWidth: 1, borderColor: c.lines, padding: 14, gap: 6,
   },
   previewLabel: v22SectionLabel({ fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.muted, textTransform: 'uppercase', letterSpacing: 0.5 }),
-  previewBody: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, lineHeight: 20 },
+  previewBody: { fontFamily: theme.fonts.body, fontSize: 12, color: c.ink, lineHeight: 18 },
   sendBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, backgroundColor: c.navy, borderRadius: 14, paddingVertical: 16,
   },
   sendBtnDisabled: { opacity: 0.4 },
-  sendBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: '#fff' },
+  sendBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: '#fff' },
   sentBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#F0FFF4', borderRadius: 12, padding: 14,
+    backgroundColor: '#EDFAF2', borderRadius: 12, padding: 14,
     borderWidth: 1, borderColor: c.verifiedGreen,
   },
-  sentTxt: { fontFamily: theme.fonts.body, fontSize: 14, color: c.ink, flex: 1 },
+  sentTxt: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, flex: 1 },
   safeBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, backgroundColor: c.navySoft, borderRadius: 14, paddingVertical: 14,
     paddingHorizontal: 18, borderWidth: 1.5, borderColor: c.navy,
   },
-  safeBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.navy },
+  safeBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.navy },
   safeBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#F0FFF4', borderRadius: 12, padding: 14,
-    borderWidth: 1, borderColor: '#16a34a',
+    backgroundColor: '#EDFAF2', borderRadius: 12, padding: 14,
+    borderWidth: 1, borderColor: '#087951',
   },
-  safeBannerTxt: { fontFamily: theme.fonts.body, fontSize: 14, color: c.ink, flex: 1 },
+  safeBannerTxt: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, flex: 1 },
   revokeSection: { gap: 8 },
   revokeWarningTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 17, paddingHorizontal: 4 },
   revokeSharingBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, backgroundColor: '#FCEBE9', borderRadius: 14, paddingVertical: 14,
-    borderWidth: 1.5, borderColor: c.error ?? '#dc2626',
+    gap: 8, backgroundColor: '#FFF0F0', borderRadius: 14, paddingVertical: 14,
+    borderWidth: 1.5, borderColor: c.error ?? '#C73236',
   },
-  revokeSharingBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.error ?? '#dc2626' },
+  revokeSharingBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.error ?? '#C73236' },
   revokedBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#FCEBE9', borderRadius: 12, padding: 14,
-    borderWidth: 1, borderColor: c.error ?? '#dc2626',
+    backgroundColor: '#FFF0F0', borderRadius: 12, padding: 14,
+    borderWidth: 1, borderColor: c.error ?? '#C73236',
   },
-  revokedBannerTxt: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, flex: 1, lineHeight: 19 },
-  errorTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: '#dc2626', textAlign: 'center' },
+  revokedBannerTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.ink, flex: 1, lineHeight: 17 },
+  errorTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: '#C73236', textAlign: 'center' },
   disclosureNote: {
     fontFamily: theme.fonts.body, fontSize: 12, color: c.muted,
-    textAlign: 'center', lineHeight: 18,
+    textAlign: 'center', lineHeight: 16,
   },
 });

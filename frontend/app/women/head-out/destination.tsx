@@ -33,6 +33,7 @@ import { UI_V22_P9, headOutBottomGutter } from '@/src/uiV22Flags';
 // keyboard-focus ring only. No destination/search/map logic changes.
 import { focusRingStyle } from '@/src/a11yFocus';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
+import { StepStrip } from '@/src/ui/kit';
 import { DestinationMapPicker } from '@/src/women/DestinationMapPicker';
 import { useAuth } from '@/src/auth';
 import { useHeadOutWizard } from '@/src/women/headOutWizardStore';
@@ -529,6 +530,8 @@ export default function ChooseDestination() {
   return (
     <View style={styles.root}>
       <ScreenHeader title={UI_V22_P9 ? 'Head out safely' : 'Head Out'} subtitle="Step 1 of 3 — Where are you going?" />
+      {/* Redesign v3, stage 6: gold step bar, as in the prototype. */}
+      <StepStrip step={1} total={3} />
       <ScrollView scrollEnabled={!mapActive} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + headOutBottomGutter(110) }]} keyboardShouldPersistTaps="handled">
 
         <Text style={styles.fieldLabel}>Where are you going?</Text>
@@ -784,20 +787,20 @@ export default function ChooseDestination() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
-  content: { padding: 20, gap: 4 },
-  fieldLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.ink, marginBottom: 8, marginTop: 14 },
+  content: { padding: 16, gap: 4 },
+  fieldLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink, marginBottom: 8, marginTop: 14 },
   searchRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines,
     borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
   },
-  searchInput: { flex: 1, fontFamily: theme.fonts.body, fontSize: 15, color: c.ink },
+  searchInput: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.ink },
   suggestionsBox: {
     borderWidth: 1, borderColor: c.lines, borderRadius: 12, backgroundColor: c.surface,
     marginTop: 6, overflow: 'hidden',
   },
   sourceNote: {
-    fontFamily: theme.fonts.body, fontSize: 11.5, color: c.muted,
+    fontFamily: theme.fonts.body, fontSize: 13, color: c.muted,
     paddingHorizontal: 12, paddingVertical: 7,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.lines,
   },
@@ -805,14 +808,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 11,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.lines,
   },
-  suggestionTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, lineHeight: 18 },
+  suggestionTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12, color: c.ink, lineHeight: 16 },
   tabRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
   tab: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines },
   tabActive: { backgroundColor: c.navySoft, borderColor: c.navy },
-  tabTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.muted },
+  tabTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.muted },
   tabTxtActive: { color: c.navy },
   listSection: { marginTop: 14, gap: 8 },
-  emptyTxt: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, fontStyle: 'italic', paddingVertical: 6 },
+  emptyTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, paddingVertical: 6 },
   placeRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines,
@@ -820,10 +823,10 @@ const styles = StyleSheet.create({
   },
   placeRowActive: { borderColor: c.navy, backgroundColor: c.navySoft },
   placeIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: c.navySoft, alignItems: 'center', justifyContent: 'center' },
-  placeLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.ink, flex: 1 },
+  placeLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink, flex: 1 },
   customRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
-  customTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.darkGold },
-  mapHint: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, marginTop: 14, fontStyle: 'italic' },
+  customTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.darkGold },
+  mapHint: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 14 },
   // ── Live location button ────────────────────────────────────────────────────
   locationBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -831,7 +834,7 @@ const styles = StyleSheet.create({
     borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
     marginTop: 4,
   },
-  locationBtnTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.darkGold, flex: 1 },
+  locationBtnTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.darkGold, flex: 1 },
   locationBtnTxtActive: { color: c.navy },
   locationStatus: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 6, marginLeft: 4 },
   locationStatusWarn: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 6, marginLeft: 4 },
@@ -839,18 +842,18 @@ const styles = StyleSheet.create({
   openSettingsBtn: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: c.navySoft },
   openSettingsTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.navy },
   footer: {
-    paddingHorizontal: 20, paddingTop: 12, backgroundColor: c.background,
+    paddingHorizontal: 16, paddingTop: 12, backgroundColor: c.background,
     borderTopWidth: 1, borderTopColor: c.lines,
   },
   nextBtn: { backgroundColor: c.navy, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   nextBtnDisabled: { opacity: 0.4 },
-  nextBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: '#fff' },
+  nextBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: '#fff' },
   // Confirm-this-point bar (typed destination → geocoded pin confirmation)
   confirmBox: { gap: 8 },
-  confirmTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink },
-  confirmMatch: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18 },
+  confirmTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink },
+  confirmMatch: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 16 },
   confirmBtnRow: { gap: 8 },
   confirmBtn: { marginTop: 2 },
   confirmNoBtn: { alignItems: 'center', paddingVertical: 10 },
-  confirmNoTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.darkGold },
+  confirmNoTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.darkGold },
 });

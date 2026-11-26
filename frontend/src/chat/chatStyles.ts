@@ -19,7 +19,9 @@ export const WEB_CHAT_MAX_WIDTH = 800;
 export const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
+    // Redesign v3: navy, so the status-bar space above the navy header is
+    // navy too (the SafeAreaView's top padding takes this colour).
+    backgroundColor: theme.colors.deepNavy,
     // Web: the outer viewport gets a subtly different backdrop so the
     // centered chat column (webContentWrap) reads as a distinct "page"
     // instead of the mobile UI stretching edge-to-edge across a wide
@@ -29,24 +31,37 @@ export const styles = StyleSheet.create({
   webContentWrap: {
     flex: 1,
     width: '100%',
+    backgroundColor: theme.colors.background,
     ...(Platform.OS === 'web' ? { maxWidth: WEB_CHAT_MAX_WIDTH, backgroundColor: theme.colors.surface } : {}),
   },
   header: {
+    // Redesign v3: the same navy header as every other screen, on one row.
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.xl,
-    paddingVertical: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.divider,
-    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+    backgroundColor: theme.colors.deepNavy,
   },
-  headerBrand: { flexShrink: 0 },
-  headerButtons: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, maxWidth: '100%' },
-  title: { fontFamily: theme.fonts.display, fontSize: 26, fontWeight: '700', color: theme.colors.brand },
-  subtitle: { color: theme.colors.onSurfaceSecondary, fontSize: 12, marginTop: 2 },
+  headerBrand: { flexShrink: 1, minWidth: 0 },
+  headerTagline: { color: theme.colors.headerTagline, fontFamily: theme.fonts.body, fontSize: 12, marginTop: 2 },
+  // Stage 9: the slim row of labelled actions under the navy header.
+  askTools: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 12, paddingVertical: 8,
+    backgroundColor: theme.colors.paper, borderBottomWidth: 1, borderBottomColor: theme.colors.lines,
+  },
+  toolChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5, height: 36, paddingHorizontal: 10,
+    borderRadius: 11, borderWidth: 1, borderColor: theme.colors.outlineBorder, backgroundColor: theme.colors.paper,
+  },
+  toolChipOff: { backgroundColor: theme.colors.soft },
+  toolChipText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: theme.colors.navy, maxWidth: 96 },
+  headerButtons: { flexDirection: 'row', alignItems: 'center', gap: 7, flexShrink: 0 },
+  title: { fontFamily: theme.fonts.brand, fontSize: 20, letterSpacing: 1.5, color: '#FFFFFF', textTransform: 'uppercase' },
+  subtitle: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 12, marginTop: 2 },
   // Language indicator chip below the title — tappable so users can switch language directly
   langChip: {
     flexDirection: 'row',
@@ -56,40 +71,36 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: theme.radius.pill,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surfaceSecondary,
+    backgroundColor: 'rgba(255,255,255,0.14)',
     alignSelf: 'flex-start',
   },
-  langChipText: { color: theme.colors.brand, fontSize: 12, fontWeight: '600' },
+  langChipText: { color: '#FFFFFF', fontFamily: theme.fonts.bodySemiBold, fontSize: 12 },
   badge: {
     backgroundColor: theme.colors.surfaceTertiary,
     borderRadius: theme.radius.pill,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.xs,
   },
-  badgeText: { color: theme.colors.brand, fontSize: 11, fontWeight: '700' },
+  badgeText: { color: theme.colors.brand, fontSize: 12, fontFamily: 'InterBold'},
   newChatBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    justifyContent: 'center',
     borderRadius: theme.radius.pill,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
-    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 10,
+    minWidth: 44,
+    backgroundColor: 'rgba(255,255,255,0.14)',
     // NF-UI-REV-03: 44pt was the pre-revision minimum (iOS); bumped to the
     // 48px Android/Material minimum under the flag.
     minHeight: UI_REVISION_V1 ? 48 : 44,
   },
-  newChatText: { color: theme.colors.brand, fontSize: 13, fontWeight: '500' },
+  newChatText: { color: '#FFFFFF', fontFamily: theme.fonts.bodySemiBold, fontSize: 12 },
   historyHeaderBtn: {
     width: UI_REVISION_V1 ? 48 : 44, height: UI_REVISION_V1 ? 48 : 44,
     borderRadius: UI_REVISION_V1 ? 24 : 22, flexShrink: 0,
     alignItems: 'center', justifyContent: 'center',
-    backgroundColor: theme.colors.surfaceSecondary,
-    borderWidth: 1, borderColor: theme.colors.border,
+    backgroundColor: 'rgba(255,255,255,0.14)',
   },
   usageRow: {
     flexDirection: 'row',
@@ -110,7 +121,7 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
-  usagePillText: { color: theme.colors.onSurfaceSecondary, fontSize: 11, fontWeight: '600' },
+  usagePillText: { color: theme.colors.onSurfaceSecondary, fontSize: 12, fontFamily: 'InterSemiBold'},
   // ── Web-only mic/permission banner (Alert.alert is a no-op on react-native-web) ──
   voiceBanner: {
     flexDirection: 'row',
@@ -119,13 +130,13 @@ export const styles = StyleSheet.create({
     marginHorizontal: theme.spacing.lg,
     marginBottom: theme.spacing.sm,
     padding: theme.spacing.md,
-    backgroundColor: '#FFF8E7',
+    backgroundColor: '#FFF4E6',
     borderRadius: theme.radius.md,
     borderWidth: 1,
     borderColor: theme.colors.warning,
   },
-  voiceBannerTitle: { color: theme.colors.brand, fontWeight: '700', fontSize: 13 },
-  voiceBannerMessage: { color: theme.colors.onSurfaceSecondary, fontSize: 12, marginTop: 2, lineHeight: 17 },
+  voiceBannerTitle: { color: theme.colors.brand, fontFamily: 'InterBold', fontSize: 12 },
+  voiceBannerMessage: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 12, marginTop: 2, lineHeight: 17 },
   modeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -136,8 +147,8 @@ export const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.divider,
   },
-  modeLabel: { color: theme.colors.brand, fontWeight: '700', fontSize: 13 },
-  modeSub: { color: theme.colors.onSurfaceSecondary, fontSize: 11, marginTop: 2 },
+  modeLabel: { color: theme.colors.brand, fontFamily: 'InterBold', fontSize: 12 },
+  modeSub: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 12, marginTop: 2 },
   // ── Compact controls bar (single row below header: mode toggle + upgrade chip) ──
   controlsBar: {
     flexDirection: 'row',
@@ -151,13 +162,13 @@ export const styles = StyleSheet.create({
   },
   modeLabelCompact: {
     color: theme.colors.brand,
-    fontWeight: '700',
-    fontSize: 13,
-    lineHeight: 18,
+    fontFamily: 'InterBold',
+    fontSize: 12,
+    lineHeight: 16,
   },
   modeSubCompact: {
     color: theme.colors.onSurfaceSecondary,
-    fontSize: 11,
+    fontFamily: 'Inter', fontSize: 12,
     lineHeight: 15,
   },
   upgradeChip: {
@@ -172,7 +183,7 @@ export const styles = StyleSheet.create({
   },
   upgradeChipText: {
     color: theme.colors.onBrandSecondary,
-    fontWeight: '800',
+    fontFamily: 'InterExtraBold',
     fontSize: 12,
   },
   firQuickAction: {
@@ -197,14 +208,14 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  firQuickActionTitle: { fontSize: 13.5, fontWeight: '800', color: theme.colors.onSurface },
-  firQuickActionSub: { fontSize: 11.5, color: theme.colors.onSurfaceSecondary, marginTop: 1 },
+  firQuickActionTitle: { fontSize: 13, fontFamily: 'InterExtraBold', color: theme.colors.onSurface },
+  firQuickActionSub: { fontFamily: 'Inter', fontSize: 13, color: theme.colors.onSurfaceSecondary, marginTop: 1 },
   // v3.3: Continue your reports
   firResumeSection: {
     marginTop: 8, marginHorizontal: 12, marginBottom: 4,
   },
   firResumeSectionTitle: v22SectionLabel({
-    fontSize: 12, fontWeight: '700', color: theme.colors.onSurfaceSecondary,
+    fontSize: 12, fontFamily: 'InterBold', color: theme.colors.onSurfaceSecondary,
     textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginLeft: 2,
   }),
   firResumeCard: {
@@ -213,8 +224,8 @@ export const styles = StyleSheet.create({
     borderRadius: 10, padding: 12, marginBottom: 6,
     borderWidth: 1, borderColor: theme.colors.border,
   },
-  firResumeCardTitle: { fontSize: 13, fontWeight: '700', color: theme.colors.onSurface },
-  firResumeCardSub: { fontSize: 11, color: theme.colors.onSurfaceSecondary, marginTop: 2 },
+  firResumeCardTitle: { fontSize: 12, fontFamily: 'InterBold', color: theme.colors.onSurface },
+  firResumeCardSub: { fontFamily: 'Inter', fontSize: 12, color: theme.colors.onSurfaceSecondary, marginTop: 2 },
   firIntentCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -223,10 +234,10 @@ export const styles = StyleSheet.create({
     padding: theme.spacing.md,
     borderRadius: theme.radius.md,
     backgroundColor: theme.colors.brand,
-    minHeight: 56,
+    minHeight: 50,
   },
-  firIntentTitle: { color: '#fff', fontSize: 14, fontWeight: '800' },
-  firIntentSub: { color: 'rgba(255,255,255,0.85)', fontSize: 11.5, marginTop: 2, lineHeight: 15 },
+  firIntentTitle: { color: '#fff', fontSize: 13, fontFamily: 'InterExtraBold'},
+  firIntentSub: { color: 'rgba(255,255,255,0.85)', fontFamily: 'Inter', fontSize: 13, marginTop: 2, lineHeight: 15 },
   scroll: { padding: theme.spacing.lg, paddingBottom: theme.spacing.xl },
 
   // ── Layout zones ─────────────────────────────────────────────────────────
@@ -239,7 +250,7 @@ export const styles = StyleSheet.create({
   chatZone: {
     flex: 1,
     minHeight: 0,
-    backgroundColor: theme.colors.surfaceSecondary,
+    backgroundColor: theme.colors.background,
   },
   chatScroll: { flex: 1, minHeight: 0 },
 
@@ -262,12 +273,12 @@ export const styles = StyleSheet.create({
     } : { borderBottomWidth: 0 }),
   },
   chatDividerLabel: v22SectionLabel({
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 11,
+    fontFamily: 'InterBold',
     letterSpacing: 1.2,
     // NF-UI-REV-03: onSurfaceTertiary (#6B7682) on this label's cream
     // background measured ~4.0:1 — under the 4.5:1 minimum for 10px text.
-    // onSurfaceSecondary (#505B68) on the same background clears ~6:1.
+    // onSurfaceSecondary (#64788A) on the same background clears ~6:1.
     color: UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : theme.colors.onSurfaceTertiary,
     textTransform: 'uppercase',
   }),
@@ -290,8 +301,8 @@ export const styles = StyleSheet.create({
   },
   reportStripText: {
     color: theme.colors.brand,
-    fontSize: 12.5,
-    fontWeight: '700',
+    fontSize: 13,
+    fontFamily: 'InterBold',
   },
 
   // ── "View all" link below max-2 report cards ─────────────────────────────
@@ -302,8 +313,8 @@ export const styles = StyleSheet.create({
   },
   viewAllText: {
     color: theme.colors.brand,
-    fontSize: 12.5,
-    fontWeight: '700',
+    fontSize: 13,
+    fontFamily: 'InterBold',
     textDecorationLine: 'underline',
   },
 
@@ -338,8 +349,8 @@ export const styles = StyleSheet.create({
     marginBottom: 14,
   },
   sheetTitle: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 14,
+    fontFamily: 'InterExtraBold',
     color: theme.colors.brand,
     letterSpacing: 0.3,
   },
@@ -354,13 +365,13 @@ export const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontFamily: theme.fonts.display,
-    fontSize: 22,
+    fontSize: 19,
     color: theme.colors.onSurface,
     marginTop: theme.spacing.lg,
     textAlign: 'center',
     fontWeight: '700',
   },
-  emptySub: { color: theme.colors.onSurfaceSecondary, textAlign: 'center', marginTop: theme.spacing.sm, lineHeight: 22 },
+  emptySub: { color: theme.colors.onSurfaceSecondary, textAlign: 'center', marginTop: theme.spacing.sm, lineHeight: 19 },
   suggestion: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -371,9 +382,9 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     width: '100%',
-    minHeight: 56,
+    minHeight: 50,
   },
-  suggestionText: { color: theme.colors.onSurface, flex: 1, fontSize: 15, flexShrink: 1 },
+  suggestionText: { color: theme.colors.onSurface, flex: 1, fontFamily: 'Inter', fontSize: 13, flexShrink: 1 },
   msg: { marginBottom: 12, borderRadius: theme.radius.lg, padding: theme.spacing.lg },
   userMsg: {
     backgroundColor: theme.colors.brand,
@@ -410,7 +421,7 @@ export const styles = StyleSheet.create({
     borderColor: theme.colors.gold,
     minHeight: 48,
   },
-  stateCardText: { flex: 1, color: theme.colors.brand, fontSize: 13, fontWeight: '700', lineHeight: 18 },
+  stateCardText: { flex: 1, color: theme.colors.brand, fontSize: 12, fontFamily: 'InterBold', lineHeight: 16 },
   nextStep: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -421,7 +432,7 @@ export const styles = StyleSheet.create({
     backgroundColor: theme.colors.brandSecondary,
     minHeight: 48,
   },
-  nextStepText: { flex: 1, color: theme.colors.onBrandSecondary, fontSize: 13, fontWeight: '800' },
+  nextStepText: { flex: 1, color: theme.colors.onBrandSecondary, fontSize: 12, fontFamily: 'InterExtraBold'},
   stateNote: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -433,7 +444,7 @@ export const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: theme.colors.gold,
   },
-  stateNoteText: { flex: 1, color: theme.colors.onSurfaceSecondary, fontSize: 12, lineHeight: 18 },
+  stateNoteText: { flex: 1, color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 12, lineHeight: 16 },
   followUpChipsWrap: {
     flexDirection: 'column', gap: 6, marginTop: 8,
   },
@@ -443,11 +454,11 @@ export const styles = StyleSheet.create({
     borderRadius: theme.radius.pill, borderWidth: 1, borderColor: '#D6E4F0',
     backgroundColor: '#EEF5FB', alignSelf: 'flex-start',
   },
-  followUpChipText: { color: theme.colors.brand, fontSize: 12.5, fontWeight: '600', flexShrink: 1 },
-  msgRole: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
+  followUpChipText: { color: theme.colors.brand, fontSize: 13, fontFamily: 'InterSemiBold', flexShrink: 1 },
+  msgRole: { fontSize: 12, fontFamily: 'InterBold', letterSpacing: 0.5 },
   userRole: { color: theme.colors.brandSecondary },
   aiRole: { color: theme.colors.brand },
-  msgText: { fontSize: 15, lineHeight: 22 },
+  msgText: { fontSize: 13, lineHeight: 19 },
   userText: { color: theme.colors.onBrandPrimary },
   aiText: { color: theme.colors.onSurface },
   citationsWrap: {
@@ -471,8 +482,8 @@ export const styles = StyleSheet.create({
     minHeight: UI_REVISION_V1 ? 44 : undefined,
   },
   detailsToggleText: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 12,
+    fontFamily: 'InterBold',
     color: theme.colors.brand,
   },
 
@@ -483,8 +494,8 @@ export const styles = StyleSheet.create({
     marginBottom: 6,
   },
   citationsHeader: {
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 12,
+    fontFamily: 'InterExtraBold',
     color: theme.colors.brand,
     letterSpacing: 0.5,
   },
@@ -493,7 +504,7 @@ export const styles = StyleSheet.create({
     borderColor: theme.colors.brandSecondary,
     borderRadius: theme.radius.md,
     padding: theme.spacing.md,
-    backgroundColor: '#FFFBEC',
+    backgroundColor: '#FFF4E6',
     gap: 6,
   },
   citationHead: {
@@ -509,29 +520,29 @@ export const styles = StyleSheet.create({
   },
   citationChipText: {
     color: theme.colors.onBrandPrimary,
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 12,
+    fontFamily: 'InterExtraBold',
     letterSpacing: 0.3,
   },
   citationVerified: {
-    fontSize: 10,
-    // NF-UI-REV-03: onSurfaceTertiary on this card's '#FFFBEC' background
+    fontFamily: 'Inter', fontSize: 11,
+    // NF-UI-REV-03: onSurfaceTertiary on this card's '#FFF4E6' background
     // measured ~4.46:1 — just under 4.5:1. onSurfaceSecondary clears ~6.7:1.
     color: UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : theme.colors.onSurfaceTertiary,
   },
   staleWarningRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  staleWarningText: { fontSize: 10, color: theme.colors.warning, fontWeight: '600' },
-  ipcNoticeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: '#FEF3C7', borderRadius: 8, padding: 8, marginTop: 6 },
-  ipcNoticeText: { flex: 1, fontSize: 11, color: '#92400E', lineHeight: 15, fontWeight: '600' },
+  staleWarningText: { fontSize: 11, color: theme.colors.warning, fontFamily: 'InterSemiBold'},
+  ipcNoticeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: '#FFF4E6', borderRadius: 8, padding: 8, marginTop: 6 },
+  ipcNoticeText: { flex: 1, fontSize: 12, color: '#8A6A1E', lineHeight: 15, fontFamily: 'InterSemiBold'},
   /** Graduate Fix 2 — registry gap note. Blue tint, distinct from amber ipcNoticeRow. */
-  gapNoteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: '#EFF6FF', borderRadius: 8, padding: 8, marginTop: 6 },
-  gapNoteText: { flex: 1, fontSize: 11, color: '#1E3A8A', lineHeight: 15 },
-  citationTitle: { fontSize: 12, fontWeight: '700', color: theme.colors.brand },
-  citationText: { fontSize: 12, color: theme.colors.onSurface, lineHeight: 17, fontStyle: 'italic' },
+  gapNoteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: '#EEF5FF', borderRadius: 8, padding: 8, marginTop: 6 },
+  gapNoteText: { flex: 1, fontFamily: 'Inter', fontSize: 12, color: '#1E3A8A', lineHeight: 15 },
+  citationTitle: { fontSize: 12, fontFamily: 'InterBold', color: theme.colors.brand },
+  citationText: { fontFamily: 'Inter', fontSize: 12, color: theme.colors.onSurface, lineHeight: 17 },
   citationSource: {
-    fontSize: 11,
+    fontSize: 12,
     color: theme.colors.brand,
-    fontWeight: '600',
+    fontFamily: 'InterSemiBold',
     textDecorationLine: 'underline',
     marginTop: 4,
   },
@@ -541,7 +552,7 @@ export const styles = StyleSheet.create({
     paddingVertical: 1,
     borderRadius: 4,
   },
-  proTagText: { color: theme.colors.onBrandSecondary, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
+  proTagText: { color: theme.colors.onBrandSecondary, fontSize: 11, fontFamily: 'InterExtraBold', letterSpacing: 0.5 },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -561,7 +572,7 @@ export const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: theme.colors.divider,
   },
-  guestWarningText: { flex: 1, color: theme.colors.onSurface, fontSize: 13, fontWeight: '600', lineHeight: 18 },
+  guestWarningText: { flex: 1, color: theme.colors.onSurface, fontSize: 12, fontFamily: 'InterSemiBold', lineHeight: 16 },
   guestLimitBar: {
     backgroundColor: theme.colors.surface,
     borderTopWidth: 1,
@@ -569,12 +580,12 @@ export const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     gap: theme.spacing.md,
   },
-  guestLimitText: { color: theme.colors.onSurface, fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  guestLimitText: { color: theme.colors.onSurface, fontSize: 13, fontFamily: 'InterBold', textAlign: 'center' },
   guestLimitBtnRow: { flexDirection: 'row', gap: theme.spacing.sm },
   guestLimitPrimaryBtn: { flex: 1, backgroundColor: theme.colors.brand, borderRadius: theme.radius.md, padding: theme.spacing.md, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  guestLimitPrimaryBtnText: { color: theme.colors.onBrandPrimary, fontWeight: '700', fontSize: 15 },
+  guestLimitPrimaryBtnText: { color: theme.colors.onBrandPrimary, fontFamily: 'InterBold', fontSize: 13 },
   guestLimitSecondaryBtn: { flex: 1, borderWidth: 1.5, borderColor: theme.colors.border, borderRadius: theme.radius.md, padding: theme.spacing.md, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  guestLimitSecondaryBtnText: { color: theme.colors.onSurface, fontWeight: '700', fontSize: 15 },
+  guestLimitSecondaryBtnText: { color: theme.colors.onSurface, fontFamily: 'InterBold', fontSize: 13 },
   input: {
     flex: 1,
     minHeight: 48,
@@ -585,7 +596,7 @@ export const styles = StyleSheet.create({
     paddingTop: theme.spacing.md,
     paddingBottom: theme.spacing.md,
     color: theme.colors.onSurface,
-    fontSize: 15,
+    fontFamily: 'Inter', fontSize: 13,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
@@ -593,7 +604,7 @@ export const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: theme.colors.brandSecondary,
+    backgroundColor: theme.colors.gold, // the same gold mic as Home
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -601,7 +612,7 @@ export const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: theme.colors.brandSecondary,
+    backgroundColor: theme.colors.gold, // the same gold mic as Home
     alignItems: 'center',
     justifyContent: 'center',
     // Slight shadow for lift effect while held
@@ -630,7 +641,7 @@ export const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: theme.radius.pill,
   },
-  proBadgeText: { color: theme.colors.onBrandSecondary, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  proBadgeText: { color: theme.colors.onBrandSecondary, fontSize: 11, fontFamily: 'InterExtraBold', letterSpacing: 0.5 },
   upgradeBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -639,7 +650,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
   },
-  upgradeBannerText: { flex: 1, color: theme.colors.onBrandSecondary, fontWeight: '700', fontSize: 13 },
+  upgradeBannerText: { flex: 1, color: theme.colors.onBrandSecondary, fontFamily: 'InterBold', fontSize: 12 },
   sttHint: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -653,7 +664,7 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
-  sttHintText: { color: theme.colors.brand, fontSize: 11, fontWeight: '600' },
+  sttHintText: { color: theme.colors.brand, fontSize: 12, fontFamily: 'InterSemiBold'},
   // WhatsApp-style recording bar (replaces input bar)
   recordingBar: {
     flexDirection: 'row',
@@ -662,7 +673,7 @@ export const styles = StyleSheet.create({
     gap: theme.spacing.sm,
     borderTopWidth: 1,
     borderTopColor: theme.colors.error,
-    backgroundColor: '#FFF5F5',
+    backgroundColor: '#FFF0F0',
     minHeight: 68,
   },
   // Hands-free locked recording bar — shown once the user drags the mic up
@@ -674,7 +685,7 @@ export const styles = StyleSheet.create({
     gap: theme.spacing.md,
     borderTopWidth: 1,
     borderTopColor: theme.colors.error,
-    backgroundColor: '#FFF5F5',
+    backgroundColor: '#FFF0F0',
     minHeight: 68,
   },
   lockedIconBtn: {
@@ -746,8 +757,8 @@ export const styles = StyleSheet.create({
   },
   recTimer: {
     fontVariant: ['tabular-nums'],
-    fontWeight: '700',
-    fontSize: 15,
+    fontFamily: 'InterBold',
+    fontSize: 13,
     color: theme.colors.error,
     minWidth: 46,
   },
@@ -762,11 +773,11 @@ export const styles = StyleSheet.create({
     gap: 4,
   },
   slideHintText: {
-    // NF-UI-REV-03: onSurfaceTertiary on the recording bar's '#FFF5F5'
+    // NF-UI-REV-03: onSurfaceTertiary on the recording bar's '#FFF0F0'
     // background measured ~4.33:1. onSurfaceSecondary clears ~6.5:1.
     color: UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : theme.colors.onSurfaceTertiary,
-    fontSize: 13,
-    fontWeight: '500',
+    fontSize: 12,
+    fontFamily: 'InterMedium',
   },
   cancelActive: {
     flexDirection: 'row',
@@ -775,8 +786,8 @@ export const styles = StyleSheet.create({
   },
   cancelActiveText: {
     color: theme.colors.error,
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13,
+    fontFamily: 'InterBold',
   },
   // Playback speed chip
   speedChip: {
@@ -789,8 +800,8 @@ export const styles = StyleSheet.create({
   },
   speedChipText: {
     color: theme.colors.brand,
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 12,
+    fontFamily: 'InterExtraBold',
     letterSpacing: 0.3,
   },
   // Transcript confirmation modal
@@ -811,15 +822,15 @@ export const styles = StyleSheet.create({
   },
   tcTitle: {
     fontFamily: theme.fonts.display,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: theme.colors.brand,
   },
   tcText: {
     color: theme.colors.onSurface,
-    fontSize: 16,
-    lineHeight: 22,
-    fontStyle: 'italic',
+    fontFamily: 'Inter', fontSize: 14,
+    lineHeight: 19,
+    
     marginBottom: theme.spacing.lg,
   },
   tcSendBtn: {
@@ -844,8 +855,8 @@ export const styles = StyleSheet.create({
     padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
   },
-  tcMismatchText: { flex: 1, color: theme.colors.error, fontSize: 13, lineHeight: 18, fontWeight: '600' },
-  tcSendText: { color: theme.colors.onBrandPrimary, fontWeight: '800', fontSize: 15 },
+  tcMismatchText: { flex: 1, color: theme.colors.error, fontSize: 12, lineHeight: 16, fontFamily: 'InterSemiBold'},
+  tcSendText: { color: theme.colors.onBrandPrimary, fontFamily: 'InterExtraBold', fontSize: 13 },
   tcRow: { flexDirection: 'row', gap: theme.spacing.md },
   tcSecondaryBtn: {
     flex: 1,
@@ -861,7 +872,7 @@ export const styles = StyleSheet.create({
     // NF-UI-REV-03: ~38px tall pre-revision — under the 44/48px minimum.
     minHeight: UI_REVISION_V1 ? 48 : undefined,
   },
-  tcSecondaryText: { color: theme.colors.brand, fontWeight: '700', fontSize: 13 },
+  tcSecondaryText: { color: theme.colors.brand, fontFamily: 'InterBold', fontSize: 12 },
   pwOverlay: {
     flex: 1,
     backgroundColor: 'rgba(10,28,58,0.85)',
@@ -890,15 +901,15 @@ export const styles = StyleSheet.create({
   },
   pwTitle: {
     fontFamily: theme.fonts.display,
-    fontSize: 22,
+    fontSize: 19,
     fontWeight: '700',
     color: theme.colors.brand,
     marginBottom: theme.spacing.sm,
   },
   pwBody: {
     color: theme.colors.onSurfaceSecondary,
-    fontSize: 14,
-    lineHeight: 20,
+    fontFamily: 'Inter', fontSize: 13,
+    lineHeight: 18,
     textAlign: 'center',
     marginBottom: theme.spacing.lg,
   },
@@ -910,12 +921,12 @@ export const styles = StyleSheet.create({
   },
   pwPrice: {
     fontFamily: theme.fonts.display,
-    fontSize: 32,
+    fontSize: 26,
     fontWeight: '800',
     color: theme.colors.brand,
   },
-  pwPriceOr: { color: theme.colors.onSurfaceTertiary, fontSize: 13 },
-  pwPriceMeta: { color: theme.colors.onSurfaceTertiary, fontSize: 12, marginBottom: theme.spacing.lg },
+  pwPriceOr: { color: theme.colors.onSurfaceTertiary, fontFamily: 'Inter', fontSize: 12 },
+  pwPriceMeta: { color: theme.colors.onSurfaceTertiary, fontFamily: 'Inter', fontSize: 12, marginBottom: theme.spacing.lg },
   pwUpgrade: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -928,12 +939,12 @@ export const styles = StyleSheet.create({
     minWidth: '80%',
     marginBottom: theme.spacing.md,
   },
-  pwUpgradeText: { color: theme.colors.onBrandPrimary, fontWeight: '800', fontSize: 15 },
+  pwUpgradeText: { color: theme.colors.onBrandPrimary, fontFamily: 'InterExtraBold', fontSize: 13 },
   pwContinue: {
     color: theme.colors.brand,
-    fontSize: 13,
+    fontSize: 12,
     textDecorationLine: 'underline',
-    fontWeight: '600',
+    fontFamily: 'InterSemiBold',
   },
   // ── Resume card: crime-type badge chips ────────────────────────────────────
   firResumeIconWrap: {
@@ -960,8 +971,8 @@ export const styles = StyleSheet.create({
     borderColor: 'rgba(30, 58, 138, 0.18)',
   },
   crimeTypeBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 12,
+    fontFamily: 'InterBold',
     color: theme.colors.primary,
   },
   // ── Pro upgrade card (empty state, bottom) ─────────────────────────────────
@@ -987,12 +998,12 @@ export const styles = StyleSheet.create({
     flexShrink: 0,
   },
   proUpgradeTitle: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 13,
+    fontFamily: 'InterExtraBold',
     color: theme.colors.onBrandPrimary,
   },
   proUpgradeSub: {
-    fontSize: 12,
+    fontFamily: 'Inter', fontSize: 12,
     color: theme.colors.onNavyMuted,
     marginTop: 2,
     lineHeight: 16,

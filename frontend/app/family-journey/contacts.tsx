@@ -220,5 +220,5 @@ const styles = StyleSheet.create({
   checkboxOn: { backgroundColor: c.navy, borderColor: c.navy },
   modes: { marginTop: 10, gap: 12, borderTopWidth: 1, borderTopColor: c.divider, paddingTop: 12 },
   modeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  modeTitle: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.ink },
+  modeTitle: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.ink },
 });

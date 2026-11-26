@@ -213,7 +213,7 @@ export async function encryptFileChunked(
   try {
     for (let i = 0; i < chunkCount; i++) {
       const chunkSize  = Math.min(CHUNK_SIZE, totalSize - bytesProcessed);
-      const plainChunk  = srcHandle.readBytes(chunkSize);
+      const plainChunk  = srcHandle.readBytesSync(chunkSize);
       if (plainChunk.length < chunkSize) {
         throw new Error(`Source file truncated at chunk ${i}: expected ${chunkSize} B, got ${plainChunk.length} B.`);
       }
@@ -274,7 +274,7 @@ export async function decryptFileChunked(
   try {
     // ── Read and parse header ──────────────────────────────────────────────
     srcHandle.offset = 0;
-    const header = srcHandle.readBytes(HEADER_SIZE);
+    const header = srcHandle.readBytesSync(HEADER_SIZE);
     if (header.length < HEADER_SIZE) {
       throw new Error('File truncated: header is incomplete.');
     }
@@ -293,7 +293,7 @@ export async function decryptFileChunked(
 
     // ── Process chunks ────────────────────────────────────────────────────
     for (let i = 0; i < chunkCount; i++) {
-      const chunkHeader = srcHandle.readBytes(CHUNK_HEADER_SIZE);
+      const chunkHeader = srcHandle.readBytesSync(CHUNK_HEADER_SIZE);
       if (chunkHeader.length < CHUNK_HEADER_SIZE) {
         throw new Error(`File truncated: chunk ${i} header is incomplete (got ${chunkHeader.length} B).`);
       }
@@ -310,7 +310,7 @@ export async function decryptFileChunked(
         throw new Error(`Chunk ${i} has invalid ciphertext length: ${cipherLen}.`);
       }
 
-      const cipherChunk = srcHandle.readBytes(cipherLen);
+      const cipherChunk = srcHandle.readBytesSync(cipherLen);
       if (cipherChunk.length < cipherLen) {
         throw new Error(`File truncated: chunk ${i} body is incomplete (expected ${cipherLen} B, got ${cipherChunk.length} B).`);
       }

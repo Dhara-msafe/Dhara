@@ -8,7 +8,7 @@ export default function CyberFraudScreen() {
   useEffect(() => { loadVisitorSession().then(s => s && setLc(s.touristLang.code)); }, []);
   return (
     <WorkflowScreen
-      headerColor="#D97706"
+      headerColor="#8A6A1E"
       headerIcon="shield-outline"
       headerTitle="Cyber Fraud Help"
       headerSub="Scam, online fraud, financial theft"

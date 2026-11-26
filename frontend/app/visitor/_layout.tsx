@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { theme } from '@/src/theme';
+import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 
 export default function VisitorLayout() {
   return (
@@ -7,8 +8,11 @@ export default function VisitorLayout() {
       screenOptions={{
         headerStyle: { backgroundColor: theme.colors.primary },
         headerTintColor: '#fff',
-        headerTitleStyle: { fontWeight: '700' },
+        headerTitleStyle: { fontFamily: 'InterBold'},
         headerBackTitle: 'Back',
+        // Redesign v3: the same navy header as the rest of the app (back,
+        // title, SOS 112) instead of the platform's default bar.
+        header: ({ options }) => <ScreenHeader title={typeof options.title === 'string' ? options.title : 'Visitor Mode'} />,
       }}
     >
       <Stack.Screen name="index"         options={{ title: 'Visitor Mode' }} />

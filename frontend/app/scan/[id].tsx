@@ -86,7 +86,7 @@ export default function ScanDetail() {
   return (
     <View style={styles.root}>
       <ScreenHeader title="Scanned document" />
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 32 }}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 32 }}>
         {loading ? (
           <View style={styles.busy}><ActivityIndicator color={c.navy} /></View>
         ) : error || !detail ? (
@@ -187,17 +187,17 @@ export default function ScanDetail() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
   busy: { alignItems: 'center', paddingVertical: 60 },
-  errBox: { backgroundColor: '#FBEAE8', borderRadius: 12, padding: 14, marginTop: 16 },
-  errTxt: { fontFamily: theme.fonts.bodyMedium, fontSize: 14, color: c.error },
+  errBox: { backgroundColor: '#FFF0F0', borderRadius: 12, padding: 14, marginTop: 16 },
+  errTxt: { fontFamily: theme.fonts.bodyMedium, fontSize: 13, color: c.error },
   preview: { width: '100%', height: 180, borderRadius: 14, marginBottom: 12, backgroundColor: c.surfaceTertiary },
   docTypeBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: c.navySoft, borderRadius: 20, paddingHorizontal: 12,
     paddingVertical: 6, alignSelf: 'flex-start', marginBottom: 8,
   },
-  docTypeBadgeTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.navy },
+  docTypeBadgeTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.navy },
   sectionBlock: { marginTop: 12, gap: 8 },
-  sectionLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 11, color: c.darkGold, letterSpacing: 1.2 },
+  sectionLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.darkGold, letterSpacing: 1.2 },
   factsGrid: { borderRadius: 14, borderWidth: 1, borderColor: c.lines, backgroundColor: c.surface, overflow: 'hidden' },
   factCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
@@ -205,30 +205,30 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: c.divider,
   },
   factKey: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.muted, width: 110, flexShrink: 0, paddingTop: 1 },
-  factValue: { flex: 1, fontFamily: theme.fonts.bodyMedium, fontSize: 14, color: c.ink, lineHeight: 20 },
+  factValue: { flex: 1, fontFamily: theme.fonts.bodyMedium, fontSize: 13, color: c.ink, lineHeight: 18 },
   truthNote: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
-    backgroundColor: '#FFF8E8', borderRadius: 12, padding: 12, marginTop: 12,
+    backgroundColor: '#FFF4E6', borderRadius: 12, padding: 12, marginTop: 12,
   },
-  truthNoteTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.warning, lineHeight: 19 },
-  card: { backgroundColor: c.navy, borderRadius: 18, padding: 20, marginTop: 12 },
+  truthNoteTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12, color: c.warning, lineHeight: 17 },
+  card: { backgroundColor: c.navy, borderRadius: 18, padding: 16, marginTop: 12 },
   cardLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.gold, letterSpacing: 1.2 },
-  summary: { fontFamily: theme.fonts.body, fontSize: 17, color: '#fff', lineHeight: 26, marginTop: 10 },
+  summary: { fontFamily: theme.fonts.body, fontSize: 15, color: '#fff', lineHeight: 23, marginTop: 10 },
   actionCard: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: c.goldMuted, borderRadius: 14, padding: 16, marginTop: 14,
   },
-  actionTxt: { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 15, color: c.ink, lineHeight: 22 },
+  actionTxt: { flex: 1, fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.ink, lineHeight: 19 },
   templateCard: {
     flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: c.surface,
     borderWidth: 1, borderColor: c.gold, borderRadius: 16, padding: 16, marginTop: 14,
   },
   templateIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: c.goldMuted, alignItems: 'center', justifyContent: 'center' },
-  templateTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink },
+  templateTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink },
   toggle: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18 },
-  toggleTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.navy },
+  toggleTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.navy },
   extracted: {
-    fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, lineHeight: 21, marginTop: 10,
+    fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18, marginTop: 10,
     backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 12, padding: 14,
   },
   secBtn: {
@@ -236,5 +236,5 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: c.lines, borderRadius: 12, paddingVertical: 13,
     backgroundColor: c.surface, marginTop: 18,
   },
-  secTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.navy },
+  secTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.navy },
 });

@@ -1,6 +1,11 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, Platform, ActivityIndicator, Modal, Animated, PanResponder, AppState, type GestureResponderEvent, type PanResponderGestureState } from 'react-native';
 import { crossAlert } from '@/src/utils/crossAlert';
+import { alertPermissionBlocked } from '@/src/permissions/setup';
+import { useHeaderSosPresent } from '@/src/ui/headerSos';
+import { useLightStatusBar } from '@/src/ui/kit';
+import { useSizeClass } from '@/src/ui/useSizeClass';
+import { VoiceSheet, driveVoiceLevel } from '@/src/chat/VoiceSheet';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,7 +30,8 @@ import { theme } from '@/src/theme';
 import { trackEvent } from '@/src/analytics';
 import { getConfiguredSTT, whisperTranscribeFile, sttErrorToMessage, MAX_AUDIO_BYTES, AUDIO_TOO_LARGE_MESSAGE } from '@/src/voice/stt';
 import { claimMic, MIC_BUSY_MESSAGE, withMicLease, isMicHeldByEvidenceLocker, TTS_BLOCKED_BY_LOCKER_MESSAGE, type MicLease } from '@/src/voice/micArbiterGuard';
-import { canSpeakNow, noteAudioInterruption, noteSpeakIntent, VOICE_COMPANION_ENABLED, VOICE_OFF_HINT } from '@/src/voice/speechGate';
+import { classifyCapture, createPeakTracker, CAPTURE_SILENT_MESSAGE, CAPTURE_TOO_SHORT_MESSAGE } from '@/src/voice/core/captureCheck';
+import { canSpeakNow, noteAudioInterruption, noteSpeakIntent, noteAutoReadQuestion, setVoiceReadAloud, VOICE_COMPANION_ENABLED, VOICE_OFF_HINT } from '@/src/voice/speechGate';
 import { VoiceStateMachine } from '@/src/voice/core/voiceStateMachine';
 import { needsConfirmation } from '@/src/voice/core/voicePolicy';
 import { classifyFact } from '@/src/voice/factClassifier';
@@ -57,14 +63,35 @@ import { focusRingStyle } from '@/src/a11yFocus';
 
 const CANCEL_THRESHOLD = -80; // px the user must drag left to cancel
 const LOCK_THRESHOLD = -55; // px the user must drag up to lock hands-free recording
+// Ask-mic recorder options: the stock preset plus level metering, which the
+// silent-capture guard (src/voice/core/captureCheck.ts) reads. Module-level
+// so the object identity/JSON is stable across renders.
+const ASK_RECORDING_OPTIONS = { ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true };
 
 
 
 // Batch FREE-V1-001: Pro upgrade / Stripe / Razorpay payment UI gated off for v1.
 const PRO_UPGRADE_ENABLED = process.env.EXPO_PUBLIC_PRO_UPGRADE_ENABLED === 'true';
+/**
+ * Redesign v3, stage 8: the voice pop-up (src/chat/VoiceSheet.tsx). On by
+ * default. Set EXPO_PUBLIC_VOICE_SHEET=false in a build to go back to the old
+ * press-and-hold mic with the red recording bar; that code is untouched.
+ */
+const VOICE_SHEET = process.env.EXPO_PUBLIC_VOICE_SHEET !== 'false';
 
 export default function ChatScreen() {
-  const { token, user, language, autoSpeak, ttsVolume, ttsVoiceMode, refreshUser, forceLogout } = useAuth();
+  const { token, user, language, autoSpeak, setAutoSpeak, ttsVolume, ttsVoiceMode, refreshUser, forceLogout } = useAuth();
+  // Mute button: the live auto-read state. A ref, so a reply that is still
+  // loading when the user taps mute is not read aloud (send() captured the
+  // old `autoSpeak` value when the question was sent).
+  // Redesign v3: this screen's own header carries SOS.
+  useHeaderSosPresent();
+  useLightStatusBar();
+  const headerSize = useSizeClass();
+  // Loudness for the voice pop-up's rings, 0 to 1. Stable for the screen's life.
+  const voiceLevel = useRef(new Animated.Value(0)).current;
+  const autoSpeakRef = useRef(autoSpeak);
+  autoSpeakRef.current = autoSpeak;
   const { primaryInterest } = useUserProfile();
   // Phase 1: shared evidence recorder from provider (needed for safety trigger)
   const { startTriggerRecording } = useEvidenceRecorder();
@@ -173,7 +200,17 @@ export default function ChatScreen() {
   // "listening" waveform looks and behaves identically on every phone.
   const waveBars = useRef([0, 1, 2, 3, 4].map(() => new Animated.Value(0.3))).current;
   const scrollRef = useRef<ScrollView>(null);
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorder = useAudioRecorder(ASK_RECORDING_OPTIONS);
+  // Silent-capture guard: samples the real mic level while recording (refs
+  // only — no re-render) so stopRecording() can refuse to upload a recording
+  // that contains no sound. See src/voice/core/captureCheck.ts.
+  const captureStartedAtRef = useRef(0);
+  const capturePeakRef = useRef(createPeakTracker());
+  const captureMeterTimerRef = useRef<any>(null);
+  const stopCaptureMeter = useCallback(() => {
+    if (captureMeterTimerRef.current) { clearInterval(captureMeterTimerRef.current); captureMeterTimerRef.current = null; }
+  }, []);
+  useEffect(() => stopCaptureMeter, [stopCaptureMeter]);
   const nativeSTTHandleRef = useRef<{ stop: () => Promise<any> } | null>(null);
   // Web MediaRecorder refs — used for browser-based audio recording
   const webRecorderRef = useRef<any>(null);
@@ -430,6 +467,9 @@ export default function ChatScreen() {
     async (text: string) => {
       const q = text.trim();
       if (!q || streaming || !token) return;
+      // Auto-read is on by default: asking a question while not muted lets
+      // the reply be read aloud (see noteAutoReadQuestion in speechGate).
+      if (autoSpeakRef.current) noteAutoReadQuestion();
       // T1: a guest at the quota limit is normally blocked, BUT a present-danger
       // / distress message must still reach the backend (it replies with 112 and
       // consumes no quota). Ordinary messages at the limit stay blocked.
@@ -798,8 +838,10 @@ export default function ChatScreen() {
           setHasSosBanner(true);
         }
 
-        // Auto-speak the reply if the user has that setting on and we got real text
-        if (autoSpeak && displayText.trim().length && !hadError) {
+        // Auto-speak the reply unless the user has muted (header mute button
+        // / Settings switch — read live, so muting mid-reply works) and we
+        // got real text. speak() still passes the speech gate.
+        if (autoSpeakRef.current && displayText.trim().length && !hadError) {
           // slight delay so the message renders before speech starts
           setTimeout(() => {
             speakRef.current?.(assistantId, displayText, false);
@@ -1242,7 +1284,11 @@ export default function ChatScreen() {
             perm = await AudioModule.requestRecordingPermissionsAsync();
           }
           if (!perm.granted) {
-            notify('Microphone permission', 'Please enable microphone to speak your question.');
+            if (perm.canAskAgain === false) {
+              alertPermissionBlocked('Microphone is turned off', 'To ask by voice, allow Microphone for DHARA in your phone settings. You can still type your question.');
+            } else {
+              notify('Microphone permission', 'Please enable microphone to speak your question.');
+            }
             return;
           }
           if (!isMicHeldRef.current && !lockedRef.current) return;
@@ -1263,6 +1309,20 @@ export default function ChatScreen() {
           }
           micLeaseRef.current = claimResult.lease;
           recorder.record();
+          captureStartedAtRef.current = Date.now();
+          capturePeakRef.current = createPeakTracker();
+          stopCaptureMeter();
+          captureMeterTimerRef.current = setInterval(() => {
+            // Self-terminating: every cancel/preempt/unmount path stops the
+            // recorder, so the sampler ends with it without needing a hook
+            // in each of those paths.
+            try {
+              const st = recorder.getStatus();
+              if (!st?.isRecording) { stopCaptureMeter(); return; }
+              capturePeakRef.current.add(st.metering);
+              if (VOICE_SHEET) driveVoiceLevel(voiceLevel, st.metering);
+            } catch { stopCaptureMeter(); }
+          }, 200);
           started = true;
           setRecording(true);
         } finally {
@@ -1290,7 +1350,7 @@ export default function ChatScreen() {
         webStreamRef.current = null;
       }
     }
-  }, [recorder, token, stopCloudTTS, notify, micPulse]);
+  }, [recorder, token, stopCloudTTS, notify, micPulse, stopCaptureMeter]);
 
   // Talk to DHARA — Step 5: CONFIRMING + needsConfirmation(). Inert (no-op
   // beyond the existing modal) when VOICE_COMPANION_ENABLED is OFF.
@@ -1475,6 +1535,13 @@ export default function ChatScreen() {
         // builds — every other recorder.stop() call in this file is
         // guarded the same way; this one was the odd one out and could
         // leave the mic UI stuck or surface as an unhandled rejection.
+        stopCaptureMeter();
+        try { capturePeakRef.current.add(recorder.getStatus()?.metering); } catch {}
+        const captureStats = {
+          elapsedMs: captureStartedAtRef.current ? Date.now() - captureStartedAtRef.current : 0,
+          ...capturePeakRef.current.read(),
+        };
+        captureStartedAtRef.current = 0;
         try { await recorder.stop(); } catch {}
         const uri = recorder.uri;
         // P0-C: never flip allowsRecording:false while the Evidence Locker
@@ -1492,6 +1559,15 @@ export default function ChatScreen() {
         if (!uri) {
           setTranscribing(false);
           notify('Microphone', sttErrorToMessage(new Error('__no_recording__')));
+          return;
+        }
+        // Silent-capture guard: numbers only (duration, level, sample count)
+        // — no audio content, no transcript. Diagnostic code DHARA/VOICE_CAPTURE.
+        const captureVerdict = classifyCapture(captureStats);
+        console.warn('DHARA/VOICE_CAPTURE', captureVerdict, Math.round(captureStats.elapsedMs), captureStats.peakDb === null ? 'no-meter' : Math.round(captureStats.peakDb), captureStats.samples);
+        if (captureVerdict !== 'ok') {
+          setTranscribing(false);
+          notify('Microphone', captureVerdict === 'silent' ? CAPTURE_SILENT_MESSAGE : CAPTURE_TOO_SHORT_MESSAGE);
           return;
         }
         if (!token) { setTranscribing(false); return; }
@@ -1519,7 +1595,7 @@ export default function ChatScreen() {
       // per status, with a Retry that resends the same recording.
       showTranscriptionError(e, retryTranscription);
     }
-  }, [recorder, token, language, notify, forceLogout, showTranscriptionError, retryTranscription, deleteRetryAudio]);
+  }, [recorder, token, language, notify, forceLogout, showTranscriptionError, retryTranscription, deleteRetryAudio, stopCaptureMeter]);
 
   // WhatsApp-style hold-to-talk handlers
   const onMicPressIn = useCallback(() => {
@@ -1717,6 +1793,24 @@ export default function ChatScreen() {
     return () => sub.remove();
   }, [onLockedCancel, stopCloudTTS]);
 
+  // Ask header mute button. Muted = no automatic reading; it stays muted
+  // (saved on the phone, same value as the Settings "Answers spoken aloud
+  // automatically" switch) until the user taps the button again. The speaker
+  // icon on each reply still works while muted.
+  const toggleMute = useCallback(() => {
+    if (autoSpeakRef.current) {
+      autoSpeakRef.current = false;
+      stopCloudTTS();
+      stopNativeTTS();
+      void setAutoSpeak(false);
+    } else {
+      autoSpeakRef.current = true;
+      void setAutoSpeak(true);
+      // Unmuting is an explicit "I want to hear answers" tap.
+      void setVoiceReadAloud(true);
+    }
+  }, [setAutoSpeak, stopCloudTTS]);
+
   // PanResponder for the WhatsApp slide-to-cancel / slide-up-to-lock gestures
   // on the mic button.
   const micPanResponder = useMemo(() => PanResponder.create({
@@ -1870,6 +1964,17 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']} testID="chat-screen">
+      {VOICE_SHEET && (
+        <VoiceSheet
+          visible={recording || transcribing}
+          phase={recording ? 'listening' : 'understanding'}
+          elapsedSeconds={holdElapsed}
+          level={voiceLevel}
+          languageName={language.native}
+          onDone={onMicPressOut}
+          onCancel={onLockedCancel}
+        />
+      )}
       {/* Web-only: centers the chat column on wide desktop viewports instead
           of stretching mobile-width UI across the whole browser window.
           `styles.safe` (the full-viewport backdrop) and this wrapper share
@@ -1882,9 +1987,12 @@ export default function ChatScreen() {
           Does NOT scroll with the chat conversation. */}
       <View style={styles.topZone}>
 
-      {/* ── HEADER — title · lang chip · usage pill · New Chat ─────────────── */}
+      {/* ── HEADER (redesign v3, stage 9) ─────────────────────────────────
+          The navy bar now carries only the brand and SOS, like every other
+          screen. New chat, History and Sound moved to a slim, labelled row
+          under it: three unlabelled round buttons were filling the header
+          and nobody could tell what they did. */}
       <View style={styles.header}>
-        {/* Left: branding + language chip */}
         <View style={styles.headerBrand}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Text style={styles.title}>Dhara</Text>
@@ -1895,46 +2003,60 @@ export default function ChatScreen() {
               </View>
             )}
           </View>
-          <Pressable
-            testID="header-lang-chip"
-            style={(s) => [styles.langChip, focusRingStyle(s)]}
-            onPress={() => router.push('/(tabs)/settings')}
-            hitSlop={UI_REVISION_V1 ? 14 : 6}
-            accessibilityRole="button"
-            accessibilityLabel={`Change language. Current language: ${language.native}`}
-          >
-            <Ionicons name="language-outline" size={12} color={theme.colors.brand} />
-            <Text style={styles.langChipText}>{language.native}</Text>
-          </Pressable>
+          {!headerSize.short && <Text style={styles.headerTagline} numberOfLines={1}>Your legal rights. Always with you.</Text>}
         </View>
+        {/* UI_V22_ONE_SOS (B-122): SOS sits in the header row, in normal
+            layout. Hidden inside the desktop frame (sidebar SOS). */}
+        {UI_V22_ONE_SOS && <SosPill compact />}
+      </View>
 
-        {/* Right: New Chat + History — clean header, no usage clutter */}
-        <View style={styles.headerButtons}>
-          <Pressable
-            testID="new-chat-button"
-            style={(s) => [styles.newChatBtn, focusRingStyle(s)]}
-            onPress={startNewChat}
-            accessibilityRole="button"
-            accessibilityLabel={t('home.newChat', language.code)}
-          >
-            <Ionicons name="add" size={16} color={theme.colors.brand} />
-            <Text style={styles.newChatText}>{t('home.newChat', language.code)}</Text>
-          </Pressable>
-          <Pressable
-            testID="history-header-btn"
-            style={(s) => [styles.historyHeaderBtn, focusRingStyle(s)]}
-            onPress={() => router.push('/(tabs)/history?from=ask' as any)}
-            hitSlop={6}
-            accessibilityRole="button"
-            accessibilityLabel="Chat history"
-          >
-            <Ionicons name="time-outline" size={22} color={theme.colors.brand} />
-          </Pressable>
-          {/* UI_V22_ONE_SOS (B-122): SOS sits in the header row, in normal
-              layout, instead of the tab layout's floating pill that covered
-              "New chat". Hidden inside the desktop frame (sidebar SOS). */}
-          {UI_V22_ONE_SOS && <SosPill compact />}
-        </View>
+      <View style={styles.askTools} testID="ask-tools">
+        <Pressable
+          testID="header-lang-chip"
+          style={(s) => [styles.toolChip, focusRingStyle(s)]}
+          onPress={() => router.push('/(tabs)/settings')}
+          hitSlop={{ top: 6, bottom: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel={`Change language. Current language: ${language.native}`}
+        >
+          <Ionicons name="language-outline" size={16} color={theme.colors.navy} />
+          <Text style={styles.toolChipText} numberOfLines={1}>{language.native}</Text>
+        </Pressable>
+        <View style={{ flex: 1 }} />
+        <Pressable
+          testID="new-chat-button"
+          style={(s) => [styles.toolChip, focusRingStyle(s)]}
+          onPress={startNewChat}
+          hitSlop={{ top: 6, bottom: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('home.newChat', language.code)}
+        >
+          <Ionicons name="add" size={18} color={theme.colors.navy} />
+          <Text style={styles.toolChipText} numberOfLines={1}>{t('home.newChat', language.code)}</Text>
+        </Pressable>
+        <Pressable
+          testID="history-header-btn"
+          style={(s) => [styles.toolChip, focusRingStyle(s)]}
+          onPress={() => router.push('/(tabs)/history?from=ask' as any)}
+          hitSlop={{ top: 6, bottom: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel="Chat history"
+        >
+          <Ionicons name="time-outline" size={16} color={theme.colors.navy} />
+          {headerSize.windowWidth >= 360 && <Text style={styles.toolChipText}>History</Text>}
+        </Pressable>
+        <Pressable
+          testID="ask-mute-btn"
+          style={(s) => [styles.toolChip, !autoSpeak && styles.toolChipOff, focusRingStyle(s)]}
+          onPress={toggleMute}
+          hitSlop={{ top: 6, bottom: 6 }}
+          accessibilityRole="button"
+          accessibilityState={{ selected: !autoSpeak }}
+          accessibilityLabel={autoSpeak ? 'Mute: stop reading answers aloud' : 'Unmute: read answers aloud'}
+        >
+          <Ionicons name={autoSpeak ? 'volume-high-outline' : 'volume-mute-outline'} size={17} color={autoSpeak ? theme.colors.navy : theme.colors.muted} />
+          {headerSize.windowWidth >= 400 && <Text style={[styles.toolChipText, !autoSpeak && { color: theme.colors.muted }]}>{autoSpeak ? 'Sound on' : 'Sound off'}</Text>}
+        </Pressable>
       </View>
 
       {/* ── Verified-sources scrolling ticker ────────────────────────────── */}
@@ -2211,13 +2333,13 @@ export default function ChatScreen() {
                                 )}
                                 {isIpcCitation(c) && (
                                   <View style={styles.ipcNoticeRow} testID={`ipc-notice-${c.key}`}>
-                                    <Ionicons name="information-circle" size={13} color="#92400E" />
+                                    <Ionicons name="information-circle" size={13} color="#8A6A1E" />
                                     <Text style={styles.ipcNoticeText}>This section has been renumbered or replaced under BNS 2023, effective 1 July 2024.</Text>
                                   </View>
                                 )}
                                 {!!c.registry_gap_note && (
                                   <View style={styles.gapNoteRow} testID={`gap-note-${c.key}`}>
-                                    <Ionicons name="information-circle-outline" size={13} color="#1D4ED8" />
+                                    <Ionicons name="information-circle-outline" size={13} color="#1E5BD0" />
                                     <Text style={styles.gapNoteText}>{c.registry_gap_note}</Text>
                                   </View>
                                 )}
@@ -2274,13 +2396,13 @@ export default function ChatScreen() {
                         )}
                         {isIpcCitation(c) && (
                           <View style={styles.ipcNoticeRow} testID={`ipc-notice-${c.key}`}>
-                            <Ionicons name="information-circle" size={13} color="#92400E" />
+                            <Ionicons name="information-circle" size={13} color="#8A6A1E" />
                             <Text style={styles.ipcNoticeText}>This section has been renumbered or replaced under BNS 2023, effective 1 July 2024.</Text>
                           </View>
                         )}
                         {!!c.registry_gap_note && (
                           <View style={styles.gapNoteRow} testID={`gap-note-${c.key}`}>
-                            <Ionicons name="information-circle-outline" size={13} color="#1D4ED8" />
+                            <Ionicons name="information-circle-outline" size={13} color="#1E5BD0" />
                             <Text style={styles.gapNoteText}>{c.registry_gap_note}</Text>
                           </View>
                         )}
@@ -2601,7 +2723,9 @@ export default function ChatScreen() {
               >
                 <Ionicons name="arrow-up" size={24} color={theme.colors.onBrandPrimary} />
               </Pressable>
-            ) : Platform.OS === 'web' ? (
+            ) : (Platform.OS === 'web' || VOICE_SHEET) ? (
+              // With the voice pop-up on, phones use the same tap-to-start mic as
+              // the web: one tap opens the pop-up, Done or Cancel closes it.
               <Pressable
                 testID="mic-button"
                 onPress={onWebMicPress}
@@ -2610,9 +2734,9 @@ export default function ChatScreen() {
                 accessibilityLabel={recording ? 'Stop recording and send' : 'Record a voice message'}
               >
                 {transcribing ? (
-                  <ActivityIndicator color={theme.colors.onBrandPrimary} />
+                  <ActivityIndicator color={theme.colors.navy} />
                 ) : (
-                  <Ionicons name={recording ? 'stop' : 'mic'} size={26} color={theme.colors.onBrandPrimary} />
+                  <Ionicons name={recording ? 'stop' : 'mic'} size={26} color={theme.colors.navy} />
                 )}
               </Pressable>
             ) : (
@@ -2635,12 +2759,12 @@ export default function ChatScreen() {
                 {...micPanResponder.panHandlers}
               >
                 {transcribing ? (
-                  <ActivityIndicator color={theme.colors.onBrandPrimary} />
+                  <ActivityIndicator color={theme.colors.navy} />
                 ) : (
                   <Ionicons
                     name={recording && slideCancelled ? 'trash' : 'mic'}
                     size={26}
-                    color={theme.colors.onBrandPrimary}
+                    color={theme.colors.navy}
                   />
                 )}
               </Animated.View>

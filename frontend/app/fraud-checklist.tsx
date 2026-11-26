@@ -181,10 +181,10 @@ export default function FraudChecklist() {
   const isStale = elapsed >= 86400;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']} testID="fraud-checklist-screen">
+    <SafeAreaView style={styles.safe} edges={[]} testID="fraud-checklist-screen">
       <View style={styles.header}>
         <Pressable testID="fraud-back" onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="chevron-back" size={26} color={theme.colors.onBrandPrimary} />
+          <Ionicons name="chevron-back" size={26} color={theme.colors.navy} />
         </Pressable>
         <Text style={styles.h1}>Fraud golden hour</Text>
         <View style={{ width: 26 }} />
@@ -242,7 +242,7 @@ export default function FraudChecklist() {
                   style={styles.actionBtn}
                   onPress={() => open(s.action!.url)}
                 >
-                  <Ionicons name={s.action.icon} size={16} color={theme.colors.onBrandSecondary} />
+                  <Ionicons name={s.action.icon} size={16} color="#FFFFFF" />
                   <Text style={styles.actionText}>{s.action.label}</Text>
                 </Pressable>
               )}
@@ -263,47 +263,47 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.surface },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: theme.spacing.lg, backgroundColor: theme.colors.brand,
+    paddingHorizontal: theme.spacing.lg, paddingVertical: 12, backgroundColor: theme.colors.background, borderBottomWidth: 1, borderBottomColor: theme.colors.lines,
   },
-  h1: { fontFamily: theme.fonts.display, fontSize: 19, color: theme.colors.onBrandPrimary, fontWeight: '700' },
+  h1: { fontFamily: theme.fonts.display, fontSize: 16, color: theme.colors.ink, fontWeight: '700' },
   timerBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.md,
     backgroundColor: theme.colors.goldSoft, borderBottomWidth: 1, borderBottomColor: theme.colors.gold,
   },
-  timerLabel: { color: theme.colors.brand, fontSize: 12, fontWeight: '600' },
-  timer: { color: theme.colors.brand, fontSize: 26, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  timerStale: { color: theme.colors.onSurfaceSecondary, fontSize: 16 },
+  timerLabel: { color: theme.colors.brand, fontSize: 12, fontFamily: 'InterSemiBold'},
+  timer: { color: theme.colors.brand, fontSize: 22, fontFamily: 'InterExtraBold', fontVariant: ['tabular-nums'] },
+  timerStale: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 14 },
   newTopBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 10, paddingVertical: 4,
     borderRadius: theme.radius.pill, borderWidth: 1, borderColor: theme.colors.brand,
   },
-  newTopText: { color: theme.colors.brand, fontSize: 11, fontWeight: '700' },
+  newTopText: { color: theme.colors.brand, fontSize: 12, fontFamily: 'InterBold'},
   progressPill: {
     backgroundColor: theme.colors.brand, borderRadius: theme.radius.pill,
     paddingHorizontal: theme.spacing.md, paddingVertical: 6,
   },
-  progressText: { color: theme.colors.onBrandPrimary, fontWeight: '700', fontSize: 12 },
+  progressText: { color: theme.colors.onBrandPrimary, fontFamily: 'InterBold', fontSize: 12 },
   scroll: { padding: theme.spacing.lg, gap: theme.spacing.md, paddingBottom: theme.spacing.xxxl },
-  intro: { color: theme.colors.onSurfaceSecondary, fontSize: 14, lineHeight: 21 },
+  intro: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 13, lineHeight: 18 },
   card: {
-    backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.paper, borderRadius: theme.radius.md,
     borderWidth: 1, borderColor: theme.colors.border, padding: theme.spacing.lg, gap: theme.spacing.md,
   },
   cardDone: { borderColor: theme.colors.success, backgroundColor: '#F0F7F3' },
   cardTop: { flexDirection: 'row', gap: theme.spacing.md, alignItems: 'flex-start', minHeight: 48 },
-  stepTitle: { color: theme.colors.brand, fontWeight: '800', fontSize: 15 },
+  stepTitle: { color: theme.colors.brand, fontFamily: 'InterExtraBold', fontSize: 13 },
   stepTitleDone: { textDecorationLine: 'line-through', color: theme.colors.success },
-  stepDetail: { color: theme.colors.onSurfaceSecondary, fontSize: 13, lineHeight: 19, marginTop: 4 },
+  stepDetail: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 12, lineHeight: 17, marginTop: 4 },
   actionBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: theme.colors.brandSecondary, borderRadius: theme.radius.md, minHeight: 46,
+    backgroundColor: theme.colors.navy, borderRadius: theme.radius.md, minHeight: 48,
   },
-  actionText: { color: theme.colors.onBrandSecondary, fontWeight: '800', fontSize: 14 },
+  actionText: { color: '#FFFFFF', fontFamily: 'InterExtraBold', fontSize: 13 },
   reset: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     minHeight: 48, marginTop: theme.spacing.md,
   },
-  resetText: { color: theme.colors.onSurfaceSecondary, fontWeight: '600', fontSize: 13 },
+  resetText: { color: theme.colors.onSurfaceSecondary, fontFamily: 'InterSemiBold', fontSize: 12 },
 });

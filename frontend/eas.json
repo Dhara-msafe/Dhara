@@ -28,7 +28,6 @@
         "EXPO_PUBLIC_UI_V22_P8": "true",
         "EXPO_PUBLIC_UI_V22_P9": "true",
         "EXPO_PUBLIC_UI_V22_P10": "true",
-        "EXPO_PUBLIC_UI_V22_DOCK": "true",
         "EXPO_PUBLIC_UI_V22_ONE_SOS": "true",
         "EXPO_PUBLIC_UI_V22_MYDATA": "true",
         "EXPO_PUBLIC_UI_V22_SWEEP": "true",
@@ -37,7 +36,10 @@
         "EXPO_PUBLIC_UI_V22_S10": "true",
         "EXPO_PUBLIC_UI_V22_S12": "true",
         "EXPO_PUBLIC_UI_V22_S2": "true",
+"EXPO_PUBLIC_UI_V22_S3": "true",
+"EXPO_PUBLIC_UI_V22_TYPE": "true",
         "EXPO_PUBLIC_UI_INPUT_INSET": "true",
+        "EXPO_PUBLIC_UI_V22_HOME_SIMPLE": "true",
         "EXPO_PUBLIC_ENABLE_ISSUE_REPORTER": "true",
         "EXPO_PUBLIC_HEADOUT_DEMO": "false"
       },
@@ -68,7 +70,6 @@
         "EXPO_PUBLIC_UI_V22_P8": "true",
         "EXPO_PUBLIC_UI_V22_P9": "true",
         "EXPO_PUBLIC_UI_V22_P10": "true",
-        "EXPO_PUBLIC_UI_V22_DOCK": "true",
         "EXPO_PUBLIC_UI_V22_ONE_SOS": "true",
         "EXPO_PUBLIC_UI_V22_MYDATA": "true",
         "EXPO_PUBLIC_UI_V22_SWEEP": "true",
@@ -77,7 +78,10 @@
         "EXPO_PUBLIC_UI_V22_S10": "true",
         "EXPO_PUBLIC_UI_V22_S12": "true",
         "EXPO_PUBLIC_UI_V22_S2": "true",
+"EXPO_PUBLIC_UI_V22_S3": "true",
+"EXPO_PUBLIC_UI_V22_TYPE": "true",
         "EXPO_PUBLIC_UI_INPUT_INSET": "true",
+        "EXPO_PUBLIC_UI_V22_HOME_SIMPLE": "true",
         "EXPO_PUBLIC_ENABLE_ISSUE_REPORTER": "true",
         "EXPO_PUBLIC_HEADOUT_DEMO": "false"
       },
@@ -104,7 +108,6 @@
         "EXPO_PUBLIC_UI_V22_P8": "true",
         "EXPO_PUBLIC_UI_V22_P9": "true",
         "EXPO_PUBLIC_UI_V22_P10": "true",
-        "EXPO_PUBLIC_UI_V22_DOCK": "true",
         "EXPO_PUBLIC_UI_V22_ONE_SOS": "true",
         "EXPO_PUBLIC_UI_V22_MYDATA": "true",
         "EXPO_PUBLIC_UI_V22_SWEEP": "true",
@@ -113,7 +116,10 @@
         "EXPO_PUBLIC_UI_V22_S10": "true",
         "EXPO_PUBLIC_UI_V22_S12": "true",
         "EXPO_PUBLIC_UI_V22_S2": "true",
+"EXPO_PUBLIC_UI_V22_S3": "true",
+"EXPO_PUBLIC_UI_V22_TYPE": "true",
         "EXPO_PUBLIC_UI_INPUT_INSET": "true",
+        "EXPO_PUBLIC_UI_V22_HOME_SIMPLE": "true",
         "EXPO_PUBLIC_ENABLE_ISSUE_REPORTER": "true",
         "EXPO_PUBLIC_HEADOUT_DEMO": "false"
       },
@@ -124,7 +130,11 @@
     "production": {
       "distribution": "store",
       "env": {
-        "EXPO_PUBLIC_HEADOUT_DEMO": "false"
+        "EXPO_PUBLIC_HEADOUT_DEMO": "false",
+        "EXPO_PUBLIC_OUTBOUND_MODE": "live",
+        "EXPO_PUBLIC_OUTBOUND_PROFILE": "production",
+        "EXPO_PUBLIC_ALERT_SIMULATION_MODE": "false",
+        "EXPO_PUBLIC_ENABLE_ISSUE_REPORTER": "false"
       },
       "android": {
         "buildType": "app-bundle"

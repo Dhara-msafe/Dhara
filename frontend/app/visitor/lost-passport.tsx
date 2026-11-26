@@ -106,7 +106,7 @@ export default function VisitorLostPassport() {
           <View style={s.nationalityCard}>
             <Text style={s.nationalityTitle}>Which embassy should we show you?</Text>
             <Text style={s.nationalitySub}>
-              Based on your app language we guessed <Text style={{ fontWeight: '700' }}>{suggestedEmb.name}</Text> — but speaking a language doesn&apos;t always match your citizenship. Please confirm:
+              Based on your app language we guessed <Text style={{ fontFamily: 'InterBold'}}>{suggestedEmb.name}</Text> — but speaking a language doesn&apos;t always match your citizenship. Please confirm:
             </Text>
             <Pressable style={s.nationalityConfirmBtn} onPress={() => confirmEmbassy(lc)}>
               <Ionicons name="checkmark-circle" size={18} color="#fff" />
@@ -189,7 +189,7 @@ export default function VisitorLostPassport() {
             {/* Speak For Me */}
             {step.speak_hi && (
               <View>
-                <Text style={s.speakLabel}>{`🎙 SPEAK FOR ME (to official in ${speakLang.label}):`}</Text>
+                <Text style={s.speakLabel}>{`SPEAK FOR ME (to official in ${speakLang.label}):`}</Text>
                 <View style={s.speakBox}>
                   <Text style={s.speakText}>{phraseFor(step)}</Text>
                 </View>
@@ -214,7 +214,7 @@ export default function VisitorLostPassport() {
         <View style={s.firCard}>
           <Ionicons name="information-circle" size={20} color={C.primary} />
           <Text style={s.firText}>
-            Need help drafting the police complaint? Use DHARA&apos;s FIR builder — tap <Text style={{ fontWeight: '700' }}>Complaints</Text> tab in the main app.
+            Need help drafting the police complaint? Use DHARA&apos;s FIR builder — tap <Text style={{ fontFamily: 'InterBold'}}>Complaints</Text> tab in the main app.
           </Text>
         </View>
 
@@ -235,35 +235,35 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 14,
   },
   headerText:  { flex: 1 },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: '#fff' },
-  headerSub:   { fontSize: 12, color: '#C5CEEA', marginTop: 3 },
+  headerTitle: { fontSize: 16, fontFamily: 'InterExtraBold', color: '#fff' },
+  headerSub:   { fontFamily: 'Inter', fontSize: 12, color: '#D2E1FD', marginTop: 3 },
 
   embassyCard: {
     backgroundColor: C.primary, borderRadius: 14, padding: 16, marginBottom: 14,
     gap: 6,
   },
   embassyRow:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  embassyTitle:{ fontSize: 14, fontWeight: '700', color: '#fff', flex: 1 },
-  embassyChange:{ fontSize: 12, fontWeight: '700', color: C.gold, textDecorationLine: 'underline' },
-  embassyCity: { fontSize: 12, color: '#C5CEEA', marginLeft: 28 },
+  embassyTitle:{ fontSize: 13, fontFamily: 'InterBold', color: '#fff', flex: 1 },
+  embassyChange:{ fontSize: 12, fontFamily: 'InterBold', color: C.gold, textDecorationLine: 'underline' },
+  embassyCity: { fontFamily: 'Inter', fontSize: 12, color: '#D2E1FD', marginLeft: 28 },
   embassyCall: { flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 28, marginTop: 4 },
-  embassyPhone:{ fontSize: 15, fontWeight: '700', color: C.gold },
+  embassyPhone:{ fontSize: 13, fontFamily: 'InterBold', color: C.gold },
 
   nationalityCard: {
     backgroundColor: C.surface, borderRadius: 14, padding: 16, marginBottom: 14,
     borderWidth: 1, borderColor: C.divider, gap: 10,
   },
-  nationalityTitle: { fontSize: 15, fontWeight: '800', color: C.onSurface },
-  nationalitySub:   { fontSize: 12, color: C.onSurfaceTertiary, lineHeight: 18 },
+  nationalityTitle: { fontSize: 13, fontFamily: 'InterExtraBold', color: C.onSurface },
+  nationalitySub:   { fontFamily: 'Inter', fontSize: 12, color: C.onSurfaceTertiary, lineHeight: 16 },
   nationalityConfirmBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: C.primary, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 10,
   },
   nationalityList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   nationalityChip: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: C.border, backgroundColor: C.navySoft },
-  nationalityChipTxt: { fontSize: 12, fontWeight: '600', color: C.primary },
+  nationalityChipTxt: { fontSize: 12, fontFamily: 'InterSemiBold', color: C.primary },
   nationalityUnsureBtn: { alignItems: 'center', paddingVertical: 8 },
-  nationalityUnsureTxt: { fontSize: 12, color: C.onSurfaceTertiary, textDecorationLine: 'underline' },
+  nationalityUnsureTxt: { fontFamily: 'Inter', fontSize: 12, color: C.onSurfaceTertiary, textDecorationLine: 'underline' },
 
   stepCard:   {
     backgroundColor: C.surface, borderRadius: 14, padding: 16,
@@ -274,32 +274,32 @@ const s = StyleSheet.create({
     width: 28, height: 28, borderRadius: 14, backgroundColor: C.primary,
     alignItems: 'center', justifyContent: 'center',
   },
-  stepNumText: { color: '#fff', fontWeight: '800', fontSize: 13 },
-  stepTitle:   { flex: 1, fontSize: 15, fontWeight: '700', color: C.onSurface },
-  stepBody:    { fontSize: 13, color: C.onSurfaceTertiary, lineHeight: 20, marginBottom: 12 },
+  stepNumText: { color: '#fff', fontFamily: 'InterExtraBold', fontSize: 12 },
+  stepTitle:   { flex: 1, fontSize: 13, fontFamily: 'InterBold', color: C.onSurface },
+  stepBody:    { fontFamily: 'Inter', fontSize: 12, color: C.onSurfaceTertiary, lineHeight: 18, marginBottom: 12 },
 
   actionBtn:     {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, borderRadius: 10, paddingVertical: 12, marginBottom: 8,
   },
-  actionBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  actionBtnText: { fontSize: 13, fontFamily: 'InterBold', color: '#fff' },
 
-  speakLabel: { fontSize: 11, fontWeight: '700', color: C.primary, letterSpacing: 0.5, marginBottom: 6 },
+  speakLabel: { fontSize: 12, fontFamily: 'InterBold', color: C.primary, letterSpacing: 0.5, marginBottom: 6 },
   speakBox:   {
     backgroundColor: C.navySoft, borderRadius: 10, padding: 12,
     borderLeftWidth: 3, borderLeftColor: C.primary,
   },
-  speakText:  { fontSize: 14, color: C.primary, lineHeight: 22, fontStyle: 'italic' },
+  speakText:  { fontFamily: 'Inter', fontSize: 13, color: C.primary, lineHeight: 19 },
 
   firCard: {
-    flexDirection: 'row', gap: 10, backgroundColor: '#EFF6FF',
-    borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#BFDBFE',
+    flexDirection: 'row', gap: 10, backgroundColor: '#EEF5FF',
+    borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#D2E1FD',
     alignItems: 'flex-start', marginBottom: 12,
   },
-  firText: { flex: 1, fontSize: 13, color: C.primary, lineHeight: 19 },
+  firText: { flex: 1, fontFamily: 'Inter', fontSize: 12, color: C.primary, lineHeight: 17 },
 
   footnote: {
-    fontSize: 11, color: C.onSurfaceTertiary, textAlign: 'center',
+    fontFamily: 'Inter', fontSize: 12, color: C.onSurfaceTertiary, textAlign: 'center',
     lineHeight: 17, marginTop: 4,
   },
 });

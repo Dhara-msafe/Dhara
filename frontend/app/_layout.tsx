@@ -16,6 +16,8 @@ import { useAppFonts } from "@/src/hooks/use-app-fonts";
 import { DesktopFrame } from "@/src/components/dhara/DesktopFrame";
 import { GlobalHelpButton } from "@/src/components/dhara/GlobalHelpButton";
 import { QaModeBanner } from "@/src/components/dhara/QaModeBanner";
+import { QaInsetFrame } from "@/src/components/dhara/QaModeBanner";
+import { AutoHeaderFrame } from "@/src/ui/AutoHeader";
 import { IssueReporterButton } from "@/src/components/IssueReporterButton";
 import { DockedStack } from "@/src/components/dhara/FloatingDock";
 import { UI_V22_DOCK } from "@/src/uiV22Flags";
@@ -30,6 +32,10 @@ import { GuestRecoveryModal } from "@/src/women/GuestRecoveryModal";
 import { theme } from "@/src/theme";
 import { EvidenceRecorderProvider } from "@/src/women/EvidenceRecorderProvider";
 import { initSpeechGate, enterWomensShield, leaveWomensShield, isWomensShieldRoute } from "@/src/voice/speechGate";
+// D-42: registers the Head Out background-location task at app start, so
+// fixes delivered to a cold, headless process still reach the handler.
+// A no-op while EXPO_PUBLIC_HEADOUT_BG_TRACKING is off.
+import "@/src/women/headOutBgTracking";
 import { usePreventScreenCapture } from "expo-screen-capture";
 import { useShakeDetector } from "@/src/women/shakeActivation";
 import {
@@ -67,10 +73,10 @@ class RootErrorBoundary extends Component<BoundaryProps, BoundaryState> {
     if (this.state.hasError) {
       return (
         <View testID="root-error-boundary" style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 28, backgroundColor: theme.colors.surface }}>
-          <Text testID="root-error-title" style={{ color: theme.colors.primary, fontSize: 24, fontWeight: "700", textAlign: "center" }}>Dhara needs to restart</Text>
-          <Text testID="root-error-message" style={{ color: theme.colors.onSurfaceSecondary, fontSize: 16, lineHeight: 24, marginTop: 12, textAlign: "center" }}>A screen could not load safely. Your saved information is not affected.</Text>
-          <Pressable testID="root-error-retry" accessibilityRole="button" onPress={() => this.setState({ hasError: false })} style={{ backgroundColor: theme.colors.primary, borderRadius: 12, marginTop: 24, minHeight: 48, justifyContent: "center", paddingHorizontal: 22 }}>
-            <Text style={{ color: theme.colors.onBrandPrimary, fontSize: 16, fontWeight: "700" }}>Try again</Text>
+          <Text testID="root-error-title" style={{ color: theme.colors.primary, fontSize: 21, fontWeight: "700", textAlign: "center" }}>Dhara needs to restart</Text>
+          <Text testID="root-error-message" style={{ color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 14, lineHeight: 21, marginTop: 12, textAlign: "center" }}>A screen could not load safely. Your saved information is not affected.</Text>
+          <Pressable testID="root-error-retry" accessibilityRole="button" onPress={() => this.setState({ hasError: false })} style={{ backgroundColor: theme.colors.primary, borderRadius: 12, marginTop: 18, minHeight: 48, justifyContent: "center", paddingHorizontal: 18 }}>
+            <Text style={{ color: theme.colors.onBrandPrimary, fontSize: 14, fontWeight: "700" }}>Try again</Text>
           </Pressable>
         </View>
       );
@@ -93,7 +99,7 @@ function ConsentGuard() {
     // they must open immediately for any visitor, with or without an account.
     // 'how-it-helps' added v2.2.1 Stage 4 Group D: new pre-login onboarding
     // screen shown right after /language, same exemption reason as 'language'.
-    if (loading || !segments.length || segments[0] === 'language' || segments[0] === 'how-it-helps' || segments[0] === 'consent' || segments[0] === 'emergency' || segments[0] === 'guardian' || segments[0] === 'pay-upi' || segments[0] === 'admin-upi-review' || segments[0] === 'admin-issues') return;
+    if (loading || !segments.length || segments[0] === 'language' || segments[0] === 'how-it-helps' || segments[0] === 'consent' || segments[0] === 'ui-kit' /* redesign v3 parts gallery: static, test builds only */ || segments[0] === 'emergency' || segments[0] === 'guardian' || segments[0] === 'pay-upi' || segments[0] === 'admin-upi-review' || segments[0] === 'admin-issues') return;
     // 22 Nov (Vivek): signing in to an existing account, or resetting its
     // password, needs no new notice. Whoever creates something new on this
     // device is asked: "Create an account" lands on /signup (redirected below
@@ -186,7 +192,8 @@ function ScreenCaptureLock() {
 }
 /** Inner component so the hook runs only when rendered (i.e. on native). */
 function NativeCaptureLock() {
-  usePreventScreenCapture();
+  // usePreventScreenCapture(); // disabled — screenshots allowed
+  // TODO: re-enable + add expo-screen-capture plugin before public Play release
   return null;
 }
 
@@ -378,7 +385,7 @@ export default function RootLayout() {
   // away before finishing a compliance step, but the same is true of
   // sign-in/sign-up and the account-deletion flows. These screens get the
   // plain, full-bleed layout even on a wide browser.
-  const STANDALONE_ROUTES = ['/consent', '/login', '/signup', '/forgot-password', '/delete-account'];
+  const STANDALONE_ROUTES = ['/consent', '/permissions-setup', '/login', '/signup', '/forgot-password', '/delete-account'];
   const isStandaloneScreen = STANDALONE_ROUTES.some(
     (r) => pathname === r || pathname?.startsWith(`${r}/`),
   );
@@ -473,7 +480,11 @@ export default function RootLayout() {
                   </DockedStack>
                 ) : (
                 <View style={{ flex: 1 }}>
-                  <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.surface } }} />
+                  <QaInsetFrame>
+                    <AutoHeaderFrame>
+                    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.surface } }} />
+                    </AutoHeaderFrame>
+                  </QaInsetFrame>
                   <GlobalHelpButton />
                   <IssueReporterButton />
                 </View>

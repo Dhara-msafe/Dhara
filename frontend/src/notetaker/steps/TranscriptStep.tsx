@@ -89,22 +89,22 @@ export default function TranscriptStep({
 }
 
 const styles = StyleSheet.create({
-  wrap: { padding: 20, gap: 4 },
-  heading: { fontFamily: theme.fonts.display, fontSize: 20, color: c.navy, marginBottom: 6 },
-  body: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, lineHeight: 20, marginBottom: 16 },
+  wrap: { padding: 16, gap: 4 },
+  heading: { fontFamily: theme.fonts.display, fontSize: 17, color: c.navy, marginBottom: 6 },
+  body: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18, marginBottom: 16 },
   textArea: {
     borderWidth: 1.5, borderColor: c.border, borderRadius: 12, padding: 14,
-    fontFamily: theme.fonts.body, fontSize: 15, color: c.ink, backgroundColor: c.surface,
+    fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, backgroundColor: c.surface,
     minHeight: 260,
   },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
   linkBtn: { paddingVertical: 8 },
-  linkBtnText: { fontFamily: theme.fonts.bodyMedium, fontSize: 13, color: c.navy, textDecorationLine: 'underline' },
+  linkBtnText: { fontFamily: theme.fonts.bodyMedium, fontSize: 12, color: c.navy, textDecorationLine: 'underline' },
   secondarySmallBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: c.surfaceSecondary },
-  secondarySmallBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy },
+  secondarySmallBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.navy },
   originalBox: { backgroundColor: c.surfaceSecondary, borderRadius: 12, padding: 14, marginTop: 10 },
-  originalText: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 19 },
+  originalText: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 17 },
   primaryBtn: { backgroundColor: c.navy, borderRadius: 12, paddingVertical: 16, alignItems: 'center' },
   disabledBtn: { opacity: 0.4 },
-  primaryBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 16, color: '#fff' },
+  primaryBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: '#fff' },
 });

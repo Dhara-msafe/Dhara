@@ -75,25 +75,26 @@ test('layout tokens: cardLg radius, 48px touch target, breakpoints', () => {
   assert.equal(tokens.breakpoints.desktop, 1100);
 });
 
-test('phase 1 is additive: pre-existing values are unchanged', () => {
-  // Spot-check the values every screen already depends on. If any of these
-  // fail, phase 1 stopped being presentation-neutral.
-  const unchanged = [
-    "navy: '#14365A'",
-    "deepNavy: '#0E2740'",
-    "gold: '#D3B675'",
+// Redesign v3 (26 Nov 2026) deliberately replaced the core palette, corners
+// and fonts with the approved standalone.html prototype's values, so this
+// spot-check now pins the v3 values. Spacing is unchanged.
+test('core palette is the redesign v3 palette; spacing is unchanged', () => {
+  const expected = [
+    "navy: '#082B4F'",
+    "deepNavy: '#061A30'",
+    "gold: '#E8B956'",
     "darkGold: '#7A5B17'",
-    "cream: '#FBF7EE'",
-    "ink: '#17212B'",
-    "muted: '#505B68'",
-    "lines: '#E7DFCC'",
-    "emergencyRed: '#B42318'",
-    "success: '#1F6B4A'",
+    "cream: '#FFFAF2'",
+    "ink: '#102A45'",
+    "muted: '#64788A'",
+    "lines: '#E6DFD1'",
+    "emergencyRed: '#C73236'",
+    "success: '#087951'",
     'spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 }',
-    'sm: 8, md: 14, lg: 20, xl: 28, pill: 999', // radius (cardLg appended after)
+    'sm: 8, md: 12, lg: 17, xl: 22, pill: 999', // radius (cardLg appended after)
   ];
-  for (const snippet of unchanged) {
-    assert.ok(themeSrc.includes(snippet), `theme.ts must still contain: ${snippet}`);
+  for (const line of expected) {
+    assert.ok(themeSrc.includes(line), `theme.ts must contain: ${line}`);
   }
 });
 
