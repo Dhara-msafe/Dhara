@@ -1,5 +1,9 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, Platform, ActivityIndicator, Modal, Animated, PanResponder, AppState, type GestureResponderEvent, type PanResponderGestureState } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
+
+/** Ref type for ScrollView instances in RN 0.88 — React.ComponentRef resolves to the
+ *  function component shape in this TS config; extract the instance type explicitly. */
 import { crossAlert } from '@/src/utils/crossAlert';
 import { alertPermissionBlocked } from '@/src/permissions/setup';
 import { useHeaderSosPresent } from '@/src/ui/headerSos';
@@ -199,7 +203,7 @@ export default function ChatScreen() {
   // API is flaky across Android OEMs / web in Expo's own bug tracker) so the
   // "listening" waveform looks and behaves identically on every phone.
   const waveBars = useRef([0, 1, 2, 3, 4].map(() => new Animated.Value(0.3))).current;
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const recorder = useAudioRecorder(ASK_RECORDING_OPTIONS);
   // Silent-capture guard: samples the real mic level while recording (refs
   // only — no re-render) so stopRecording() can refuse to upload a recording
