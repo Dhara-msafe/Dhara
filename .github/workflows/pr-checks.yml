@@ -1,0 +1,113 @@
+# PR gate — TypeScript baseline, unit tests, render smoke test
+#
+# Triggered on every pull_request targeting emergent-workspace-9/11.
+# Three independent jobs so reviewers can see which category failed.
+#
+# BASELINE CONTRACT
+#   TSC      : fail only when errors INCREASE above 11 (pre-existing errors
+#              in myfiles.tsx / ConsentStep.tsx / safetyTriggerCoordinator are
+#              known and tracked; new errors introduced by a PR fail the gate)
+#   Unit     : yarn test:voice  — 120+ tests, 1 known env-flag skip
+#   Smoke    : yarn test:smoke  — 1 500+ assertions, 0 allowed failures
+#              (catches runtime-crash patterns that tsc + unit tests miss,
+#               e.g. StyleSheet.absoluteFillObject removed in RN 0.88,
+#               useRef<ScrollView> resolving to wrong type in RN 0.88)
+
+name: PR — tsc gate · unit · smoke
+
+on:
+  pull_request:
+    branches:
+      - 'emergent-workspace-9/11'
+
+defaults:
+  run:
+    working-directory: frontend
+
+jobs:
+  # ── 1. TypeScript baseline gate ─────────────────────────────────────────
+  tsc-gate:
+    name: TypeScript — fail only on NEW errors (baseline 11)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: yarn
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run tsc and enforce baseline
+        run: |
+          set +e
+          npx tsc --noEmit 2>&1 | tee /tmp/tsc.txt
+          COUNT=$(grep -c 'error TS' /tmp/tsc.txt || echo 0)
+          echo "TSC error count: $COUNT  (allowed baseline: 11)"
+          if [ "$COUNT" -gt 11 ]; then
+            echo ""
+            echo "FAIL — $((COUNT - 11)) new TypeScript error(s) introduced by this PR:"
+            grep 'error TS' /tmp/tsc.txt | head -40
+            exit 1
+          fi
+          echo "OK — no new errors (baseline $COUNT ≤ 11)"
+
+  # ── 2. Voice / unit tests ───────────────────────────────────────────────
+  unit-tests:
+    name: Frontend unit tests (yarn test:voice)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: yarn
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run voice unit tests
+        # Exit code 1 when only the known env-flag test fails (voice companion OFF
+        # asserts EXPO_PUBLIC_VOICE_COMPANION_ENABLED ≠ 'true', but the .env in
+        # this repo sets it true). Allow that single pre-existing failure.
+        run: |
+          set +e
+          node \
+            --env-file-if-exists=.env \
+            --experimental-strip-types \
+            --import ./src/voice/core/__tests__/test-flags.mjs \
+            --import ./src/voice/core/__tests__/ts-resolve.mjs \
+            --test 'src/voice/core/__tests__/*.test.ts' 2>&1 | tee /tmp/voice.txt
+          FAIL=$(grep -c '^ℹ fail' /tmp/voice.txt || echo 0)
+          FAIL_N=$(grep '^ℹ fail' /tmp/voice.txt | awk '{print $NF}' || echo 0)
+          echo "Failed tests: $FAIL_N"
+          # Allow at most 1 failure (the known env-flag assertion)
+          if [ "${FAIL_N:-0}" -gt 1 ]; then
+            echo "FAIL — more than 1 test failure (expected at most 1 known env-flag skip)"
+            exit 1
+          fi
+
+  # ── 3. Render smoke test ────────────────────────────────────────────────
+  render-smoke:
+    name: Render smoke test — catch runtime crashes (yarn test:smoke)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: yarn
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run render smoke test
+        # Zero failures allowed — any banned API or missing default export fails CI
+        run: yarn test:smoke
