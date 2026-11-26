@@ -33,6 +33,9 @@ export function AlertLocationMap({ lat, lng, accuracyMeters }: Props) {
       testID="alert-location-map"
       style={styles.map}
       provider={PROVIDER_GOOGLE}
+      // Always the light map: on Android the map otherwise follows the
+      // phone's dark mode, even though the app itself is light-only.
+      userInterfaceStyle="light"
       initialRegion={{ ...coordinate, latitudeDelta: 0.01, longitudeDelta: 0.01 }}
     >
       <Marker coordinate={coordinate} title="Last known location" />

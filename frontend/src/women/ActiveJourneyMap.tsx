@@ -77,6 +77,9 @@ export function ActiveJourneyMap({
         testID="active-journey-map-mapview"
         style={[styles.map, { height: mapHeight }]}
         provider={PROVIDER_GOOGLE}
+        // Always the light map: on Android the map otherwise follows the
+        // phone's dark mode, even though the app itself is light-only.
+        userInterfaceStyle="light"
         initialRegion={initialRegion}
         // The blue dot here is OUR marker below, not the OS's — see file header.
         showsUserLocation={false}

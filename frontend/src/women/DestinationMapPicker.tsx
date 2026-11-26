@@ -197,6 +197,9 @@ export function DestinationMapPicker({
         // Google Maps on both Android and iOS (requires EXPO_PUBLIC_GOOGLE_MAPS_IOS_API_KEY
         // to be injected via app.config.js → ios.config.googleMapsApiKey for iOS).
         provider={PROVIDER_GOOGLE}
+        // Always the light map: on Android the map otherwise follows the
+        // phone's dark mode, even though the app itself is light-only.
+        userInterfaceStyle="light"
         initialRegion={initialRegion}
         // ── Live position: drawn by the OS map only after the parent has the
         //    user's permission. Never followed, never uploaded. ───────────────
