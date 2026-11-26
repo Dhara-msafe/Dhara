@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
   hint:          { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 4, lineHeight: 17 },
   pickerBtn:     { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   pickerTxt:     { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink },
-  saveBtn:       { backgroundColor: c.navy, width: '100%', borderRadius: 999, minHeight: 50, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+  saveBtn:       { backgroundColor: c.navy, width: '100%', borderRadius: 14, minHeight: 52, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   saveBtnTxt:    { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14 },
   // Gender modal
   modalOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },

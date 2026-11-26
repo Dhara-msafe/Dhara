@@ -1,0 +1,53 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const read = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8');
+
+test('SOS 112 sits at the top of the screens that used to show the floating SOS', () => {
+  for (const f of ['app/login.tsx', 'app/signup.tsx', 'app/forgot-password.tsx', 'app/delete-account.tsx', 'app/upgrade.tsx', 'app/permissions-setup.tsx']) {
+    assert.match(read(f), /<SosPill112 /, f);
+  }
+});
+
+test('SOS 112 button is at least 44 px tall', () => {
+  assert.match(read('src/ui/kit.tsx'), /sos: \{[^}]*minHeight: 44/);
+});
+
+test('rights-card load errors are a calm notice, not the headline', () => {
+  const o = read('app/women/officer-card.tsx');
+  assert.match(o, /styles\.errBox/);
+  assert.match(o, /Couldn't load the rights card/);
+  const a = read('app/action-plan.tsx');
+  assert.match(a, /card \? styles\.rightTitle : styles\.rightTitleQuiet/);
+});
+
+test('one back icon: no arrow-back left in app screens', () => {
+  for (const f of ['app/ipc-bns-lookup.tsx', 'app/complaints.tsx', 'app/fir-draft/index.tsx', 'app/missing/index.tsx', 'app/upgrade.tsx', 'app/how-it-helps.tsx']) {
+    assert.doesNotMatch(read(f), /"arrow-back"/, f);
+  }
+});
+
+test('titles sit on the left in the shared title row', () => {
+  for (const f of ['app/my-data.tsx', 'app/grievance.tsx', 'app/drafts/index.tsx', 'app/action-plan.tsx', 'app/fraud-checklist.tsx']) {
+    assert.match(read(f), /<PageTitleRow/, f);
+  }
+});
+
+test('sign-in pages: DHARA wordmark, readable tagline, white input boxes', () => {
+  for (const f of ['app/signup.tsx', 'app/forgot-password.tsx', 'app/delete-account.tsx']) {
+    const s = read(f);
+    assert.match(s, />DHARA<\/Text>/, f);
+    assert.match(s, /tag: \{ color: theme\.colors\.headerTagline/, f);
+    assert.match(s, /  input: \{[^}]*backgroundColor: theme\.colors\.paper/, f);
+  }
+});
+
+test('disabled buttons use the design system disabled colour', () => {
+  assert.match(read('app/state.tsx'), /btnDisabled: \{ backgroundColor: theme\.colors\.disabledBg \}/);
+  assert.match(read('app/women/head-out/destination.tsx'), /nextBtnDisabled: \{ backgroundColor: c\.disabledBg \}/);
+});
+
+test('fraud checklist shows no placeholder clock before it starts', () => {
+  assert.match(read('app/fraud-checklist.tsx'), /\{startedAt \? <Text style=\{\[styles\.timer/);
+});

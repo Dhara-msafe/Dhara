@@ -45,7 +45,8 @@ test('the draft-letter screen (Letter saved + Your letter states) has no overcla
 // notices" in its header), not app/drafts/[type].tsx. Lock in the title.
 test('app/drafts/index.tsx is titled "Ready notices" (corrects the tracking sheet\'s old route mapping)', () => {
   const notices = read('app/drafts/index.tsx');
-  assert.match(notices, /<Text style=\{styles\.h1\}>Ready notices<\/Text>/);
+  // 27 Nov: the title now sits in the shared PageTitleRow.
+  assert.match(notices, /<PageTitleRow\s+title="Ready notices"/);
 });
 
 // -- id31 File a complaint: manifest's caution is "fraud-help navigation

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useLightStatusBar } from '@/src/ui/kit';
+import { useLightStatusBar, SosPill112 } from '@/src/ui/kit';
 import {
   View,
   Text,
@@ -304,11 +304,11 @@ export default function Upgrade() {
     return (
       <SafeAreaView style={styles.safe} edges={['top']} testID="upgrade-screen-disabled">
         <View style={styles.header}>
-          <Pressable onPress={() => goBackOr(router, '/(tabs)/home')} testID="upgrade-back" hitSlop={10}>
-            <Ionicons name="arrow-back" size={26} color={theme.colors.onBrandPrimary} />
+          <Pressable onPress={() => goBackOr(router, '/(tabs)/home')} testID="upgrade-back" hitSlop={10} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+            <Ionicons name="chevron-back" size={24} color={theme.colors.onBrandPrimary} />
           </Pressable>
           <Text style={styles.headerTitle}>Dhara Pro</Text>
-          <View style={{ width: 26 }} />
+          <SosPill112 testID="upgrade-sos" />
         </View>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 18, gap: 12, backgroundColor: theme.colors.background }}>
           <Ionicons name="time-outline" size={40} color={theme.colors.brand} />
@@ -326,11 +326,11 @@ export default function Upgrade() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']} testID="upgrade-screen">
       <View style={styles.header}>
-        <Pressable onPress={() => goBackOr(router, '/(tabs)/home')} testID="upgrade-back" hitSlop={10}>
-          <Ionicons name="arrow-back" size={26} color={theme.colors.onBrandPrimary} />
+        <Pressable onPress={() => goBackOr(router, '/(tabs)/home')} testID="upgrade-back" hitSlop={10} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+          <Ionicons name="chevron-back" size={24} color={theme.colors.onBrandPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>{t?.headerTitle || 'Dhara Pro'}</Text>
-        <View style={{ width: 26 }} />
+        <SosPill112 testID="upgrade-sos" />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -563,18 +563,23 @@ function CompareRow({ label, free, pro }: { label: string; free?: boolean; pro?:
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.brand },
+  // 27 Nov: same layout as the shared navy header — back, title on the
+  // left, SOS 112 on the right.
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: theme.spacing.lg,
+    gap: 8,
+    paddingLeft: 8,
+    paddingRight: 14,
+    paddingVertical: 10,
     backgroundColor: theme.colors.brand,
   },
+  backBtn: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   headerTitle: {
+    flex: 1,
     color: theme.colors.onBrandPrimary,
-    fontFamily: theme.fonts.display,
+    fontFamily: theme.fonts.displayBold,
     fontSize: 17,
-    fontWeight: '700',
   },
   scroll: {
     padding: theme.spacing.lg,

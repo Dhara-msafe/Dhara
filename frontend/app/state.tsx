@@ -165,7 +165,7 @@ export default function StateSelect() {
           {saving ? (
             <ActivityIndicator color={theme.colors.onBrandSecondary} />
           ) : (
-            <Text style={styles.btnText}>Save my state</Text>
+            <Text style={[styles.btnText, (!selected || saving) && styles.btnTextDisabled]}>Save my state</Text>
           )}
         </Pressable>
         <Pressable
@@ -210,9 +210,10 @@ const styles = StyleSheet.create({
   nameActive: { color: theme.colors.brand },
   native: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 12, marginTop: 2 },
   footer: { padding: theme.spacing.lg, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)' },
-  btn: { backgroundColor: theme.colors.brandSecondary, padding: theme.spacing.lg, borderRadius: theme.radius.md, alignItems: 'center', minHeight: 52, justifyContent: 'center' },
-  btnDisabled: { opacity: 0.5 },
-  btnText: { color: theme.colors.onBrandSecondary, fontFamily: 'InterBold', fontSize: 14 },
+  btn: { backgroundColor: theme.colors.navy, padding: theme.spacing.lg, borderRadius: theme.radius.md, alignItems: 'center', minHeight: 52, justifyContent: 'center' },
+  btnDisabled: { backgroundColor: theme.colors.disabledBg },
+  btnTextDisabled: { color: theme.colors.onSurfaceSecondary },
+  btnText: { color: '#fff', fontFamily: 'InterBold', fontSize: 14 },
   // UI-revision pilot (reversible via UI_REVISION_V1): 44px met iOS's own
   // minimum but not the stricter 48px target used across this batch.
   skip: { alignItems: 'center', paddingVertical: theme.spacing.md, minHeight: UI_REVISION_V1 ? 48 : 44, justifyContent: 'center' },

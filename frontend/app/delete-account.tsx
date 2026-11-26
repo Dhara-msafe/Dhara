@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { API_BASE, useAuth } from '@/src/auth';
 import { clearAccountLocalData } from '@/src/accountStorage';
 import { theme } from '@/src/theme';
+import { SosPill112 } from '@/src/ui/kit';
 
 /**
  * Public, unauthenticated account-deletion page — reachable without signing
@@ -138,7 +139,11 @@ export default function DeleteAccount() {
         keyboardShouldPersistTaps="handled"
         bottomOffset={24}
       >
-        <Text style={styles.brand}>Dhara</Text>
+        {/* 27 Nov: SOS 112 at the top, like every other screen (was the floating SOS). */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minHeight: 48 }}>
+          <SosPill112 testID="delete-account-sos" />
+        </View>
+        <Text style={styles.brand}>DHARA</Text>
         <Text style={styles.tag}>Delete your account</Text>
 
         <View style={styles.card}>
@@ -268,7 +273,7 @@ export default function DeleteAccount() {
             <View style={styles.row}>
               <Text style={styles.sub}>Changed your mind? </Text>
               <Link href="/login" asChild>
-                <Pressable testID="go-to-login">
+                <Pressable testID="go-to-login" accessibilityRole="link" style={{ minHeight: 44, justifyContent: "center" }}>
                   <Text style={styles.link}>Back to sign in</Text>
                 </Pressable>
               </Link>
@@ -289,14 +294,13 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.brand },
   scroll: { flexGrow: 1, padding: theme.spacing.xl, paddingTop: theme.spacing.xxl },
   brand: {
-    fontFamily: theme.fonts.display,
+    fontFamily: theme.fonts.brand, letterSpacing: 1.5,
     fontSize: 28,
     color: theme.colors.onBrandPrimary,
     textAlign: 'center',
-    fontWeight: '700',
     marginTop: theme.spacing.lg,
   },
-  tag: { color: theme.colors.brandSecondary, textAlign: 'center', marginTop: 4, fontFamily: 'Inter', fontSize: 13 },
+  tag: { color: theme.colors.headerTagline, textAlign: 'center', marginTop: 4, fontFamily: 'Inter', fontSize: 13 },
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,
@@ -323,7 +327,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     fontFamily: 'Inter', fontSize: 14,
     color: theme.colors.onSurface,
-    backgroundColor: theme.colors.surfaceSecondary,
+    backgroundColor: theme.colors.paper,
   },
   codeInput: { fontSize: 21, letterSpacing: 8, textAlign: 'center', fontFamily: 'InterBold'},
   checkRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: theme.spacing.lg },
@@ -357,7 +361,7 @@ const styles = StyleSheet.create({
   },
   btnText: { color: theme.colors.onBrandPrimary, fontFamily: 'InterBold', fontSize: 13 },
   secondaryBtn: { alignItems: 'center', paddingVertical: theme.spacing.md, minHeight: 44 },
-  row: { flexDirection: 'row', justifyContent: 'center', marginTop: theme.spacing.lg },
+  row: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', marginTop: theme.spacing.lg },
   link: { color: theme.colors.brandSecondary, fontFamily: 'InterBold'},
   error: { color: theme.colors.error, marginTop: theme.spacing.md, fontFamily: 'Inter', fontSize: 12 },
   doneIcon: { alignItems: 'center', marginBottom: theme.spacing.md },

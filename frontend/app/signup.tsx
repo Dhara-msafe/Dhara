@@ -6,6 +6,7 @@ import { useRouter, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { SosPill112 } from '@/src/ui/kit';
 import { passwordMeetsRule, PASSWORD_RULE_MSG } from '@/src/passwordRule';
 import { PasswordLabelWithRules } from '@/src/components/PasswordLabelWithRules';
 
@@ -66,7 +67,11 @@ export default function Signup() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
-        <Text style={styles.brand}>Dhara</Text>
+        {/* 27 Nov: SOS 112 at the top, like every other screen (was the floating SOS). */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minHeight: 48 }}>
+          <SosPill112 testID="signup-sos" />
+        </View>
+        <Text style={styles.brand}>DHARA</Text>
           <Text style={styles.tag}>Empowerment through knowledge</Text>
 
           <View style={styles.card}>
@@ -126,7 +131,7 @@ export default function Signup() {
             <View style={styles.row}>
               <Text style={styles.rowLead}>Already registered? </Text>
               <Link href="/login" asChild>
-                <Pressable testID="go-to-login"><Text style={[styles.link, styles.linkUnderline]}>Sign in</Text></Pressable>
+                <Pressable testID="go-to-login" accessibilityRole="link" style={{ minHeight: 44, justifyContent: "center" }}><Text style={[styles.link, styles.linkUnderline]}>Sign in</Text></Pressable>
               </Link>
             </View>
           </View>
@@ -159,14 +164,14 @@ export default function Signup() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.brand },
   scroll: { flexGrow: 1, padding: theme.spacing.xl, justifyContent: 'center' },
-  brand: { fontFamily: theme.fonts.display, fontSize: 36, color: theme.colors.onBrandPrimary, textAlign: 'center', fontWeight: '700' },
-  tag: { color: theme.colors.brandSecondary, textAlign: 'center', marginTop: 8, fontFamily: 'Inter', fontSize: 13 },
+  brand: { fontFamily: theme.fonts.brand, letterSpacing: 1.5, fontSize: 36, color: theme.colors.onBrandPrimary, textAlign: 'center', },
+  tag: { color: theme.colors.headerTagline, textAlign: 'center', marginTop: 8, fontFamily: 'Inter', fontSize: 13 },
   card: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, padding: theme.spacing.xl, marginTop: theme.spacing.xxl },
   heading: { fontFamily: theme.fonts.display, fontSize: 21, color: theme.colors.onSurface, fontWeight: '700' },
   sub: { color: theme.colors.onSurfaceSecondary, marginTop: 4 },
   label: { color: theme.colors.onSurfaceSecondary, marginTop: theme.spacing.lg, marginBottom: theme.spacing.sm, fontFamily: 'InterSemiBold'},
-  input: { borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, padding: theme.spacing.md, fontFamily: 'Inter', fontSize: 14, color: theme.colors.onSurface, backgroundColor: theme.colors.surfaceSecondary },
-  pwWrap: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceSecondary },
+  input: { borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, padding: theme.spacing.md, fontFamily: 'Inter', fontSize: 14, color: theme.colors.onSurface, backgroundColor: theme.colors.paper },
+  pwWrap: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, backgroundColor: theme.colors.paper },
   pwInput: { flex: 1, padding: theme.spacing.md, fontFamily: 'Inter', fontSize: 14, color: theme.colors.onSurface },
   eyeBtn: { paddingHorizontal: theme.spacing.md, paddingVertical: theme.spacing.md, justifyContent: 'center', alignItems: 'center' },
   termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing.sm, marginTop: theme.spacing.lg, padding: theme.spacing.md, backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.border },

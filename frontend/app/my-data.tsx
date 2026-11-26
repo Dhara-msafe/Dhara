@@ -30,6 +30,7 @@ import * as Sharing from 'expo-sharing';
 // export/fetch/delete logic changes.
 import { UI_REVISION_V1 } from '@/src/designRevision';
 import { focusRingStyle } from '@/src/a11yFocus';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
 import { UI_V22_MYDATA } from '@/src/uiV22Flags';
 import { retentionLabel } from '@/src/myDataLabels';
 // B-70: this screen used to hardcode its own grievance address, different
@@ -142,6 +143,7 @@ export default function MyDataScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.root} edges={['bottom']}>
+      <PageTitleRow title="My data" onBack={() => goBackOr(router, '/(tabs)/settings')} backTestID="my-data-back" testID="my-data-title-row" />
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="large" color={theme.colors.brand} />
           <Text style={styles.loadingText}>Loading your data summary…</Text>
@@ -153,11 +155,12 @@ export default function MyDataScreen() {
   if (loadFailed || !summary) {
     return (
       <SafeAreaView style={styles.root} edges={['bottom']}>
+      <PageTitleRow title="My data" onBack={() => goBackOr(router, '/(tabs)/settings')} backTestID="my-data-back" testID="my-data-title-row" />
         <View style={styles.loadingWrap}>
           <Ionicons name="cloud-offline-outline" size={36} color={theme.colors.onSurfaceSecondary} />
           <Text testID="my-data-load-failed" style={styles.loadingText}>We could not load your data right now.</Text>
-          <Pressable testID="my-data-retry" onPress={fetchSummary} hitSlop={16} style={(s) => [{ paddingVertical: 10 }, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Try again">
-            <Text style={[styles.loadingText, { color: theme.colors.brand, fontFamily: 'InterBold'}]}>Try again</Text>
+          <Pressable testID="my-data-retry" onPress={fetchSummary} style={(s) => [styles.retryBtn, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Try again">
+            <Text style={styles.retryTxt}>Try again</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -172,13 +175,7 @@ export default function MyDataScreen() {
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>
       {/* ── Header ── */}
-      <View style={styles.header}>
-        <Pressable onPress={() => goBackOr(router, '/(tabs)/settings')} hitSlop={8} style={(s) => [styles.backBtn, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
-          <Ionicons name="chevron-back" size={24} color={theme.colors.brand} />
-        </Pressable>
-        <Text style={styles.headerTitle}>My Data</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <PageTitleRow title="My data" onBack={() => goBackOr(router, '/(tabs)/settings')} backTestID="my-data-back" testID="my-data-title-row" />
 
       <ScrollView
         style={styles.scroll}
@@ -331,6 +328,8 @@ function DataRow({
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  retryBtn: { marginTop: 8, minHeight: 48, paddingHorizontal: 24, borderRadius: 14, backgroundColor: theme.colors.navy, alignItems: 'center', justifyContent: 'center' },
+  retryTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14 },
   root: {
     flex: 1,
     backgroundColor: theme.colors.background,

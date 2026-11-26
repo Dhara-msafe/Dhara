@@ -370,7 +370,7 @@ const s = StyleSheet.create({
   brandWrap: { flexShrink: 1 },
   brand: { color: '#fff', fontFamily: f.brand, fontSize: 22, letterSpacing: 1.3 },
   tagline: { color: c.headerTagline, fontFamily: f.body, fontSize: 12, marginTop: 1 },
-  sos: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 40, paddingHorizontal: 13, borderRadius: 999, backgroundColor: c.sosRed, borderWidth: 1, borderColor: c.sosBorder },
+  sos: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 44, paddingHorizontal: 13, borderRadius: 999, backgroundColor: c.sosRed, borderWidth: 1, borderColor: c.sosBorder },
   sosText: { color: '#fff', fontFamily: f.displayBold, fontSize: 13 },
 
   titleBlock: { marginBottom: 14 },

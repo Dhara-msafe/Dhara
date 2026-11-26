@@ -12,6 +12,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { SosPill112 } from '@/src/ui/kit';
 import { focusRingStyle } from '@/src/a11yFocus';
 import { v22SectionLabel } from '@/src/v22SectionLabel';
 import { PERMISSION_ITEMS, SETUP_COPY, parseSetupNext, type PermissionKey, type PermissionOutcome } from '@/src/permissions/core';
@@ -70,6 +71,10 @@ export default function PermissionsSetupScreen() {
   return (
     <SafeAreaView style={s.safe} testID="permissions-setup">
       <ScrollView style={{ flex: 1 }} contentContainerStyle={s.content}>
+        {/* 27 Nov: SOS 112 at the top, like every other screen (was the floating SOS). */}
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', minHeight: 48 }}>
+          <SosPill112 testID="perm-sos" />
+        </View>
         <Text style={s.eyebrow}>{SETUP_COPY.eyebrow}</Text>
         <Text style={s.title} accessibilityRole="header">{SETUP_COPY.title}</Text>
         <Text style={s.intro}>{SETUP_COPY.intro}</Text>
@@ -138,7 +143,7 @@ const s = StyleSheet.create({
   cardWhy: { fontFamily: theme.fonts.body, fontSize: 13, lineHeight: 18, color: colors.muted, marginTop: 2 },
   blocked: { fontSize: 12, fontFamily: 'InterSemiBold', color: colors.muted, marginTop: 6 },
   footer: { padding: 16, paddingTop: 8, width: '100%', maxWidth: 680, alignSelf: 'center' },
-  primary: { minHeight: 52, borderRadius: 26, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center' },
+  primary: { minHeight: 52, borderRadius: 14, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center' },
   primaryText: { color: colors.surface, fontSize: 15, fontFamily: 'InterBold'},
   pressed: { opacity: 0.85 },
   linkBtn: { minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 4 },

@@ -43,7 +43,7 @@ export default function IntakeView() {
   if (!intake) return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
-        <Pressable onPress={() => goBackOr(router, '/intakes')}><Ionicons name="arrow-back" size={22} color="#fff" /></Pressable>
+        <Pressable onPress={() => goBackOr(router, '/intakes')}><Ionicons name="chevron-back" size={24} color="#fff" /></Pressable>
         <Text style={s.headerTitle}>Intake</Text>
       </View>
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 18 }}>
@@ -57,7 +57,7 @@ export default function IntakeView() {
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
         <Pressable onPress={() => goBackOr(router, '/intakes')} style={{ marginRight: 12 }}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+          <Ionicons name="chevron-back" size={24} color="#fff" />
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={s.headerTitle}>{intake.client_name || 'Intake'}</Text>
