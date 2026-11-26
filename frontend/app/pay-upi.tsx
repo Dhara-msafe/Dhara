@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { API_BASE, useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { openExternal } from '@/src/outbound';
+import { formatDateDMY } from '@/src/dateFormat';
 
 /**
  * DHARA Pro — UPI Payment Page (Phase 1, outside the app).
@@ -212,9 +213,9 @@ export default function PayUpi() {
                 <Text style={styles.heading}>{STATUS_TITLE[mine.status]}</Text>
                 <Text style={styles.sub}>{mine.message}</Text>
                 <Text style={styles.qrHint}>
-                  Reference {mine.utr} · sent {new Date(mine.created_at).toLocaleDateString()}
+                  Reference {mine.utr} · sent {formatDateDMY(mine.created_at)}
                   {mine.status === 'pending' && mine.expires_at
-                    ? ` · answer due by ${new Date(mine.expires_at).toLocaleDateString()}`
+                    ? ` · answer due by ${formatDateDMY(mine.expires_at)}`
                     : ''}
                 </Text>
               </View>

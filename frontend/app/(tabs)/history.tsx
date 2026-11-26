@@ -9,6 +9,7 @@ import { theme } from '@/src/theme';
 import { tabBackTarget } from '@/src/tabBackTarget';
 import { UI_V22_ONE_SOS } from '@/src/uiV22Flags';
 import { focusRingStyle } from '@/src/a11yFocus';
+import { formatDateTimeDMY } from '@/src/dateFormat';
 
 type Session = { id: string; title: string; updated_at: string; language: string };
 
@@ -99,7 +100,7 @@ export default function History() {
               <Ionicons name="document-text-outline" size={22} color={theme.colors.brand} />
               <View style={{ flex: 1, marginLeft: theme.spacing.md }}>
                 <Text style={styles.title} numberOfLines={2}>{item.title || 'Untitled'}</Text>
-                <Text style={styles.meta}>{new Date(item.updated_at).toLocaleString()}</Text>
+                <Text style={styles.meta}>{formatDateTimeDMY(item.updated_at)}</Text>
               </View>
               <Pressable testID={`delete-${item.id}`} onPress={() => remove(item.id)} hitSlop={10}>
                 <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
