@@ -20,6 +20,7 @@
     "@react-native-community/slider": "5.2.1",
     "@react-navigation/bottom-tabs": "7.22.0",
     "@react-navigation/native": "7.5.2",
+    "@sentry/react-native": "8.28.1",
     "@types/leaflet": "1.9.22",
     "aes-js": "3.1.2",
     "date-fns": "4.1.0",

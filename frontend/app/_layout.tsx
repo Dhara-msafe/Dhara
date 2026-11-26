@@ -9,6 +9,14 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { initCrashReporting } from "@/src/observability/sentry";
+
+// Crash reporting. A no-op unless a DSN is set AND
+// EXPO_PUBLIC_SENTRY_ENABLED is exactly "true", so every build today is
+// unaffected. Called at module scope so a crash during the first render
+// is still caught. See src/observability/sentry.ts for what it does and
+// does not send.
+initCrashReporting();
 
 
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
