@@ -1,5 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { File, Paths } from 'expo-file-system';
+// 26 Nov (Vivek): expo-file-system 58 made write/writeBytes run in the background
+// (they return a Promise). The *Sync forms keep the SDK 55 behaviour: the file is
+// fully written before the next line runs (player / share / close / offset).
 import { Zip, ZipPassThrough } from 'fflate';
 import { getOrCreateKey, encryptBytes, decryptBytes } from './evidenceCrypto';
 import { listPendingTemps } from './evidencePendingTemp';
@@ -94,7 +97,7 @@ async function saveItem(scope: string, uri: string, type: EvidenceType, ext: str
   const aesKey = await getOrCreateKey(scope);
   const { cipherBytes, iv } = await encryptBytes(plainBytes, aesKey);
   try {
-    file.write(cipherBytes);
+    file.writeSync(cipherBytes);
   } catch (error) {
     if (file.exists) file.delete();
     throw error;
@@ -164,7 +167,7 @@ export async function saveSegment(
   const plainBytes = await segFile.bytes();
   const aesKey = await getOrCreateKey(scope);
   const { cipherBytes, iv } = await encryptBytes(plainBytes, aesKey);
-  try { file.write(cipherBytes); }
+  try { file.writeSync(cipherBytes); }
   catch (error) { if (file.exists) file.delete(); throw error; }
   const item: RecordingItem = {
     id, uri: file.uri, createdAt: new Date().toISOString(), type: 'audio',
@@ -258,7 +261,7 @@ export async function getDecryptedTempUri(scope: string, item: RecordingItem): P
   const cipherBytes = await encFile.bytes();
   const plainBytes = decryptBytes(cipherBytes, aesKey, item.iv);
   const tempFile = new File(Paths.cache, `dhara-evidence-tmp-${item.id}-${Date.now()}.${item.ext || 'bin'}`);
-  tempFile.write(plainBytes);
+  tempFile.writeSync(plainBytes);
   return tempFile.uri;
 }
 

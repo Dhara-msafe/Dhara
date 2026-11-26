@@ -5,6 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { createAudioPlayer } from 'expo-audio';
 import { File, Paths } from 'expo-file-system';
+// 26 Nov (Vivek): expo-file-system 58 made write/writeBytes run in the background
+// (they return a Promise). The *Sync forms keep the SDK 55 behaviour: the file is
+// fully written before the next line runs (player / share / close / offset).
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { canSpeakNow, noteSpeakIntent } from '@/src/voice/speechGate';
@@ -92,7 +95,7 @@ export default function SessionView() {
       const file = new File(Paths.cache, `dhara-session-tts-${Date.now()}.mp3`);
       try { if (file.exists) file.delete(); } catch {}
       file.create();
-      file.write(base64, { encoding: 'base64' } as any);
+      file.writeSync(base64, { encoding: 'base64' } as any);
 
       const player = createAudioPlayer({ uri: file.uri });
       const finish = () => { try { player.remove(); } catch {} try { file.delete(); } catch {} setSpeakingId((cur) => (cur === mid ? null : cur)); };

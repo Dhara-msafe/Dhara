@@ -12,6 +12,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAudioRecorder, RecordingPresets, setAudioModeAsync, AudioModule, createAudioPlayer } from 'expo-audio';
 import { File, Paths } from 'expo-file-system';
+// 26 Nov (Vivek): expo-file-system 58 made write/writeBytes run in the background
+// (they return a Promise). The *Sync forms keep the SDK 55 behaviour: the file is
+// fully written before the next line runs (player / share / close / offset).
 import { theme } from '@/src/theme';
 import { loadVisitorSession, VisitorSession, getStateLocalLang, HINDI_LANG, STATE_LOCAL_LANG, type LocalLang } from '@/src/visitor/session';
 import { API_BASE, useAuth } from '@/src/auth';
@@ -125,7 +128,7 @@ export default function InterpreterScreen() {
     const file = new File(Paths.cache, `dhara-interpreter-tts-${Date.now()}.mp3`);
     try { if (file.exists) file.delete(); } catch {}
     file.create();
-    file.write(base64, { encoding: 'base64' } as any);
+    file.writeSync(base64, { encoding: 'base64' } as any);
 
     return new Promise<void>((resolve) => {
       let settled = false;

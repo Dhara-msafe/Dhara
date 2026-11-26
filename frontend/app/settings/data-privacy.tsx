@@ -21,6 +21,9 @@ import { theme } from '@/src/theme';
 import { UI_V22_P10 } from '@/src/uiV22Flags';
 import { useFamilyJourneyEnabled } from '@/src/familyJourney/store';
 import { File, Paths } from 'expo-file-system';
+// 26 Nov (Vivek): expo-file-system 58 made write/writeBytes run in the background
+// (they return a Promise). The *Sync forms keep the SDK 55 behaviour: the file is
+// fully written before the next line runs (player / share / close / offset).
 import * as Sharing from 'expo-sharing';
 
 import { goBackOr } from '@/src/goBackOr';
@@ -273,7 +276,7 @@ export default function DataPrivacyScreen() {
       } else {
         const tempFile = new File(Paths.cache, `dhara-my-data-${Date.now()}.json`);
         try {
-          tempFile.write(jsonStr);
+          tempFile.writeSync(jsonStr);
           const canShare = await Sharing.isAvailableAsync();
           if (canShare) {
             await Sharing.shareAsync(tempFile.uri, {

@@ -11,6 +11,9 @@
 import { Platform } from 'react-native';
 import { createAudioPlayer } from 'expo-audio';
 import { File, Paths } from 'expo-file-system';
+// 26 Nov (Vivek): expo-file-system 58 made write/writeBytes run in the background
+// (they return a Promise). The *Sync forms keep the SDK 55 behaviour: the file is
+// fully written before the next line runs (player / share / close / offset).
 import { API_BASE } from '@/src/auth';
 import { getStateLocalLang, type LocalLang } from '@/src/visitor/session';
 
@@ -83,7 +86,7 @@ export async function playPhrase(text: string, langCode: string, token: string):
   const file = new File(Paths.cache, `dhara-speak-for-me-${Date.now()}.mp3`);
   try { if (file.exists) file.delete(); } catch {}
   file.create();
-  file.write(base64, { encoding: 'base64' } as any);
+  file.writeSync(base64, { encoding: 'base64' } as any);
 
   return new Promise<void>((resolve) => {
     let settled = false;

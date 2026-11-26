@@ -13,8 +13,10 @@ import { VoiceSheet, driveVoiceLevel } from '@/src/chat/VoiceSheet';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useIsFocused } from '@react-navigation/native';
+// 26 Nov (Vivek): from Expo SDK 58, expo-router bundles its own React
+// Navigation; the separate @react-navigation/native package has no navigation
+// object here, so its useIsFocused crashed the Ask screen. Use expo-router's.
+import { useRouter, useLocalSearchParams, useIsFocused } from 'expo-router';
 import {
   AudioModule,
   RecordingPresets,
@@ -28,6 +30,9 @@ import { ChunkedSpeaker } from '@/src/voice/tts';
 import { createBrowserTtsPlayer } from '@/src/voice/browserPlayer';
 import { VoiceNotice } from '@/src/components/VoiceNotice';
 import { File, Paths } from 'expo-file-system';
+// 26 Nov (Vivek): expo-file-system 58 made write/writeBytes run in the background
+// (they return a Promise). The *Sync forms keep the SDK 55 behaviour: the file is
+// fully written before the next line runs (player / share / close / offset).
 import { useAuth, API_BASE, logClientError } from '@/src/auth';
 import { useUserProfile } from '@/src/userProfile';
 import { theme } from '@/src/theme';
@@ -1047,7 +1052,7 @@ export default function ChatScreen() {
           const file = new File(Paths.cache, `dhara-tts-${msgId}-${index}.mp3`);
           try { file.delete(); } catch {}
           file.create();
-          file.write(b64, { encoding: 'base64' });
+          file.writeSync(b64, { encoding: 'base64' });
           return {
             uri: file.uri,
             cleanup: () => { try { file.delete(); } catch {} },
