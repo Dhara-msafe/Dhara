@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { tabBackTarget } from '@/src/tabBackTarget';
+import { useAndroidBack } from '@/src/useAndroidBack';
 import { useAuth, API_BASE, Language, TtsVoiceMode } from '@/src/auth';
 import { clearAccountLocalData } from '@/src/accountStorage';
 import { theme } from '@/src/theme';
@@ -29,6 +30,8 @@ export default function Settings() {
   const router = useRouter();
   // Back goes to the screen that opened Settings (Me by default, Ask with ?from=ask).
   const { from } = useLocalSearchParams<{ from?: string }>();
+  // Android's Back goes where the on-screen arrow goes (not Home).
+  useAndroidBack(() => router.navigate(tabBackTarget(from) as any));
   const [langs, setLangs] = useState<Language[]>([]);
   const [showLang, setShowLang] = useState(false);
   const [showTerms, setShowTerms] = useState(false);

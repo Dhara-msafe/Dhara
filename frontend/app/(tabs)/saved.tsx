@@ -7,6 +7,7 @@ import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { tabBackTarget } from '@/src/tabBackTarget';
 import { PageTitleRow } from '@/src/ui/PageTitleRow';
+import { useAndroidBack } from '@/src/useAndroidBack';
 import { UI_V22_ONE_SOS } from '@/src/uiV22Flags';
 import { focusRingStyle } from '@/src/a11yFocus';
 import { Bookmark, loadLocal, removeBookmark, syncBookmarks } from '@/src/bookmarks';
@@ -16,6 +17,8 @@ export default function SavedScreen() {
   const { token, user } = useAuth();
   const router = useRouter();
   const { from } = useLocalSearchParams<{ from?: string }>();
+  // Android's Back goes where the on-screen arrow goes (not Home).
+  useAndroidBack(() => router.navigate(tabBackTarget(from) as any));
   const [items, setItems] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

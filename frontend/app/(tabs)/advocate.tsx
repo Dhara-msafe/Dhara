@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { PageTitleRow } from '@/src/ui/PageTitleRow';
+import { useAndroidBack } from '@/src/useAndroidBack';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { ADVOCATE_MODE_ENABLED } from '@/src/advocateMode/flags';
@@ -22,6 +23,8 @@ const GOLD = theme.colors.gold;
 export default function AdvocateTab() {
   const { token, user } = useAuth();
   const router = useRouter();
+  // Android's Back goes to Me like the on-screen arrow (not Home).
+  useAndroidBack(() => router.navigate('/(tabs)/me' as any));
   const [profile, setProfile] = useState<any | null | 'none'>('loading');
 
   // B-97: advocate/lawyer features are hidden for Wave 1 per D-14 -- this
