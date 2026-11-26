@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
 import { goBackOr } from '@/src/goBackOr';
 // B-70: this screen used to hardcode its own grievance address with no
 // officer name, different from the consent screen and my-data.tsx. It now
@@ -113,19 +114,12 @@ export default function GrievanceScreen() {
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>
       {/* Header */}
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => (step === 'form' ? setStep('list') : goBackOr(router, '/settings/data-privacy'))}
-          hitSlop={8}
-          style={styles.backBtn}
-        >
-          <Ionicons name="chevron-back" size={24} color={theme.colors.brand} />
-        </Pressable>
-        <Text style={styles.headerTitle}>
-          {step === 'form' ? 'New Privacy Concern' : 'Privacy Concerns'}
-        </Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <PageTitleRow
+        title={step === 'form' ? 'New privacy concern' : 'Privacy concerns'}
+        onBack={() => (step === 'form' ? setStep('list') : goBackOr(router, '/settings/data-privacy'))}
+        backTestID="grievance-back"
+        testID="grievance-title-row"
+      />
 
       {/* ── SUCCESS ── */}
       {step === 'success' && newTicket && (

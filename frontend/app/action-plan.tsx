@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
 import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
 import { useScreenSpeech } from '@/src/hooks/useScreenSpeech';
@@ -67,11 +68,13 @@ export default function ActionPlan() {
   return (
     <View style={styles.root}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-        <Pressable testID="action-plan-back" onPress={() => router.back()} style={styles.iconBtn}><Ionicons name="chevron-back" size={24} color={c.navy} /></Pressable>
-        <Text style={styles.headerTitle}>{tr('ap.title', lang)}</Text>
-        <Pressable testID="action-plan-listen-header" disabled={!card} style={styles.listenPill} onPress={onListen}><Ionicons name={speaking ? 'stop' : 'volume-high'} size={20} color={c.darkGold} /></Pressable>
-      </View>
+      <PageTitleRow
+        title={tr('ap.title', lang)}
+        onBack={() => router.back()}
+        backTestID="action-plan-back"
+        testID="action-plan-title-row"
+        right={<Pressable testID="action-plan-listen-header" disabled={!card} style={styles.listenPill} onPress={onListen} accessibilityRole="button" accessibilityLabel="Listen"><Ionicons name={speaking ? 'stop' : 'volume-high'} size={20} color={c.darkGold} /></Pressable>}
+      />
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         {/* DHARA-B017: Safety-first triage gate — blocks the legal pathway
@@ -141,7 +144,9 @@ export default function ActionPlan() {
         {/* Your right card */}
         <View style={styles.rightCard}>
           <Text style={styles.rightLabel}>{tr('ap.yourright', lang)}</Text>
-          <Text testID="action-plan-verdict" style={styles.rightTitle}>{card?.verdict || (loading ? 'Loading your rights…' : cardError || "We couldn't load your rights card")}</Text>
+          <Text testID="action-plan-verdict" style={card ? styles.rightTitle : styles.rightTitleQuiet}>{card?.verdict || (loading ? 'Loading your rights…' : "Couldn't load your rights card")}</Text>
+          {/* 27 Nov: the long error sentence is body text, not the headline. */}
+          {!!cardError && !card && <Text testID="action-plan-error" style={styles.rightBody}>Check your internet connection and try again.</Text>}
           {!!card?.why && <Text testID="action-plan-explanation" style={styles.rightBody}>{card.why}</Text>}
           {/* A missing card used to render the bare sentence "No released rights
               card is available yet." with no way forward, and Try again only
@@ -231,6 +236,7 @@ const styles = StyleSheet.create({
   rightCard: { backgroundColor: c.navy, borderRadius: 20, padding: 22, marginTop: 14 },
   rightLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.gold, letterSpacing: 1.5 },
   rightTitle: { fontFamily: theme.fonts.displayBold, fontSize: 24, color: '#fff', marginTop: 8, lineHeight: 32 },
+  rightTitleQuiet: { fontFamily: theme.fonts.bodyBold, fontSize: 17, color: '#fff', marginTop: 8, lineHeight: 24 },
   rightBody: { fontFamily: theme.fonts.body, fontSize: 13, color: c.onNavyMuted, lineHeight: 20, marginTop: 12 },
   badgeRow: { flexDirection: 'row', gap: 10, marginTop: 18, flexWrap: 'wrap' },
   badge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },

@@ -1352,7 +1352,7 @@ ${data.bot_message}`);
       <SafeAreaView edges={['bottom']} testID="fir-start-screen" style={[styles.root, { backgroundColor: theme.colors.background }]}>
         <View style={styles.preHeader}>
           <Pressable testID="fir-start-back" onPress={() => router.back()} style={(s) => [styles.backBtn, focusRingStyle(s)]} hitSlop={12} accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="arrow-back" size={22} color={NAVY} />
+            <Ionicons name="chevron-back" size={24} color={NAVY} />
           </Pressable>
           <Text style={styles.preTitle}>FIR Draft Assistant</Text>
         </View>
@@ -1492,7 +1492,7 @@ ${data.bot_message}`);
       <View style={styles.headerShell} testID="fir-chat-header">
       <View style={styles.chatHeader}>
         <Pressable testID="fir-header-back" accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={(s) => [styles.backBtn, focusRingStyle(s)]}>
-          <Ionicons name="arrow-back" size={22} color={SURFACE} />
+          <Ionicons name="chevron-back" size={24} color={SURFACE} />
         </Pressable>
         <View style={styles.headerCenter}>
           <Text testID="fir-header-title" style={styles.headerTitle} numberOfLines={1}>FIR Draft Assistant</Text>

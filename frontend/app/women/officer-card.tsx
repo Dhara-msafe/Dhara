@@ -131,9 +131,21 @@ export default function OfficerCard() {
                 </Text>
               </View>
             )}
-            <Text testID="officer-unavailable" style={styles.big}>
-              {error || 'A rights card for this situation is being reviewed by an advocate.'}
-            </Text>
+            {/* 27 Nov: a failed load is a small, calm notice — it used to fill
+                half the screen in the headline size. */}
+            {error ? (
+              <View testID="officer-unavailable" style={styles.errBox} accessibilityLiveRegion="polite">
+                <Ionicons name="cloud-offline-outline" size={22} color={c.muted} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.errTitle}>Couldn't load the rights card</Text>
+                  <Text style={styles.errBody}>Check your internet connection and try again.</Text>
+                </View>
+              </View>
+            ) : (
+              <Text testID="officer-unavailable" style={styles.big}>
+                A rights card for this situation is being reviewed by an advocate.
+              </Text>
+            )}
             <View style={styles.pendingChip}>
               <Ionicons name="time-outline" size={14} color={c.navy} />
               <Text style={styles.pendingTxt}>Detailed law citations are pending advocate review before release</Text>
@@ -141,7 +153,7 @@ export default function OfficerCard() {
             <Text style={styles.why}>
               Ask DHARA your question below — it checks live law before answering, even without a pre-built card.
             </Text>
-            {!!error && <Pressable testID="officer-retry" style={styles.askBtn} onPress={retry}><Text style={styles.askTxt}>Try again</Text></Pressable>}
+            {!!error && <Pressable testID="officer-retry" style={[styles.askBtn, styles.retryBtn]} onPress={retry} accessibilityRole="button"><Text style={[styles.askTxt, { color: '#fff' }]}>Try again</Text></Pressable>}
             <Pressable testID="officer-ask-dhara" style={styles.askBtn} onPress={() => router.push({ pathname: '/(tabs)', params: { autostartMic: Date.now().toString() } })}>
               <Ionicons name="mic" size={18} color={c.navy} />
               <Text style={styles.askTxt}>Ask DHARA now</Text>
@@ -165,6 +177,9 @@ export default function OfficerCard() {
 }
 
 const styles = StyleSheet.create({
+  errBox: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 14, padding: 14, marginTop: 8 },
+  errTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink },
+  errBody: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 19, marginTop: 2 },
   root: { flex: 1, backgroundColor: UI_V22_S3 ? c.cream : c.navy },
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 44, paddingHorizontal: 12, paddingBottom: 10 },
   back: UI_V22_S3
@@ -182,6 +197,7 @@ const styles = StyleSheet.create({
   pendingTxt: { color: c.navy, fontFamily: theme.fonts.bodySemiBold, fontSize: 12 },
   askBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.gold, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 16, alignSelf: 'flex-start', marginTop: 20 },
   askTxt: { color: c.navy, fontFamily: theme.fonts.bodyBold, fontSize: 14 },
+  retryBtn: { backgroundColor: c.navy, borderRadius: 14, minHeight: 48, justifyContent: 'center' },
   hlRow: { flexDirection: 'row', gap: 12, marginTop: 34 },
   hl: UI_V22_S3
     ? { flex: 1, backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.lines, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }

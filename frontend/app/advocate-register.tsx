@@ -63,7 +63,7 @@ export default function AdvocateRegister() {
     <SafeAreaView edges={['bottom']} style={s.safe}>
       <View style={s.header}>
         <Pressable onPress={() => goBackOr(router, '/(tabs)/advocate')} style={{ marginRight: 12 }}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+          <Ionicons name="chevron-back" size={24} color="#fff" />
         </Pressable>
         <Text style={s.headerTitle}>Register as Advocate</Text>
       </View>

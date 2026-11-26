@@ -55,7 +55,7 @@ test('navy header stays fixed above the scroll on Head Out and both guardian scr
     assert.ok(s.indexOf('<ScreenHeader') < s.indexOf('<ScrollView'), `${f}: header before scroll`);
   }
   const h = read('src/components/dhara/ScreenHeader.tsx');
-  assert.match(h, /styles\.title\} numberOfLines=\{2\} maxFontSizeMultiplier=\{FONT_SCALE_CAP\.chrome\}/);
+  assert.match(h, /styles\.title\} numberOfLines=\{subtitle \? 1 : 2\}[^>]*maxFontSizeMultiplier=\{FONT_SCALE_CAP\.chrome\}/);
 });
 
 test('every Google map is the light map, never following the phone dark mode', () => {
