@@ -8,6 +8,7 @@ import { theme } from '@/src/theme';
 import { UI_REVISION_V1 } from '@/src/designRevision';
 import { focusRingStyle } from '@/src/a11yFocus';
 import { PageTitleRow } from '@/src/ui/PageTitleRow';
+import { backFromMe, backToMe } from '@/src/meBack';
 
 type StateItem = { code: string; name: string; native: string; type: 'state' | 'ut' };
 
@@ -54,7 +55,7 @@ const FALLBACK: StateItem[] = [
 export default function StateSelect() {
   const { user, token, setUserState } = useAuth();
   const router = useRouter();
-  const params = useLocalSearchParams<{ onboarding?: string }>();
+  const params = useLocalSearchParams<{ onboarding?: string; from?: string }>();
   const onboarding = params.onboarding === '1';
   const [states, setStates] = useState<StateItem[]>(FALLBACK);
   const [selected, setSelected] = useState<string | null>(user?.state || null);
@@ -74,9 +75,11 @@ export default function StateSelect() {
     return states.filter((s) => s.name.toLowerCase().includes(q) || s.native.includes(query.trim()));
   }, [states, query]);
 
+  // 26 Nov: from Me -> always back to Me; otherwise back to where it came
+  // from, and to Me when there is nothing behind it (Back used to do nothing).
   const done = () => {
     if (onboarding) router.replace('/(tabs)/home');
-    else router.back();
+    else backFromMe(router, params.from, () => backToMe(router));
   };
 
   const onSave = async () => {

@@ -35,16 +35,16 @@ export default function Me() {
   const photoSrc = user?.photo_url && viewToken ? `${API_BASE}${user.photo_url}&token=${viewToken}` : null;
 
   const rows: { icon: any; key: string; label?: string; value?: string; route?: string; action?: () => void }[] = [
-    { icon: 'person-outline', key: 'me.editProfile', route: '/edit-profile' },
-    { icon: 'people-outline', key: 'me.trustedCircle', route: '/women/trusted-circle' },
+    { icon: 'person-outline', key: 'me.editProfile', route: '/edit-profile?from=me' },
+    { icon: 'people-outline', key: 'me.trustedCircle', route: '/women/trusted-circle?from=me' },
     ...(familyJourneyEnabled
-      ? [{ icon: 'navigate-outline' as any, key: 'me.familyJourney', value: FJ_SEND_ENABLED ? undefined : tr('common.preview', lang), route: '/family-journey' }]
+      ? [{ icon: 'navigate-outline' as any, key: 'me.familyJourney', value: FJ_SEND_ENABLED ? undefined : tr('common.preview', lang), route: '/family-journey?from=me' }]
       : []),
-    { icon: 'notifications-outline', key: 'me.notifications', route: '/alerts' },
-    { icon: 'shield-checkmark-outline', key: 'me.privacy', route: '/settings/data-privacy' },
-    { icon: 'globe-outline', key: 'me.language', value: language.native, route: '/language' },
+    { icon: 'notifications-outline', key: 'me.notifications', route: '/alerts?from=me' },
+    { icon: 'shield-checkmark-outline', key: 'me.privacy', route: '/settings/data-privacy?from=me' },
+    { icon: 'globe-outline', key: 'me.language', value: language.native, route: '/language?from=me' },
     { icon: 'help-buoy-outline', key: 'me.help', route: '/(tabs)/settings?from=me' },
-    { icon: 'location-outline', key: 'me.state', value: user?.state_name || 'Add your state', route: '/state' },
+    { icon: 'location-outline', key: 'me.state', value: user?.state_name || 'Add your state', route: '/state?from=me' },
     { icon: 'chatbubbles-outline', key: 'me.history', route: '/(tabs)/history?from=me' },
     { icon: 'bookmark-outline', key: 'me.saved', route: '/(tabs)/saved?from=me' },
     // B-97: advocate/lawyer features are hidden for Wave 1 per D-14.
@@ -58,7 +58,7 @@ export default function Me() {
         <Text style={styles.title}>{tr('me.title', lang)}</Text>
 
         <View style={styles.profile}>
-          <Pressable onPress={() => router.push('/edit-profile')} testID="me-avatar" style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Edit profile photo">
+          <Pressable onPress={() => router.push('/edit-profile?from=me' as any)} testID="me-avatar" style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Edit profile photo">
             {photoSrc ? (
               <Image source={{ uri: photoSrc }} style={styles.avatarImg} />
             ) : (

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, FlatList, TextInput } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PageTitleRow } from '@/src/ui/PageTitleRow';
+import { backFromMe } from '@/src/meBack';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth, Language } from '@/src/auth';
@@ -60,7 +61,7 @@ export default function LanguageSelect() {
         <PageTitleRow
           title="Choose language"
           subtitle="DHARA speaks in the language you prefer. Which features work in each language is shown after you choose."
-          onBack={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/home'))}
+          onBack={() => backFromMe(router, from, () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/home')))}
           backTestID="language-back"
           testID="language-title"
         />
