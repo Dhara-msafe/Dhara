@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: c.borderStrong, backgroundColor: c.surface,
   },
   chipOn: { backgroundColor: c.navy, borderColor: c.navy },
-  chipTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy },
+  chipTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.navy },
   chipTxtOn: { color: '#fff' },
-  error: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.warning },
+  error: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.warning },
 });

@@ -6,7 +6,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { useAuth } from '@/src/auth';
 import { tr } from '@/src/ui18n';
-import { SosPill } from '@/src/components/dhara/SosPill';
 import { UI_REVISION_V1 } from '@/src/designRevision';
 import { UI_V22_P8, UI_V22_S6 } from '@/src/uiV22Flags';
 import { focusRingStyle } from '@/src/a11yFocus';
@@ -64,10 +63,9 @@ export default function AllHelp() {
 
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
         <View style={styles.headRow}>
           <Text style={styles.title}>{tr('all.title', lang)} <Text style={styles.titleHi}>सारी मदद</Text></Text>
-          <SosPill />
         </View>
 
         <View style={styles.searchWrap}>
@@ -177,12 +175,12 @@ export default function AllHelp() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: c.background, paddingHorizontal: 20 },
+  root: { flex: 1, backgroundColor: c.background, paddingHorizontal: 16 },
   headRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title: { fontFamily: theme.fonts.displayBold, fontSize: 28, color: c.ink },
-  titleHi: { color: c.darkGold, fontSize: 20 },
+  title: { fontFamily: theme.fonts.displayBold, fontSize: 24, color: c.ink },
+  titleHi: { color: c.darkGold, fontFamily: 'Inter', fontSize: 17 },
   searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 14, paddingHorizontal: 14, height: 52, marginTop: 16 },
-  search: { flex: 1, fontFamily: theme.fonts.body, fontSize: 15, color: c.ink },
+  search: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.ink },
   // UI-revision pilot: 36x36 was below the 48px minimum touch target.
   searchMic: { width: UI_REVISION_V1 ? 48 : 36, height: UI_REVISION_V1 ? 48 : 36, borderRadius: UI_REVISION_V1 ? 14 : 10, backgroundColor: c.goldMuted, alignItems: 'center', justifyContent: 'center' },
   filters: { gap: 10, paddingVertical: 16 },
@@ -190,19 +188,19 @@ const styles = StyleSheet.create({
   // added so the active-state checkmark icon sits beside the label, not above it.
   filterChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 999, paddingHorizontal: 18, paddingVertical: UI_REVISION_V1 ? 14 : 9 },
   filterChipActive: { backgroundColor: c.navy, borderColor: c.navy },
-  filterTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.ink },
+  filterTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.ink },
   filterTxtActive: { color: '#fff' },
   section: { marginTop: 10 },
   secLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.onSurfaceTertiary, letterSpacing: 1.2, marginBottom: 12, marginTop: 12 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
   card: { width: '47.5%', backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.lines, padding: 16, gap: 6, minHeight: 120 },
   cardSoon: { borderStyle: 'dashed', backgroundColor: 'transparent' },
-  cardTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink, marginTop: 4 },
+  cardTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink, marginTop: 4 },
   cardSub: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted },
   newBadge: { position: 'absolute', top: 12, right: 12, backgroundColor: c.goldSoft, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
-  newTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 9, color: c.darkGold, letterSpacing: 0.5 },
-  noResults: { alignItems: 'center', gap: 10, paddingVertical: 24 },
-  noResultsTxt: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, textAlign: 'center', paddingHorizontal: 20 },
+  newTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 11, color: c.darkGold, letterSpacing: 0.5 },
+  noResults: { alignItems: 'center', gap: 10, paddingVertical: 18 },
+  noResultsTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, textAlign: 'center', paddingHorizontal: 16 },
   askDharaBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.navy, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 12, marginTop: 4 },
-  askDharaTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: '#fff' },
+  askDharaTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: '#fff' },
 });

@@ -170,24 +170,24 @@ const styles = StyleSheet.create({
   back: UI_V22_S3
     ? { width: 48, height: 48, borderRadius: 24, borderWidth: 1.5, borderColor: c.lines, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' }
     : { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  barTitle: { color: UI_V22_S3 ? c.navy : '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 17 },
-  kicker: { color: UI_V22_S3 ? c.navy : c.gold, fontFamily: theme.fonts.bodyBold, fontSize: 13, letterSpacing: 1.5, marginBottom: 14 },
-  big: { color: UI_V22_S3 ? c.navy : '#fff', fontFamily: theme.fonts.displayBold, fontSize: 32, lineHeight: 42 },
+  barTitle: { color: UI_V22_S3 ? c.navy : '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 15 },
+  kicker: { color: UI_V22_S3 ? c.navy : c.gold, fontFamily: theme.fonts.bodyBold, fontSize: 12, letterSpacing: 1.5, marginBottom: 14 },
+  big: { color: UI_V22_S3 ? c.navy : '#fff', fontFamily: theme.fonts.displayBold, fontSize: 26, lineHeight: 37 },
   lawChip: UI_V22_S3
     ? { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.sand, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, alignSelf: 'flex-start', marginTop: 16 }
     : { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, alignSelf: 'flex-start', marginTop: 16 },
-  lawTxt: { color: UI_V22_S3 ? c.navy : '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 15 },
-  why: { color: UI_V22_S3 ? c.muted : c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 17, lineHeight: 26, marginTop: 18 },
+  lawTxt: { color: UI_V22_S3 ? c.navy : '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 13 },
+  why: { color: UI_V22_S3 ? c.muted : c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 15, lineHeight: 23, marginTop: 18 },
   pendingChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.gold, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, alignSelf: 'flex-start', marginTop: 18 },
-  pendingTxt: { color: c.navy, fontFamily: theme.fonts.bodySemiBold, fontSize: 13 },
-  askBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.gold, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 20, alignSelf: 'flex-start', marginTop: 20 },
-  askTxt: { color: c.navy, fontFamily: theme.fonts.bodyBold, fontSize: 16 },
+  pendingTxt: { color: c.navy, fontFamily: theme.fonts.bodySemiBold, fontSize: 12 },
+  askBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.gold, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 16, alignSelf: 'flex-start', marginTop: 20 },
+  askTxt: { color: c.navy, fontFamily: theme.fonts.bodyBold, fontSize: 14 },
   hlRow: { flexDirection: 'row', gap: 12, marginTop: 34 },
   hl: UI_V22_S3
     ? { flex: 1, backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.lines, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }
     : { flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
-  hlNum: { color: UI_V22_S3 ? c.navy : '#fff', fontFamily: theme.fonts.displayBold, fontSize: 22 },
-  hlName: { color: UI_V22_S3 ? c.muted : c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 11, marginTop: 2 },
+  hlNum: { color: UI_V22_S3 ? c.navy : '#fff', fontFamily: theme.fonts.displayBold, fontSize: 19 },
+  hlName: { color: UI_V22_S3 ? c.muted : c.onNavyMuted, fontFamily: theme.fonts.body, fontSize: 12, marginTop: 2 },
   silentBtn: UI_V22_S3
     ? { flexDirection: 'row', alignItems: 'center', minHeight: 44, gap: 5, backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.lines, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 }
     : { flexDirection: 'row', alignItems: 'center', minHeight: 44, gap: 5, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
@@ -196,19 +196,19 @@ const styles = StyleSheet.create({
   originalBox: UI_V22_S3
     ? { backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.lines, borderLeftWidth: 3, borderLeftColor: c.gold, borderRadius: 10, padding: 14, marginTop: 14 }
     : { backgroundColor: 'rgba(255,255,255,0.08)', borderLeftWidth: 3, borderLeftColor: c.gold, borderRadius: 10, padding: 14, marginTop: 14 },
-  originalLabel: { color: UI_V22_S3 ? c.goldText : c.gold, fontFamily: theme.fonts.bodyBold, fontSize: 11, letterSpacing: 1 },
-  originalTxt: { color: UI_V22_S3 ? c.ink : '#fff', fontFamily: theme.fonts.body, fontSize: 15, lineHeight: 22, marginTop: 6 },
+  originalLabel: { color: UI_V22_S3 ? c.goldText : c.gold, fontFamily: theme.fonts.bodyBold, fontSize: 12, letterSpacing: 1 },
+  originalTxt: { color: UI_V22_S3 ? c.ink : '#fff', fontFamily: theme.fonts.body, fontSize: 13, lineHeight: 19, marginTop: 6 },
   actionRow: { flexDirection: 'row', gap: 10, marginTop: 20, flexWrap: 'wrap' },
   actionBtn: UI_V22_S3
     ? { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.lines, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10 }
     : { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10 },
-  actionTxt: { color: UI_V22_S3 ? c.navy : '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 13 },
+  actionTxt: { color: UI_V22_S3 ? c.navy : '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 12 },
   revealBox: UI_V22_S3
     ? { backgroundColor: c.sand, borderRadius: 12, padding: 14, marginTop: 10 }
     : { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 14, marginTop: 10 },
-  revealTxt: { color: UI_V22_S3 ? c.ink : '#fff', fontFamily: theme.fonts.body, fontSize: 14, lineHeight: 20 },
+  revealTxt: { color: UI_V22_S3 ? c.ink : '#fff', fontFamily: theme.fonts.body, fontSize: 13, lineHeight: 18 },
   scenarioBox: UI_V22_S3
     ? { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.sand, borderRadius: 12, padding: 12, marginBottom: 14 }
     : { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 12, padding: 12, marginBottom: 14 },
-  scenarioTxt: { flex: 1, color: UI_V22_S3 ? c.goldText : c.gold, fontFamily: theme.fonts.bodySemiBold, fontSize: 14, lineHeight: 20 },
+  scenarioTxt: { flex: 1, color: UI_V22_S3 ? c.goldText : c.gold, fontFamily: theme.fonts.bodySemiBold, fontSize: 13, lineHeight: 18 },
 });

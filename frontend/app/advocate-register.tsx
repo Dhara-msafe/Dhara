@@ -60,7 +60,7 @@ export default function AdvocateRegister() {
   };
 
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView edges={['bottom']} style={s.safe}>
       <View style={s.header}>
         <Pressable onPress={() => goBackOr(router, '/(tabs)/advocate')} style={{ marginRight: 12 }}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
@@ -80,7 +80,7 @@ export default function AdvocateRegister() {
         <TextInput
           style={s.input}
           placeholder="e.g. MH/1234/2020"
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor="#64788A"
           value={barCouncil}
           onChangeText={setBarCouncil}
           autoCapitalize="characters"
@@ -102,7 +102,7 @@ export default function AdvocateRegister() {
         </View>
 
         <View style={s.disclaimerCard}>
-          <Ionicons name="time-outline" size={16} color="#92400E" />
+          <Ionicons name="time-outline" size={16} color="#8A6A1E" />
           <Text style={s.disclaimerText}>
             Your Bar Council enrolment number will be reviewed within 24–48 hours. You can access Lawyer Mode immediately; your profile will show &ldquo;Registered but unreviewed&rdquo; until the team verifies your enrolment.
           </Text>
@@ -127,7 +127,7 @@ export default function AdvocateRegister() {
               keyExtractor={item => item}
               renderItem={({ item }) => (
                 <Pressable style={s.modalItem} onPress={() => { setStateBar(item); setShowBarPicker(false); }}>
-                  <Text style={[s.modalItemText, item === stateBar && { color: NAVY, fontWeight: '700' }]}>{item}</Text>
+                  <Text style={[s.modalItemText, item === stateBar && { color: NAVY, fontFamily: 'InterBold'}]}>{item}</Text>
                   {item === stateBar && <Ionicons name="checkmark" size={18} color={NAVY} />}
                 </Pressable>
               )}
@@ -140,30 +140,30 @@ export default function AdvocateRegister() {
 }
 
 const s = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: '#FDFBF7' },
-  header: { backgroundColor: NAVY, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#fff', flex: 1 },
-  scroll: { padding: 20, paddingBottom: 40 },
-  label: { fontSize: 13, fontWeight: '700', color: NAVY, marginBottom: 6 },
-  req:   { color: '#EF4444' },
-  input: { borderWidth: 1.5, borderColor: '#D1D5DB', borderRadius: 10, padding: 12, fontSize: 15, color: '#1F2937', backgroundColor: '#fff' },
-  picker: { borderWidth: 1.5, borderColor: '#D1D5DB', borderRadius: 10, padding: 12, backgroundColor: '#fff', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  pickerText: { fontSize: 15, color: '#1F2937', flex: 1 },
-  pickerPlaceholder: { fontSize: 15, color: '#9CA3AF', flex: 1 },
+  safe:   { flex: 1, backgroundColor: '#FFFAF2' },
+  header: { backgroundColor: NAVY, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
+  headerTitle: { fontSize: 16, fontFamily: 'InterBold', color: '#fff', flex: 1 },
+  scroll: { padding: 16, paddingBottom: 40 },
+  label: { fontSize: 12, fontFamily: 'InterBold', color: NAVY, marginBottom: 6 },
+  req:   { color: '#C73236' },
+  input: { borderWidth: 1.5, borderColor: '#E6DFD1', borderRadius: 10, padding: 12, fontFamily: 'Inter', fontSize: 13, color: '#102A45', backgroundColor: '#fff' },
+  picker: { borderWidth: 1.5, borderColor: '#E6DFD1', borderRadius: 10, padding: 12, backgroundColor: '#fff', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  pickerText: { fontFamily: 'Inter', fontSize: 13, color: '#102A45', flex: 1 },
+  pickerPlaceholder: { fontFamily: 'Inter', fontSize: 13, color: '#64788A', flex: 1 },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: NAVY, backgroundColor: '#fff' },
   chipActive: { backgroundColor: NAVY },
-  chipText: { fontSize: 13, fontWeight: '600', color: NAVY },
+  chipText: { fontSize: 12, fontFamily: 'InterSemiBold', color: NAVY },
   chipTextActive: { color: '#fff' },
-  disclaimerCard: { flexDirection: 'row', gap: 8, backgroundColor: '#FEF3C7', borderRadius: 10, padding: 12, marginTop: 20, alignItems: 'flex-start' },
-  disclaimerText: { flex: 1, fontSize: 12, color: '#92400E', lineHeight: 18 },
-  helperText: { fontSize: 11, color: '#6B7280', marginTop: 4, marginLeft: 2 },
-  errorText: { color: '#EF4444', fontSize: 13, marginTop: 12, textAlign: 'center' },
-  btn: { backgroundColor: GOLD, paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 24 },
-  btnText: { fontSize: 16, fontWeight: '700', color: NAVY },
+  disclaimerCard: { flexDirection: 'row', gap: 8, backgroundColor: '#FFF4E6', borderRadius: 10, padding: 12, marginTop: 20, alignItems: 'flex-start' },
+  disclaimerText: { flex: 1, fontFamily: 'Inter', fontSize: 12, color: '#8A6A1E', lineHeight: 16 },
+  helperText: { fontFamily: 'Inter', fontSize: 12, color: '#64788A', marginTop: 4, marginLeft: 2 },
+  errorText: { color: '#C73236', fontFamily: 'Inter', fontSize: 12, marginTop: 12, textAlign: 'center' },
+  btn: { backgroundColor: GOLD, paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 18 },
+  btnText: { fontSize: 14, fontFamily: 'InterBold', color: NAVY },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '70%', padding: 20 },
-  modalTitle: { fontSize: 17, fontWeight: '700', color: NAVY, marginBottom: 12 },
-  modalItem: { paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  modalItemText: { fontSize: 14, color: '#374151', flex: 1 },
+  modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '70%', padding: 16 },
+  modalTitle: { fontSize: 15, fontFamily: 'InterBold', color: NAVY, marginBottom: 12 },
+  modalItem: { paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#EEF3FC', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  modalItemText: { fontFamily: 'Inter', fontSize: 13, color: '#102A45', flex: 1 },
 });

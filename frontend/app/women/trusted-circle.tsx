@@ -150,7 +150,7 @@ export default function TrustedCircle() {
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} testID="trusted-circle-screen">
       <ScreenHeader title="Trusted circle" subtitle="Up to 3 people · stored only on this phone" />
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 40 }}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 40 }}>
         <Text testID="circle-disclosure" style={styles.note}>Contacts are saved on this device. DHARA does not automatically alert them or monitor journeys. Tap the bell to choose whether a contact is suggested in Silent alert, or kept for calling only. Use Silent alert to prepare an SMS, then press Send in your messaging app.</Text>
         {!!status && <Text testID="circle-status" accessibilityLiveRegion="polite" style={styles.note}>{status}</Text>}
 
@@ -383,37 +383,37 @@ export default function TrustedCircle() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
-  note: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, lineHeight: 21, marginBottom: 18 },
+  note: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18, marginBottom: 18 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.lines, padding: 14, marginBottom: 12 },
   avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: c.navySoft, alignItems: 'center', justifyContent: 'center' },
-  avatarTxt: { fontFamily: theme.fonts.displayBold, fontSize: 18, color: c.navy },
-  rowName: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.ink },
-  rowPhone: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted },
+  avatarTxt: { fontFamily: theme.fonts.displayBold, fontSize: 16, color: c.navy },
+  rowName: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.ink },
+  rowPhone: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted },
   rowEmail: { fontFamily: theme.fonts.body, fontSize: 12, color: c.navy, marginTop: 1 },
   rowNotify: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 2 },
   iconBtn: { width: UI_REVISION_V1 ? 48 : 44, height: UI_REVISION_V1 ? 48 : 44, alignItems: 'center', justifyContent: 'center' },
   addCard: { backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.lines, padding: 16, marginTop: 6 },
-  addTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.ink, marginBottom: 12 },
-  input: { backgroundColor: c.background, borderWidth: 1, borderColor: c.lines, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontFamily: theme.fonts.body, fontSize: 16, color: c.ink, marginBottom: 12 },
+  addTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.ink, marginBottom: 12 },
+  input: { backgroundColor: c.background, borderWidth: 1, borderColor: c.lines, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontFamily: theme.fonts.body, fontSize: 14, color: c.ink, marginBottom: 12 },
   addBtn: { backgroundColor: c.navy, borderRadius: 12, paddingVertical: 14, alignItems: 'center', minHeight: UI_REVISION_V1 ? 48 : undefined, justifyContent: 'center' },
-  addBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 16 },
-  full: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, marginTop: 8 },
+  addBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14 },
+  full: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, marginTop: 8 },
   helperText: { fontFamily: theme.fonts.body, fontSize: 12, color: c.navy, lineHeight: 17, marginBottom: 12, paddingHorizontal: 2 },
   inviteRow: { marginTop: -6, marginBottom: 10, paddingLeft: 56 },
   // NF-UI-REV-07: this link was bare text with no padding — under 44px.
   inviteLinkBtn: { minHeight: UI_REVISION_V1 ? 44 : undefined, justifyContent: 'center' },
-  inviteLinkTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12.5, color: c.navy },
-  inviteSentTxt: { fontFamily: theme.fonts.body, fontSize: 12.5, color: c.muted },
-  connectedTxt: { fontFamily: theme.fonts.body, fontSize: 12.5, color: c.success, marginBottom: 6 },
-  revokeBtn: { alignSelf: 'flex-start', minHeight: UI_REVISION_V1 ? 44 : 36, paddingHorizontal: 12, justifyContent: 'center', backgroundColor: '#FCEBE9', borderRadius: 999 },
-  revokeBtnTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12.5, color: c.error },
+  inviteLinkTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy },
+  inviteSentTxt: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted },
+  connectedTxt: { fontFamily: theme.fonts.body, fontSize: 13, color: c.success, marginBottom: 6 },
+  revokeBtn: { alignSelf: 'flex-start', minHeight: UI_REVISION_V1 ? 44 : 36, paddingHorizontal: 12, justifyContent: 'center', backgroundColor: '#FFF0F0', borderRadius: 999 },
+  revokeBtnTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.error },
   permPanel: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 14, padding: 14, marginTop: -6, marginBottom: 12 },
-  permPanelTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.ink, marginBottom: 10 },
+  permPanelTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink, marginBottom: 10 },
   permToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 40 },
-  permToggleLabel: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, paddingRight: 12 },
+  permToggleLabel: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12, color: c.ink, paddingRight: 12 },
   permActionsRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
   permCancelBtn: { flex: 1, minHeight: 44, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: c.background, borderWidth: 1, borderColor: c.lines },
-  permCancelTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.muted },
+  permCancelTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.muted },
   permSendBtn: { flex: 1, minHeight: 44, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: c.navy },
-  permSendTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: '#fff' },
+  permSendTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: '#fff' },
 });

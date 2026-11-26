@@ -89,7 +89,7 @@ export default function AlertDetail() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={['bottom']}>
       <ScreenHeader title="Journey safety alert" />
-      <ScrollView contentContainerStyle={{ padding: 20 }}>
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
         <View style={[styles.banner, URGENT_SET.has(alert.type) ? styles.bannerUrgent : styles.bannerNeutral]}>
           <Text style={styles.bannerTitle}>{alert.title}</Text>
           <Text style={styles.bannerBody}>{msgFn(alert.owner_name)}</Text>
@@ -166,21 +166,21 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   hint: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 6, lineHeight: 17 },
   banner: { borderRadius: 16, padding: 16, marginBottom: 16 },
-  bannerUrgent: { backgroundColor: '#FCEBE9' },
+  bannerUrgent: { backgroundColor: '#FFF0F0' },
   bannerNeutral: { backgroundColor: c.surfaceSecondary },
-  bannerTitle: { fontFamily: theme.fonts.displayBold, fontSize: 18, color: c.navy, marginBottom: 4 },
-  bannerBody: { fontFamily: theme.fonts.bodyMedium, fontSize: 14, color: c.ink },
+  bannerTitle: { fontFamily: theme.fonts.displayBold, fontSize: 16, color: c.navy, marginBottom: 4 },
+  bannerBody: { fontFamily: theme.fonts.bodyMedium, fontSize: 13, color: c.ink },
   noteBox: { flexDirection: 'row', gap: 8, backgroundColor: c.surfaceSecondary, borderRadius: 12, padding: 12, marginBottom: 16 },
   noteTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12, color: c.navy, lineHeight: 17 },
   card: { backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.border, padding: 16, marginBottom: 14 },
-  cardLabel: v22SectionLabel({ fontFamily: theme.fonts.bodySemiBold, fontSize: 11, color: c.muted, marginTop: 8, textTransform: 'uppercase', letterSpacing: 0.4 }),
-  cardVal: { fontFamily: theme.fonts.bodyMedium, fontSize: 15, color: c.ink, marginTop: 2 },
+  cardLabel: v22SectionLabel({ fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.muted, marginTop: 8, textTransform: 'uppercase', letterSpacing: 0.4 }),
+  cardVal: { fontFamily: theme.fonts.bodyMedium, fontSize: 13, color: c.ink, marginTop: 2 },
   linkRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
-  linkTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy },
+  linkTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.navy },
   actionsCol: { gap: 10, marginTop: 4 },
   actionBtn: { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: c.navy, borderRadius: 999, minHeight: 48 },
-  actionBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 15 },
+  actionBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 13 },
   actionBtnSecondary: { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surfaceSecondary, borderRadius: 999, minHeight: 48 },
-  actionBtnSecondaryTxt: { color: c.navy, fontFamily: theme.fonts.bodySemiBold, fontSize: 15 },
-  disclaimer: { fontFamily: theme.fonts.body, fontSize: 11, color: c.muted, textAlign: 'center', marginTop: 4, lineHeight: 15 },
+  actionBtnSecondaryTxt: { color: c.navy, fontFamily: theme.fonts.bodySemiBold, fontSize: 13 },
+  disclaimer: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, textAlign: 'center', marginTop: 4, lineHeight: 15 },
 });

@@ -200,30 +200,30 @@ export default function SilentAlert() {
 
 const styles = StyleSheet.create({
   root:    { flex: 1, backgroundColor: c.background },
-  content: { padding: 20, gap: 18 },
-  note:    { fontFamily: theme.fonts.body, fontSize: 15, lineHeight: 23, color: c.muted },
-  message: { padding: 18, backgroundColor: c.surface, borderRadius: 14, fontFamily: theme.fonts.body, fontSize: 16, lineHeight: 24, color: c.ink },
+  content: { padding: 16, gap: 18 },
+  note:    { fontFamily: theme.fonts.body, fontSize: 13, lineHeight: 20, color: c.muted },
+  message: { padding: 18, backgroundColor: c.surface, borderRadius: 14, fontFamily: theme.fonts.body, fontSize: 14, lineHeight: 21, color: c.ink },
   button:  { padding: 16, minHeight: 52, borderRadius: 14, backgroundColor: c.navy, alignItems: 'center' },
-  buttonText: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.onBrandPrimary },
+  buttonText: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.onBrandPrimary },
   secondary:  { padding: 16, minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: c.lines, backgroundColor: c.surface },
   emptyCard:  { gap: 14 },
-  label:      { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.navy },
+  label:      { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.navy },
   // Toggle card
   toggleCard:    { borderRadius: 16, borderWidth: 1, borderColor: c.lines, backgroundColor: c.surface, overflow: 'hidden' },
   toggleRow:     { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
-  toggleLabel:   { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink, marginBottom: 3 },
-  toggleSub:     { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18 },
+  toggleLabel:   { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink, marginBottom: 3 },
+  toggleSub:     { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 16 },
   recordingBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingBottom: 14 },
-  recordingDot:   { width: 8, height: 8, borderRadius: 4, backgroundColor: '#ef4444' },
+  recordingDot:   { width: 8, height: 8, borderRadius: 4, backgroundColor: '#C73236' },
   recordingText:  {
-    fontFamily: theme.fonts.bodyBold, fontSize: 13,
-    // NF-UI-REV-09: '#ef4444' on white measured ~3.76:1 — under 4.5:1.
-    // theme.colors.emergencyRed ('#B42318') clears ~5.9:1 on the same bg.
-    color: UI_REVISION_V1 ? c.emergencyRed : '#ef4444',
+    fontFamily: theme.fonts.bodyBold, fontSize: 12,
+    // NF-UI-REV-09: '#C73236' on white measured ~3.76:1 — under 4.5:1.
+    // theme.colors.emergencyRed ('#C73236') clears ~5.9:1 on the same bg.
+    color: UI_REVISION_V1 ? c.emergencyRed : '#C73236',
   },
   evidenceTip:     { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 16, paddingBottom: 14 },
-  evidenceTipText: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18 },
+  evidenceTipText: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 16 },
   contactRow:       { flexDirection: 'row', alignItems: 'center' },
   evidenceChip:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.navySoft, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-  evidenceChipText: { fontFamily: theme.fonts.bodyBold, fontSize: 11, color: c.navy },
+  evidenceChipText: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.navy },
 });

@@ -27,9 +27,9 @@ const MAP_OPTIONS: google.maps.MapOptions = {
 };
 
 const CIRCLE_OPTIONS: google.maps.CircleOptions = {
-  fillColor: '#1A3F74',
+  fillColor: '#082B4F',
   fillOpacity: 0.15,
-  strokeColor: '#1A3F74',
+  strokeColor: '#082B4F',
   strokeOpacity: 0.6,
   strokeWeight: 1,
   clickable: false,

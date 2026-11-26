@@ -138,10 +138,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   text: {
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 0.12,
     paddingHorizontal: 14,
-    lineHeight: 27,
+    lineHeight: 24,
     flexShrink: 0,
   },
 });

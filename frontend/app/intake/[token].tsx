@@ -156,7 +156,7 @@ export default function ClientIntake() {
   if (!intake || intake.expired) return (
     <SafeAreaView style={s.safe}>
       <View style={s.center}>
-        <Ionicons name="alert-circle-outline" size={48} color="#DC2626" />
+        <Ionicons name="alert-circle-outline" size={48} color="#C73236" />
         <Text style={s.errorTitle}>{intake?.expired ? 'This link has expired' : 'Link not found'}</Text>
         <Text style={s.errorSub}>Please ask your advocate to send a new link.</Text>
       </View>
@@ -166,7 +166,7 @@ export default function ClientIntake() {
   if (intake.status === 'complete' || done) return (
     <SafeAreaView style={s.safe}>
       <View style={s.center}>
-        <Ionicons name="checkmark-circle" size={64} color="#059669" />
+        <Ionicons name="checkmark-circle" size={64} color="#087951" />
         <Text style={s.doneTitle}>Submitted Successfully</Text>
         <Text style={s.doneSub}>Your information has been sent to your advocate securely. They will contact you shortly.</Text>
       </View>
@@ -196,7 +196,7 @@ export default function ClientIntake() {
               value={clientName}
               onChangeText={setClientName}
               placeholder="Enter your full name"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor="#64788A"
               returnKeyType="next"
             />
           </View>
@@ -215,7 +215,7 @@ export default function ClientIntake() {
                     value={answers[q.id] ?? ''}
                     onChangeText={t => setAnswers(prev => ({ ...prev, [q.id]: t }))}
                     placeholder={q.placeholder ?? ''}
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor="#64788A"
                     multiline={q.type === 'textarea'}
                     numberOfLines={q.type === 'textarea' ? 3 : 1}
                     textAlignVertical={q.type === 'textarea' ? 'top' : 'center'}
@@ -233,7 +233,7 @@ export default function ClientIntake() {
                     </Pressable>
                   )}
                 </View>
-                {isRecording && <Text style={s.recording}>🎙 Recording… tap again to stop</Text>}
+                {isRecording && <Text style={s.recording}>Recording… tap again to stop</Text>}
                 {isTranscribing && <Text style={s.recording}>Transcribing…</Text>}
               </View>
             );
@@ -246,7 +246,7 @@ export default function ClientIntake() {
             }
           </Pressable>
 
-          <Text style={s.privacy}>🔒 Your information is encrypted and only visible to your advocate.</Text>
+          <Text style={s.privacy}>Your information is encrypted and only visible to your advocate.</Text>
         </ScrollView>
       </SafeAreaView>
     </KeyboardSafeView>
@@ -254,27 +254,27 @@ export default function ClientIntake() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FDFBF7' },
+  safe: { flex: 1, backgroundColor: '#FFFAF2' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
-  header: { backgroundColor: NAVY, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, gap: 12 },
+  header: { backgroundColor: NAVY, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
   headerIcon: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 16, fontWeight: '800', color: '#fff' },
-  headerSub: { fontSize: 11, color: GOLD, marginTop: 2 },
-  scroll: { padding: 20, gap: 16, paddingBottom: 40 },
+  headerTitle: { fontSize: 14, fontFamily: 'InterExtraBold', color: '#fff' },
+  headerSub: { fontFamily: 'Inter', fontSize: 12, color: GOLD, marginTop: 2 },
+  scroll: { padding: 16, gap: 16, paddingBottom: 40 },
   fieldWrap: { gap: 6 },
-  label: { fontSize: 14, fontWeight: '700', color: '#1F2937' },
-  req: { color: '#DC2626' },
+  label: { fontSize: 13, fontFamily: 'InterBold', color: '#102A45' },
+  req: { color: '#C73236' },
   inputRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: '#1F2937' },
+  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E6DFD1', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontFamily: 'Inter', fontSize: 13, color: '#102A45' },
   textarea: { minHeight: 80, paddingTop: 12 },
-  micBtn: { width: 46, height: 46, borderRadius: 12, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D1D5DB', marginTop: 0 },
-  micBtnActive: { backgroundColor: '#DC2626', borderColor: '#DC2626' },
-  recording: { fontSize: 12, color: '#DC2626', fontWeight: '600' },
+  micBtn: { width: 46, height: 46, borderRadius: 12, backgroundColor: '#EEF3FC', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E6DFD1', marginTop: 0 },
+  micBtnActive: { backgroundColor: '#C73236', borderColor: '#C73236' },
+  recording: { fontSize: 12, color: '#C73236', fontFamily: 'InterSemiBold'},
   submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: NAVY, borderRadius: 14, paddingVertical: 16, marginTop: 8 },
-  submitText: { fontSize: 16, fontWeight: '800', color: '#fff' },
-  privacy: { fontSize: 12, color: '#9CA3AF', textAlign: 'center', marginTop: 4 },
-  errorTitle: { fontSize: 18, fontWeight: '800', color: '#1F2937' },
-  errorSub: { fontSize: 14, color: '#6B7280', textAlign: 'center' },
-  doneTitle: { fontSize: 22, fontWeight: '800', color: '#059669' },
-  doneSub: { fontSize: 14, color: '#374151', textAlign: 'center', lineHeight: 22 },
+  submitText: { fontSize: 14, fontFamily: 'InterExtraBold', color: '#fff' },
+  privacy: { fontFamily: 'Inter', fontSize: 12, color: '#64788A', textAlign: 'center', marginTop: 4 },
+  errorTitle: { fontSize: 16, fontFamily: 'InterExtraBold', color: '#102A45' },
+  errorSub: { fontFamily: 'Inter', fontSize: 13, color: '#64788A', textAlign: 'center' },
+  doneTitle: { fontSize: 19, fontFamily: 'InterExtraBold', color: '#087951' },
+  doneSub: { fontFamily: 'Inter', fontSize: 13, color: '#102A45', textAlign: 'center', lineHeight: 19 },
 });

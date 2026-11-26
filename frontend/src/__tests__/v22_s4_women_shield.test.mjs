@@ -40,7 +40,7 @@ test('root style is transparent under the gradient, opaque cream otherwise', () 
 });
 
 test('header keeps its existing navy background — not reskinned (already dark)', () => {
-  assert.match(screen, /header: \{ backgroundColor: c\.navy, paddingHorizontal: 20, paddingBottom: 18 \},/);
+  assert.match(screen, /header: \{ backgroundColor: c\.navy, paddingHorizontal: 16, paddingBottom: 18 \},/);
 });
 
 test('rights-grid, tool-card and helpline-card surfaces switch to the shield card background', () => {

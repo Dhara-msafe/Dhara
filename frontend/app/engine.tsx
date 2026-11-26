@@ -65,7 +65,7 @@ export default function DharaEngine() {
   return (
     <View style={styles.root}>
       <ScreenHeader title="Dhara Engine" subtitle="Every way DHARA can write something for you" />
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
 
         {casesLoading && !hasContinue ? (
           <View style={styles.loadingWrap}><ActivityIndicator color={c.navy} /></View>
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
   section: { marginBottom: 8 },
   sectionTitle: v22SectionLabel({
     fontFamily: theme.fonts.bodyBold,
-    fontSize: 13,
+    fontSize: 12,
     // NF-UI-REV-05: onSurfaceTertiary on this cream background measured
     // ~4.33:1 — under 4.5:1 for 13px bold (does not qualify as "large text").
     // onSurfaceSecondary clears ~6:1.
@@ -162,12 +162,12 @@ const styles = StyleSheet.create({
   }),
   continueCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.navySoft, borderRadius: 14, padding: 14, marginBottom: 10 },
   continueIcon: { width: 38, height: 38, borderRadius: 10, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' },
-  continueTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink },
+  continueTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink },
   continueSub: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 2 },
   toolCard: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines, borderRadius: 16, padding: 16, marginBottom: 12 },
   toolIcon: { width: 46, height: 46, borderRadius: 13, backgroundColor: c.navy, alignItems: 'center', justifyContent: 'center' },
-  toolTitle: { fontFamily: theme.fonts.displayBold, fontSize: 16, color: c.ink },
-  toolSub: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, marginTop: 3, lineHeight: 18 },
+  toolTitle: { fontFamily: theme.fonts.displayBold, fontSize: 14, color: c.ink },
+  toolSub: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 3, lineHeight: 16 },
   footer: { flexDirection: 'row', gap: 10, marginTop: 10, paddingHorizontal: 4 },
   footerTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 17 },
 });

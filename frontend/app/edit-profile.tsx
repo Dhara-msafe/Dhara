@@ -238,7 +238,7 @@ export default function EditProfileScreen() {
           />
           {dob.length === 10 && (
             isAtLeast18(dob)
-              ? <Text style={[styles.hint, { color: '#059669' }]}>✓ Age confirmed 18+</Text>
+              ? <Text style={[styles.hint, { color: '#087951' }]}>✓ Age confirmed 18+</Text>
               : <Text style={[styles.hint, { color: c.error }]}>⚠ You must be 18 or older to use Dhara.</Text>
           )}
         </View>
@@ -310,32 +310,32 @@ export default function EditProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  body:          { padding: 20, alignItems: 'center' },
+  body:          { padding: 16, alignItems: 'center' },
   avatarWrap:    { marginTop: 12 },
   avatarImg:     { width: 104, height: 104, borderRadius: 52, borderWidth: 3, borderColor: c.gold },
   avatarFallback: { width: 104, height: 104, borderRadius: 52, backgroundColor: c.surfaceSecondary, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: c.gold },
   cameraBadge:   { position: 'absolute', right: 0, bottom: 0, width: 30, height: 30, borderRadius: 15, backgroundColor: c.navy, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: c.background },
   changeBtn:     { marginTop: 10, marginBottom: 20, minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
-  changeTxt:     { fontFamily: theme.fonts.bodySemiBold, color: c.navy, fontSize: 14 },
-  errorBox:      { width: '100%', backgroundColor: '#FEF2F2', borderRadius: 10, borderWidth: 1, borderColor: '#FCA5A5', padding: 12, marginBottom: 12 },
-  errorTxt:      { fontFamily: theme.fonts.body, fontSize: 14, color: c.error, lineHeight: 20 },
+  changeTxt:     { fontFamily: theme.fonts.bodySemiBold, color: c.navy, fontSize: 13 },
+  errorBox:      { width: '100%', backgroundColor: '#FFF0F0', borderRadius: 10, borderWidth: 1, borderColor: '#EFC7C7', padding: 12, marginBottom: 12 },
+  errorTxt:      { fontFamily: theme.fonts.body, fontSize: 13, color: c.error, lineHeight: 18 },
   field:         { width: '100%', marginBottom: 16 },
-  label:         { fontFamily: theme.fonts.bodySemiBold, color: c.navy, fontSize: 13, marginBottom: 6 },
+  label:         { fontFamily: theme.fonts.bodySemiBold, color: c.navy, fontSize: 12, marginBottom: 6 },
   optionalTag:   { fontFamily: theme.fonts.body, color: c.muted, fontSize: 12 },
-  input:         { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, fontFamily: theme.fonts.body, fontSize: 15, color: c.ink, minHeight: 48 },
-  readOnly:      { fontFamily: theme.fonts.body, fontSize: 15, color: c.muted, paddingVertical: 10 },
+  input:         { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, minHeight: 48 },
+  readOnly:      { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, paddingVertical: 10 },
   hint:          { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 4, lineHeight: 17 },
   pickerBtn:     { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  pickerTxt:     { fontFamily: theme.fonts.body, fontSize: 15, color: c.ink },
+  pickerTxt:     { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink },
   saveBtn:       { backgroundColor: c.navy, width: '100%', borderRadius: 999, minHeight: 50, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
-  saveBtnTxt:    { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 16 },
+  saveBtnTxt:    { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14 },
   // Gender modal
   modalOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modalSheet:    { backgroundColor: c.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36 },
-  modalTitle:    { fontFamily: theme.fonts.displayBold, fontSize: 18, color: c.ink, marginBottom: 12 },
+  modalSheet:    { backgroundColor: c.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: 36 },
+  modalTitle:    { fontFamily: theme.fonts.displayBold, fontSize: 16, color: c.ink, marginBottom: 12 },
   modalRow:      { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.divider, minHeight: 52 },
-  modalRowTxt:   { flex: 1, fontFamily: theme.fonts.body, fontSize: 16, color: c.ink },
+  modalRowTxt:   { flex: 1, fontFamily: theme.fonts.body, fontSize: 14, color: c.ink },
   modalRowActive: { fontFamily: theme.fonts.bodyBold, color: c.navy },
   modalCancel:   { marginTop: 12, minHeight: 50, alignItems: 'center', justifyContent: 'center' },
-  modalCancelTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 16, color: c.muted },
+  modalCancelTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.muted },
 });

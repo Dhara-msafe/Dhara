@@ -121,7 +121,7 @@ export default function MissingAttachments() {
     finally { setBusy(false); }
   }
   const openMap = (location: MissingLocation) => openExternal(mapUrl(location)).catch(() => setError('Could not open Maps. Please use the coordinates shown.'));
-  return <SafeAreaView edges={['top', 'bottom']} style={s.safe} testID="missing-attachments-screen">
+  return <SafeAreaView edges={['bottom']} style={s.safe} testID="missing-attachments-screen">
     <View style={s.header}><Action id="missing-attachments-back" icon="arrow-back" label="Back" onPress={() => router.back()} disabled={busy} /><Text testID="missing-attachments-title" style={s.title}>Photos & location</Text></View>
     <KeyboardSafeView style={s.flex} behavior="padding">
       <ScrollView testID="missing-attachments-scroll" contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
@@ -169,12 +169,12 @@ export default function MissingAttachments() {
   </SafeAreaView>;
 }
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background }, flex: { flex: 1 }, header: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, backgroundColor: colors.surface }, title: { flex: 1, color: colors.primary, fontSize: 20, fontWeight: '700' },
+  safe: { flex: 1, backgroundColor: colors.background }, flex: { flex: 1 }, header: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, backgroundColor: colors.surface }, title: { flex: 1, color: colors.primary, fontSize: 17, fontFamily: 'InterBold'},
   content: { padding: 18, paddingBottom: 32, gap: 18 }, card: { backgroundColor: colors.surface, borderRadius: 16, padding: 16, gap: 14, borderWidth: 1, borderColor: colors.divider },
-  heading: { fontSize: 18, fontWeight: '700', color: colors.primary }, body: { fontSize: 14, lineHeight: 22, color: colors.onSurfaceSecondary }, hint: { fontSize: 12, lineHeight: 18, color: colors.onSurfaceTertiary },
-  consent: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48 }, consentText: { flex: 1, fontSize: 14, lineHeight: 21, color: colors.onSurface },
+  heading: { fontSize: 16, fontFamily: 'InterBold', color: colors.primary }, body: { fontFamily: 'Inter', fontSize: 13, lineHeight: 19, color: colors.onSurfaceSecondary }, hint: { fontFamily: 'Inter', fontSize: 12, lineHeight: 16, color: colors.onSurfaceTertiary },
+  consent: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48 }, consentText: { flex: 1, fontFamily: 'Inter', fontSize: 13, lineHeight: 18, color: colors.onSurface },
   button: { minHeight: 46, borderRadius: 12, backgroundColor: colors.navySoft, paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  buttonText: { fontSize: 13, fontWeight: '700', color: colors.primary, flexShrink: 1 }, row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }, dim: { opacity: 0.45 },
-  notice: { backgroundColor: colors.goldMuted, borderRadius: 12, padding: 12, gap: 10 }, error: { fontSize: 14, lineHeight: 21, color: colors.error }, photo: { gap: 8 },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, minHeight: 48, color: colors.onSurface, fontSize: 15 },
+  buttonText: { fontSize: 12, fontFamily: 'InterBold', color: colors.primary, flexShrink: 1 }, row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }, dim: { opacity: 0.45 },
+  notice: { backgroundColor: colors.goldMuted, borderRadius: 12, padding: 12, gap: 10 }, error: { fontFamily: 'Inter', fontSize: 13, lineHeight: 18, color: colors.error }, photo: { gap: 8 },
+  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, minHeight: 48, color: colors.onSurface, fontFamily: 'Inter', fontSize: 13 },
 });

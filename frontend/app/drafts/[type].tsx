@@ -39,7 +39,7 @@ export default function DraftForm() {
 
   if (!spec) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
+      <SafeAreaView style={styles.safe} edges={[]}>
         <Text style={styles.missing}>That notice type is not available.</Text>
       </SafeAreaView>
     );
@@ -104,7 +104,7 @@ export default function DraftForm() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']} testID="draft-form-screen">
+    <SafeAreaView style={styles.safe} edges={[]} testID="draft-form-screen">
       <View style={styles.header}>
         <Pressable
           testID="draft-back"
@@ -114,7 +114,7 @@ export default function DraftForm() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Ionicons name="chevron-back" size={26} color={theme.colors.onBrandPrimary} />
+          <Ionicons name="chevron-back" size={26} color={theme.colors.navy} />
         </Pressable>
         <Text style={styles.h1} numberOfLines={1}>{spec.title}</Text>
         <View style={{ width: 26 }} />
@@ -235,29 +235,29 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.surface },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: theme.spacing.lg, backgroundColor: theme.colors.brand, gap: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg, paddingVertical: 12, backgroundColor: theme.colors.background, borderBottomWidth: 1, borderBottomColor: theme.colors.lines, gap: theme.spacing.md,
   },
-  h1: { flex: 1, textAlign: 'center', fontFamily: theme.fonts.display, fontSize: 17, color: theme.colors.onBrandPrimary, fontWeight: '700' },
+  h1: { flex: 1, textAlign: 'center', fontFamily: theme.fonts.display, fontSize: 15, color: theme.colors.ink, fontWeight: '700' },
   scroll: { padding: theme.spacing.lg, gap: theme.spacing.md, paddingBottom: theme.spacing.xxl },
   deadlineCard: {
     flexDirection: 'row', gap: theme.spacing.sm, alignItems: 'flex-start',
-    backgroundColor: '#FEE2E2', borderRadius: theme.radius.md, padding: theme.spacing.md,
+    backgroundColor: '#FFF0F0', borderRadius: theme.radius.md, padding: theme.spacing.md,
   },
-  deadlineText: { flex: 1, color: '#7F1D1D', fontSize: 12, lineHeight: 18, fontWeight: '600' },
+  deadlineText: { flex: 1, color: '#690F16', fontSize: 12, lineHeight: 16, fontFamily: 'InterSemiBold'},
   fieldWrap: { gap: 6 },
-  label: { color: theme.colors.onSurfaceSecondary, fontSize: 13, fontWeight: '600' },
+  label: { color: theme.colors.onSurfaceSecondary, fontSize: 12, fontFamily: 'InterSemiBold'},
   input: {
     backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md,
     borderWidth: 1, borderColor: theme.colors.border, paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md, color: theme.colors.onSurface, fontSize: 15, minHeight: 48,
+    paddingVertical: theme.spacing.md, color: theme.colors.onSurface, fontFamily: 'Inter', fontSize: 13, minHeight: 48,
   },
   inputMulti: { minHeight: 76, textAlignVertical: 'top' },
-  hint: { color: theme.colors.onSurfaceTertiary, fontSize: 12, marginTop: theme.spacing.sm },
+  hint: { color: theme.colors.onSurfaceTertiary, fontFamily: 'Inter', fontSize: 12, marginTop: theme.spacing.sm },
   output: {
     backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md,
     borderWidth: 1, borderColor: theme.colors.border, padding: theme.spacing.lg,
   },
-  outputText: { color: theme.colors.onSurface, fontSize: 13, lineHeight: 21 },
+  outputText: { color: theme.colors.onSurface, fontFamily: 'Inter', fontSize: 12, lineHeight: 18 },
   actionBar: {
     flexDirection: 'row', gap: theme.spacing.md, padding: theme.spacing.lg,
     borderTopWidth: 1, borderTopColor: theme.colors.divider, backgroundColor: theme.colors.surface,
@@ -267,13 +267,13 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.brandSecondary, borderRadius: theme.radius.md,
     paddingHorizontal: theme.spacing.xl, minHeight: 52, flex: 1,
   },
-  primaryBtnText: { color: theme.colors.onBrandSecondary, fontWeight: '800', fontSize: 15 },
+  primaryBtnText: { color: theme.colors.onBrandSecondary, fontFamily: 'InterExtraBold', fontSize: 13 },
   secondaryBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     borderWidth: 2, borderColor: theme.colors.brand, borderRadius: theme.radius.md,
     paddingHorizontal: theme.spacing.xl, minHeight: 52, flex: 1,
   },
-  secondaryBtnText: { color: theme.colors.brand, fontWeight: '800', fontSize: 15 },
+  secondaryBtnText: { color: theme.colors.brand, fontFamily: 'InterExtraBold', fontSize: 13 },
   missing: { padding: theme.spacing.xl, color: theme.colors.onSurface },
   legalDisclaimer: {
     flexDirection: 'row',
@@ -288,9 +288,9 @@ const styles = StyleSheet.create({
   legalDisclaimerText: {
     flex: 1,
     color: theme.colors.onSurfaceSecondary,
-    fontSize: 12,
+    fontFamily: 'Inter', fontSize: 12,
     lineHeight: 17,
-    fontStyle: 'italic',
+    
   },
   prefillBanner: {
     flexDirection: 'row',
@@ -307,6 +307,6 @@ const styles = StyleSheet.create({
     color: theme.colors.brand,
     fontSize: 12,
     lineHeight: 17,
-    fontWeight: '600',
+    fontFamily: 'InterSemiBold',
   },
 });

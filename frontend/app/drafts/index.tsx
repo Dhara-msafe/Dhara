@@ -19,14 +19,14 @@ export default function DraftsList() {
   const remaining = user?.drafts_remaining ?? 1;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']} testID="drafts-screen">
+    <SafeAreaView style={styles.safe} edges={[]} testID="drafts-screen">
       <View style={styles.header}>
         <Pressable testID="drafts-back" onPress={() => router.back()} hitSlop={12} style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
-          <Ionicons name="chevron-back" size={26} color={theme.colors.onBrandPrimary} />
+          <Ionicons name="chevron-back" size={26} color={theme.colors.navy} />
         </Pressable>
         <Text style={styles.h1}>Ready notices</Text>
         <Pressable testID="drafts-history-nav" onPress={() => router.push('/drafts/history')} hitSlop={12} style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="View notice history">
-          <Ionicons name="time-outline" size={24} color={theme.colors.onBrandPrimary} />
+          <Ionicons name="time-outline" size={24} color={theme.colors.navy} />
         </Pressable>
       </View>
 
@@ -85,34 +85,34 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.surface },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: theme.spacing.lg, backgroundColor: theme.colors.brand,
+    paddingHorizontal: theme.spacing.lg, paddingVertical: 12, backgroundColor: theme.colors.background, borderBottomWidth: 1, borderBottomColor: theme.colors.lines,
   },
-  h1: { fontFamily: theme.fonts.display, fontSize: 20, color: theme.colors.onBrandPrimary, fontWeight: '700' },
+  h1: { fontFamily: theme.fonts.display, fontSize: 17, color: theme.colors.ink, fontWeight: '700' },
   scroll: { padding: theme.spacing.lg, gap: theme.spacing.md, paddingBottom: theme.spacing.xxxl },
-  intro: { color: theme.colors.onSurfaceSecondary, fontSize: 14, lineHeight: 21 },
+  intro: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 13, lineHeight: 18 },
   quotaCard: {
     flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm,
     backgroundColor: theme.colors.goldSoft, borderRadius: theme.radius.md,
     borderWidth: 1, borderColor: theme.colors.gold, padding: theme.spacing.md,
   },
-  quotaText: { flex: 1, color: theme.colors.brand, fontWeight: '700', fontSize: 13 },
+  quotaText: { flex: 1, color: theme.colors.brand, fontFamily: 'InterBold', fontSize: 12 },
   historyCard: {
     flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm,
-    backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.paper, borderRadius: theme.radius.md,
     borderWidth: 1, borderColor: theme.colors.border, padding: theme.spacing.md,
   },
-  historyCardText: { flex: 1, color: theme.colors.onSurface, fontWeight: '600', fontSize: 13 },
+  historyCardText: { flex: 1, color: theme.colors.onSurface, fontFamily: 'InterSemiBold', fontSize: 12 },
   card: {
     flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing.md,
-    backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.paper, borderRadius: theme.radius.md,
     borderWidth: 1, borderColor: theme.colors.border, padding: theme.spacing.lg,
   },
   iconWrap: {
     width: 40, height: 40, borderRadius: 20, backgroundColor: theme.colors.surface,
     alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.colors.border,
   },
-  cardTitle: { color: theme.colors.brand, fontWeight: '800', fontSize: 15 },
-  cardSub: { color: theme.colors.onSurfaceSecondary, fontSize: 13, marginTop: 2, lineHeight: 18 },
+  cardTitle: { color: theme.colors.brand, fontFamily: 'InterExtraBold', fontSize: 13 },
+  cardSub: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 12, marginTop: 2, lineHeight: 16 },
   deadline: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: theme.spacing.sm },
-  deadlineText: { flex: 1, color: theme.colors.error, fontSize: 12, lineHeight: 17, fontWeight: '600' },
+  deadlineText: { flex: 1, color: theme.colors.error, fontSize: 12, lineHeight: 17, fontFamily: 'InterSemiBold'},
 });

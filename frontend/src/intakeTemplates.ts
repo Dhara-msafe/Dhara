@@ -31,7 +31,7 @@ export const INTAKE_TEMPLATES: IntakeTemplate[] = [
     title: 'Criminal Matter',
     description: 'FIR, arrest, bail, police complaint',
     icon: 'shield-outline',
-    color: '#DC2626',
+    color: '#C73236',
     questions: [
       {
         id: 'incident_date',
@@ -127,7 +127,7 @@ export const INTAKE_TEMPLATES: IntakeTemplate[] = [
     title: 'Family Matter',
     description: 'Divorce, custody, maintenance, domestic violence',
     icon: 'people-outline',
-    color: '#7C3AED',
+    color: '#1E5BD0',
     questions: [
       {
         id: 'matter_type',
@@ -174,7 +174,7 @@ export const INTAKE_TEMPLATES: IntakeTemplate[] = [
     title: 'Property / Tenancy',
     description: 'Land disputes, eviction, title, rent',
     icon: 'home-outline',
-    color: '#059669',
+    color: '#087951',
     questions: [
       {
         id: 'property_description',

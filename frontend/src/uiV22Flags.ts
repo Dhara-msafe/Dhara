@@ -83,7 +83,12 @@ export const UI_V22_P7 = process.env.EXPO_PUBLIC_UI_V22_P7 === 'true';
  *   EXPO_PUBLIC_ENABLE_ISSUE_REPORTER=true (test builds). Production builds,
  *   which do not set it, never show it.
  */
-export const UI_V22_DOCK = process.env.EXPO_PUBLIC_UI_V22_DOCK === 'true';
+// Redesign v3, stage 2 (26 Nov 2026): the bottom dock is retired. It put a
+// full-width strip under every screen for one SOS button, and on the tabs it
+// stacked with the layout's own bottom inset, leaving an empty band. SOS now
+// sits in the header (src/ui/headerSos.ts), so this is always off whatever
+// the build sets; the dock code stays in place, inert.
+export const UI_V22_DOCK: boolean = false;
 
 /**
  * Phase 9: Head Out (look only; journey logic, alerts and server calls are
@@ -206,7 +211,12 @@ export const UI_V22_S3 = process.env.EXPO_PUBLIC_UI_V22_S3 === 'true';
  * v2.2 design introduces for this screen group. Presentation-only,
  * reversible.
  */
-export const UI_V22_S4 = process.env.EXPO_PUBLIC_UI_V22_S4 === 'true';
+// Redesign v3 (26 Nov 2026): the dark purple "Shield mode" is retired. Women's
+// Shield, the panic lesson and the safety plan use the same navy / cream /
+// gold design as the rest of the app, so this is now always off whatever the
+// build sets. The S4 branches in those three screens stay in place, inert,
+// until the screens are rebuilt on the shared parts (src/ui/kit.tsx).
+export const UI_V22_S4: boolean = false;
 
 /**
  * Keep the focused input visible above the keyboard (client report, 23 Nov).
@@ -284,7 +294,7 @@ export const UI_V22_S7 = process.env.EXPO_PUBLIC_UI_V22_S7 === 'true';
  * fresh from Welcome.dc.html in an earlier stage with the corrected,
  * non-overclaiming copy (see the file's own header comment). Choose state
  * (id5, app/state.tsx) already has a selected-row checkmark, the shared
- * #505B68 placeholder-contrast token, and its one sub-48px touch target
+ * #64788A placeholder-contrast token, and its one sub-48px touch target
  * (the skip/cancel button) already raised to 48px by the pre-existing
  * UI_REVISION_V1 flag. Choose language (id2, app/language.tsx) already
  * shows native names first and already has a working search field (the
@@ -328,8 +338,8 @@ export const UI_V22_S10 = process.env.EXPO_PUBLIC_UI_V22_S10 === 'true';
  * `/api/advocate/profile/:id` fetch, not sample data, and nowhere shows a
  * rating or a "cases won" count. IPC lookup (id52, "retained... Visual
  * only") is the one real gap: its `safe` container hardcodes the legacy
- * off-brand `#FDFBF7`, one hex away from the v2.2 cream token
- * (`theme.colors.background`, `#FBF7EE`) that IPCLookup.dc.html and every
+ * off-brand `#FFFAF2`, one hex away from the v2.2 cream token
+ * (`theme.colors.background`, `#FFFAF2`) that IPCLookup.dc.html and every
  * other v2.2 screen use. With the flag on, it reads the shared token
  * instead.
  */

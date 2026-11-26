@@ -2,6 +2,10 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, Platform, ActivityIndicator, Modal, Animated, PanResponder, AppState, type GestureResponderEvent, type PanResponderGestureState } from 'react-native';
 import { crossAlert } from '@/src/utils/crossAlert';
 import { alertPermissionBlocked } from '@/src/permissions/setup';
+import { useHeaderSosPresent } from '@/src/ui/headerSos';
+import { useLightStatusBar } from '@/src/ui/kit';
+import { useSizeClass } from '@/src/ui/useSizeClass';
+import { VoiceSheet, driveVoiceLevel } from '@/src/chat/VoiceSheet';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -68,12 +72,24 @@ const ASK_RECORDING_OPTIONS = { ...RecordingPresets.HIGH_QUALITY, isMeteringEnab
 
 // Batch FREE-V1-001: Pro upgrade / Stripe / Razorpay payment UI gated off for v1.
 const PRO_UPGRADE_ENABLED = process.env.EXPO_PUBLIC_PRO_UPGRADE_ENABLED === 'true';
+/**
+ * Redesign v3, stage 8: the voice pop-up (src/chat/VoiceSheet.tsx). On by
+ * default. Set EXPO_PUBLIC_VOICE_SHEET=false in a build to go back to the old
+ * press-and-hold mic with the red recording bar; that code is untouched.
+ */
+const VOICE_SHEET = process.env.EXPO_PUBLIC_VOICE_SHEET !== 'false';
 
 export default function ChatScreen() {
   const { token, user, language, autoSpeak, setAutoSpeak, ttsVolume, ttsVoiceMode, refreshUser, forceLogout } = useAuth();
   // Mute button: the live auto-read state. A ref, so a reply that is still
   // loading when the user taps mute is not read aloud (send() captured the
   // old `autoSpeak` value when the question was sent).
+  // Redesign v3: this screen's own header carries SOS.
+  useHeaderSosPresent();
+  useLightStatusBar();
+  const headerSize = useSizeClass();
+  // Loudness for the voice pop-up's rings, 0 to 1. Stable for the screen's life.
+  const voiceLevel = useRef(new Animated.Value(0)).current;
   const autoSpeakRef = useRef(autoSpeak);
   autoSpeakRef.current = autoSpeak;
   const { primaryInterest } = useUserProfile();
@@ -1304,6 +1320,7 @@ export default function ChatScreen() {
               const st = recorder.getStatus();
               if (!st?.isRecording) { stopCaptureMeter(); return; }
               capturePeakRef.current.add(st.metering);
+              if (VOICE_SHEET) driveVoiceLevel(voiceLevel, st.metering);
             } catch { stopCaptureMeter(); }
           }, 200);
           started = true;
@@ -1947,6 +1964,17 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']} testID="chat-screen">
+      {VOICE_SHEET && (
+        <VoiceSheet
+          visible={recording || transcribing}
+          phase={recording ? 'listening' : 'understanding'}
+          elapsedSeconds={holdElapsed}
+          level={voiceLevel}
+          languageName={language.native}
+          onDone={onMicPressOut}
+          onCancel={onLockedCancel}
+        />
+      )}
       {/* Web-only: centers the chat column on wide desktop viewports instead
           of stretching mobile-width UI across the whole browser window.
           `styles.safe` (the full-viewport backdrop) and this wrapper share
@@ -1959,9 +1987,12 @@ export default function ChatScreen() {
           Does NOT scroll with the chat conversation. */}
       <View style={styles.topZone}>
 
-      {/* ── HEADER — title · lang chip · usage pill · New Chat ─────────────── */}
+      {/* ── HEADER (redesign v3, stage 9) ─────────────────────────────────
+          The navy bar now carries only the brand and SOS, like every other
+          screen. New chat, History and Sound moved to a slim, labelled row
+          under it: three unlabelled round buttons were filling the header
+          and nobody could tell what they did. */}
       <View style={styles.header}>
-        {/* Left: branding + language chip */}
         <View style={styles.headerBrand}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Text style={styles.title}>Dhara</Text>
@@ -1972,57 +2003,60 @@ export default function ChatScreen() {
               </View>
             )}
           </View>
-          <Pressable
-            testID="header-lang-chip"
-            style={(s) => [styles.langChip, focusRingStyle(s)]}
-            onPress={() => router.push('/(tabs)/settings')}
-            hitSlop={UI_REVISION_V1 ? 14 : 6}
-            accessibilityRole="button"
-            accessibilityLabel={`Change language. Current language: ${language.native}`}
-          >
-            <Ionicons name="language-outline" size={12} color={theme.colors.brand} />
-            <Text style={styles.langChipText}>{language.native}</Text>
-          </Pressable>
+          {!headerSize.short && <Text style={styles.headerTagline} numberOfLines={1}>Your legal rights. Always with you.</Text>}
         </View>
+        {/* UI_V22_ONE_SOS (B-122): SOS sits in the header row, in normal
+            layout. Hidden inside the desktop frame (sidebar SOS). */}
+        {UI_V22_ONE_SOS && <SosPill compact />}
+      </View>
 
-        {/* Right: New Chat + History — clean header, no usage clutter */}
-        <View style={styles.headerButtons}>
-          <Pressable
-            testID="new-chat-button"
-            style={(s) => [styles.newChatBtn, focusRingStyle(s)]}
-            onPress={startNewChat}
-            accessibilityRole="button"
-            accessibilityLabel={t('home.newChat', language.code)}
-          >
-            <Ionicons name="add" size={16} color={theme.colors.brand} />
-            <Text style={styles.newChatText}>{t('home.newChat', language.code)}</Text>
-          </Pressable>
-          <Pressable
-            testID="history-header-btn"
-            style={(s) => [styles.historyHeaderBtn, focusRingStyle(s)]}
-            onPress={() => router.push('/(tabs)/history?from=ask' as any)}
-            hitSlop={6}
-            accessibilityRole="button"
-            accessibilityLabel="Chat history"
-          >
-            <Ionicons name="time-outline" size={22} color={theme.colors.brand} />
-          </Pressable>
-          <Pressable
-            testID="ask-mute-btn"
-            style={(s) => [styles.historyHeaderBtn, focusRingStyle(s)]}
-            onPress={toggleMute}
-            hitSlop={6}
-            accessibilityRole="button"
-            accessibilityState={{ selected: !autoSpeak }}
-            accessibilityLabel={autoSpeak ? 'Mute: stop reading answers aloud' : 'Unmute: read answers aloud'}
-          >
-            <Ionicons name={autoSpeak ? 'volume-high-outline' : 'volume-mute-outline'} size={22} color={autoSpeak ? theme.colors.brand : theme.colors.onSurfaceSecondary} />
-          </Pressable>
-          {/* UI_V22_ONE_SOS (B-122): SOS sits in the header row, in normal
-              layout, instead of the tab layout's floating pill that covered
-              "New chat". Hidden inside the desktop frame (sidebar SOS). */}
-          {UI_V22_ONE_SOS && <SosPill compact />}
-        </View>
+      <View style={styles.askTools} testID="ask-tools">
+        <Pressable
+          testID="header-lang-chip"
+          style={(s) => [styles.toolChip, focusRingStyle(s)]}
+          onPress={() => router.push('/(tabs)/settings')}
+          hitSlop={{ top: 6, bottom: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel={`Change language. Current language: ${language.native}`}
+        >
+          <Ionicons name="language-outline" size={16} color={theme.colors.navy} />
+          <Text style={styles.toolChipText} numberOfLines={1}>{language.native}</Text>
+        </Pressable>
+        <View style={{ flex: 1 }} />
+        <Pressable
+          testID="new-chat-button"
+          style={(s) => [styles.toolChip, focusRingStyle(s)]}
+          onPress={startNewChat}
+          hitSlop={{ top: 6, bottom: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('home.newChat', language.code)}
+        >
+          <Ionicons name="add" size={18} color={theme.colors.navy} />
+          <Text style={styles.toolChipText} numberOfLines={1}>{t('home.newChat', language.code)}</Text>
+        </Pressable>
+        <Pressable
+          testID="history-header-btn"
+          style={(s) => [styles.toolChip, focusRingStyle(s)]}
+          onPress={() => router.push('/(tabs)/history?from=ask' as any)}
+          hitSlop={{ top: 6, bottom: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel="Chat history"
+        >
+          <Ionicons name="time-outline" size={16} color={theme.colors.navy} />
+          {headerSize.windowWidth >= 360 && <Text style={styles.toolChipText}>History</Text>}
+        </Pressable>
+        <Pressable
+          testID="ask-mute-btn"
+          style={(s) => [styles.toolChip, !autoSpeak && styles.toolChipOff, focusRingStyle(s)]}
+          onPress={toggleMute}
+          hitSlop={{ top: 6, bottom: 6 }}
+          accessibilityRole="button"
+          accessibilityState={{ selected: !autoSpeak }}
+          accessibilityLabel={autoSpeak ? 'Mute: stop reading answers aloud' : 'Unmute: read answers aloud'}
+        >
+          <Ionicons name={autoSpeak ? 'volume-high-outline' : 'volume-mute-outline'} size={17} color={autoSpeak ? theme.colors.navy : theme.colors.muted} />
+          {headerSize.windowWidth >= 400 && <Text style={[styles.toolChipText, !autoSpeak && { color: theme.colors.muted }]}>{autoSpeak ? 'Sound on' : 'Sound off'}</Text>}
+        </Pressable>
       </View>
 
       {/* ── Verified-sources scrolling ticker ────────────────────────────── */}
@@ -2299,13 +2333,13 @@ export default function ChatScreen() {
                                 )}
                                 {isIpcCitation(c) && (
                                   <View style={styles.ipcNoticeRow} testID={`ipc-notice-${c.key}`}>
-                                    <Ionicons name="information-circle" size={13} color="#92400E" />
+                                    <Ionicons name="information-circle" size={13} color="#8A6A1E" />
                                     <Text style={styles.ipcNoticeText}>This section has been renumbered or replaced under BNS 2023, effective 1 July 2024.</Text>
                                   </View>
                                 )}
                                 {!!c.registry_gap_note && (
                                   <View style={styles.gapNoteRow} testID={`gap-note-${c.key}`}>
-                                    <Ionicons name="information-circle-outline" size={13} color="#1D4ED8" />
+                                    <Ionicons name="information-circle-outline" size={13} color="#1E5BD0" />
                                     <Text style={styles.gapNoteText}>{c.registry_gap_note}</Text>
                                   </View>
                                 )}
@@ -2362,13 +2396,13 @@ export default function ChatScreen() {
                         )}
                         {isIpcCitation(c) && (
                           <View style={styles.ipcNoticeRow} testID={`ipc-notice-${c.key}`}>
-                            <Ionicons name="information-circle" size={13} color="#92400E" />
+                            <Ionicons name="information-circle" size={13} color="#8A6A1E" />
                             <Text style={styles.ipcNoticeText}>This section has been renumbered or replaced under BNS 2023, effective 1 July 2024.</Text>
                           </View>
                         )}
                         {!!c.registry_gap_note && (
                           <View style={styles.gapNoteRow} testID={`gap-note-${c.key}`}>
-                            <Ionicons name="information-circle-outline" size={13} color="#1D4ED8" />
+                            <Ionicons name="information-circle-outline" size={13} color="#1E5BD0" />
                             <Text style={styles.gapNoteText}>{c.registry_gap_note}</Text>
                           </View>
                         )}
@@ -2689,7 +2723,9 @@ export default function ChatScreen() {
               >
                 <Ionicons name="arrow-up" size={24} color={theme.colors.onBrandPrimary} />
               </Pressable>
-            ) : Platform.OS === 'web' ? (
+            ) : (Platform.OS === 'web' || VOICE_SHEET) ? (
+              // With the voice pop-up on, phones use the same tap-to-start mic as
+              // the web: one tap opens the pop-up, Done or Cancel closes it.
               <Pressable
                 testID="mic-button"
                 onPress={onWebMicPress}
@@ -2698,9 +2734,9 @@ export default function ChatScreen() {
                 accessibilityLabel={recording ? 'Stop recording and send' : 'Record a voice message'}
               >
                 {transcribing ? (
-                  <ActivityIndicator color={theme.colors.onBrandPrimary} />
+                  <ActivityIndicator color={theme.colors.navy} />
                 ) : (
-                  <Ionicons name={recording ? 'stop' : 'mic'} size={26} color={theme.colors.onBrandPrimary} />
+                  <Ionicons name={recording ? 'stop' : 'mic'} size={26} color={theme.colors.navy} />
                 )}
               </Pressable>
             ) : (
@@ -2723,12 +2759,12 @@ export default function ChatScreen() {
                 {...micPanResponder.panHandlers}
               >
                 {transcribing ? (
-                  <ActivityIndicator color={theme.colors.onBrandPrimary} />
+                  <ActivityIndicator color={theme.colors.navy} />
                 ) : (
                   <Ionicons
                     name={recording && slideCancelled ? 'trash' : 'mic'}
                     size={26}
-                    color={theme.colors.onBrandPrimary}
+                    color={theme.colors.navy}
                   />
                 )}
               </Animated.View>

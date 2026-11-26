@@ -44,11 +44,15 @@ test('phones (B-122 + 390px sweep): the tab SOS never floats with the flag on', 
   assert.match(tabs, /\{!onHome && !UI_V22_ONE_SOS && \(/);
 });
 
-test('Ask keeps exactly one SOS: in its header row, after New chat and History', () => {
+// Redesign v3, stage 9: the navy header holds the brand and SOS only; New chat
+// and History moved to the labelled tools row under it.
+test('Ask keeps exactly one SOS: in its navy header, above the tools row', () => {
+  const sos = ask.indexOf('{UI_V22_ONE_SOS && <SosPill compact />}');
+  const tools = ask.indexOf('testID="ask-tools"');
   const newChat = ask.indexOf('testID="new-chat-button"');
   const history = ask.indexOf('testID="history-header-btn"');
-  const sos = ask.indexOf('{UI_V22_ONE_SOS && <SosPill compact />}');
-  assert.ok(newChat > 0 && history > newChat && sos > history, 'SOS must sit in the header row after New chat + History');
+  assert.ok(sos > 0 && tools > sos && newChat > tools && history > newChat, 'SOS in the header; New chat + History in the tools row below');
+  assert.equal(ask.split('<SosPill compact />').length - 1, 1, 'exactly one SOS on Ask');
 });
 
 test('compact pill keeps the 48px target', () => {
