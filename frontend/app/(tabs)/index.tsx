@@ -2584,8 +2584,12 @@ export default function ChatScreen() {
           </View>
         )}
 
-        {/* Unified input / recording bar — mic button always mounted for gesture continuity */}
-        {locked && recording ? (
+        {/* Unified input / recording bar — mic button always mounted for gesture continuity.
+            27 Nov: with the voice pop-up on, the pop-up IS the listening screen —
+            the old red recording bar (dot, timer, moving lines) is not drawn
+            underneath it any more. The composer stays as it is behind the
+            pop-up. EXPO_PUBLIC_VOICE_SHEET=false brings the old bar back. */}
+        {locked && recording && !VOICE_SHEET ? (
           /* Hands-free locked recording bar — replaces the composer entirely.
              The user released their finger after dragging up; recording keeps
              going until they tap trash (discard) or the checkmark (finish). */
@@ -2621,10 +2625,10 @@ export default function ChatScreen() {
           </View>
         ) : (
           <View
-            style={[recording ? styles.recordingBar : styles.inputBar]}
-            testID={recording ? 'rec-bar' : 'input-bar'}
+            style={[recording && !VOICE_SHEET ? styles.recordingBar : styles.inputBar]}
+            testID={recording && !VOICE_SHEET ? 'rec-bar' : 'input-bar'}
           >
-            {recording ? (
+            {recording && !VOICE_SHEET ? (
               <>
                 {/* Timer + red dot + live waveform on the left */}
                 <View style={styles.recLeft}>
