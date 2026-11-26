@@ -181,6 +181,7 @@ function ScanHeader({
         onPress={showBack ? handleBack : undefined}
         style={[headerStyles.back, !showBack && { opacity: 0 }]}
         testID="screen-back"
+        accessibilityRole="button"
         accessibilityLabel="Go back"
       >
         <Ionicons name="chevron-back" size={24} color="#fff" />

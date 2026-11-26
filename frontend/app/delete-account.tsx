@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Link, useLocalSearchParams } from 'expo-router';
+import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { API_BASE, useAuth } from '@/src/auth';
 import { clearAccountLocalData } from '@/src/accountStorage';
@@ -61,6 +61,7 @@ function errorText(res: Response, data: any, fallback: string): string {
 }
 
 export default function DeleteAccount() {
+  const router = useRouter();
   const [step, setStep] = useState<'request' | 'verify' | 'done'>('request');
   const params = useLocalSearchParams<{ email?: string }>();
   const { token, user, logoutAfterAccountDeletion, clearSessionExpired } = useAuth();
@@ -140,7 +141,12 @@ export default function DeleteAccount() {
         bottomOffset={24}
       >
         {/* 27 Nov: SOS 112 at the top, like every other screen (was the floating SOS). */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minHeight: 48 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48 }}>
+          {/* 27 Nov: a way back at the top (there was only a link at the bottom). */}
+          <Pressable testID="delete-account-back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/login'))} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44 }} accessibilityRole="button" accessibilityLabel="Go back">
+            <Ionicons name="chevron-back" size={22} color={theme.colors.onBrandPrimary} />
+            <Text style={{ color: theme.colors.onBrandPrimary, fontSize: 13, fontFamily: 'InterSemiBold' }}>Back</Text>
+          </Pressable>
           <SosPill112 testID="delete-account-sos" />
         </View>
         <Text style={styles.brand}>DHARA</Text>

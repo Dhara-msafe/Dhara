@@ -35,7 +35,7 @@ export default function LookupWebView() {
       <SafeAreaView edges={['bottom']} style={s.container}>
         <View style={s.header}>
           <TouchableOpacity onPress={() => router.back()} style={s.btn}>
-            <Ionicons name="arrow-back-outline" size={22} color={GOLD} />
+            <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
           <Text style={s.title}>eCourt Lookup</Text>
         </View>
@@ -50,7 +50,7 @@ export default function LookupWebView() {
     <SafeAreaView style={s.container} edges={[]}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.btn}>
-          <Ionicons name="arrow-back-outline" size={22} color={GOLD} />
+          <Ionicons name="chevron-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={s.title} numberOfLines={1}>{title || 'eCourt Lookup'}</Text>
         <TouchableOpacity onPress={() => openExternal(decodedUrl)} style={s.btn}>

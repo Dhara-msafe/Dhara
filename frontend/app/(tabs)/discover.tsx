@@ -2,6 +2,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
 import { theme } from '@/src/theme';
 import { ADVOCATE_MODE_ENABLED } from '@/src/advocateMode/flags';
 
@@ -18,9 +19,15 @@ const tools = allTools.filter(t => t.id !== 'advocate' || ADVOCATE_MODE_ENABLED)
 export default function LookupHub() {
   const router = useRouter();
   return <SafeAreaView testID="lookup-hub" edges={[]} style={styles.safe}>
-    <View style={styles.header}><View style={styles.heading}><Text testID="lookup-hub-title" style={styles.title}>Lookup</Text><Text testID="lookup-hub-subtitle" style={styles.subtitle}>Your legal discovery tools</Text></View>
-      <Pressable testID="lookup-profile" accessibilityRole="button" accessibilityLabel="Your profile" style={styles.profile} onPress={() => router.push('/(tabs)/settings?from=me' as any)}><Ionicons name="person-outline" size={23} color={colors.primary} /></Pressable>
-    </View>
+    {/* 27 Nov: shared title row — this screen had no way back. */}
+    <PageTitleRow
+      title="Lookup"
+      subtitle="Your legal discovery tools"
+      onBack={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/home'))}
+      backTestID="lookup-hub-back"
+      testID="lookup-hub-title-row"
+      right={<Pressable testID="lookup-profile" accessibilityRole="button" accessibilityLabel="Your profile" style={styles.profile} onPress={() => router.push('/(tabs)/settings?from=me' as any)}><Ionicons name="person-outline" size={23} color={colors.primary} /></Pressable>}
+    />
     <ScrollView testID="lookup-tools" contentContainerStyle={styles.content}>
       {tools.map(tool => <Pressable key={tool.id} testID={`lookup-${tool.id}`} accessibilityRole="button" onPress={() => router.push(tool.route)} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
         <View style={styles.icon}><Ionicons name={tool.icon} size={24} color={colors.primary} /></View>

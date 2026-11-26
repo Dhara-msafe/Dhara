@@ -68,7 +68,12 @@ export default function Signup() {
           keyboardShouldPersistTaps="handled"
         >
         {/* 27 Nov: SOS 112 at the top, like every other screen (was the floating SOS). */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minHeight: 48 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48 }}>
+          {/* 27 Nov: a way back at the top (there was only a link at the bottom). */}
+          <Pressable testID="signup-back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/login'))} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44 }} accessibilityRole="button" accessibilityLabel="Go back">
+            <Ionicons name="chevron-back" size={22} color={theme.colors.onBrandPrimary} />
+            <Text style={{ color: theme.colors.onBrandPrimary, fontSize: 13, fontFamily: 'InterSemiBold' }}>Back to sign in</Text>
+          </Pressable>
           <SosPill112 testID="signup-sos" />
         </View>
         <Text style={styles.brand}>DHARA</Text>

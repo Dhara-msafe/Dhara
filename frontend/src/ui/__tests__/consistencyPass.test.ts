@@ -82,3 +82,26 @@ test('small chips and the Shield header buttons are 44 px tall', () => {
   assert.match(read('app/(tabs)/myfiles.tsx'), /filterChip:\s+\{[^}]*minHeight: 44/);
   assert.match(read('app/women-shield.tsx'), /backBtn: \{ width: 44, height: 44/);
 });
+
+// ── Back buttons, 27 Nov ─────────────────────────────────────────────────────
+test('screens that had no way back now have a back button', () => {
+  const ids: Record<string, string> = {
+    'app/all-help.tsx': 'all-help-back',
+    'app/(tabs)/voter-roll.tsx': 'voter-roll-back',
+    'app/(tabs)/discover.tsx': 'lookup-hub-back',
+    'app/delete-account.tsx': 'delete-account-back',
+    'app/signup.tsx': 'signup-back',
+    'app/emergency.tsx': 'emergency-back',
+    'app/fir-draft/result.tsx': 'fir-result-error-back-top',
+  };
+  for (const [f, id] of Object.entries(ids)) assert.ok(read(f).includes(id), `${f} has ${id}`);
+});
+
+test('no text-arrow back buttons are left', () => {
+  for (const f of ['app/voter-roll/form.tsx', 'app/missing/interview.tsx', 'app/missing/result.tsx', 'app/lookup-results.tsx', 'app/lookup-webview.tsx']) {
+    const s = read(f);
+    assert.doesNotMatch(s, /backText\}>←/, f);
+    assert.doesNotMatch(s, /arrow-back-outline/, f);
+    assert.match(s, /chevron-back/, f);
+  }
+});

@@ -12,6 +12,7 @@ import {
 import { KeyboardSafeView } from '@/src/components/KeyboardSafeView';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth, API_BASE } from '@/src/auth';
 import voterForms from '@/src/content/voter_forms.json';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -179,8 +180,9 @@ export default function VoterFormScreen() {
   if (phase === 'gate') {
     return (
       <SafeAreaView style={st.safe} edges={[]}>
-        <Pressable onPress={() => router.back()} style={st.backBtn}>
-          <Text style={st.backText}>← {lang === 'hi' ? 'वापस' : lang === 'mr' ? 'मागे' : 'Back'}</Text>
+        <Pressable testID="voter-form-back" onPress={() => router.back()} style={[st.backBtn, { flexDirection: 'row', alignItems: 'center', gap: 2 }]} accessibilityRole="button" accessibilityLabel="Go back">
+          <Ionicons name="chevron-back" size={24} color={NAVY} />
+          <Text style={st.backText}>{lang === 'hi' ? 'वापस' : lang === 'mr' ? 'मागे' : 'Back'}</Text>
         </Pressable>
         <View style={st.gateCard}>
           <Text style={st.gateTitle}>
@@ -291,8 +293,8 @@ export default function VoterFormScreen() {
         <ScrollView contentContainerStyle={st.scrollContent} keyboardShouldPersistTaps="handled">
           {/* Header */}
           <View style={st.interviewHeader}>
-            <Pressable onPress={() => router.back()} style={st.backBtn}>
-              <Text style={st.backText}>←</Text>
+            <Pressable testID="voter-form-back" onPress={() => router.back()} style={st.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+              <Ionicons name="chevron-back" size={24} color={NAVY} />
             </Pressable>
             <Text style={st.formTitle}>{t(formData.title as Record<string, string>, lang)}</Text>
           </View>
@@ -394,7 +396,7 @@ const st = StyleSheet.create({
   scrollContent:   { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60 },
   centred:         { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
 
-  backBtn:          { marginBottom: 8 },
+  backBtn:          { marginBottom: 8, marginLeft: 4, minWidth: 48, minHeight: 48, justifyContent: 'center', alignSelf: 'flex-start' },
   backText:         { color: NAVY, fontSize: 13, fontFamily: 'InterSemiBold'},
 
   interviewHeader:  { marginBottom: 16 },

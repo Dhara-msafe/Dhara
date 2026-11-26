@@ -126,8 +126,8 @@ export default function MissingInterviewScreen() {
   if (!token) {
     return (
       <SafeAreaView style={st.safe} edges={[]}>
-        <Pressable onPress={() => router.back()} style={st.back}>
-          <Text style={st.backText}>←</Text>
+        <Pressable testID="missing-interview-back" onPress={() => router.back()} style={st.back} accessibilityRole="button" accessibilityLabel="Go back">
+          <Ionicons name="chevron-back" size={24} color={NAVY} />
         </Pressable>
         <View style={st.gateCard}>
           <Text style={st.gateTitle}>
@@ -179,8 +179,8 @@ export default function MissingInterviewScreen() {
       >
         <ScrollView contentContainerStyle={st.scroll} keyboardShouldPersistTaps="handled">
           {/* Header */}
-          <Pressable testID="missing-interview-back" onPress={() => router.back()} style={st.back}>
-            <Text style={st.backText}>←</Text>
+          <Pressable testID="missing-interview-back" onPress={() => router.back()} style={st.back} accessibilityRole="button" accessibilityLabel="Go back">
+            <Ionicons name="chevron-back" size={24} color={NAVY} />
           </Pressable>
 
           {/* Progress */}
@@ -291,7 +291,7 @@ const st = StyleSheet.create({
   scroll:         { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60 },
   centred:        { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
 
-  back:           { marginBottom: 8, minWidth: 44, minHeight: 44, justifyContent: 'center' },
+  back:           { marginBottom: 8, marginLeft: -12, width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   backText:       { color: NAVY, fontSize: 13, fontFamily: 'InterSemiBold'},
 
   progressRow:    { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
