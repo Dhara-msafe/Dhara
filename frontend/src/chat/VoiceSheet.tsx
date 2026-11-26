@@ -107,8 +107,10 @@ export function VoiceSheet({
         <Animated.View
           testID="voice-sheet"
           accessibilityViewIsModal
+          // 27 Nov: the sheet is always fully solid — it only slides up. It
+          // used to fade in too, and a fade caught part-way let the Ask
+          // screen show through it, so it read as a layer over the old UI.
           style={[s.sheet, { paddingBottom: Math.max(insets.bottom, 12) + 16 }, {
-            opacity: rise,
             transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) }],
           }]}
         >
@@ -195,7 +197,7 @@ export function VoiceSheet({
 }
 
 const s = StyleSheet.create({
-  scrim: { flex: 1, backgroundColor: 'rgba(6,26,48,0.58)', justifyContent: 'flex-end' },
+  scrim: { flex: 1, backgroundColor: 'rgba(6,26,48,0.72)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: c.background, borderTopLeftRadius: 22, borderTopRightRadius: 22,
     paddingHorizontal: 20, paddingTop: 8, alignItems: 'center',

@@ -24,3 +24,9 @@ test('Home mic and the Ask tab button both open Ask listening straight away', ()
   const tab = readFileSync(new URL('../../components/AppTabBar.tsx', import.meta.url), 'utf8');
   for (const s of [home, tab]) assert.match(s, /params: \{ autostartMic: Date\.now\(\)\.toString\(\) \}/);
 });
+
+test('the pop-up is always solid: it slides up, never fades its own opacity', () => {
+  const sheet = readFileSync(new URL('../VoiceSheet.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(sheet, /opacity: rise/);
+  assert.match(sheet, /translateY: rise\.interpolate/);
+});
