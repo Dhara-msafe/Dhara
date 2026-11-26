@@ -377,10 +377,11 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     padding: theme.spacing.lg,
-    backgroundColor: theme.colors.surfaceSecondary,
+    // Polish: white rows on the cream page, as on Home (was beige on cream).
+    backgroundColor: theme.colors.paper,
     borderRadius: theme.radius.md,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: theme.colors.lines,
     width: '100%',
     minHeight: 50,
   },
@@ -591,7 +592,8 @@ export const styles = StyleSheet.create({
     minHeight: 48,
     maxHeight: 120,
     borderRadius: theme.radius.lg,
-    backgroundColor: theme.colors.surfaceSecondary,
+    // Polish: a white field with the form border, like every other input.
+    backgroundColor: theme.colors.paper,
     paddingHorizontal: theme.spacing.lg,
     paddingTop: theme.spacing.md,
     paddingBottom: theme.spacing.md,

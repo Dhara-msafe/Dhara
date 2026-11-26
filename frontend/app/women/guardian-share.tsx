@@ -243,15 +243,16 @@ export default function GuardianShare() {
   if (loading) return null;
 
   return (
-    <ScrollView
-      style={styles.root}
-      contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
-      testID="guardian-share-screen"
-    >
+    <View style={styles.root}>
       <ScreenHeader
         title="Notify your guardian"
         subtitle="Send a journey update — nothing is sent automatically"
       />
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
+      testID="guardian-share-screen"
+    >
 
       {/* Journey details — editable; this screen is also opened directly from
           Women's Shield, where nothing is pre-filled. */}
@@ -539,6 +540,7 @@ export default function GuardianShare() {
         Nothing is sent automatically. DHARA opens your SMS app with a pre-filled message for one person at a time; you read it and press Send yourself, and delivery is not confirmed. Status pages expire after 24 hours.
       </Text>
     </ScrollView>
+    </View>
   );
 }
 

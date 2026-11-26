@@ -400,17 +400,19 @@ export default function GuardianScreen() {
   };
 
   return (
-    <ScrollView
-      style={styles.root}
-      contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
-      testID="guardian-screen"
-    >
+    <View style={styles.root}>
       <ScreenHeader
         title="Guardian view"
         subtitle="Journey details shared with you"
       />
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
+      testID="guardian-screen"
+    >
       {renderBody()}
     </ScrollView>
+    </View>
   );
 }
 

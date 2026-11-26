@@ -1349,7 +1349,7 @@ ${data.bot_message}`);
       );
     }
     return (
-      <SafeAreaView edges={['bottom']} testID="fir-start-screen" style={styles.root}>
+      <SafeAreaView edges={['bottom']} testID="fir-start-screen" style={[styles.root, { backgroundColor: theme.colors.background }]}>
         <View style={styles.preHeader}>
           <Pressable testID="fir-start-back" onPress={() => router.back()} style={(s) => [styles.backBtn, focusRingStyle(s)]} hitSlop={12} accessibilityRole="button" accessibilityLabel="Go back">
             <Ionicons name="arrow-back" size={22} color={NAVY} />
@@ -2380,7 +2380,8 @@ const styles = StyleSheet.create({
   preTitle: { fontSize: 15, fontFamily: 'InterBold', color: NAVY, marginLeft: 12 },
   preBody: { padding: 16, paddingBottom: 40 },
   welcomeCard: {
-    backgroundColor: CREAM, borderRadius: 16, padding: 18,
+    // Polish: a white card on the cream page (was beige on white).
+    backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, borderRadius: 16, padding: 18,
     alignItems: 'center', marginBottom: 18,
   },
   welcomeIcon: { fontSize: 32, marginBottom: 12 },

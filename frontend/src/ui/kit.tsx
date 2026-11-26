@@ -289,10 +289,17 @@ export function TileGrid({ children, columns, inset = 0 }: { children: React.Rea
   const size = useSizeClass();
   const cols = columns ?? size.tileColumns;
   const gap = 9;
-  const available = Math.min(size.windowWidth, size.maxContentWidth) - size.margin * 2 - inset;
-  const w = columnWidth(available, cols, gap);
+  const guessed = Math.min(size.windowWidth, size.maxContentWidth) - size.margin * 2 - inset;
+  // Polish: measure the grid's real width. The guess above ignores borders,
+  // so it could come out a pixel too wide and push the second tile onto a
+  // new row. The guess is only used for the first frame.
+  const [measured, setMeasured] = React.useState<number | null>(null);
+  const w = columnWidth(measured ?? guessed, cols, gap);
   return (
-    <View style={[s.grid, { gap }]}>
+    <View style={[s.grid, { gap }]} onLayout={(e) => {
+      const width = Math.floor(e.nativeEvent.layout.width);
+      if (width > 0 && width !== measured) setMeasured(width);
+    }}>
       {React.Children.map(children, (ch) =>
         React.isValidElement(ch) ? React.cloneElement(ch as React.ReactElement<{ width?: number }>, { width: w }) : ch)}
     </View>

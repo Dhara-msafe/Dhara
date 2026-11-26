@@ -22,6 +22,7 @@ import { DestinationMapPicker } from '@/src/women/DestinationMapPicker';
 // NF-UI-REV-13 (Group G follow-up, DHARA UI Revision v2.2.1): visible
 // keyboard-focus ring only. No radius/wizard logic changes.
 import { focusRingStyle } from '@/src/a11yFocus';
+import { FONT_SCALE_CAP } from '@/src/ui/sizeClass';
 
 const c = theme.colors;
 
@@ -74,10 +75,10 @@ export default function ArrivalRadius() {
       {/* Redesign v3, stage 6: gold step bar, as in the prototype. */}
       <StepStrip step={2} total={3} />
       <ScrollView scrollEnabled={!mapActive} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + headOutBottomGutter(110) }]}>
-        <Text style={styles.destTxt} numberOfLines={2}>{draft.label}</Text>
+        <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.destTxt} numberOfLines={2}>{draft.label}</Text>
 
-        <Text style={styles.fieldLabel}>Planned arrival area</Text>
-        <Text style={styles.note}>
+        <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.fieldLabel}>Planned arrival area</Text>
+        <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.note}>
           How close to your destination counts as &ldquo;arrived&rdquo;. While your journey is
           active and location sharing is on, DHARA treats entering this area as arriving
           and will ask you to confirm.
@@ -97,9 +98,9 @@ export default function ArrivalRadius() {
         </View>
         <View style={styles.gpsAccuracyRow}>
           <Ionicons name="locate-outline" size={14} color={c.muted} />
-          <Text style={styles.gpsAccuracyTxt}>GPS accuracy: ~10–25 metres</Text>
+          <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.gpsAccuracyTxt}>GPS accuracy: ~10–25 metres</Text>
         </View>
-        <Text style={styles.arrivalNote}>
+        <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.arrivalNote}>
           When you enter this area with location on, DHARA will ask you to confirm you arrived.
         </Text>
 
@@ -115,7 +116,7 @@ export default function ArrivalRadius() {
               aria-checked={radiusMeters === p.meters}
               accessibilityLabel={`${p.label} arrival area`}
             >
-              <Text style={[styles.chipTxt, radiusMeters === p.meters && styles.chipTxtActive]}>{p.label}</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={[styles.chipTxt, radiusMeters === p.meters && styles.chipTxtActive]}>{p.label}</Text>
             </Pressable>
           ))}
           <Pressable
@@ -125,7 +126,7 @@ export default function ArrivalRadius() {
             accessibilityRole="button"
             accessibilityLabel={isPreset(radiusMeters) ? 'Set custom radius' : `Custom: ${radiusMeters} m`}
           >
-            <Text style={[styles.chipTxt, !isPreset(radiusMeters) && styles.chipTxtActive]}>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={[styles.chipTxt, !isPreset(radiusMeters) && styles.chipTxtActive]}>
               {isPreset(radiusMeters) ? 'Custom' : `${radiusMeters} m`}
             </Text>
           </Pressable>
@@ -134,7 +135,7 @@ export default function ArrivalRadius() {
         {/* Disclaimer below the chip row */}
         <View style={styles.disclaimerRow}>
           <Ionicons name="information-circle-outline" size={14} color={c.muted} />
-          <Text style={styles.disclaimerTxt}>
+          <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.disclaimerTxt}>
             Arrival zone is not a safety guarantee. You may still check in based on your situation.
           </Text>
         </View>
@@ -148,7 +149,7 @@ export default function ArrivalRadius() {
           accessibilityRole="button"
           accessibilityLabel="Next — notify your trusted circle"
         >
-          <Text style={styles.nextBtnTxt}>Next</Text>
+          <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.nextBtnTxt}>Next</Text>
         </Pressable>
       </View>
 
