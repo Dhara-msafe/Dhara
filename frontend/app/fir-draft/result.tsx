@@ -270,7 +270,7 @@ pre{white-space:pre-wrap;font-size:13px;line-height:1.7;font-family:'Courier New
       {/* Header */}
       <View style={styles.header}>
         <Pressable testID="fir-result-back" accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={(s) => [styles.backBtn, focusRingStyle(s)]} hitSlop={12}>
-          <Ionicons name="arrow-back" size={22} color={SURFACE} />
+          <Ionicons name="chevron-back" size={24} color={SURFACE} />
         </Pressable>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Your FIR Draft</Text>

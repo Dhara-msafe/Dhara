@@ -778,7 +778,7 @@ export default function ChooseDestination() {
           >
             {geocoding
               ? <ActivityIndicator size="small" color="#FFFFFF" />
-              : <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.nextBtnTxt}>Next</Text>}
+              : <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={[styles.nextBtnTxt, (!canContinue || geocoding) && styles.nextBtnTxtDisabled]}>Next</Text>}
           </Pressable>
         )}
       </View>
@@ -847,7 +847,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: c.lines,
   },
   nextBtn: { backgroundColor: c.navy, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
-  nextBtnDisabled: { opacity: 0.4 },
+  // 27 Nov: the design system's disabled look (disabledBg + muted text).
+  nextBtnDisabled: { backgroundColor: c.disabledBg },
+  nextBtnTxtDisabled: { color: c.onSurfaceSecondary },
   nextBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: '#fff' },
   // Confirm-this-point bar (typed destination → geocoded pin confirmation)
   confirmBox: { gap: 8 },

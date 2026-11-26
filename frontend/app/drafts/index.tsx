@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
 import { DRAFTS } from '@/src/drafts';
 // NF-UI-REV-10 (Group I, DHARA UI Revision v2.2.1): visible keyboard-focus
 // ring + missing a11y labels. No routing/quota logic changes.
@@ -20,15 +21,17 @@ export default function DraftsList() {
 
   return (
     <SafeAreaView style={styles.safe} edges={[]} testID="drafts-screen">
-      <View style={styles.header}>
-        <Pressable testID="drafts-back" onPress={() => router.back()} hitSlop={12} style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
-          <Ionicons name="chevron-back" size={26} color={theme.colors.navy} />
-        </Pressable>
-        <Text style={styles.h1}>Ready notices</Text>
-        <Pressable testID="drafts-history-nav" onPress={() => router.push('/drafts/history')} hitSlop={12} style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="View notice history">
-          <Ionicons name="time-outline" size={24} color={theme.colors.navy} />
-        </Pressable>
-      </View>
+      <PageTitleRow
+        title="Ready notices"
+        onBack={() => router.back()}
+        backTestID="drafts-back"
+        testID="drafts-title-row"
+        right={
+          <Pressable testID="drafts-history-nav" onPress={() => router.push('/drafts/history')} style={(s) => [{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="View notice history">
+            <Ionicons name="time-outline" size={24} color={theme.colors.navy} />
+          </Pressable>
+        }
+      />
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.intro}>

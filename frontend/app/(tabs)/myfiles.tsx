@@ -507,8 +507,8 @@ export default function MyFiles() {
         ) : error ? (
           <View style={styles.empty}>
             <Text style={styles.emptySub}>We couldn{'\u2019'}t load your cases. Please check your connection.</Text>
-            <Pressable style={(s) => [styles.goldBtn, focusRingStyle(s)]} onPress={retry} accessibilityRole="button">
-              <Text style={styles.goldBtnTxt}>Try again</Text>
+            <Pressable style={(s) => [styles.goldBtn, styles.retryBtn, focusRingStyle(s)]} onPress={retry} accessibilityRole="button">
+              <Text style={[styles.goldBtnTxt, styles.retryTxt]}>Try again</Text>
             </Pressable>
           </View>
         ) : tab === 'active' ? (
@@ -614,6 +614,9 @@ const styles = StyleSheet.create({
   actionRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 },
   goldBtn:       { backgroundColor: c.gold, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 18 },
   goldBtnTxt:    { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.navy },
+  // 27 Nov: Try again is navy on light screens everywhere.
+  retryBtn:      { backgroundColor: c.navy, borderRadius: 14, minHeight: 48, justifyContent: 'center', paddingHorizontal: 24 },
+  retryTxt:      { color: '#fff', fontSize: 14 },
   iconBtn:       { width: 44, height: 44, borderRadius: 12, backgroundColor: c.surfaceSecondary, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.lines },
 
   // Stack

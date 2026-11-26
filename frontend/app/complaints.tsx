@@ -18,7 +18,7 @@ export default function Complaints() {
   const hideHeaderAdd = UI_V22_SWEEP && listEmpty;
   return <SafeAreaView style={styles.safe} edges={[]} testID="complaints-screen">
     <View style={styles.header}>
-      <Pressable testID="complaints-back" accessibilityRole="button" accessibilityLabel="Back to Home" style={styles.icon} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/home')}><Ionicons name="arrow-back" size={24} color={colors.primary} /></Pressable>
+      <Pressable testID="complaints-back" accessibilityRole="button" accessibilityLabel="Back to Home" style={styles.icon} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/home')}><Ionicons name="chevron-back" size={24} color={colors.primary} /></Pressable>
       <Text testID="complaints-title" style={styles.title}>Your complaints</Text>
       {hideHeaderAdd ? <View style={styles.icon} /> : (
       <Pressable testID="complaints-create" accessibilityRole="button" accessibilityLabel="Start a complaint" style={styles.icon} onPress={() => router.push('/fir-draft')}><Ionicons name="add" size={26} color={colors.primary} /></Pressable>

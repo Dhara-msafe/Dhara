@@ -110,7 +110,7 @@ export default function SessionView() {
     <SafeAreaView style={styles.safe} edges={[]} testID="session-view">
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} testID="back-btn" hitSlop={10}>
-          <Ionicons name="arrow-back" size={26} color={theme.colors.brand} />
+          <Ionicons name="chevron-back" size={24} color={theme.colors.brand} />
         </Pressable>
         <Text style={styles.title} numberOfLines={1}>{session?.title || 'Conversation'}</Text>
         <View style={{ width: 26 }} />

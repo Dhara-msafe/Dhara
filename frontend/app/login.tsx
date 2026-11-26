@@ -7,6 +7,7 @@ import { useAuth } from '@/src/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { consentVersionKey, isCurrentConsent } from '@/src/consentStorage';
 import { theme } from '@/src/theme';
+import { SosPill112 } from '@/src/ui/kit';
 import { trackEvent } from '@/src/analytics';
 // NF-UI-REV-05 (Group F, DHARA UI Revision v2.2.1): presentation-only
 // rollback flag + visible keyboard-focus ring. Zero changes to login(),
@@ -121,6 +122,10 @@ export default function Login() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
+        {/* 27 Nov: SOS 112 reachable before sign-in too, like every other screen. */}
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', minHeight: 48, alignItems: 'center' }}>
+          <SosPill112 testID="login-sos" />
+        </View>
         <Image source={require('../assets/images/dhara_mark.png')} style={styles.logo} resizeMode="contain" />
         <Text style={styles.tag}>Know your rights. Speak them.</Text>
 
@@ -292,7 +297,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.dhara.navy },
   scroll: { flexGrow: 1, padding: theme.spacing.xl, justifyContent: 'center' },
   // DHARA icon mark — 1024×1024 transparent RGBA PNG; renders directly on navy background
-  logo: { width: 160, height: 160, alignSelf: 'center', marginBottom: 8 },
+  logo: { width: 128, height: 128, alignSelf: 'center', marginBottom: 8 },
   brand: { fontFamily: theme.fonts.display, fontSize: 36, color: theme.colors.onBrandPrimary, textAlign: 'center', fontWeight: '700' },
   // Tagline: gold-on-navy — 6.29:1 ✅ WCAG AA
   tag: { color: theme.dhara.gold, textAlign: 'center', marginTop: 8, fontSize: 13, fontFamily: 'InterSemiBold'},

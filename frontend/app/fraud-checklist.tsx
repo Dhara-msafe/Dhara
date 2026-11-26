@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '@/src/theme';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
 import { accountKey } from '@/src/accountStorage';
 
 import { openExternal } from '@/src/outbound';
@@ -182,18 +183,13 @@ export default function FraudChecklist() {
 
   return (
     <SafeAreaView style={styles.safe} edges={[]} testID="fraud-checklist-screen">
-      <View style={styles.header}>
-        <Pressable testID="fraud-back" onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="chevron-back" size={26} color={theme.colors.navy} />
-        </Pressable>
-        <Text style={styles.h1}>Fraud golden hour</Text>
-        <View style={{ width: 26 }} />
-      </View>
+      <PageTitleRow title="Fraud golden hour" onBack={() => router.back()} backTestID="fraud-back" testID="fraud-title-row" />
 
       <View style={styles.timerBar} testID="fraud-timer">
         <View>
           <Text style={styles.timerLabel}>{startedAt ? 'Time since you started' : 'Tick the first step to start'}</Text>
-          <Text style={[styles.timer, isStale && styles.timerStale]}>{timerDisplay}</Text>
+          {/* 27 Nov: no "--:--" before the clock starts — it read like a broken value. */}
+          {startedAt ? <Text style={[styles.timer, isStale && styles.timerStale]}>{timerDisplay}</Text> : null}
         </View>
         <View style={{ alignItems: 'flex-end', gap: 6 }}>
           <View style={styles.progressPill}>

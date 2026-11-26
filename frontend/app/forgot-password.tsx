@@ -14,6 +14,7 @@ import { useRouter, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { API_BASE, useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { SosPill112 } from '@/src/ui/kit';
 import { passwordMeetsRule, PASSWORD_RULE_MSG } from '@/src/passwordRule';
 import { PasswordLabelWithRules } from '@/src/components/PasswordLabelWithRules';
 
@@ -139,12 +140,16 @@ export default function ForgotPassword() {
         keyboardShouldPersistTaps="handled"
         bottomOffset={24}
       >
-        <Pressable onPress={() => router.back()} style={styles.back} testID="fp-back">
-          <Ionicons name="chevron-back" size={22} color={theme.colors.onBrandPrimary} />
-          <Text style={styles.backText}>Back to sign in</Text>
-        </Pressable>
+        {/* 27 Nov: back on the left, SOS 112 on the right (was the floating SOS). */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48 }}>
+          <Pressable onPress={() => router.back()} style={styles.back} testID="fp-back" accessibilityRole="button">
+            <Ionicons name="chevron-back" size={22} color={theme.colors.onBrandPrimary} />
+            <Text style={styles.backText}>Back to sign in</Text>
+          </Pressable>
+          <SosPill112 testID="fp-sos" />
+        </View>
 
-        <Text style={styles.brand}>Dhara</Text>
+        <Text style={styles.brand}>DHARA</Text>
         <Text style={styles.tag}>Reset your password</Text>
 
         <View style={styles.card}>
@@ -267,7 +272,7 @@ export default function ForgotPassword() {
           <View style={styles.row}>
             <Text style={styles.rowLead}>Remembered it? </Text>
             <Link href="/login" asChild>
-              <Pressable testID="go-to-login">
+              <Pressable testID="go-to-login" accessibilityRole="link" style={{ minHeight: 44, justifyContent: "center" }}>
                 <Text style={[styles.link, styles.linkUnderline]}>Back to sign in</Text>
               </Pressable>
             </Link>
@@ -286,17 +291,16 @@ export default function ForgotPassword() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.brand },
   scroll: { flexGrow: 1, padding: theme.spacing.xl, paddingTop: theme.spacing.lg },
-  back: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6 },
+  back: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44 },
   backText: { color: theme.colors.onBrandPrimary, fontSize: 13, fontFamily: 'InterSemiBold'},
   brand: {
-    fontFamily: theme.fonts.display,
+    fontFamily: theme.fonts.brand, letterSpacing: 1.5,
     fontSize: 28,
     color: theme.colors.onBrandPrimary,
     textAlign: 'center',
-    fontWeight: '700',
     marginTop: theme.spacing.lg,
   },
-  tag: { color: theme.colors.brandSecondary, textAlign: 'center', marginTop: 4, fontFamily: 'Inter', fontSize: 13 },
+  tag: { color: theme.colors.headerTagline, textAlign: 'center', marginTop: 4, fontFamily: 'Inter', fontSize: 13 },
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,
@@ -323,7 +327,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     fontFamily: 'Inter', fontSize: 14,
     color: theme.colors.onSurface,
-    backgroundColor: theme.colors.surfaceSecondary,
+    backgroundColor: theme.colors.paper,
   },
   codeInput: { fontSize: 21, letterSpacing: 8, textAlign: 'center', fontFamily: 'InterBold'},
   btn: {

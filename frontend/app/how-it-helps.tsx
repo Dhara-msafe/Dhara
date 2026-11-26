@@ -85,7 +85,7 @@ export default function HowItHelps() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Ionicons name="arrow-back" size={20} color={c.brand} />
+          <Ionicons name="chevron-back" size={24} color={c.brand} />
         </Pressable>
         <View style={{ flex: 1 }} />
         {/* v2.2 phase 3: onboarding is 4 steps (Language 1, How it helps 2,

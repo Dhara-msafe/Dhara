@@ -528,7 +528,7 @@ export default function IpcBnsLookup() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Ionicons name="arrow-back" size={22} color={NAVY} />
+          <Ionicons name="chevron-back" size={24} color={NAVY} />
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={s.title}>IPC → BNS Lookup</Text>
