@@ -15,7 +15,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator, Alert, Switch, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { UI_V22_P10 } from '@/src/uiV22Flags';
@@ -27,6 +27,8 @@ import { goBackOr } from '@/src/goBackOr';
 // NF-UI-REV-12 (Group J, DHARA UI Revision v2.2.1): presentation-only
 // rollback flag + visible keyboard-focus ring + missing a11y labels.
 import { UI_REVISION_V1 } from '@/src/designRevision';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
+import { backFromMe } from '@/src/meBack';
 import { focusRingStyle } from '@/src/a11yFocus';
 // B-70: the grievance officer used to be hardcoded here as its own local
 // value, different from the consent screen, my-data.tsx and /grievance. Now
@@ -46,9 +48,9 @@ const SUPPORT_EMAIL          = privacyContactEmail;
 // ── Accent colours (spec) ─────────────────────────────────────────────────────
 const PRIMARY     = theme.colors.primary;
 const ACCENT      = theme.colors.brandSecondary;
-const DESTRUCTIVE = '#DC2626';   // delete action
-const BADGE_BG    = '#F0FDF4';   // compliance badge background
-const BADGE_TEXT  = '#166534';   // compliance badge text
+const DESTRUCTIVE = '#C73236';   // delete action
+const BADGE_BG    = '#EDFAF2';   // compliance badge background
+const BADGE_TEXT  = '#087951';   // compliance badge text
 
 // ── Data collected rows ───────────────────────────────────────────────────────
 const COLLECTED = [
@@ -105,6 +107,7 @@ function p10ChipTone(on: boolean) {
 
 export default function DataPrivacyScreen() {
   const router = useRouter();
+  const { from } = useLocalSearchParams<{ from?: string }>();
   const { token } = useAuth();
 
   const [sec1Open, setSec1Open] = useState(false);
@@ -308,19 +311,13 @@ export default function DataPrivacyScreen() {
 
   const handleDeleteAccount = () => {
     // Route to existing Danger Zone in main settings — deletion is not built here
-    router.push('/(tabs)/settings' as any);
+    router.push('/(tabs)/settings?from=me' as any);
   };
 
   return (
-    <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.root} edges={['bottom']}>
       {/* ── Header ── */}
-      <View style={styles.header}>
-        <Pressable onPress={() => goBackOr(router, '/(tabs)/settings')} hitSlop={8} style={(s) => [styles.backBtn, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
-          <Ionicons name="chevron-back" size={24} color={PRIMARY} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Data &amp; Privacy</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <PageTitleRow title="Data & Privacy" onBack={() => backFromMe(router, from, () => goBackOr(router, '/(tabs)/settings'))} testID="data-privacy-title" />
 
       <ScrollView
         style={styles.scroll}
@@ -444,7 +441,7 @@ export default function DataPrivacyScreen() {
           accessibilityRole="button"
           accessibilityLabel="Delete my account. Delete account and all data"
         >
-          <View style={[styles.actionIconWrap, { backgroundColor: '#FEF2F2' }]}>
+          <View style={[styles.actionIconWrap, { backgroundColor: '#FFF0F0' }]}>
             <Ionicons name="trash-outline" size={20} color={DESTRUCTIVE} />
           </View>
           <View style={{ flex: 1 }}>
@@ -590,31 +587,31 @@ export default function DataPrivacyScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.crLabel}>Active purposes</Text>
               <View style={styles.purposeChips}>
-                <View style={[styles.chip, { backgroundColor: '#EEF2FF' }]}>
-                  <Text style={[styles.chipText, { color: '#3730A3' }]}>Core ✓</Text>
+                <View style={[styles.chip, { backgroundColor: '#EEF5FF' }]}>
+                  <Text style={[styles.chipText, { color: '#0D436B' }]}>Core ✓</Text>
                 </View>
                 <View style={[styles.chip,
                   consentRecord?.purposes?.analytics
-                    ? { backgroundColor: '#F0FDF4' }
-                    : { backgroundColor: '#FEF2F2' }
+                    ? { backgroundColor: '#EDFAF2' }
+                    : { backgroundColor: '#FFF0F0' }
                 ]}>
                   <Text style={[styles.chipText,
                     consentRecord?.purposes?.analytics
-                      ? { color: '#166534' }
-                      : { color: '#991B1B' }
+                      ? { color: '#087951' }
+                      : { color: '#C73236' }
                   ]}>
                     Analytics {consentRecord?.purposes?.analytics ? '✓' : '✗'}
                   </Text>
                 </View>
                 <View style={[styles.chip,
                   consentRecord?.purposes?.updates
-                    ? { backgroundColor: '#F0FDF4' }
-                    : { backgroundColor: '#FEF2F2' }
+                    ? { backgroundColor: '#EDFAF2' }
+                    : { backgroundColor: '#FFF0F0' }
                 ]}>
                   <Text style={[styles.chipText,
                     consentRecord?.purposes?.updates
-                      ? { color: '#166534' }
-                      : { color: '#991B1B' }
+                      ? { color: '#087951' }
+                      : { color: '#C73236' }
                   ]}>
                     Updates {consentRecord?.purposes?.updates ? '✓' : '✗'}
                   </Text>
@@ -671,8 +668,8 @@ export default function DataPrivacyScreen() {
                       <Text style={styles.historyTime}>{fmtDate(entry.timestamp)}</Text>
                       <View style={[styles.purposeChips, { marginTop: 5 }]}>
                         {entry.purposes?.core !== false && (
-                          <View style={[styles.chip, { backgroundColor: UI_V22_P10 ? CS.agreed.bg : '#EEF2FF' }]}>
-                            <Text style={[styles.chipText, { color: UI_V22_P10 ? CS.agreed.fg : '#3730A3' }]}>{UI_V22_P10 ? 'Core: agreed' : 'Core ✓'}</Text>
+                          <View style={[styles.chip, { backgroundColor: UI_V22_P10 ? CS.agreed.bg : '#EEF5FF' }]}>
+                            <Text style={[styles.chipText, { color: UI_V22_P10 ? CS.agreed.fg : '#0D436B' }]}>{UI_V22_P10 ? 'Core: agreed' : 'Core ✓'}</Text>
                           </View>
                         )}
                         {UI_V22_P10 ? (
@@ -688,26 +685,26 @@ export default function DataPrivacyScreen() {
                         ) : (<>
                         <View style={[styles.chip,
                           entry.purposes?.analytics
-                            ? { backgroundColor: '#F0FDF4' }
-                            : { backgroundColor: '#F3F4F6' }
+                            ? { backgroundColor: '#EDFAF2' }
+                            : { backgroundColor: '#EEF3FC' }
                         ]}>
                           <Text style={[styles.chipText,
                             entry.purposes?.analytics
-                              ? { color: '#166534' }
-                              : { color: '#6B7280' }
+                              ? { color: '#087951' }
+                              : { color: '#64788A' }
                           ]}>
                             Analytics {entry.purposes?.analytics ? '✓' : '✗'}
                           </Text>
                         </View>
                         <View style={[styles.chip,
                           entry.purposes?.updates
-                            ? { backgroundColor: '#F0FDF4' }
-                            : { backgroundColor: '#F3F4F6' }
+                            ? { backgroundColor: '#EDFAF2' }
+                            : { backgroundColor: '#EEF3FC' }
                         ]}>
                           <Text style={[styles.chipText,
                             entry.purposes?.updates
-                              ? { color: '#166534' }
-                              : { color: '#6B7280' }
+                              ? { color: '#087951' }
+                              : { color: '#64788A' }
                           ]}>
                             Updates {entry.purposes?.updates ? '✓' : '✗'}
                           </Text>
@@ -812,7 +809,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
   },
   backBtn: { width: 40, height: 40, alignItems: 'flex-start', justifyContent: 'center' },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: theme.colors.onSurface },
+  headerTitle: { fontSize: 15, fontFamily: 'InterBold', color: theme.colors.onSurface },
   scroll: { flex: 1 },
   scrollContent: {
     padding: theme.spacing.lg,
@@ -832,8 +829,8 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
   accordionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 13,
+    fontFamily: 'InterBold',
     color: PRIMARY,
     flex: 1,
   },
@@ -869,15 +866,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  collectLabel: { fontSize: 13, fontWeight: '700', color: theme.colors.onSurface },
+  collectLabel: { fontSize: 12, fontFamily: 'InterBold', color: theme.colors.onSurface },
   collectRetention: {
-    fontSize: 12,
+    fontFamily: 'Inter', fontSize: 12,
     color: theme.colors.onSurfaceSecondary,
     marginTop: 2,
     lineHeight: 17,
   },
   paymentsNote: {
-    fontSize: 11,
+    fontFamily: 'Inter', fontSize: 12,
     color: theme.colors.onSurfaceTertiary,
     lineHeight: 16,
     marginTop: theme.spacing.sm,
@@ -903,9 +900,9 @@ const styles = StyleSheet.create({
   },
   bulletText: {
     flex: 1,
-    fontSize: 13,
+    fontFamily: 'Inter', fontSize: 12,
     color: theme.colors.onSurface,
-    lineHeight: 19,
+    lineHeight: 17,
   },
 
   // ── Section header (non-accordion) ─────────────────────────────────────────
@@ -934,8 +931,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   actionCardDestructive: {
-    borderColor: '#FECACA',
-    backgroundColor: '#FFF5F5',
+    borderColor: '#EFC7C7',
+    backgroundColor: '#FFF0F0',
   },
   actionIconWrap: {
     width: 40,
@@ -947,20 +944,20 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   actionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13,
+    fontFamily: 'InterBold',
     color: theme.colors.onSurface,
   },
   actionSub: {
-    fontSize: 12,
+    fontFamily: 'Inter', fontSize: 12,
     color: theme.colors.onSurfaceSecondary,
     marginTop: 1,
   },
   actionFooter: {
-    fontSize: 11,
+    fontFamily: 'Inter', fontSize: 12,
     color: theme.colors.onSurfaceTertiary,
     marginTop: 3,
-    fontStyle: 'italic',
+    
   },
 
   // ── Export success banner ──────────────────────────────────────────────────
@@ -976,8 +973,8 @@ const styles = StyleSheet.create({
     borderColor: '#BBF7D0',
   },
   successBannerText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontFamily: 'InterSemiBold',
     color: BADGE_TEXT,
     flex: 1,
   },
@@ -998,11 +995,11 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'InterBold',
     color: BADGE_TEXT,
   },
   operatorNote: {
-    fontSize: 11,
+    fontFamily: 'Inter', fontSize: 12,
     // NF-UI-REV-12: onSurfaceTertiary directly on this screen's cream root
     // background measured ~4.33:1 — under 4.5:1. onSurfaceSecondary clears ~6.5:1.
     color: UI_REVISION_V1 ? theme.colors.onSurfaceSecondary : theme.colors.onSurfaceTertiary,
@@ -1010,9 +1007,9 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.md,
   },
   reviewNote: {
-    fontSize: 12,
+    fontFamily: 'Inter', fontSize: 12,
     color: theme.colors.onSurfaceSecondary,
-    lineHeight: 18,
+    lineHeight: 16,
   },
 
   // ── Consent record card (Screen 54) ───────────────────────────────────────
@@ -1027,15 +1024,15 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   crLabel: v22SectionLabel({
-    fontSize: 11,
+    fontFamily: 'Inter', fontSize: 12,
     color: theme.colors.onSurfaceTertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
     marginBottom: 2,
   }),
   crValue: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontFamily: 'InterSemiBold',
     color: theme.colors.onSurface,
   },
   purposeChips: {
@@ -1051,16 +1048,16 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: UI_V22_P10 ? 12 : 11,
-    fontWeight: '700',
+    fontFamily: 'InterBold',
   },
   // ── P10 (v2.2 consent settings look) ──
   p10TitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   p10OptionalBadge: { backgroundColor: theme.consentState.notGiven.bg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
-  p10OptionalBadgeText: { fontSize: 11, fontWeight: '700', color: theme.consentState.notGiven.fg },
+  p10OptionalBadgeText: { fontSize: 12, fontFamily: 'InterBold', color: theme.consentState.notGiven.fg },
   p10StatusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' },
   p10StateChip: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
-  p10StateChipText: { fontSize: 12, fontWeight: '700' },
-  p10StateNote: { fontSize: 12, color: theme.colors.onSurfaceTertiary },
+  p10StateChipText: { fontSize: 12, fontFamily: 'InterBold'},
+  p10StateNote: { fontFamily: 'Inter', fontSize: 12, color: theme.colors.onSurfaceTertiary },
 
   // ── Consent history ledger (Screen 55) ───────────────────────────────────
   historyRow: {
@@ -1087,20 +1084,20 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   historyEvent: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 12,
+    fontFamily: 'InterBold',
     color: theme.colors.onSurface,
   },
   historyTime: {
-    fontSize: 11,
+    fontFamily: 'Inter', fontSize: 12,
     color: theme.colors.onSurfaceTertiary,
     marginTop: 2,
   },
   historyVersion: {
-    fontSize: 10,
+    fontFamily: 'Inter', fontSize: 11,
     color: theme.colors.onSurfaceTertiary,
     marginTop: 4,
-    fontStyle: 'italic',
+    
   },
   viewAllBtn: {
     minHeight: UI_V22_P10 ? 48 : undefined,
@@ -1112,8 +1109,8 @@ const styles = StyleSheet.create({
     borderTopColor: theme.colors.divider,
   },
   viewAllText: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 12,
+    fontFamily: 'InterBold',
     color: PRIMARY,
   },
 });

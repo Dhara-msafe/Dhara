@@ -1156,11 +1156,20 @@ def _public_details_enabled() -> bool:
 # owner can end it by removing that person from her circle, and the whole
 # estate can be ended by rotating GUARDIAN_LINK_SECRET.
 
-def _guardian_email_page(title: str, body: str) -> HTMLResponse:
+def _guardian_email_page(title: str, body: str, refresh_seconds: int | None = None) -> HTMLResponse:
+    # D-42: while a journey is live the page refreshes itself, so a trusted
+    # person who leaves it open sees the area move without pressing anything.
+    # Only the active-journey pages pass refresh_seconds; the "nothing to
+    # show" page never refreshes (no amplification of dead-token polling).
+    refresh = (
+        f"<meta http-equiv=\"refresh\" content=\"{int(refresh_seconds)}\">"
+        if refresh_seconds else ""
+    )
     html = (
         "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
         "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
         "<meta name=\"robots\" content=\"noindex,nofollow\">"
+        f"{refresh}"
         f"<title>{html_escape(title)} · Dhara</title>"
         "<style>body{margin:0;background:#FDFBF7;font-family:system-ui,-apple-system,"
         "Segoe UI,Roboto,Arial,sans-serif;color:#12203A}main{max-width:520px;margin:0 auto;"
@@ -1233,12 +1242,15 @@ async def guardian_email_view(token: str):
             "worried, call the police on 112.</p>"
             "<p class=\"muted\">Dhara cannot tell whether she is safe, only that she has "
             "not said so.</p>",
+            refresh_seconds=30,
         )
     return _guardian_email_page(
         f"{owner} is on a journey",
         f"{where}<p class=\"muted\">She is expected to check in by "
         f"{html_escape(_local_clock(rec.get('expected_checkin_at')))}. If she does not, "
-        "you will get an email.</p>",
+        "you will get an email.</p><p class=\"muted\">This page refreshes itself while "
+        "her journey is open.</p>",
+        refresh_seconds=30,
     )
 
 

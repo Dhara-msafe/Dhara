@@ -3,6 +3,8 @@ import { View, Text, Pressable, ScrollView, StyleSheet, ActivityIndicator, Switc
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
+import { alertPermissionBlocked } from '@/src/permissions/setup';
+import { pickEmergencyFix, EMERGENCY_FIX_TIMEOUT_MS } from '@/src/permissions/core';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
@@ -58,11 +60,28 @@ export default function SilentAlert() {
     const id = ++request.current;
     setBusy(true); setStatus('');
     try {
+      // GPS switched off: say so plainly instead of waiting for a fix that cannot come.
+      const servicesOn = await Location.hasServicesEnabledAsync().catch(() => true);
+      if (!servicesOn) throw new Error('Location is switched off on this phone. Turn it on in quick settings, or send the alert without it.');
       const permission = await Location.requestForegroundPermissionsAsync();
-      if (!permission.granted) throw new Error('Location permission was not granted. You can still prepare a message without it.');
-      const point = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      if (!permission.granted) {
+        if (permission.canAskAgain === false) {
+          alertPermissionBlocked('Location is turned off for DHARA', 'To add your location to alerts, allow Location for DHARA in your phone settings.');
+        }
+        throw new Error('Location permission was not granted. You can still prepare a message without it.');
+      }
+      // Never hang an emergency on a slow fix: wait at most 10 s, then use the
+      // phone's last known position if it is recent (src/permissions/core.ts).
+      const fresh = await Promise.race([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), EMERGENCY_FIX_TIMEOUT_MS)),
+      ]);
+      const last = fresh ? null : await Location.getLastKnownPositionAsync().catch(() => null);
       if (request.current !== id) return;
-      setLocation(`My location at ${new Date(point.timestamp).toLocaleString()}: https://maps.google.com/?q=${point.coords.latitude},${point.coords.longitude}`);
+      const fix = pickEmergencyFix(fresh, last, Date.now());
+      if (!fix) throw new Error('Could not find your location in time. Try again outdoors, or send the alert without it.');
+      const { point, stale } = fix;
+      setLocation(`My ${stale ? 'last known ' : ''}location at ${new Date(point.timestamp).toLocaleString()}: https://maps.google.com/?q=${point.coords.latitude},${point.coords.longitude}`);
     } catch (e: any) { if (request.current === id) setStatus(e.message || 'Location unavailable. Continue without location.'); }
     finally { if (request.current === id) setBusy(false); }
   };
@@ -181,30 +200,30 @@ export default function SilentAlert() {
 
 const styles = StyleSheet.create({
   root:    { flex: 1, backgroundColor: c.background },
-  content: { padding: 20, gap: 18 },
-  note:    { fontFamily: theme.fonts.body, fontSize: 15, lineHeight: 23, color: c.muted },
-  message: { padding: 18, backgroundColor: c.surface, borderRadius: 14, fontFamily: theme.fonts.body, fontSize: 16, lineHeight: 24, color: c.ink },
+  content: { padding: 16, gap: 18 },
+  note:    { fontFamily: theme.fonts.body, fontSize: 13, lineHeight: 20, color: c.muted },
+  message: { padding: 18, backgroundColor: c.surface, borderRadius: 14, fontFamily: theme.fonts.body, fontSize: 14, lineHeight: 21, color: c.ink },
   button:  { padding: 16, minHeight: 52, borderRadius: 14, backgroundColor: c.navy, alignItems: 'center' },
-  buttonText: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.onBrandPrimary },
+  buttonText: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.onBrandPrimary },
   secondary:  { padding: 16, minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: c.lines, backgroundColor: c.surface },
   emptyCard:  { gap: 14 },
-  label:      { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.navy },
+  label:      { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.navy },
   // Toggle card
   toggleCard:    { borderRadius: 16, borderWidth: 1, borderColor: c.lines, backgroundColor: c.surface, overflow: 'hidden' },
   toggleRow:     { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
-  toggleLabel:   { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink, marginBottom: 3 },
-  toggleSub:     { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18 },
+  toggleLabel:   { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink, marginBottom: 3 },
+  toggleSub:     { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 16 },
   recordingBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingBottom: 14 },
-  recordingDot:   { width: 8, height: 8, borderRadius: 4, backgroundColor: '#ef4444' },
+  recordingDot:   { width: 8, height: 8, borderRadius: 4, backgroundColor: '#C73236' },
   recordingText:  {
-    fontFamily: theme.fonts.bodyBold, fontSize: 13,
-    // NF-UI-REV-09: '#ef4444' on white measured ~3.76:1 — under 4.5:1.
-    // theme.colors.emergencyRed ('#B42318') clears ~5.9:1 on the same bg.
-    color: UI_REVISION_V1 ? c.emergencyRed : '#ef4444',
+    fontFamily: theme.fonts.bodyBold, fontSize: 12,
+    // NF-UI-REV-09: '#C73236' on white measured ~3.76:1 — under 4.5:1.
+    // theme.colors.emergencyRed ('#C73236') clears ~5.9:1 on the same bg.
+    color: UI_REVISION_V1 ? c.emergencyRed : '#C73236',
   },
   evidenceTip:     { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 16, paddingBottom: 14 },
-  evidenceTipText: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18 },
+  evidenceTipText: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 16 },
   contactRow:       { flexDirection: 'row', alignItems: 'center' },
   evidenceChip:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.navySoft, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-  evidenceChipText: { fontFamily: theme.fonts.bodyBold, fontSize: 11, color: c.navy },
+  evidenceChipText: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.navy },
 });

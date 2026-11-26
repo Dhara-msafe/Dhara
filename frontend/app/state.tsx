@@ -7,6 +7,8 @@ import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { UI_REVISION_V1 } from '@/src/designRevision';
 import { focusRingStyle } from '@/src/a11yFocus';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
+import { backFromMe, backToMe } from '@/src/meBack';
 
 type StateItem = { code: string; name: string; native: string; type: 'state' | 'ut' };
 
@@ -53,7 +55,7 @@ const FALLBACK: StateItem[] = [
 export default function StateSelect() {
   const { user, token, setUserState } = useAuth();
   const router = useRouter();
-  const params = useLocalSearchParams<{ onboarding?: string }>();
+  const params = useLocalSearchParams<{ onboarding?: string; from?: string }>();
   const onboarding = params.onboarding === '1';
   const [states, setStates] = useState<StateItem[]>(FALLBACK);
   const [selected, setSelected] = useState<string | null>(user?.state || null);
@@ -73,9 +75,11 @@ export default function StateSelect() {
     return states.filter((s) => s.name.toLowerCase().includes(q) || s.native.includes(query.trim()));
   }, [states, query]);
 
+  // 26 Nov: from Me -> always back to Me; otherwise back to where it came
+  // from, and to Me when there is nothing behind it (Back used to do nothing).
   const done = () => {
     if (onboarding) router.replace('/(tabs)/home');
-    else router.back();
+    else backFromMe(router, params.from, () => backToMe(router));
   };
 
   const onSave = async () => {
@@ -90,16 +94,27 @@ export default function StateSelect() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} testID="state-screen">
-      <View style={styles.header}>
-        <Text style={styles.brand}>Where do you live?</Text>
-        <Text style={styles.sub}>
-          Rent, liquor, stamp duty and traffic fine amounts are decided by your state. Pick it once
-          and Dhara adds the local rule to every answer.
-        </Text>
-      </View>
+    <SafeAreaView edges={['bottom']} style={[styles.safe, !onboarding && styles.safeLight]} testID="state-screen">
+      {onboarding ? (
+        <View style={styles.header}>
+          <Text style={styles.brand}>Where do you live?</Text>
+          <Text style={styles.sub}>
+            Rent, liquor, stamp duty and traffic fine amounts are decided by your state. Pick it once
+            and Dhara adds the local rule to every answer.
+          </Text>
+        </View>
+      ) : (
+        // 26 Nov: opened from Me: the shared title row like the other Me screens.
+        <PageTitleRow
+          title="Where do you live?"
+          subtitle="Rent, liquor, stamp duty and traffic fine amounts are decided by your state. Pick it once and Dhara adds the local rule to every answer."
+          onBack={done}
+          backTestID="state-back"
+          testID="state-title"
+        />
+      )}
 
-      <View style={styles.searchWrap}>
+      <View style={[styles.searchWrap, !onboarding && styles.cardLight, !onboarding && { marginTop: theme.spacing.md }]}>
         <Ionicons name="search" size={18} color={theme.colors.onSurfaceTertiary} />
         <TextInput
           testID="state-search"
@@ -121,7 +136,7 @@ export default function StateSelect() {
           return (
             <Pressable
               testID={`state-${item.code}`}
-              style={(s) => [styles.row, active && styles.rowActive, focusRingStyle(s)]}
+              style={(s) => [styles.row, !onboarding && !active && styles.cardLight, active && styles.rowActive, focusRingStyle(s)]}
               onPress={() => setSelected(item.code)}
               accessibilityRole="button"
               accessibilityLabel={`${item.name}${item.type === 'ut' ? ', Union Territory' : ''}`}
@@ -137,7 +152,7 @@ export default function StateSelect() {
         }}
       />
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, !onboarding && styles.footerLight]}>
         <Pressable
           testID="state-save"
           style={(s) => [styles.btn, (!selected || saving) && styles.btnDisabled, focusRingStyle(s)]}
@@ -160,7 +175,7 @@ export default function StateSelect() {
           accessibilityRole="button"
           accessibilityLabel={onboarding ? 'Skip for now' : 'Cancel'}
         >
-          <Text style={styles.skipText}>{onboarding ? 'Skip for now' : 'Cancel'}</Text>
+          <Text style={[styles.skipText, !onboarding && styles.skipTextLight]}>{onboarding ? 'Skip for now' : 'Cancel'}</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -169,31 +184,37 @@ export default function StateSelect() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.brand },
+  // 26 Nov: opened from Me the page sits under the light title row, so it
+  // uses the same cream page as the other Me screens (first run stays navy).
+  safeLight: { backgroundColor: theme.colors.background },
+  cardLight: { borderWidth: 1, borderColor: theme.colors.border },
+  footerLight: { borderTopColor: theme.colors.border },
+  skipTextLight: { color: theme.colors.navy },
   header: { paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.lg, paddingBottom: theme.spacing.md },
-  brand: { fontFamily: theme.fonts.display, fontSize: 26, color: theme.colors.onBrandPrimary, fontWeight: '700', textAlign: 'center' },
-  sub: { color: theme.colors.goldSoft, fontSize: 13, textAlign: 'center', marginTop: theme.spacing.sm, lineHeight: 19 },
+  brand: { fontFamily: theme.fonts.display, fontSize: 22, color: theme.colors.onBrandPrimary, fontWeight: '700', textAlign: 'center' },
+  sub: { color: theme.colors.goldSoft, fontFamily: 'Inter', fontSize: 12, textAlign: 'center', marginTop: theme.spacing.sm, lineHeight: 17 },
   searchWrap: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginHorizontal: theme.spacing.lg, paddingHorizontal: theme.spacing.md,
     backgroundColor: theme.colors.surface, borderRadius: theme.radius.md, minHeight: 48,
   },
-  search: { flex: 1, color: theme.colors.onSurface, fontSize: 15, paddingVertical: theme.spacing.md },
+  search: { flex: 1, color: theme.colors.onSurface, fontFamily: 'Inter', fontSize: 13, paddingVertical: theme.spacing.md },
   list: { padding: theme.spacing.lg, gap: theme.spacing.sm },
   row: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.md, paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md, minHeight: 56, borderWidth: 2, borderColor: 'transparent',
+    paddingVertical: theme.spacing.md, minHeight: 50, borderWidth: 2, borderColor: 'transparent',
   },
   rowActive: { borderColor: theme.colors.gold },
-  name: { color: theme.colors.onSurface, fontSize: 16, fontWeight: '700' },
+  name: { color: theme.colors.onSurface, fontSize: 14, fontFamily: 'InterBold'},
   nameActive: { color: theme.colors.brand },
-  native: { color: theme.colors.onSurfaceSecondary, fontSize: 12, marginTop: 2 },
+  native: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 12, marginTop: 2 },
   footer: { padding: theme.spacing.lg, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)' },
   btn: { backgroundColor: theme.colors.brandSecondary, padding: theme.spacing.lg, borderRadius: theme.radius.md, alignItems: 'center', minHeight: 52, justifyContent: 'center' },
   btnDisabled: { opacity: 0.5 },
-  btnText: { color: theme.colors.onBrandSecondary, fontWeight: '700', fontSize: 16 },
+  btnText: { color: theme.colors.onBrandSecondary, fontFamily: 'InterBold', fontSize: 14 },
   // UI-revision pilot (reversible via UI_REVISION_V1): 44px met iOS's own
   // minimum but not the stricter 48px target used across this batch.
   skip: { alignItems: 'center', paddingVertical: theme.spacing.md, minHeight: UI_REVISION_V1 ? 48 : 44, justifyContent: 'center' },
-  skipText: { color: theme.colors.goldSoft, fontSize: 14, fontWeight: '600' },
+  skipText: { color: theme.colors.goldSoft, fontSize: 13, fontFamily: 'InterSemiBold'},
 });

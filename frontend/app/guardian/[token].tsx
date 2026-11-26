@@ -418,34 +418,34 @@ export default function GuardianScreen() {
 
 const styles = StyleSheet.create({
   root:           { flex: 1, backgroundColor: c.background },
-  content:        { padding: 20, gap: 16 },
+  content:        { padding: 16, gap: 16 },
 
   centeredBlock: {
     backgroundColor: c.surface, borderRadius: 18, borderWidth: 1,
     borderColor: c.lines, padding: 28, alignItems: 'center', gap: 12,
   },
   iconWrap:   { marginBottom: 4 },
-  loadingTxt: { fontFamily: theme.fonts.body, fontSize: 15, color: c.muted, marginTop: 8 },
-  cardTitle:  { fontFamily: theme.fonts.displayBold, fontSize: 20, color: c.ink, textAlign: 'center' },
-  cardBody:   { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, textAlign: 'center', lineHeight: 20 },
+  loadingTxt: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, marginTop: 8 },
+  cardTitle:  { fontFamily: theme.fonts.displayBold, fontSize: 17, color: c.ink, textAlign: 'center' },
+  cardBody:   { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, textAlign: 'center', lineHeight: 18 },
 
   primaryBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: c.navy, borderRadius: 14,
-    paddingVertical: 14, paddingHorizontal: 24, marginTop: 4,
+    paddingVertical: 14, paddingHorizontal: 18, marginTop: 4,
   },
-  primaryBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: '#fff' },
+  primaryBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: '#fff' },
 
   outlineBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     borderWidth: 1.5, borderColor: c.navy, borderRadius: 12,
-    paddingVertical: 10, paddingHorizontal: 20, alignSelf: 'center', marginTop: 8,
+    paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'center', marginTop: 8,
   },
-  outlineBtnTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.navy },
+  outlineBtnTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy },
 
   journeyCard: {
     backgroundColor: c.surface, borderRadius: 18, borderWidth: 1,
-    borderColor: c.lines, padding: 20, gap: 4,
+    borderColor: c.lines, padding: 16, gap: 4,
   },
   cardSafe:    { borderColor: c.verifiedGreen, backgroundColor: '#F0FAF4' },
   cardRevoked: { borderColor: c.lines },
@@ -454,16 +454,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12,
   },
   cardStatusLabel: {
-    fontFamily: theme.fonts.displayBold, fontSize: 18, color: c.navy,
+    fontFamily: theme.fonts.displayBold, fontSize: 16, color: c.navy,
   },
   safeTxt: { color: c.verifiedGreen },
 
   fieldRow:   { gap: 2, marginVertical: 2 },
   fieldLabel: v22SectionLabel({
-    fontFamily: theme.fonts.bodyBold, fontSize: 11, color: c.muted,
+    fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.muted,
     textTransform: 'uppercase', letterSpacing: 0.5,
   }),
-  fieldValue: { fontFamily: theme.fonts.bodyMedium, fontSize: 16, color: c.ink },
+  fieldValue: { fontFamily: theme.fonts.bodyMedium, fontSize: 14, color: c.ink },
 
   divider: { height: 1, backgroundColor: c.lines, marginVertical: 8 },
 
@@ -483,7 +483,7 @@ const styles = StyleSheet.create({
     backgroundColor: c.emergencyRed,
   },
   liveTxt: {
-    fontFamily: theme.fonts.bodyBold, fontSize: 10,
+    fontFamily: theme.fonts.bodyBold, fontSize: 11,
     color: c.emergencyRed, letterSpacing: 0.8,
   },
 
@@ -496,15 +496,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6,
   },
   locationTitle: {
-    fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.ink,
+    fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink,
   },
   locationAge: {
-    marginLeft: 'auto', fontFamily: theme.fonts.body, fontSize: 11,
+    marginLeft: 'auto', fontFamily: theme.fonts.body, fontSize: 12,
     color: c.verifiedGreen,
   },
   locationAgeStale: { color: c.muted },
   locationArea: {
-    fontFamily: theme.fonts.bodyMedium, fontSize: 15, color: c.ink,
+    fontFamily: theme.fonts.bodyMedium, fontSize: 13, color: c.ink,
   },
   locationCoords: {
     fontFamily: theme.fonts.body, fontSize: 12, color: c.muted,
@@ -516,11 +516,11 @@ const styles = StyleSheet.create({
     paddingVertical: 9, paddingHorizontal: 16, alignSelf: 'flex-start', marginTop: 4,
   },
   mapsBtnTxt: {
-    fontFamily: theme.fonts.bodyBold, fontSize: 13, color: '#fff',
+    fontFamily: theme.fonts.bodyBold, fontSize: 12, color: '#fff',
   },
 
   refreshedTxt: {
-    fontFamily: theme.fonts.body, fontSize: 11, color: c.muted,
+    fontFamily: theme.fonts.body, fontSize: 12, color: c.muted,
     textAlign: 'center', marginTop: 4,
   },
 });

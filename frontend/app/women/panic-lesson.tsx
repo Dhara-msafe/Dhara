@@ -61,7 +61,7 @@ export default function PanicLesson() {
           <ActivityIndicator color={UI_V22_S4 ? shieldColors.text : c.navy} />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
           <Pressable
             testID="panic-lesson-listen"
             style={(s) => [styles.listenBtn, focusRingStyle(s)]}
@@ -113,7 +113,7 @@ export default function PanicLesson() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: UI_V22_S4 ? 'transparent' : c.background },
-  intro: { fontFamily: theme.fonts.body, fontSize: 15, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, lineHeight: 22, marginBottom: 18 },
+  intro: { fontFamily: theme.fonts.body, fontSize: 13, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, lineHeight: 19, marginBottom: 18 },
   listenBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: UI_V22_S4 ? shieldColors.chipBg : c.navySoft,
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     minHeight: UI_REVISION_V1 ? 48 : 44,
     ...(UI_V22_S4 ? { borderWidth: 1, borderColor: shieldColors.chipBorder } : null),
   },
-  listenTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: UI_V22_S4 ? shieldColors.text : c.navy },
+  listenTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: UI_V22_S4 ? shieldColors.text : c.navy },
   speechError: { fontFamily: theme.fonts.body, fontSize: 12, color: c.error, marginBottom: 10 },
   step: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -131,20 +131,20 @@ const styles = StyleSheet.create({
     padding: 16, marginBottom: 12,
   },
   num: { width: UI_V22_S4 ? 36 : 26, height: UI_V22_S4 ? 36 : 26, borderRadius: UI_V22_S4 ? 18 : 13, backgroundColor: c.gold, alignItems: 'center', justifyContent: 'center' },
-  numTxt: { fontFamily: theme.fonts.displayBold, fontSize: 16, color: c.navy },
+  numTxt: { fontFamily: theme.fonts.displayBold, fontSize: 14, color: c.navy },
   iconWrap: { width: 40, height: 40, borderRadius: 11, backgroundColor: UI_V22_S4 ? shieldColors.chipBg : c.navySoft, alignItems: 'center', justifyContent: 'center' },
-  stepTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: UI_V22_S4 ? shieldColors.text : c.ink },
-  stepBody: { fontFamily: theme.fonts.body, fontSize: 13, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, marginTop: 3, lineHeight: 19 },
+  stepTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: UI_V22_S4 ? shieldColors.text : c.ink },
+  stepBody: { fontFamily: theme.fonts.body, fontSize: 12, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, marginTop: 3, lineHeight: 17 },
   note: {
     flexDirection: 'row', gap: 10,
     backgroundColor: UI_V22_S4 ? shieldColors.tipBg : c.goldMuted,
     borderRadius: 14, padding: 14, marginTop: 6,
     ...(UI_V22_S4 ? { borderWidth: 1, borderColor: shieldColors.tipBorder } : null),
   },
-  noteTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: UI_V22_S4 ? shieldColors.textMuted : c.ink, lineHeight: 19 },
+  noteTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12, color: UI_V22_S4 ? shieldColors.textMuted : c.ink, lineHeight: 17 },
   btn: {
     backgroundColor: UI_V22_S4 ? shieldColors.lavenderBgDeep : c.navy,
     borderRadius: 16, paddingVertical: 16, alignItems: 'center', marginTop: 20,
   },
-  btnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 16 },
+  btnTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14 },
 });

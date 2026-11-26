@@ -39,16 +39,27 @@
       "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyB8vnwKPf3OJgU2UqyivkRDPHhe9TmV0lI"
+          "apiKey": "AIzaSyA-HEISVie9-MOfjXWo_eXT2hOfkILomHw"
         }
       },
       "permissions": [
-        "RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO",
         "android.permission.INTERNET",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.CAMERA",
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
+      ],
+      "blockedPermissions": [
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
       "intentFilters": [
         {
@@ -92,7 +103,8 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "Share your area with your guardian during Head Out",
-          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": true,
+          "locationAlwaysAndWhenInUsePermission": "Share your live location with your Trusted Circle during an active Head Out journey, even when the app is closed",
           "isIosBackgroundLocationEnabled": false
         }
       ],
@@ -112,6 +124,19 @@
           "icon": "./assets/images/dhara_icon.png",
           "color": "#48627E",
           "defaultChannel": "default"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose a photo as your profile picture or evidence",
+          "cameraPermission": "Take a photo as evidence for your complaint"
+        }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Detect a shake gesture to activate the discreet safety cover"
         }
       ]
     ],

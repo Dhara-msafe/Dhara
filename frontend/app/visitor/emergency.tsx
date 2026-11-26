@@ -113,7 +113,7 @@ export default function VisitorEmergency() {
             {/* Speak For Me */}
             {step.speak_hi && (
               <View>
-                <Text style={s.speakLabel}>{`🎙 SPEAK FOR ME (to official in ${speakLang.label}):`}</Text>
+                <Text style={s.speakLabel}>{`SPEAK FOR ME (to official in ${speakLang.label}):`}</Text>
                 <View style={s.speakBox}>
                   <Text style={s.speakText}>{phraseFor(step)}</Text>
                 </View>
@@ -152,8 +152,8 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16,
   },
   headerText:  { flex: 1 },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: '#fff' },
-  headerSub:   { fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 3 },
+  headerTitle: { fontSize: 16, fontFamily: 'InterExtraBold', color: '#fff' },
+  headerSub:   { fontFamily: 'Inter', fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 3 },
 
   stepCard:   {
     backgroundColor: C.surface, borderRadius: 14, padding: 16,
@@ -164,25 +164,25 @@ const s = StyleSheet.create({
     width: 28, height: 28, borderRadius: 14, backgroundColor: C.error,
     alignItems: 'center', justifyContent: 'center',
   },
-  stepNumText: { color: '#fff', fontWeight: '800', fontSize: 13 },
-  stepTitle:   { flex: 1, fontSize: 15, fontWeight: '700', color: C.onSurface },
-  stepBody:    { fontSize: 13, color: C.onSurfaceTertiary, lineHeight: 20, marginBottom: 12 },
+  stepNumText: { color: '#fff', fontFamily: 'InterExtraBold', fontSize: 12 },
+  stepTitle:   { flex: 1, fontSize: 13, fontFamily: 'InterBold', color: C.onSurface },
+  stepBody:    { fontFamily: 'Inter', fontSize: 12, color: C.onSurfaceTertiary, lineHeight: 18, marginBottom: 12 },
 
   actionBtn:     {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, borderRadius: 10, paddingVertical: 12, marginBottom: 8,
   },
-  actionBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  actionBtnText: { fontSize: 13, fontFamily: 'InterBold', color: '#fff' },
 
-  speakLabel: { fontSize: 11, fontWeight: '700', color: C.primary, letterSpacing: 0.5, marginBottom: 6 },
+  speakLabel: { fontSize: 12, fontFamily: 'InterBold', color: C.primary, letterSpacing: 0.5, marginBottom: 6 },
   speakBox:   {
     backgroundColor: C.navySoft, borderRadius: 10, padding: 12,
     borderLeftWidth: 3, borderLeftColor: C.primary,
   },
-  speakText:  { fontSize: 14, color: C.primary, lineHeight: 22, fontStyle: 'italic' },
+  speakText:  { fontFamily: 'Inter', fontSize: 13, color: C.primary, lineHeight: 19 },
 
   footnote: {
-    fontSize: 11, color: C.onSurfaceTertiary, textAlign: 'center',
+    fontFamily: 'Inter', fontSize: 12, color: C.onSurfaceTertiary, textAlign: 'center',
     lineHeight: 17, marginTop: 8,
   },
 });

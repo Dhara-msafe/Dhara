@@ -1,10 +1,13 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, Platform, Switch, Animated, Linking, TextInput, ActivityIndicator } from 'react-native';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
 import { crossAlert } from '@/src/utils/crossAlert';
 import Slider from '@react-native-community/slider';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { tabBackTarget } from '@/src/tabBackTarget';
+import { useAndroidBack } from '@/src/useAndroidBack';
 import { useAuth, API_BASE, Language, TtsVoiceMode } from '@/src/auth';
 import { clearAccountLocalData } from '@/src/accountStorage';
 import { theme } from '@/src/theme';
@@ -25,6 +28,10 @@ export default function Settings() {
   const [voiceOn, setVoiceOn] = useState(isVoiceReadAloudOn());
   useFocusEffect(useCallback(() => { setVoiceOn(isVoiceReadAloudOn()); }, []));
   const router = useRouter();
+  // Back goes to the screen that opened Settings (Me by default, Ask with ?from=ask).
+  const { from } = useLocalSearchParams<{ from?: string }>();
+  // Android's Back goes where the on-screen arrow goes (not Home).
+  useAndroidBack(() => router.navigate(tabBackTarget(from) as any));
   const [langs, setLangs] = useState<Language[]>([]);
   const [showLang, setShowLang] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
@@ -260,11 +267,8 @@ export default function Settings() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']} testID="settings-screen">
-      <View style={styles.header}>
-        <Text style={styles.h1}>{t('settings.title', language.code)}</Text>
-        <Text style={styles.h2}>{t('settings.subtitle', language.code)}</Text>
-      </View>
+    <SafeAreaView style={styles.safe} edges={[]} testID="settings-screen">
+      <PageTitleRow title={t('settings.title', language.code)} subtitle={t('settings.subtitle', language.code)} onBack={() => router.navigate(tabBackTarget(from) as any)} backTestID="settings-back" testID="settings-title" />
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.profile}>
           <View style={styles.avatar}><Text style={styles.avatarTxt}>{user?.name?.[0]?.toUpperCase() || 'G'}</Text></View>
@@ -423,7 +427,7 @@ export default function Settings() {
           </View>
           <Slider
             testID="tts-volume-slider"
-            style={{ width: '100%', height: 36, marginTop: theme.spacing.sm }}
+            style={{ alignSelf: 'stretch', height: 36, marginTop: theme.spacing.sm }}
             minimumValue={0}
             maximumValue={1}
             step={0.05}
@@ -496,7 +500,7 @@ export default function Settings() {
 
         <Text style={styles.section}>Tools</Text>
 
-        <Pressable testID="profile-saved-answers" style={styles.row} onPress={() => router.push('/(tabs)/saved')}>
+        <Pressable testID="profile-saved-answers" style={styles.row} onPress={() => router.push('/(tabs)/saved?from=settings' as any)}>
           <Ionicons name="bookmark-outline" size={22} color={theme.colors.brand} />
           <View style={{ flex: 1 }}><Text style={styles.rowTitle}>Saved answers</Text><Text style={styles.rowSub}>Read your bookmarked legal information</Text></View>
           <Ionicons name="chevron-forward" size={18} color={theme.colors.onSurfaceSecondary} />
@@ -511,7 +515,7 @@ export default function Settings() {
           <View style={{ flex: 1 }}><Text style={styles.rowTitle}>Legal lookup</Text><Text style={styles.rowSub}>Search sections and official sources</Text></View>
           <Ionicons name="chevron-forward" size={18} color={theme.colors.onSurfaceSecondary} />
         </Pressable>
-        <Pressable testID="profile-chat-history" style={styles.row} onPress={() => router.push('/(tabs)/history')}>
+        <Pressable testID="profile-chat-history" style={styles.row} onPress={() => router.push('/(tabs)/history?from=settings' as any)}>
           <Ionicons name="time-outline" size={22} color={theme.colors.brand} />
           <View style={{ flex: 1 }}><Text style={styles.rowTitle}>Chat history</Text><Text style={styles.rowSub}>Revisit your conversations</Text></View>
           <Ionicons name="chevron-forward" size={18} color={theme.colors.onSurfaceSecondary} />
@@ -695,7 +699,7 @@ export default function Settings() {
         visible={showDeleteModal}
         transparent
         animationType="slide"
-        onRequestClose={() => (deleteLoading ? null : setShowDeleteModal(false))}
+        onRequestClose={() => { if (!deleteLoading) setShowDeleteModal(false); }}
         testID="delete-account-modal"
       >
         <Pressable
@@ -829,19 +833,19 @@ function PickerModal({ visible, title, onClose, items, selectedId, onSelect, tes
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: theme.colors.surface },
-  header: { padding: theme.spacing.xl, paddingBottom: theme.spacing.md, borderBottomWidth: 1, borderBottomColor: theme.colors.divider },
-  h1: { fontFamily: theme.fonts.display, fontSize: 28, color: theme.colors.brand, fontWeight: '700' },
+  safe: { flex: 1, backgroundColor: theme.colors.background },
+  header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
+  h1: { fontFamily: theme.fonts.display, fontSize: 24, color: theme.colors.brand, fontWeight: '700' },
   h2: { color: theme.colors.onSurfaceSecondary, marginTop: 4 },
   scroll: { padding: theme.spacing.lg, paddingBottom: theme.spacing.xxxl },
   profile: { flexDirection: 'row', alignItems: 'center', padding: theme.spacing.lg, backgroundColor: theme.colors.brand, borderRadius: theme.radius.lg },
   avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: theme.colors.brandSecondary, alignItems: 'center', justifyContent: 'center' },
-  avatarTxt: { color: theme.colors.onBrandSecondary, fontWeight: '700', fontSize: 22 },
-  name: { color: theme.colors.onBrandPrimary, fontSize: 17, fontWeight: '700' },
-  email: { color: '#D1D5DB', marginTop: 2, fontSize: 13 },
-  section: { fontFamily: theme.fonts.display, fontSize: 16, color: theme.colors.brand, marginTop: theme.spacing.xl, marginBottom: theme.spacing.sm, fontWeight: '700' },
-  row: { flexDirection: 'row', alignItems: 'center', padding: theme.spacing.lg, backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md, marginBottom: theme.spacing.sm, borderWidth: 1, borderColor: theme.colors.border },
-  volumeCard: { padding: theme.spacing.lg, backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md, marginBottom: theme.spacing.sm, borderWidth: 1, borderColor: theme.colors.border },
+  avatarTxt: { color: theme.colors.onBrandSecondary, fontFamily: 'InterBold', fontSize: 19 },
+  name: { color: theme.colors.onBrandPrimary, fontSize: 15, fontFamily: 'InterBold'},
+  email: { color: '#E6DFD1', marginTop: 2, fontFamily: 'Inter', fontSize: 12 },
+  section: { fontFamily: theme.fonts.display, fontSize: 14, color: theme.colors.brand, marginTop: theme.spacing.xl, marginBottom: theme.spacing.sm, fontWeight: '700' },
+  row: { flexDirection: 'row', alignItems: 'center', padding: theme.spacing.lg, backgroundColor: theme.colors.paper, borderRadius: theme.radius.md, marginBottom: theme.spacing.sm, borderWidth: 1, borderColor: theme.colors.border },
+  volumeCard: { overflow: 'hidden', padding: theme.spacing.lg, backgroundColor: theme.colors.paper, borderRadius: theme.radius.md, marginBottom: theme.spacing.sm, borderWidth: 1, borderColor: theme.colors.border },
   voiceModeRow: {
     flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md,
     paddingVertical: theme.spacing.sm, paddingHorizontal: theme.spacing.md,
@@ -851,45 +855,45 @@ const styles = StyleSheet.create({
   voiceModeRowActive: {
     backgroundColor: theme.colors.brand, borderColor: theme.colors.brand,
   },
-  voiceModeLabel: { fontSize: 14, fontWeight: '600', color: theme.colors.onSurface },
+  voiceModeLabel: { fontSize: 13, fontFamily: 'InterSemiBold', color: theme.colors.onSurface },
   voiceModeLabelActive: { color: theme.colors.onBrandPrimary },
-  voiceModeSub: { fontSize: 12, color: theme.colors.onSurfaceSecondary, marginTop: 2 },
+  voiceModeSub: { fontFamily: 'Inter', fontSize: 12, color: theme.colors.onSurfaceSecondary, marginTop: 2 },
   voiceModeSubActive: { color: 'rgba(255,255,255,0.75)' },
-  rowTitle: { color: theme.colors.onSurface, fontWeight: '600' },
-  rowSub: { color: theme.colors.onSurfaceSecondary, fontSize: 13, lineHeight: 19, marginTop: 2 },
-  rowValue: { color: theme.colors.onSurfaceSecondary, fontSize: 13, marginTop: 2 },
+  rowTitle: { color: theme.colors.onSurface, fontFamily: 'InterSemiBold'},
+  rowSub: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 12, lineHeight: 17, marginTop: 2 },
+  rowValue: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 12, marginTop: 2 },
   sosRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.md,
-    backgroundColor: theme.colors.surfaceSecondary,
+    backgroundColor: theme.colors.paper,
     borderRadius: theme.radius.md,
     borderWidth: 1,
     borderColor: theme.colors.border,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
-    minHeight: 64,
+    minHeight: 54,
   },
-  helpCard: { backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md, padding: theme.spacing.md, borderWidth: 1, borderColor: theme.colors.border },
+  helpCard: { backgroundColor: theme.colors.paper, borderRadius: theme.radius.md, padding: theme.spacing.md, borderWidth: 1, borderColor: theme.colors.border },
   helpRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: theme.spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.divider },
-  helpLabel: { color: theme.colors.onSurface, fontSize: 15 },
+  helpLabel: { color: theme.colors.onSurface, fontFamily: 'Inter', fontSize: 13 },
   helpNumBadge: { backgroundColor: theme.colors.brandSecondary, paddingHorizontal: theme.spacing.md, paddingVertical: theme.spacing.xs, borderRadius: theme.radius.pill },
-  helpNum: { color: theme.colors.onBrandSecondary, fontWeight: '700' },
-  aboutCard: { backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md, padding: theme.spacing.lg, borderWidth: 1, borderColor: theme.colors.border },
-  aboutText: { color: theme.colors.onSurfaceSecondary, lineHeight: 22, fontSize: 13 },
+  helpNum: { color: theme.colors.onBrandSecondary, fontFamily: 'InterBold'},
+  aboutCard: { backgroundColor: theme.colors.paper, borderRadius: theme.radius.md, padding: theme.spacing.lg, borderWidth: 1, borderColor: theme.colors.border },
+  aboutText: { color: theme.colors.onSurfaceSecondary, lineHeight: 19, fontFamily: 'Inter', fontSize: 12 },
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: theme.spacing.lg, marginTop: theme.spacing.xl, borderWidth: 1, borderColor: theme.colors.error, borderRadius: theme.radius.md },
-  logoutText: { color: theme.colors.error, fontWeight: '700' },
-  deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: theme.spacing.lg, marginTop: theme.spacing.sm, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceSecondary, borderWidth: 1, borderColor: theme.colors.border },
-  deleteHint: { color: theme.colors.onSurfaceTertiary, fontSize: 12, marginTop: theme.spacing.sm, textAlign: 'center', paddingHorizontal: theme.spacing.md },
-  deleteModalBody: { color: theme.colors.onSurfaceSecondary, fontSize: 13, lineHeight: 19, marginTop: theme.spacing.md, marginBottom: theme.spacing.lg },
+  logoutText: { color: theme.colors.error, fontFamily: 'InterBold'},
+  deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: theme.spacing.lg, marginTop: theme.spacing.sm, borderRadius: theme.radius.md, backgroundColor: theme.colors.paper, borderWidth: 1, borderColor: theme.colors.border },
+  deleteHint: { color: theme.colors.onSurfaceTertiary, fontFamily: 'Inter', fontSize: 12, marginTop: theme.spacing.sm, textAlign: 'center', paddingHorizontal: theme.spacing.md },
+  deleteModalBody: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 12, lineHeight: 17, marginTop: theme.spacing.md, marginBottom: theme.spacing.lg },
   deletePasswordInput: {
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.radius.md,
     padding: theme.spacing.md,
-    fontSize: 16,
+    fontFamily: 'Inter', fontSize: 14,
     color: theme.colors.onSurface,
-    backgroundColor: theme.colors.surfaceSecondary,
+    backgroundColor: theme.colors.paper,
   },
   dangerConfirmBtn: {
     backgroundColor: theme.colors.error,
@@ -900,31 +904,31 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   cancelDeleteBtn: { alignItems: 'center', paddingVertical: theme.spacing.md, minHeight: 44 },
-  link: { color: theme.colors.onSurfaceSecondary, fontSize: 15, fontWeight: '600' },
+  link: { color: theme.colors.onSurfaceSecondary, fontSize: 13, fontFamily: 'InterSemiBold'},
   copyBlock: { alignItems: 'center', marginTop: theme.spacing.xl, paddingVertical: theme.spacing.lg },
-  copyLine: { color: theme.colors.onSurfaceSecondary, fontSize: 12, fontWeight: '700' },
-  copySub: { color: theme.colors.onSurfaceTertiary, fontSize: 11, marginTop: 2, letterSpacing: 0.5 },
+  copyLine: { color: theme.colors.onSurfaceSecondary, fontSize: 12, fontFamily: 'InterBold'},
+  copySub: { color: theme.colors.onSurfaceTertiary, fontFamily: 'Inter', fontSize: 12, marginTop: 2, letterSpacing: 0.5 },
   proBadge: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: theme.colors.brandSecondary, paddingHorizontal: 6, paddingVertical: 2, borderRadius: theme.radius.pill },
-  proBadgeText: { color: theme.colors.onBrandSecondary, fontSize: 9, fontWeight: '800' },
+  proBadgeText: { color: theme.colors.onBrandSecondary, fontSize: 9, fontFamily: 'InterExtraBold'},
   upsell: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.brandSecondary, borderRadius: theme.radius.lg, padding: theme.spacing.lg, marginTop: theme.spacing.md },
-  upsellTitle: { color: theme.colors.onBrandPrimary, fontWeight: '800', fontSize: 15 },
-  upsellSub: { color: '#FDE8DA', fontSize: 12, marginTop: 2 },
+  upsellTitle: { color: theme.colors.onBrandPrimary, fontFamily: 'InterExtraBold', fontSize: 13 },
+  upsellSub: { color: '#FDE8DA', fontFamily: 'Inter', fontSize: 12, marginTop: 2 },
   termsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: theme.spacing.lg, backgroundColor: theme.colors.brand },
-  termsHeaderTitle: { color: theme.colors.onBrandPrimary, fontFamily: theme.fonts.display, fontSize: 20, fontWeight: '700' },
-  termsBody: { color: theme.colors.onSurface, fontSize: 13, lineHeight: 20 },
+  termsHeaderTitle: { color: theme.colors.onBrandPrimary, fontFamily: theme.fonts.display, fontSize: 17, fontWeight: '700' },
+  termsBody: { color: theme.colors.onSurface, fontFamily: 'Inter', fontSize: 12, lineHeight: 18 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: theme.colors.surface, borderTopLeftRadius: theme.radius.lg, borderTopRightRadius: theme.radius.lg, padding: theme.spacing.lg, paddingBottom: theme.spacing.xxl },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: theme.colors.border, alignSelf: 'center', marginBottom: theme.spacing.md },
-  sheetTitle: { fontFamily: theme.fonts.display, fontSize: 20, color: theme.colors.brand, marginBottom: theme.spacing.md, fontWeight: '700' },
+  sheetTitle: { fontFamily: theme.fonts.display, fontSize: 17, color: theme.colors.brand, marginBottom: theme.spacing.md, fontWeight: '700' },
   opt: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: theme.spacing.md, paddingHorizontal: theme.spacing.md, borderRadius: theme.radius.md, marginBottom: 4 },
-  optSel: { backgroundColor: theme.colors.surfaceSecondary },
-  optText: { color: theme.colors.onSurface, fontSize: 15 },
-  optTextSel: { color: theme.colors.brand, fontWeight: '700' },
+  optSel: { backgroundColor: theme.colors.paper },
+  optText: { color: theme.colors.onSurface, fontFamily: 'Inter', fontSize: 13 },
+  optTextSel: { color: theme.colors.brand, fontFamily: 'InterBold'},
   pickerSearch: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: theme.colors.surfaceSecondary,
+    backgroundColor: theme.colors.paper,
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.radius.md,
@@ -934,7 +938,7 @@ const styles = StyleSheet.create({
   },
   pickerSearchInput: {
     flex: 1,
-    fontSize: 15,
+    fontFamily: 'Inter', fontSize: 13,
     color: theme.colors.onSurface,
     paddingVertical: theme.spacing.sm,
   },
@@ -943,7 +947,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pickerEmptyText: {
-    fontSize: 14,
+    fontFamily: 'Inter', fontSize: 13,
     color: theme.colors.onSurfaceSecondary,
     textAlign: 'center',
   },
@@ -964,7 +968,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
-  langToastText: { color: theme.colors.onBrandPrimary, fontSize: 13, fontWeight: '600' },
-  error: { color: theme.colors.error, marginTop: theme.spacing.md, fontSize: 13, fontWeight: '600' },
-  btnText: { color: theme.colors.onBrandPrimary, fontWeight: '700', fontSize: 15 },
+  langToastText: { color: theme.colors.onBrandPrimary, fontSize: 12, fontFamily: 'InterSemiBold'},
+  error: { color: theme.colors.error, marginTop: theme.spacing.md, fontSize: 12, fontFamily: 'InterSemiBold'},
+  btnText: { color: theme.colors.onBrandPrimary, fontFamily: 'InterBold', fontSize: 13 },
 });

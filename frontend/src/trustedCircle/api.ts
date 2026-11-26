@@ -37,6 +37,25 @@ export async function editProfileName(token: string, name: string) {
   if (!r.ok) throw new Error('Could not update name');
   return r.json();
 }
+
+/** Extended profile patch — name, phone, gender, dob.
+ * Undefined fields are not sent (keeps existing stored value).
+ * dob must be YYYY-MM-DD and make the user ≥ 18; enforced both client and server. */
+export async function editProfileFull(
+  token: string,
+  patch: { name?: string; phone?: string; gender?: string; dob?: string },
+) {
+  const body: Record<string, string> = {};
+  if (patch.name   != null) body.name   = patch.name;
+  if (patch.phone  != null) body.phone  = patch.phone;
+  if (patch.gender != null) body.gender = patch.gender;
+  if (patch.dob    != null) body.dob    = patch.dob;
+  const r = await fetch(`${base}/profile/me`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders(token) }, body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.detail || 'Could not update profile');
+  return r.json();
+}
 export async function getPhotoViewToken(token: string): Promise<string | null> {
   try {
     const r = await fetch(`${base}/profile/photo-token`, { headers: authHeaders(token) });
@@ -54,10 +73,18 @@ export type InviteLink = {
   created_at: string; responded_at: string | null;
 };
 
-// A43: `email` lets a trusted person who does NOT have DHARA be invited —
-// they accept from the email itself and are alerted the same way. The server
-// uses it only when no DHARA account matches the phone number.
-export async function inviteContact(token: string, body: { name: string; phone: string; email?: string; permissions?: Partial<Permissions>; relationship?: string }): Promise<{ ok: boolean; id: string; matched_existing_user: boolean; invited_by_email?: boolean; email_pending?: boolean }> {
+// Email is now mandatory in the invite API (profile-fields-email-invites PR).
+// The guardian must register with this exact phone + email to auto-link the invite.
+export async function inviteContact(
+  token: string,
+  body: {
+    name: string;
+    phone: string;
+    email: string;           // mandatory
+    permissions?: Partial<Permissions>;
+    relationship?: string;
+  },
+): Promise<{ ok: boolean; id: string; matched_existing_user: boolean; invited_by_email?: boolean; email_pending?: boolean }> {
   const r = await fetch(`${base}/trusted-circle/invite`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders(token) }, body: JSON.stringify(body),
   });

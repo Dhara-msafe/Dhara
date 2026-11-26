@@ -32,7 +32,7 @@ function walk(d, out = []) {
 }
 const files = walk(root).filter((p) => !/\/(memory|scripts)\//.test(p));
 const UPPER = /\{[^{}]*textTransform: *'uppercase'[^{}]*\}/g;
-const QUIET = /muted|onSurfaceSecondary|onSurfaceTertiary|9CA3AF|#999|MUTED/;
+const QUIET = /muted|onSurfaceSecondary|onSurfaceTertiary|9CA3AF|64788A|#999|MUTED/; // 64788A: the palette's muted grey, which replaced 9CA3AF in redesign v3
 const HEADOUT = ['app/women/head-out/index.tsx', 'src/women/DestinationPicker.tsx'];
 
 test('flag defaults OFF', () => {

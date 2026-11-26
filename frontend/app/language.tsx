@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, FlatList, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
+import { backFromMe } from '@/src/meBack';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth, Language } from '@/src/auth';
@@ -15,6 +17,9 @@ import { UI_V22_S10 } from '@/src/uiV22Flags';
 // before login and without a network round-trip.
 
 export default function LanguageSelect() {
+  // Top inset read here: 0 under the shared header (signed in), the real
+  // status-bar height on first launch (AutoHeader.tsx: AUTO_HEADER_SIGNED_IN).
+  const insets = useSafeAreaInsets();
   const { language, setLanguage, user } = useAuth();
   const router = useRouter();
   const { from } = useLocalSearchParams<{ from?: string }>();
@@ -49,31 +54,35 @@ export default function LanguageSelect() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} testID="language-screen">
-      {/* ── Top bar: shows back button when reached from home ── */}
-      <View style={styles.topbar}>
-        {isChange ? (
-          <Pressable
-            onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/home')}
-            style={(s) => [styles.iconBtn, focusRingStyle(s)]}
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-            testID="language-back"
-          >
-            <Ionicons name="arrow-back" size={20} color={theme.colors.navy} />
-          </Pressable>
-        ) : <View style={styles.iconBtnPlaceholder} />}
-        <Text style={styles.topbarTitle} numberOfLines={1}>Choose language</Text>
-        <View style={styles.iconBtnPlaceholder} />
-      </View>
-      {/* ── Step + heading + subtitle ── */}
-      <View style={styles.header}>
-        {!isChange && <Text style={styles.eyebrow}>STEP 1 OF 4</Text>}
-        <Text style={styles.title}>Choose your language</Text>
-        <Text style={styles.sub}>
-          DHARA speaks in the language you prefer. Which features work in each language is shown after you choose.
-        </Text>
-      </View>
+    <SafeAreaView style={[styles.safe, { paddingTop: insets.top }]} edges={['bottom', 'left', 'right']} testID="language-screen">
+      {isChange ? (
+        // 26 Nov: changing language (signed in, from Me or Home) uses the
+        // shared title row like every other screen opened from Me.
+        <PageTitleRow
+          title="Choose language"
+          subtitle="DHARA speaks in the language you prefer. Which features work in each language is shown after you choose."
+          onBack={() => backFromMe(router, from, () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/home')))}
+          backTestID="language-back"
+          testID="language-title"
+        />
+      ) : (
+        <>
+        {/* ── Top bar (first launch): title only; changing language uses the title row above ── */}
+        <View style={styles.topbar}>
+          <View style={styles.iconBtnPlaceholder} />
+          <Text style={styles.topbarTitle} numberOfLines={1}>Choose language</Text>
+          <View style={styles.iconBtnPlaceholder} />
+        </View>
+        {/* ── Step + heading + subtitle ── */}
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>STEP 1 OF 4</Text>
+          <Text style={styles.title}>Choose your language</Text>
+          <Text style={styles.sub}>
+            DHARA speaks in the language you prefer. Which features work in each language is shown after you choose.
+          </Text>
+        </View>
+        </>
+      )}
       {/* ── Search field ── */}
       <View style={styles.searchWrap}>
         <Ionicons name="search-outline" size={18} color={theme.colors.muted} style={styles.searchIcon} />
@@ -177,7 +186,7 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     fontFamily: theme.fonts.display,
-    fontSize: 18,
+    fontSize: 16,
     color: theme.colors.navy,
   },
   iconBtn: {
@@ -201,7 +210,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: v22SectionLabel({
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'InterBold',
     letterSpacing: 0.6,
     textTransform: 'uppercase',
     color: theme.colors.muted,
@@ -209,12 +218,12 @@ const styles = StyleSheet.create({
   }),
   title: {
     fontFamily: theme.fonts.display,
-    fontSize: 28,
+    fontSize: 24,
     color: theme.colors.navy,
     marginBottom: 10,
   },
   // Descriptive subtitle replacing the multilingual hint
-  sub: { color: theme.colors.muted, fontSize: 15, lineHeight: 22 },
+  sub: { color: theme.colors.muted, fontFamily: 'Inter', fontSize: 13, lineHeight: 19 },
 
   // ── Search field ─────────────────────────────────────────────────────────
   searchWrap: {
@@ -233,7 +242,7 @@ const styles = StyleSheet.create({
   searchIcon: { opacity: 0.7 },
   searchInput: {
     flex: 1,
-    fontSize: 15,
+    fontFamily: 'Inter', fontSize: 13,
     color: theme.colors.navy,
     paddingVertical: theme.spacing.sm,
     // No hardcoded height — flex fills available space naturally
@@ -245,7 +254,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    fontSize: 15,
+    fontFamily: 'Inter', fontSize: 13,
     color: theme.colors.muted,
     textAlign: 'center',
   },
@@ -258,20 +267,20 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
-    minHeight: 60,
+    minHeight: 52,
     borderWidth: 1.5,
     borderColor: theme.colors.lines,
   },
   // Selected: gold border (#8A6A1E) + warm tinted background — matches design token
-  rowActive: { borderWidth: 2.5, borderColor: '#8A6A1E', backgroundColor: '#FFF8E7' },
-  native: { color: theme.dhara.textPrimary, fontSize: 18, fontWeight: '600' },
+  rowActive: { borderWidth: 2.5, borderColor: '#8A6A1E', backgroundColor: '#FFF4E6' },
+  native: { color: theme.dhara.textPrimary, fontSize: 16, fontFamily: 'InterSemiBold'},
   nativeActive: { color: theme.colors.navy },
   // English translation: textSecondary on surface — 6.81:1 ✅; weight 500 for Indic script legibility
-  name: { color: theme.dhara.textSecondary, fontSize: 13, marginTop: 2, fontWeight: '500' },
+  name: { color: theme.dhara.textSecondary, fontSize: 12, marginTop: 2, fontFamily: 'InterMedium'},
   selectedWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   selectedLabel: {
     fontFamily: theme.fonts.bodyBold,
-    fontSize: 13,
+    fontSize: 12,
     color: '#6B4F10',
   },
 
@@ -285,5 +294,5 @@ const styles = StyleSheet.create({
     minHeight: 52,
     justifyContent: 'center',
   },
-  btnText: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 16 },
+  btnText: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14 },
 });

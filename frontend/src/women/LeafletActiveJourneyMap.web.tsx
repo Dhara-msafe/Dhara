@@ -27,7 +27,7 @@ const destIcon = L.divIcon({
 });
 const currentIcon = L.divIcon({
   className: '', html: `
-    <div style="width:16px;height:16px;border-radius:50%;background:#1D4ED8;border:2.5px solid #fff;box-shadow:0 0 0 5px rgba(29,78,216,0.22);"></div>`,
+    <div style="width:16px;height:16px;border-radius:50%;background:#1E5BD0;border:2.5px solid #fff;box-shadow:0 0 0 5px rgba(29,78,216,0.22);"></div>`,
   iconSize: [16, 16], iconAnchor: [8, 8],
 });
 
@@ -69,13 +69,13 @@ export default function LeafletActiveJourneyMap({
         <FitBounds hasCurrent={hasCurrent} currentLat={currentLat} currentLng={currentLng} destLat={destLat} destLng={destLng} />
 
         {!!routePolyline && routePolyline.length >= 2 && (
-          <LPolyline positions={routePolyline} pathOptions={{ color: '#14365A', weight: 4, opacity: 0.9 }} />
+          <LPolyline positions={routePolyline} pathOptions={{ color: '#082B4F', weight: 4, opacity: 0.9 }} />
         )}
 
         <LMarker position={[destLat, destLng]} icon={destIcon} />
 
         {isValidRadius(radiusMeters) && (
-          <LCircle center={[destLat, destLng]} radius={radiusMeters} pathOptions={{ color: '#1A3F74', weight: 1.5, fillOpacity: 0.12, opacity: 0.55 }} />
+          <LCircle center={[destLat, destLng]} radius={radiusMeters} pathOptions={{ color: '#082B4F', weight: 1.5, fillOpacity: 0.12, opacity: 0.55 }} />
         )}
 
         {hasCurrent && <LMarker position={[currentLat!, currentLng!]} icon={currentIcon} />}

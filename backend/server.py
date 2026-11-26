@@ -140,6 +140,8 @@ if razorpay and RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
     except Exception:
         razor_client = None
 
+from middleware.request_logger import RequestLoggerMiddleware
+
 app = FastAPI(title="Dhara API")
 
 # ── Global JSON error guarantees ──────────────────────────────────────────────
@@ -308,6 +310,8 @@ from api.journey_router  import (  # S3 Phase 2 — guardian status
 )
 from api.profile_router  import router as profile_router         # P1 — profile photo
 from api.trusted_circle_router import router as trusted_circle_router  # P3 — recipient invitations
+from api.age_verification_router import router as age_verification_router  # age-verification stub
+from api.debug_log_router import router as debug_log_router      # Debug log dashboard
 from api.alerts_router   import router as alerts_router           # P3/P4 — safety alerts inbox
 from api.upi_billing_router import router as upi_billing_router   # UPI payment page (outside the app)
 from api.advocate_notetaker_router import router as notetaker_router  # Consultation Notetaker (Phase 1)
@@ -326,6 +330,8 @@ api.include_router(scan_router)
 api.include_router(issues_router)   # In-app issue reporter (testers + users)
 api.include_router(profile_router)
 api.include_router(trusted_circle_router)
+api.include_router(age_verification_router)
+api.include_router(debug_log_router)
 api.include_router(alerts_router)
 api.include_router(upi_billing_router)
 api.include_router(notetaker_router)   # Consultation Notetaker (Phase 1)
@@ -1915,6 +1921,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Request-logger — added after CORS so CORS headers are on the response when captured.
+# No-op when DEBUG_LOG_ENABLED is not set.
+app.add_middleware(RequestLoggerMiddleware)
 
 @app.on_event("startup")
 async def _startup():
@@ -1932,6 +1941,17 @@ async def _startup():
             logger.info("[startup] Google Places (New) pilot: OFF (FEATURE_GOOGLE_PLACES_V1 not set) — using OSM/external-Maps as before")
     except Exception as e:
         logger.warning(f"[startup] Google Places pilot status check warning: {e}")
+
+    # debug_logs TTL index — 7-day automatic retention, no cron needed.
+    try:
+        await db.debug_logs.create_index(
+            [("ts", 1)],
+            name="debug_logs_ttl",
+            expireAfterSeconds=7 * 24 * 3600,
+        )
+        logger.info("[startup] debug_logs TTL index ensured (7-day retention)")
+    except Exception as e:
+        logger.warning(f"[startup] debug_logs TTL index warning: {e}")
 
     # Advocate Consultation Notetaker — idempotency + dedup indexes (QA batch N1).
     # All created with background-safe options; failures are logged, not fatal.

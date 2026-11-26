@@ -21,3 +21,19 @@ export function formatDateDMY(input: string | number | Date | null | undefined):
   const year = d.getFullYear();
   return `${day}/${month}/${year}`;
 }
+
+/**
+ * B-100 follow-up (24 Nov 2026): day-first date with a 12-hour time, for
+ * lists that show when something happened (Chat history). Built from the
+ * Date's own fields like formatDateDMY, so it never comes out month-first:
+ * "20/11/2026, 3:30 PM".
+ */
+export function formatDateTimeDMY(input: string | number | Date | null | undefined): string {
+  const date = formatDateDMY(input);
+  if (!date) return '';
+  const d = input instanceof Date ? input : new Date(input as string | number);
+  const h24 = d.getHours();
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  const mins = String(d.getMinutes()).padStart(2, '0');
+  return `${date}, ${h12}:${mins} ${h24 < 12 ? 'AM' : 'PM'}`;
+}

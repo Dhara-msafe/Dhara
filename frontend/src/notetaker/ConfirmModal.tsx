@@ -64,14 +64,14 @@ export default function ConfirmModal({
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)', alignItems: 'center', justifyContent: 'center', padding: 24 },
-  card: { width: '100%', maxWidth: 420, backgroundColor: c.surface, borderRadius: 16, padding: 20, gap: 4 },
-  title: { fontFamily: theme.fonts.display, fontSize: 18, color: c.navy, marginBottom: 6 },
-  message: { fontFamily: theme.fonts.body, fontSize: 14, color: c.ink, lineHeight: 20 },
+  overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)', alignItems: 'center', justifyContent: 'center', padding: 18 },
+  card: { width: '100%', maxWidth: 420, backgroundColor: c.surface, borderRadius: 16, padding: 16, gap: 4 },
+  title: { fontFamily: theme.fonts.display, fontSize: 16, color: c.navy, marginBottom: 6 },
+  message: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, lineHeight: 18 },
   row: { flexDirection: 'row', gap: 10, marginTop: 18 },
   cancelBtn: { flex: 1, borderWidth: 1.5, borderColor: c.border, borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
-  cancelBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.muted },
+  cancelBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.muted },
   confirmBtn: { flex: 1, backgroundColor: c.navy, borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
   confirmBtnDestructive: { backgroundColor: c.error },
-  confirmBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: '#fff' },
+  confirmBtnText: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: '#fff' },
 });

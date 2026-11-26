@@ -146,7 +146,7 @@ export function PhotoPicker({
           )}
 
           {(stage === 'uploading' || stage === 'removing') && (
-            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+            <View style={{ alignItems: 'center', paddingVertical: 16 }}>
               <ActivityIndicator color={c.navy} size="large" />
               <Text style={styles.hint}>{stage === 'uploading' ? 'Uploading…' : 'Removing…'}</Text>
               {stage === 'uploading' && (
@@ -185,15 +185,15 @@ export function PhotoPicker({
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(14,39,64,0.45)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: c.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: Platform.OS === 'ios' ? 36 : 24 },
-  sheetTitle: { fontFamily: theme.fonts.displayBold, fontSize: 18, color: c.navy, marginBottom: 12, textAlign: 'center' },
+  sheet: { backgroundColor: c.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingBottom: Platform.OS === 'ios' ? 36 : 24 },
+  sheetTitle: { fontFamily: theme.fonts.displayBold, fontSize: 16, color: c.navy, marginBottom: 12, textAlign: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.border },
-  rowTxt: { fontFamily: theme.fonts.bodyMedium, fontSize: 16, color: c.navy },
+  rowTxt: { fontFamily: theme.fonts.bodyMedium, fontSize: 14, color: c.navy },
   previewCircle: { width: 160, height: 160, borderRadius: 80, borderWidth: 3, borderColor: c.gold, marginVertical: 14 },
-  hint: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, marginTop: 4 },
+  hint: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 4 },
   actionsRow: { flexDirection: 'row', gap: 12, marginTop: 16 },
-  primaryBtn: { backgroundColor: c.navy, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999, minHeight: 44, justifyContent: 'center' },
-  primaryBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 14 },
-  secondaryBtn: { backgroundColor: c.surfaceSecondary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999, minHeight: 44, justifyContent: 'center' },
-  secondaryBtnTxt: { color: c.navy, fontFamily: theme.fonts.bodySemiBold, fontSize: 14 },
+  primaryBtn: { backgroundColor: c.navy, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 999, minHeight: 44, justifyContent: 'center' },
+  primaryBtnTxt: { color: '#fff', fontFamily: theme.fonts.bodySemiBold, fontSize: 13 },
+  secondaryBtn: { backgroundColor: c.surfaceSecondary, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 999, minHeight: 44, justifyContent: 'center' },
+  secondaryBtnTxt: { color: c.navy, fontFamily: theme.fonts.bodySemiBold, fontSize: 13 },
 });

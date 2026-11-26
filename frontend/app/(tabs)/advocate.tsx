@@ -10,6 +10,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
+import { useAndroidBack } from '@/src/useAndroidBack';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { ADVOCATE_MODE_ENABLED } from '@/src/advocateMode/flags';
@@ -21,6 +23,8 @@ const GOLD = theme.colors.gold;
 export default function AdvocateTab() {
   const { token, user } = useAuth();
   const router = useRouter();
+  // Android's Back goes to Me like the on-screen arrow (not Home).
+  useAndroidBack(() => router.navigate('/(tabs)/me' as any));
   const [profile, setProfile] = useState<any | null | 'none'>('loading');
 
   // B-97: advocate/lawyer features are hidden for Wave 1 per D-14 -- this
@@ -48,10 +52,8 @@ export default function AdvocateTab() {
 
   if (profile === 'loading') {
     return (
-      <SafeAreaView style={s.safe} edges={['top']}>
-        <View style={s.header}>
-          <Text style={s.headerTitle}>Lawyer Mode</Text>
-        </View>
+      <SafeAreaView style={s.safe} edges={[]}>
+        <PageTitleRow title="Lawyer Mode" onBack={() => router.navigate('/(tabs)/me' as any)} backTestID="advocate-back" testID="advocate-title" />
         <View style={s.center}>
           <ActivityIndicator color={NAVY} />
         </View>
@@ -61,10 +63,8 @@ export default function AdvocateTab() {
 
   if (profile === 'none') {
     return (
-      <SafeAreaView style={s.safe} edges={['top']}>
-        <View style={s.header}>
-          <Text style={s.headerTitle}>Lawyer Mode</Text>
-        </View>
+      <SafeAreaView style={s.safe} edges={[]}>
+        <PageTitleRow title="Lawyer Mode" onBack={() => router.navigate('/(tabs)/me' as any)} backTestID="advocate-back" testID="advocate-title" />
         <ScrollView contentContainerStyle={s.registerContainer}>
           <View style={s.iconWrap}>
             <Ionicons name="briefcase-outline" size={52} color={NAVY} />
@@ -126,36 +126,32 @@ export default function AdvocateTab() {
   ];
 
   return (
-    <SafeAreaView style={s.safe} edges={['top']}>
-      <View style={s.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>Lawyer Mode</Text>
-          {profile?.verified
-            ? (
-              <View style={s.verifiedBadge}>
-                <Ionicons name="checkmark-circle" size={13} color={NAVY} />
-                <Text style={s.verifiedText}>Reviewed</Text>
-              </View>
-            )
-            : <Text style={s.pendingText}>Pending Verification</Text>}
-        </View>
-        <Pressable onPress={() => router.push('/(tabs)/settings' as any)} style={s.settingsBtn}>
-          <Ionicons name="person-circle-outline" size={28} color={GOLD} />
-        </Pressable>
-      </View>
+    <SafeAreaView style={s.safe} edges={[]}>
+      <PageTitleRow
+        title="Lawyer Mode"
+        subtitle={profile?.verified ? 'Reviewed' : 'Pending Verification'}
+        onBack={() => router.navigate('/(tabs)/me' as any)}
+        backTestID="advocate-back"
+        testID="advocate-title"
+        right={(
+          <Pressable onPress={() => router.push('/(tabs)/settings?from=me' as any)} style={s.settingsBtn} accessibilityRole="button" accessibilityLabel="Your profile and settings">
+            <Ionicons name="person-circle-outline" size={28} color={GOLD} />
+          </Pressable>
+        )}
+      />
 
       <ScrollView contentContainerStyle={s.dashScroll}>
 
         {/* Verification pending banner */}
         {!profile?.verified && (
           <View style={s.verifyCard}>
-            <Ionicons name="time-outline" size={20} color="#92400E" style={{ marginTop: 1 }} />
+            <Ionicons name="time-outline" size={20} color="#8A6A1E" style={{ marginTop: 1 }} />
             <View style={{ flex: 1 }}>
-              <Text style={[s.verifyCardText, { fontWeight: '700', marginBottom: 2 }]}>
+              <Text style={[s.verifyCardText, { fontFamily: 'InterBold', marginBottom: 2 }]}>
                 Verification Pending
               </Text>
               <Text style={s.verifyCardText}>
-                Your enrolment no. <Text style={{ fontWeight: '700' }}>{profile?.bar_council_number}</Text> is under review.
+                Your enrolment no. <Text style={{ fontFamily: 'InterBold'}}>{profile?.bar_council_number}</Text> is under review.
                 You'll receive a "Reviewed" badge within 24–48 hours.
               </Text>
             </View>
@@ -171,7 +167,7 @@ export default function AdvocateTab() {
               <Text style={s.cardTitle}>{card.title}</Text>
               <Text style={s.cardSub}>{card.sub}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            <Ionicons name="chevron-forward" size={20} color="#64788A" />
           </Pressable>
         ))}
 
@@ -197,64 +193,64 @@ export default function AdvocateTab() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FDFBF7' },
+  safe: { flex: 1, backgroundColor: '#FFFAF2' },
   header: {
     backgroundColor: NAVY, flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16,
+    paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16,
   },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: '#fff' },
+  headerTitle: { fontSize: 19, fontFamily: 'InterExtraBold', color: '#fff' },
   verifiedBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     marginTop: 4, backgroundColor: GOLD, paddingHorizontal: 8,
     paddingVertical: 3, borderRadius: 10, alignSelf: 'flex-start',
   },
-  verifiedText: { fontSize: 11, fontWeight: '700', color: NAVY },
-  pendingText: { fontSize: 12, color: '#9CA3AF', marginTop: 4 },
+  verifiedText: { fontSize: 12, fontFamily: 'InterBold', color: NAVY },
+  pendingText: { fontFamily: 'Inter', fontSize: 12, color: '#64788A', marginTop: 4 },
   settingsBtn: { padding: 4 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   // Not-registered state
-  registerContainer: { padding: 24, alignItems: 'center', paddingBottom: 40 },
+  registerContainer: { padding: 18, alignItems: 'center', paddingBottom: 40 },
   iconWrap: {
-    width: 90, height: 90, borderRadius: 45, backgroundColor: '#EEF2FF',
+    width: 90, height: 90, borderRadius: 45, backgroundColor: '#EEF5FF',
     alignItems: 'center', justifyContent: 'center', marginBottom: 20,
   },
-  registerTitle: { fontSize: 22, fontWeight: '800', color: NAVY, marginBottom: 10 },
-  registerSub: { fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 22, marginBottom: 24 },
-  featureList: { width: '100%', gap: 14, marginBottom: 32 },
+  registerTitle: { fontSize: 19, fontFamily: 'InterExtraBold', color: NAVY, marginBottom: 10 },
+  registerSub: { fontFamily: 'Inter', fontSize: 13, color: '#64788A', textAlign: 'center', lineHeight: 19, marginBottom: 18 },
+  featureList: { width: '100%', gap: 14, marginBottom: 24 },
   featureRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  featureText: { flex: 1, fontSize: 14, color: '#374151', lineHeight: 21 },
+  featureText: { flex: 1, fontFamily: 'Inter', fontSize: 13, color: '#102A45', lineHeight: 18 },
   registerBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: GOLD, paddingVertical: 14, paddingHorizontal: 28,
     borderRadius: 12, width: '100%',
   },
-  registerBtnText: { fontSize: 16, fontWeight: '700', color: NAVY },
+  registerBtnText: { fontSize: 14, fontFamily: 'InterBold', color: NAVY },
 
   // Registered dashboard
-  dashScroll: { padding: 20, gap: 14, paddingBottom: 40 },
+  dashScroll: { padding: 16, gap: 14, paddingBottom: 40 },
   verifyCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-    backgroundColor: '#FEF3C7', borderRadius: 12, padding: 14,
+    backgroundColor: '#FFF4E6', borderRadius: 12, padding: 14,
   },
-  verifyCardText: { flex: 1, fontSize: 13, color: '#92400E', lineHeight: 19 },
+  verifyCardText: { flex: 1, fontFamily: 'Inter', fontSize: 12, color: '#8A6A1E', lineHeight: 17 },
   card: {
     backgroundColor: '#fff', borderRadius: 14,
-    borderWidth: 1, borderColor: '#E5E7EB',
+    borderWidth: 1, borderColor: '#E6DFD1',
     padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14,
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   cardIcon: {
     width: 48, height: 48, borderRadius: 12,
-    backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#EEF5FF', alignItems: 'center', justifyContent: 'center',
   },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: NAVY, marginBottom: 3 },
-  cardSub: { fontSize: 13, color: '#6B7280', lineHeight: 18 },
+  cardTitle: { fontSize: 14, fontFamily: 'InterBold', color: NAVY, marginBottom: 3 },
+  cardSub: { fontFamily: 'Inter', fontSize: 12, color: '#64788A', lineHeight: 16 },
   profileCard: {
     backgroundColor: '#fff', borderRadius: 14,
-    borderWidth: 1, borderColor: '#E5E7EB', padding: 18, marginTop: 4,
+    borderWidth: 1, borderColor: '#E6DFD1', padding: 18, marginTop: 4,
   },
-  profileLabel: v22SectionLabel({ fontSize: 11, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5 }),
-  profileValue: { fontSize: 14, color: '#1F2937', marginTop: 3, fontWeight: '600' },
+  profileLabel: v22SectionLabel({ fontSize: 12, fontFamily: 'InterBold', color: '#64788A', textTransform: 'uppercase', letterSpacing: 0.5 }),
+  profileValue: { fontSize: 13, color: '#102A45', marginTop: 3, fontFamily: 'InterSemiBold'},
 });

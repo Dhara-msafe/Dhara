@@ -12,8 +12,11 @@
  * metadata are sent. The notice under the description asks the user not to
  * include personal details, and the server stores no email, phone or location.
  *
- * Flag: EXPO_PUBLIC_ENABLE_ISSUE_REPORTER. Default ON (the app is testers-only
- * until the final release); set it to "false" to hide the button everywhere.
+ * Flag: EXPO_PUBLIC_ENABLE_ISSUE_REPORTER. Default OFF — it must be set to
+ * "true" to appear. It used to default ON, on the assumption that the app was
+ * testers-only until release. That assumption ended with the Play Store
+ * release, and the old default meant a production build (which sets no flags)
+ * shipped the floating bug button to real users.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -29,7 +32,6 @@ import * as Device from 'expo-device';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
 import { theme } from '@/src/theme';
-import { UI_V22_DOCK } from '@/src/uiV22Flags';
 import { useAuth, API_BASE } from '@/src/auth';
 import {
   POSITION_KEY,
@@ -55,12 +57,15 @@ async function persistFabPosition(x: number, y: number): Promise<void> {
   } catch {}
 }
 
-/** Off only when explicitly disabled, so every current build has it. */
-export const ISSUE_REPORTER_ENABLED = UI_V22_DOCK
-  // UI_V22_DOCK: test builds only — must be explicitly 'true', so a
-  // production build (which does not set it) never shows the button.
-  ? process.env.EXPO_PUBLIC_ENABLE_ISSUE_REPORTER === 'true'
-  : process.env.EXPO_PUBLIC_ENABLE_ISSUE_REPORTER !== 'false';
+/**
+ * On only when explicitly enabled.
+ *
+ * This used to be `!== 'false'` whenever UI_V22_DOCK was off, which meant an
+ * ABSENT variable counted as on. A production build sets neither flag, so it
+ * took that branch and shipped the bug button. development, internal_qa and
+ * closed_testing all set it to 'true' explicitly, so testers are unaffected.
+ */
+export const ISSUE_REPORTER_ENABLED = process.env.EXPO_PUBLIC_ENABLE_ISSUE_REPORTER === 'true';
 
 /** Routes where the button never shows (Emergency controls, admin pages).
  *  Exported so the bottom dock (UI_V22_DOCK) can tell whether it has
@@ -527,38 +532,38 @@ const styles = StyleSheet.create({
     backgroundColor: c.surface,
     borderTopLeftRadius: theme.radius.lg,
     borderTopRightRadius: theme.radius.lg,
-    padding: 20,
+    padding: 16,
     paddingBottom: 28,
     gap: 10,
     maxHeight: '88%',
   },
-  title: { fontFamily: theme.fonts.displayBold, fontSize: 19, color: c.ink },
-  label: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.ink },
+  title: { fontFamily: theme.fonts.displayBold, fontSize: 16, color: c.ink },
+  label: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.ink },
   select: {
     flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 48,
     backgroundColor: c.surfaceSecondary, borderRadius: theme.radius.sm,
     borderWidth: 1, borderColor: c.border, paddingHorizontal: 12,
   },
-  selectTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 15, color: c.ink },
+  selectTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.ink },
   options: { borderWidth: 1, borderColor: c.border, borderRadius: theme.radius.sm, overflow: 'hidden' },
   option: {
     flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44,
     paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: c.divider,
   },
-  optionTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 14, color: c.ink },
+  optionTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.ink },
   input: {
     backgroundColor: c.surfaceSecondary, borderRadius: theme.radius.sm, borderWidth: 1,
     borderColor: c.border, paddingHorizontal: 12, paddingVertical: 10, minHeight: 48,
-    fontFamily: theme.fonts.body, fontSize: 15, color: c.ink,
+    fontFamily: theme.fonts.body, fontSize: 13, color: c.ink,
   },
   multiline: { minHeight: 110, textAlignVertical: 'top' },
   notice: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 17 },
-  result: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, lineHeight: 18 },
+  result: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, lineHeight: 16 },
   primary: {
     backgroundColor: c.navy, borderRadius: theme.radius.pill, minHeight: 48,
     alignItems: 'center', justifyContent: 'center',
   },
-  primaryTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 15 },
+  primaryTxt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 13 },
   ghost: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  ghostTxt: { color: c.muted, fontFamily: theme.fonts.bodySemiBold, fontSize: 14 },
+  ghostTxt: { color: c.muted, fontFamily: theme.fonts.bodySemiBold, fontSize: 13 },
 });

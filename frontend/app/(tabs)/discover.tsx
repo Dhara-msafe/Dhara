@@ -17,9 +17,9 @@ const tools = allTools.filter(t => t.id !== 'advocate' || ADVOCATE_MODE_ENABLED)
 
 export default function LookupHub() {
   const router = useRouter();
-  return <SafeAreaView testID="lookup-hub" edges={['top']} style={styles.safe}>
+  return <SafeAreaView testID="lookup-hub" edges={[]} style={styles.safe}>
     <View style={styles.header}><View style={styles.heading}><Text testID="lookup-hub-title" style={styles.title}>Lookup</Text><Text testID="lookup-hub-subtitle" style={styles.subtitle}>Your legal discovery tools</Text></View>
-      <Pressable testID="lookup-profile" accessibilityRole="button" accessibilityLabel="Your profile" style={styles.profile} onPress={() => router.push('/(tabs)/settings')}><Ionicons name="person-outline" size={23} color={colors.primary} /></Pressable>
+      <Pressable testID="lookup-profile" accessibilityRole="button" accessibilityLabel="Your profile" style={styles.profile} onPress={() => router.push('/(tabs)/settings?from=me' as any)}><Ionicons name="person-outline" size={23} color={colors.primary} /></Pressable>
     </View>
     <ScrollView testID="lookup-tools" contentContainerStyle={styles.content}>
       {tools.map(tool => <Pressable key={tool.id} testID={`lookup-${tool.id}`} accessibilityRole="button" onPress={() => router.push(tool.route)} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
@@ -31,10 +31,10 @@ export default function LookupHub() {
   </SafeAreaView>;
 }
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background }, header: { padding: 20, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  heading: { flex: 1, minWidth: 0 }, title: { fontSize: 28, fontWeight: '800', color: colors.primary }, subtitle: { fontSize: 14, color: colors.onSurfaceTertiary, marginTop: 6 },
+  safe: { flex: 1, backgroundColor: colors.background }, header: { padding: 16, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  heading: { flex: 1, minWidth: 0 }, title: { fontSize: 24, fontFamily: 'InterExtraBold', color: colors.primary }, subtitle: { fontFamily: 'Inter', fontSize: 13, color: colors.onSurfaceTertiary, marginTop: 6 },
   profile: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.navySoft, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 18, gap: 16 }, card: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 18, borderRadius: 16, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.divider },
-  icon: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.goldMuted, alignItems: 'center', justifyContent: 'center' }, cardTitle: { color: colors.primary, fontSize: 16, fontWeight: '700' },
-  description: { fontSize: 13, lineHeight: 20, color: colors.onSurfaceTertiary, marginTop: 5 }, pressed: { opacity: 0.7 },
+  icon: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.goldMuted, alignItems: 'center', justifyContent: 'center' }, cardTitle: { color: colors.primary, fontSize: 14, fontFamily: 'InterBold'},
+  description: { fontFamily: 'Inter', fontSize: 12, lineHeight: 18, color: colors.onSurfaceTertiary, marginTop: 5 }, pressed: { opacity: 0.7 },
 });

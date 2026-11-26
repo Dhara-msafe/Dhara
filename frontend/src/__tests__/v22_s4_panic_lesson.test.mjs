@@ -20,8 +20,11 @@ const read = (...p) => readFileSync(join(root, ...p), 'utf8');
 const flags = read('src', 'uiV22Flags.ts');
 const screen = read('app', 'women', 'panic-lesson.tsx');
 
-test('S4 flag defaults OFF', () => {
-  assert.match(flags, /export const UI_V22_S4 = process\.env\.EXPO_PUBLIC_UI_V22_S4 === 'true';/);
+// Redesign v3 (26 Nov 2026): the dark "Shield mode" is retired, so the flag
+// is a constant false and no build setting can turn the purple design on.
+test('S4 flag is always OFF (dark Shield mode retired in redesign v3)', () => {
+  assert.match(flags, /export const UI_V22_S4: boolean = false;/);
+  assert.doesNotMatch(flags, /UI_V22_S4 = process\.env/);
 });
 
 test('screen imports the Shield palette and S4 flag', () => {

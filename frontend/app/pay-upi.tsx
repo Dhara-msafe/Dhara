@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { API_BASE, useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { openExternal } from '@/src/outbound';
+import { formatDateDMY } from '@/src/dateFormat';
 
 /**
  * DHARA Pro — UPI Payment Page (Phase 1, outside the app).
@@ -212,9 +213,9 @@ export default function PayUpi() {
                 <Text style={styles.heading}>{STATUS_TITLE[mine.status]}</Text>
                 <Text style={styles.sub}>{mine.message}</Text>
                 <Text style={styles.qrHint}>
-                  Reference {mine.utr} · sent {new Date(mine.created_at).toLocaleDateString()}
+                  Reference {mine.utr} · sent {formatDateDMY(mine.created_at)}
                   {mine.status === 'pending' && mine.expires_at
-                    ? ` · answer due by ${new Date(mine.expires_at).toLocaleDateString()}`
+                    ? ` · answer due by ${formatDateDMY(mine.expires_at)}`
                     : ''}
                 </Text>
               </View>
@@ -329,13 +330,13 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1, padding: theme.spacing.xl, paddingTop: theme.spacing.xxl },
   brand: {
     fontFamily: theme.fonts.display,
-    fontSize: 36,
+    fontSize: 28,
     color: theme.colors.onBrandPrimary,
     textAlign: 'center',
     fontWeight: '700',
     marginTop: theme.spacing.lg,
   },
-  tag: { color: theme.colors.brandSecondary, textAlign: 'center', marginTop: 4, fontSize: 14 },
+  tag: { color: theme.colors.brandSecondary, textAlign: 'center', marginTop: 4, fontFamily: 'Inter', fontSize: 13 },
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,
@@ -345,13 +346,13 @@ const styles = StyleSheet.create({
   },
   heading: {
     fontFamily: theme.fonts.display,
-    fontSize: 20,
+    fontSize: 17,
     color: theme.colors.onSurface,
     fontWeight: '700',
     textAlign: 'center',
     marginTop: theme.spacing.sm,
   },
-  sub: { color: theme.colors.onSurfaceSecondary, marginTop: 6, lineHeight: 20, textAlign: 'center' },
+  sub: { color: theme.colors.onSurfaceSecondary, marginTop: 6, lineHeight: 18, textAlign: 'center' },
   qrWrap: {
     marginTop: theme.spacing.lg,
     backgroundColor: theme.colors.surfaceSecondary,
@@ -359,15 +360,15 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
   },
   qr: { width: 200, height: 200 },
-  qrHint: { color: theme.colors.onSurfaceTertiary, fontSize: 12, marginTop: 8, textAlign: 'center' },
+  qrHint: { color: theme.colors.onSurfaceTertiary, fontFamily: 'Inter', fontSize: 12, marginTop: 8, textAlign: 'center' },
   vpaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: theme.spacing.lg },
-  vpaText: { color: theme.colors.onSurfaceSecondary, fontSize: 13 },
+  vpaText: { color: theme.colors.onSurfaceSecondary, fontFamily: 'Inter', fontSize: 12 },
   label: {
     alignSelf: 'stretch',
     color: theme.colors.onSurfaceSecondary,
     marginTop: theme.spacing.lg,
     marginBottom: theme.spacing.sm,
-    fontWeight: '600',
+    fontFamily: 'InterSemiBold',
   },
   input: {
     alignSelf: 'stretch',
@@ -375,12 +376,12 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: theme.radius.md,
     padding: theme.spacing.md,
-    fontSize: 16,
+    fontFamily: 'Inter', fontSize: 14,
     color: theme.colors.onSurface,
     backgroundColor: theme.colors.surfaceSecondary,
     minHeight: 48,
   },
-  noteInput: { minHeight: 60, textAlignVertical: 'top' },
+  noteInput: { minHeight: 52, textAlignVertical: 'top' },
   btn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -394,8 +395,8 @@ const styles = StyleSheet.create({
     minHeight: 52,
     alignSelf: 'stretch',
   },
-  btnText: { color: theme.colors.onBrandPrimary, fontWeight: '700', fontSize: 15 },
-  error: { alignSelf: 'stretch', color: theme.colors.error, marginTop: theme.spacing.md, fontSize: 13 },
+  btnText: { color: theme.colors.onBrandPrimary, fontFamily: 'InterBold', fontSize: 13 },
+  error: { alignSelf: 'stretch', color: theme.colors.error, marginTop: theme.spacing.md, fontFamily: 'Inter', fontSize: 12 },
   doneIcon: { alignItems: 'center', marginBottom: theme.spacing.md },
   footer: {
     textAlign: 'center',
@@ -405,9 +406,9 @@ const styles = StyleSheet.create({
   },
   copyright: {
     textAlign: 'center',
-    color: '#8A93A6',
+    color: '#64788A',
     marginTop: theme.spacing.md,
-    fontSize: 11,
+    fontFamily: 'Inter', fontSize: 12,
     letterSpacing: 0.5,
   },
 });

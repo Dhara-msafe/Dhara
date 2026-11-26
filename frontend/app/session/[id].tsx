@@ -107,7 +107,7 @@ export default function SessionView() {
   }, [speakingId, language, token, stopSpeaking]);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']} testID="session-view">
+    <SafeAreaView style={styles.safe} edges={[]} testID="session-view">
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} testID="back-btn" hitSlop={10}>
           <Ionicons name="arrow-back" size={26} color={theme.colors.brand} />
@@ -153,17 +153,17 @@ export default function SessionView() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.surface },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: theme.spacing.lg, borderBottomWidth: 1, borderBottomColor: theme.colors.divider },
-  title: { flex: 1, textAlign: 'center', fontFamily: theme.fonts.display, fontSize: 17, color: theme.colors.brand, fontWeight: '700', marginHorizontal: theme.spacing.md },
+  title: { flex: 1, textAlign: 'center', fontFamily: theme.fonts.display, fontSize: 15, color: theme.colors.brand, fontWeight: '700', marginHorizontal: theme.spacing.md },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: theme.spacing.lg, paddingBottom: theme.spacing.xxl },
   msg: { marginBottom: theme.spacing.lg, borderRadius: theme.radius.lg, padding: theme.spacing.lg },
   userMsg: { backgroundColor: theme.colors.brand, alignSelf: 'flex-end', maxWidth: '90%', borderBottomRightRadius: 4 },
   aiMsg: { backgroundColor: theme.colors.surfaceSecondary, alignSelf: 'flex-start', maxWidth: '100%', borderBottomLeftRadius: 4, borderWidth: 1, borderColor: theme.colors.border },
   msgHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: theme.spacing.xs, alignItems: 'center' },
-  msgRole: { fontSize: 12, fontWeight: '700' },
+  msgRole: { fontSize: 12, fontFamily: 'InterBold'},
   userRole: { color: theme.colors.brandSecondary },
   aiRole: { color: theme.colors.brand },
-  msgText: { fontSize: 15, lineHeight: 22 },
+  msgText: { fontSize: 13, lineHeight: 19 },
   userText: { color: theme.colors.onBrandPrimary },
   aiText: { color: theme.colors.onSurface },
 });

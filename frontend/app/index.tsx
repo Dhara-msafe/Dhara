@@ -30,7 +30,7 @@ export default function Index() {
         style={styles.logo}
         resizeMode="contain"
       />
-      <ActivityIndicator color={theme.colors.gold} style={{ marginTop: 32 }} />
+      <ActivityIndicator color={theme.colors.gold} style={{ marginTop: 24 }} />
     </View>
   );
 }

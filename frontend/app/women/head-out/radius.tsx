@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
 import { UI_V22_P9, headOutBottomGutter } from '@/src/uiV22Flags';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
+import { StepStrip } from '@/src/ui/kit';
 import { useHeadOutWizard } from '@/src/women/headOutWizardStore';
 import { RADIUS_PRESETS, isPreset, CustomRadiusModal } from '@/src/women/DestinationPicker';
 import { DestinationMapPicker } from '@/src/women/DestinationMapPicker';
@@ -70,6 +71,8 @@ export default function ArrivalRadius() {
   return (
     <View style={styles.root}>
       <ScreenHeader title={UI_V22_P9 ? 'Head out safely' : 'Head Out'} subtitle="Step 2 of 3 — Arrival area" />
+      {/* Redesign v3, stage 6: gold step bar, as in the prototype. */}
+      <StepStrip step={2} total={3} />
       <ScrollView scrollEnabled={!mapActive} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + headOutBottomGutter(110) }]}>
         <Text style={styles.destTxt} numberOfLines={2}>{draft.label}</Text>
 
@@ -161,28 +164,28 @@ export default function ArrivalRadius() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
-  content: { padding: 20, gap: 4 },
-  destTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.navy, marginBottom: 6 },
+  content: { padding: 16, gap: 4 },
+  destTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.navy, marginBottom: 6 },
   mapSection: { borderRadius: 14, overflow: 'hidden', marginTop: 12, marginBottom: 4 },
   gpsAccuracyRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
   gpsAccuracyTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted },
-  arrivalNote: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy, marginTop: 6, marginBottom: 10, lineHeight: 18 },
+  arrivalNote: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.navy, marginTop: 6, marginBottom: 10, lineHeight: 16 },
   disclaimerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 14, backgroundColor: c.navySoft, borderRadius: 10, padding: 10 },
   disclaimerTxt: { fontFamily: theme.fonts.body, fontSize: 12, color: c.navy, flex: 1, lineHeight: 17 },
-  fieldLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.ink, marginBottom: 4, marginTop: 16 },
-  note: { fontFamily: theme.fonts.body, fontSize: 12.5, color: c.muted, lineHeight: 18, marginBottom: 10 },
+  fieldLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink, marginBottom: 4, marginTop: 16 },
+  note: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 16, marginBottom: 10 },
   chipRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   chip: {
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20,
     borderWidth: 1.5, borderColor: c.lines, backgroundColor: c.surface, minWidth: 64, alignItems: 'center',
   },
   chipActive: { borderColor: c.navy, backgroundColor: c.navySoft },
-  chipTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.muted },
+  chipTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.muted },
   chipTxtActive: { color: c.navy },
   footer: {
-    paddingHorizontal: 20, paddingTop: 12, backgroundColor: c.background,
+    paddingHorizontal: 16, paddingTop: 12, backgroundColor: c.background,
     borderTopWidth: 1, borderTopColor: c.lines,
   },
   nextBtn: { backgroundColor: c.navy, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
-  nextBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: '#fff' },
+  nextBtnTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: '#fff' },
 });

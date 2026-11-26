@@ -13,7 +13,7 @@ import { isValidRadius } from '@/src/utils/mapValidation';
 
 const pinIcon = L.divIcon({
   className: '', html: `
-    <svg width="26" height="34" viewBox="0 0 24 32" fill="#1A3F74" xmlns="http://www.w3.org/2000/svg">
+    <svg width="26" height="34" viewBox="0 0 24 32" fill="#082B4F" xmlns="http://www.w3.org/2000/svg">
       <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 20 12 20s12-11 12-20c0-6.6-5.4-12-12-12z"/>
       <circle cx="12" cy="12" r="4.5" fill="#fff"/>
     </svg>`,
@@ -62,7 +62,7 @@ export default function LeafletDestinationMapPicker({
         }}
       />
       {isValidRadius(radiusMeters) && (
-        <LCircle center={[markerPos.lat, markerPos.lng]} radius={radiusMeters} pathOptions={{ color: '#1A3F74', weight: 1.5, fillOpacity: 0.12, opacity: 0.55 }} />
+        <LCircle center={[markerPos.lat, markerPos.lng]} radius={radiusMeters} pathOptions={{ color: '#082B4F', weight: 1.5, fillOpacity: 0.12, opacity: 0.55 }} />
       )}
     </MapContainer>
   );

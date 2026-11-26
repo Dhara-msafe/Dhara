@@ -26,7 +26,7 @@ import { claimMic, MIC_BUSY_MESSAGE, withMicLease, type MicLease } from '@/src/v
 
 const NAVY  = theme.colors.primary;
 const GOLD  = theme.colors.gold;
-const CREAM = '#F8F6F0';
+const CREAM = '#FFFAF2';
 const HINT  = '#999999';
 
 type Mode = 'cnr' | 'party';
@@ -375,11 +375,11 @@ export default function LookupScreen() {
   const canSearch   = mode === 'cnr' ? cnrComplete : partyCanSearch;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={[]}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerRow}>
-          <Ionicons name="search-outline" size={20} color="#fff" />
+          <Ionicons name="search-outline" size={20} color={NAVY} />
           <Text style={styles.headerTitle}>Dhara Lookup</Text>
         </View>
         <Text style={styles.headerSub}>Search Indian court cases via eCourtsIndia</Text>
@@ -594,7 +594,7 @@ export default function LookupScreen() {
                   />
                   {(selState || selDist) && (
                     <Pressable style={styles.clearFiltersBtn} onPress={clearFilters}>
-                      <Ionicons name="close-circle-outline" size={14} color="#DC2626" />
+                      <Ionicons name="close-circle-outline" size={14} color="#C73236" />
                       <Text style={styles.clearFiltersText}>Clear filters</Text>
                     </Pressable>
                   )}
@@ -657,81 +657,81 @@ export default function LookupScreen() {
 
 const ps = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  sheet:   { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%', paddingHorizontal: 20, paddingBottom: 30 },
-  handle:  { width: 36, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', alignSelf: 'center', marginVertical: 12 },
-  title:   { fontSize: 16, fontWeight: '700', color: NAVY, marginBottom: 10 },
-  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10 },
-  searchInput: { flex: 1, fontSize: 14, color: '#1F2937' },
-  item:     { paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  itemActive: { backgroundColor: '#FEF9EC' },
-  itemText: { fontSize: 14, color: '#374151', flex: 1 },
-  itemTextActive: { color: NAVY, fontWeight: '700' },
-  empty:  { paddingVertical: 20, textAlign: 'center', color: HINT },
+  sheet:   { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%', paddingHorizontal: 16, paddingBottom: 30 },
+  handle:  { width: 36, height: 4, borderRadius: 2, backgroundColor: '#E6DFD1', alignSelf: 'center', marginVertical: 12 },
+  title:   { fontSize: 14, fontFamily: 'InterBold', color: NAVY, marginBottom: 10 },
+  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#E6DFD1', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10 },
+  searchInput: { flex: 1, fontFamily: 'Inter', fontSize: 13, color: '#102A45' },
+  item:     { paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#EEF3FC', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  itemActive: { backgroundColor: '#FFF4E6' },
+  itemText: { fontFamily: 'Inter', fontSize: 13, color: '#102A45', flex: 1 },
+  itemTextActive: { color: NAVY, fontFamily: 'InterBold'},
+  empty:  { paddingVertical: 16, textAlign: 'center', color: HINT },
 });
 
 const styles = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: CREAM },
-  header: { backgroundColor: NAVY, paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(211,182,117,0.25)' },
+  header: { backgroundColor: '#FFFAF2', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E6DFD1' },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#fff' },
-  headerSub: { fontSize: 13, color: GOLD, fontWeight: '500' },
+  headerTitle: { fontSize: 17, fontFamily: 'InterBold', color: '#102A45' },
+  headerSub: { fontSize: 12, color: '#64788A', fontFamily: 'InterMedium'},
   scroll:  { flex: 1 },
   scrollContent: { padding: 16, gap: 14, paddingBottom: 48 },
 
   modeRow: { flexDirection: 'row', gap: 10 },
   modeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: NAVY, backgroundColor: '#fff' },
   modeBtnActive: { backgroundColor: NAVY },
-  modeBtnText: { fontSize: 14, fontWeight: '700', color: NAVY },
+  modeBtnText: { fontSize: 13, fontFamily: 'InterBold', color: NAVY },
 
   card: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1.5, borderColor: NAVY + '33', padding: 16, gap: 14 },
 
-  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingBottom: 8 },
+  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderBottomWidth: 1, borderBottomColor: '#E6DFD1', paddingBottom: 8 },
   inputDisabled: { opacity: 0.45 },
-  input: { fontSize: 15, color: '#1F2937', minHeight: 28 },
+  input: { fontFamily: 'Inter', fontSize: 13, color: '#102A45', minHeight: 28 },
 
   cnrProgress: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cnrBar:  { height: 3, borderRadius: 2, backgroundColor: NAVY },
-  cnrCount: { fontSize: 11, color: NAVY, fontWeight: '700' },
+  cnrCount: { fontSize: 12, color: NAVY, fontFamily: 'InterBold'},
 
   micBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3EFE7' },
-  micBtnActive: { backgroundColor: '#DC2626' },
-  voiceStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EEF2FF', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
-  voiceStatusText: { flex: 1, fontSize: 12.5, color: NAVY, lineHeight: 17 },
+  micBtnActive: { backgroundColor: '#C73236' },
+  voiceStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EEF5FF', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
+  voiceStatusText: { flex: 1, fontFamily: 'Inter', fontSize: 13, color: NAVY, lineHeight: 17 },
 
   decodedRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  decodedChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#EEF2FF', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  decodedText: { fontSize: 12, color: NAVY, fontWeight: '600' },
+  decodedChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#EEF5FF', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  decodedText: { fontSize: 12, color: NAVY, fontFamily: 'InterSemiBold'},
 
-  inputHint: { fontSize: 12, color: HINT, lineHeight: 16 },
+  inputHint: { fontFamily: 'Inter', fontSize: 12, color: HINT, lineHeight: 16 },
 
   filterBlock: { gap: 5 },
-  filterLabel: { fontSize: 12, fontWeight: '700', color: NAVY, letterSpacing: 0.2 },
+  filterLabel: { fontSize: 12, fontFamily: 'InterBold', color: NAVY, letterSpacing: 0.2 },
 
   pickerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1.5, borderColor: NAVY, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 11, backgroundColor: '#fff' },
-  pickerRowDisabled: { borderColor: '#D1D5DB', opacity: 0.5 },
-  pickerText: { fontSize: 14, color: '#1F2937', flex: 1 },
+  pickerRowDisabled: { borderColor: '#E6DFD1', opacity: 0.5 },
+  pickerText: { fontFamily: 'Inter', fontSize: 13, color: '#102A45', flex: 1 },
   pickerPlaceholder: { color: HINT },
 
   toggleRow: { flexDirection: 'row', gap: 10 },
   toggleBtn: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 8, borderWidth: 1.5, borderColor: NAVY, backgroundColor: '#fff' },
   toggleBtnActive: { backgroundColor: NAVY },
-  toggleText: { fontSize: 14, fontWeight: '700', color: NAVY },
+  toggleText: { fontSize: 13, fontFamily: 'InterBold', color: NAVY },
   toggleTextActive: { color: '#fff' },
 
   searchBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: GOLD, paddingVertical: 14, borderRadius: 10 },
-  searchBtnDisabled: { backgroundColor: '#D1D5DB' },
-  searchBtnText: { color: NAVY, fontSize: 15, fontWeight: '800' },
+  searchBtnDisabled: { backgroundColor: '#E6DFD1' },
+  searchBtnText: { color: NAVY, fontSize: 13, fontFamily: 'InterExtraBold'},
 
-  hintCard: { flexDirection: 'row', gap: 10, backgroundColor: '#EEF2FF', borderRadius: 10, padding: 14, alignItems: 'flex-start' },
-  hintText: { flex: 1, fontSize: 13, color: NAVY, lineHeight: 19 },
+  hintCard: { flexDirection: 'row', gap: 10, backgroundColor: '#EEF5FF', borderRadius: 10, padding: 14, alignItems: 'flex-start' },
+  hintText: { flex: 1, fontFamily: 'Inter', fontSize: 12, color: NAVY, lineHeight: 17 },
 
   filtersDivider: { height: 1, backgroundColor: '#F0EDE4', marginVertical: 2 },
   filtersToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
   filtersToggleLeft: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, flexWrap: 'wrap' },
-  filtersToggleLabel: { fontSize: 13, fontWeight: '700', color: NAVY },
-  filtersBadge: { backgroundColor: '#EEF2FF', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-  filtersBadgeText: { fontSize: 11, color: NAVY, fontWeight: '600' },
+  filtersToggleLabel: { fontSize: 12, fontFamily: 'InterBold', color: NAVY },
+  filtersBadge: { backgroundColor: '#EEF5FF', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  filtersBadgeText: { fontSize: 12, color: NAVY, fontFamily: 'InterSemiBold'},
   filtersBody: { gap: 12, marginTop: 4 },
   clearFiltersBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', paddingVertical: 4 },
-  clearFiltersText: { fontSize: 12.5, color: '#DC2626', fontWeight: '700' },
+  clearFiltersText: { fontSize: 13, color: '#C73236', fontFamily: 'InterBold'},
 });

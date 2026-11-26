@@ -41,7 +41,7 @@ test('no "police notified" style claim anywhere in the actual code/copy', () => 
 
 test('root background swaps to the v2.2 redDeep token under the flag', () => {
   assert.match(screen, /import \{ UI_V22_S3 \} from '@\/src\/uiV22Flags';/);
-  assert.match(screen, /root: \{ flex: 1, backgroundColor: UI_V22_S3 \? c\.redDeep : c\.emergencyDeep, paddingHorizontal: 20 \},/);
+  assert.match(screen, /root: \{ flex: 1, backgroundColor: UI_V22_S3 \? c\.redDeep : c\.emergencyDeep, paddingHorizontal: 16 \},/);
 });
 
 test('112 dialler label, hint and visible-number fallback are untouched', () => {

@@ -1,11 +1,19 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, Linking, Modal, AppState, TextInput, Image, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, Linking, Modal, AppState, TextInput, Image, ActivityIndicator, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '@/src/theme';
 import { UI_V22_P9, headOutBottomGutter } from '@/src/uiV22Flags';
+import {
+  HEADOUT_BG_TRACKING,
+  startJourneyBgTracking,
+  stopJourneyBgTracking,
+  reconcileBgTracking,
+} from '@/src/women/headOutBgTracking';
+import { BgTrackingDisclosure } from '@/src/women/BgTrackingDisclosure';
+import { updateDwell, shouldPromptDwell, acknowledgeDwell, dwellMinutes, type DwellState } from '@/src/women/headOutDwell';
 import { ScreenHeader } from '@/src/components/dhara/ScreenHeader';
 import { getCircle, type Contact } from '@/src/women/api';
 import { useAuth } from '@/src/auth';
@@ -187,6 +195,10 @@ export default function HeadOut() {
   // GPS permission-contract states (handle_permissions_contract)
   // locationConsentGiven: user tapped "Allow location" on the pre-OS rationale card
   const [locationConsentGiven, setLocationConsentGiven] = useState(false);
+  // D-42 live tracking: per-journey disclosure + what the service is doing.
+  const bgTrackingOffered = HEADOUT_BG_TRACKING && Platform.OS === 'android';
+  const [showBgDisclosure, setShowBgDisclosure] = useState(false);
+  const [bgTracking, setBgTracking] = useState<'off' | 'on' | 'bg_denied' | 'fg_denied' | 'failed'>('off');
   // showPermDeniedSettings: hook reported canAskAgain=false — show "Open Settings" prompt
   const [showPermDeniedSettings, setShowPermDeniedSettings] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -241,6 +253,11 @@ export default function HeadOut() {
   const distanceHistoryRef = useRef<number[]>([]);   // recent distance-to-destination readings, oldest first
   const [arrivedDismissedAt, setArrivedDismissedAt] = useState<number | null>(null);
   const [deviatedDismissedAt, setDeviatedDismissedAt] = useState<number | null>(null);
+  // DWELL (Final Flow trigger row): a private "Are you okay?" after too long
+  // without movement. In-app ONLY — never alerts the circle by itself
+  // (row-25 precedent); the deadline and "Need help" stay the only alert paths.
+  const dwellRef = useRef<DwellState | null>(null);
+  const [dwellPromptMinutes, setDwellPromptMinutes] = useState<number | null>(null);
   const [extending, setExtending] = useState(false);
   // Fix 6 (21 Nov): after "I'm safe" is confirmed by the server, show a
   // "You're marked safe" screen instead of silently bouncing to wizard step 1.
@@ -467,6 +484,7 @@ export default function HeadOut() {
     setCloseFailures(0);
     setRevokeFailures(0);
     setSafeConfirmed(true);   // fix 6: show the confirmation instead of jumping to step 1
+    void stopJourneyBgTracking();   // D-42 auto-stop: she is safe
     await AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
     // A40: the journey is over, so the location remembered on this phone for
     // it must not stay behind. (Not cleared on a missed check-in: she may
@@ -628,6 +646,7 @@ export default function HeadOut() {
     const current = createSessionRef.current;
     if (closeOutcome(status) === 'done') {
       setSharingRevoked(true);
+      void stopJourneyBgTracking();   // D-42 auto-stop: sharing withdrawn
       setRevokeFailures(0);
       if (current?.pendingRevoke) {
         const updated = { ...current, pendingRevoke: false };
@@ -861,6 +880,38 @@ export default function HeadOut() {
   // requestPermission and re-ran the GPS start/stop effect in a loop
   // ('Maximum update depth exceeded' after Allow for this journey).
   const handlePermDenied = useCallback(() => setShowPermDeniedSettings(true), []);
+
+  // D-42: she agreed to the prominent disclosure for THIS journey. Ask the OS
+  // (foreground, then Android's separate "Allow all the time") and start the
+  // foreground-service tracking; whatever the OS answers, in-app sharing
+  // continues exactly as before.
+  const handleBgDisclosureAgree = useCallback(async () => {
+    setShowBgDisclosure(false);
+    const result = await startJourneyBgTracking({
+      journeyToken: journeyToken ?? '',
+      expectedCheckinAt: session?.serverDeadlineAt ?? null,
+      disclosureAgreed: true,
+    });
+    setBgTracking(result === 'started' ? 'on'
+      : result === 'bg_denied' ? 'bg_denied'
+      : result === 'fg_denied' ? 'fg_denied'
+      : result === 'failed' ? 'failed' : 'off');
+    setLocationConsentGiven(true);
+  }, [journeyToken, session?.serverDeadlineAt]);
+
+  const handleBgDisclosureDecline = useCallback(() => {
+    setShowBgDisclosure(false);
+    setBgTracking('off');
+    setLocationConsentGiven(true);   // today's in-app-only sharing
+  }, []);
+  // D-42 safety net: on every (re)open, stop a service left over from a
+  // journey that no longer exists, is not this one, or has timed out. The
+  // task also self-stops past its deadline, so a killed app can't track on.
+  useEffect(() => {
+    if (!bgTrackingOffered) return;
+    void reconcileBgTracking(expired ? null : (journeyToken ?? null));
+  }, [bgTrackingOffered, journeyToken, expired]);
+
   const realGps = useJourneyGPS(
     journeyToken,
     // A35: once she has tapped "I'm safe", stop reading and sending location,
@@ -987,6 +1038,35 @@ export default function HeadOut() {
     // else: leave the existing reference route in place — see comment above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeInfo]);
+
+  // DWELL detection: fold each fresh, accurate fix into the episode; a 30 s
+  // tick also re-evaluates while she is still (a stationary phone can stop
+  // producing new fixes, so time must pass without a new fix firing this).
+  useEffect(() => {
+    if (!GO1B_GPS_ENABLED || !session || expired || session.pendingSafe || !gps.tracking) {
+      dwellRef.current = null;
+      return;
+    }
+    const evaluate = () => {
+      if (isValidCoord(gps.latitude, gps.longitude) && gps.lastFixAt) {
+        dwellRef.current = updateDwell(dwellRef.current, {
+          latitude: gps.latitude!, longitude: gps.longitude!,
+          accuracy: gps.accuracy ?? null, lastFixAt: gps.lastFixAt,
+        });
+      }
+      // Arrived or already talking about the route: stillness is expected or
+      // a prompt is already on screen — don't stack a second question.
+      if (hasArrived || hasDeviated) return;
+      const t = Date.now();
+      if (shouldPromptDwell(dwellRef.current, t)) {
+        setDwellPromptMinutes(dwellMinutes(dwellRef.current!, t));
+        dwellRef.current = acknowledgeDwell(dwellRef.current);   // once per episode
+      }
+    };
+    evaluate();
+    const timer = setInterval(evaluate, 30_000);
+    return () => clearInterval(timer);
+  }, [session, expired, gps.tracking, gps.latitude, gps.longitude, gps.lastFixAt, gps.accuracy, hasArrived, hasDeviated]);
 
   const now = Date.now();
   const arrivedDismissed = !!arrivedDismissedAt && now - arrivedDismissedAt < DISMISS_COOLDOWN_MS;
@@ -1120,7 +1200,7 @@ export default function HeadOut() {
   // teleporting the user back into wizard step 1 with no acknowledgement.
   if (!session && safeConfirmed) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface, padding: 24, gap: 10 }} testID="headout-marked-safe">
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface, padding: 18, gap: 10 }} testID="headout-marked-safe">
         <Ionicons name="checkmark-circle" size={56} color={c.verifiedGreen} />
         <Text style={styles.activeTitle}>{"You're marked safe"}</Text>
         <Text style={[styles.note, { textAlign: 'center' }]}>
@@ -1166,16 +1246,19 @@ export default function HeadOut() {
       keyboardShouldPersistTaps="handled"
       testID="head-out-screen"
     >
-      <ScreenHeader
-        title="Head out safely"
-        subtitle={authToken ? 'Your trusted circle is told only as per your settings' : 'Set a check-in timer — nothing is sent automatically'}
-      />
+      {/* Stage 10: the header sits inside the padded scroll, so pull it out to the screen edges. */}
+      <View style={{ marginHorizontal: -16, marginTop: -16 }}>
+        <ScreenHeader
+          title="Head out safely"
+          subtitle={authToken ? 'Your trusted circle is told only as per your settings' : 'Set a check-in timer — nothing is sent automatically'}
+        />
+      </View>
 
       {/* ── Demo controller banner — QA only, never shown in production ──── */}
       {HEADOUT_DEMO_ENABLED && (
         <View style={styles.demoBanner} testID="headout-demo-banner">
           <View style={styles.demoBannerHeader}>
-            <Ionicons name="flask-outline" size={14} color="#92400e" />
+            <Ionicons name="flask-outline" size={14} color="#8A6A1E" />
             <Text style={styles.demoBannerTitle}>Demo mode · simulated location, nothing is sent</Text>
           </View>
           <View style={styles.demoBtnRow}>
@@ -1222,7 +1305,7 @@ export default function HeadOut() {
       {/* A30: tell her plainly whether the server-held alarm is armed. */}
       {!expired && journeyAlarm === 'connecting' && (
         <View style={styles.alarmPendingBanner} testID="headout-alarm-connecting" accessibilityLiveRegion="polite">
-          <Ionicons name="sync-outline" size={18} color="#92400e" />
+          <Ionicons name="sync-outline" size={18} color="#8A6A1E" />
           <View style={{ flex: 1 }}>
             <Text style={styles.alarmBannerTitle}>{ALARM_COPY.connecting.title}</Text>
             <Text style={styles.alarmBannerBody}>{ALARM_COPY.connecting.body}</Text>
@@ -1315,7 +1398,7 @@ export default function HeadOut() {
                 <View style={styles.statusCard} testID="headout-phone-status">
                   <Ionicons
                     name={gps.lastFixAt && Date.now() - gps.lastFixAt < OFFLINE_THRESHOLD_MS ? 'wifi-outline' : 'cloud-offline-outline'}
-                    size={20} color={gps.lastFixAt && Date.now() - gps.lastFixAt < OFFLINE_THRESHOLD_MS ? c.verifiedGreen : '#B45309'}
+                    size={20} color={gps.lastFixAt && Date.now() - gps.lastFixAt < OFFLINE_THRESHOLD_MS ? c.verifiedGreen : '#8A6A1E'}
                   />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.statusCardLabel}>Phone status</Text>
@@ -1482,7 +1565,7 @@ export default function HeadOut() {
                   radiusMeters={arrivalRadius} routePolyline={routeInfo?.polyline ?? null}
                 />
               )}
-              <Ionicons name="warning-outline" size={28} color="#B45309" />
+              <Ionicons name="warning-outline" size={28} color="#8A6A1E" />
               <Text style={styles.activeTitle}>Your journey changed</Text>
               <Text style={styles.note}>You are outside the expected route or moving away from your destination.</Text>
               <Text style={[styles.note, styles.areYouOkayTxt]}>Are you okay?</Text>
@@ -1524,6 +1607,48 @@ export default function HeadOut() {
               </Text>
             </View>
       ) : (
+          <>
+            <BgTrackingDisclosure
+              visible={showBgDisclosure}
+              onAgree={() => { void handleBgDisclosureAgree(); }}
+              onDecline={handleBgDisclosureDecline}
+            />
+            {/* DWELL private check-in — her screen only. Answering never
+                pings anyone; "Need help" below is the same explicit path as
+                everywhere else. */}
+            {dwellPromptMinutes != null && journeyPhase === 'normal' && (
+              <View style={[styles.activeCard, styles.dwellCard]} testID="headout-dwell-prompt">
+                <View style={styles.activeHeader}>
+                  <Ionicons name="time-outline" size={24} color={c.navy} />
+                  <Text style={styles.activeTitle}>Are you okay?</Text>
+                </View>
+                <Text style={styles.dwellBody}>
+                  {`You haven't moved for about ${dwellPromptMinutes} minute${dwellPromptMinutes === 1 ? '' : 's'}. Just checking in — this stays between you and DHARA.`}
+                </Text>
+                <Pressable
+                  testID="headout-dwell-okay"
+                  style={(s) => [styles.button, styles.safeButton, focusRingStyle(s)]}
+                  onPress={() => setDwellPromptMinutes(null)}
+                  accessibilityRole="button"
+                  accessibilityLabel="I'm okay — continue the journey"
+                >
+                  <Text style={styles.buttonText}>{"I'm okay — continue"}</Text>
+                </Pressable>
+                <Pressable
+                  testID="headout-dwell-need-help"
+                  style={(s) => [styles.button, styles.alertButton, focusRingStyle(s)]}
+                  onPress={() => { setDwellPromptMinutes(null); void requestHelp(); }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Need help — ask your Trusted Circle for help"
+                >
+                  <Ionicons name="warning-outline" size={18} color="#fff" />
+                  <Text style={styles.buttonText}>Need help</Text>
+                </Pressable>
+                <Text style={styles.disclosureNote}>
+                  {'Nobody is told about this pause automatically. Your Trusted Circle is only alerted if you tap "Need help" or miss your check-in deadline.'}
+                </Text>
+              </View>
+            )}
             <View style={styles.activeCard} testID="headout-active-card">
               {/* P9 (v2.2 'On the way'): say plainly when the chosen people
                   can see the journey. Reads existing state only — shown
@@ -1610,7 +1735,7 @@ export default function HeadOut() {
                   {/* Step 1: pre-OS rationale — shown before any permission is requested */}
                   {!locationConsentGiven && !gps.denied && (
                     <View style={styles.gpsRationaleCard} testID="gps-rationale-card">
-                      <Ionicons name="location-outline" size={18} color="#1D4ED8" />
+                      <Ionicons name="location-outline" size={18} color="#1E5BD0" />
                       <View style={{ flex: 1 }}>
                         <Text style={styles.gpsRationaleTitle}>Share your location with your guardian?</Text>
                         <Text style={styles.gpsRationaleBody}>
@@ -1619,7 +1744,13 @@ export default function HeadOut() {
                         <Pressable
                           testID="gps-allow-btn"
                           style={(s) => [styles.gpsAllowBtn, focusRingStyle(s)]}
-                          onPress={() => setLocationConsentGiven(true)}
+                          onPress={() => {
+                            // D-42: the Play prominent disclosure comes BEFORE
+                            // any OS permission dialog. Decline falls back to
+                            // today's in-app-only sharing.
+                            if (bgTrackingOffered) setShowBgDisclosure(true);
+                            else setLocationConsentGiven(true);
+                          }}
                           accessibilityRole="button"
                           accessibilityLabel="Allow location sharing for this journey"
                         >
@@ -1639,9 +1770,9 @@ export default function HeadOut() {
                       <Ionicons
                         name={gps.tracking ? 'location' : gps.error ? 'information-circle-outline' : 'location-outline'}
                         size={14}
-                        color={gps.tracking ? '#16a34a' : c.muted}
+                        color={gps.tracking ? '#087951' : c.muted}
                       />
-                      <Text style={[styles.gpsLabel, gps.tracking && { color: '#16a34a' }]}>
+                      <Text style={[styles.gpsLabel, gps.tracking && { color: '#087951' }]}>
                         {gps.denied
                           ? 'Location access denied — guardian page will not show your area'
                           : gps.error
@@ -1652,11 +1783,23 @@ export default function HeadOut() {
                       </Text>
                     </View>
                   )}
+                  {/* D-42: say plainly whether tracking survives the app closing. */}
+                  {bgTrackingOffered && locationConsentGiven && bgTracking !== 'off' && (
+                    <Text style={styles.bgTrackingNote} testID="headout-bg-tracking-note">
+                      {bgTracking === 'on'
+                        ? 'Live sharing stays on even if you close the app or lock the screen — a notification shows the whole time.'
+                        : bgTracking === 'bg_denied'
+                          ? '"Allow all the time" was not given, so sharing works only while the app is open.'
+                          : bgTracking === 'fg_denied'
+                            ? 'Location permission was not given — your circle will not see your location.'
+                            : 'Could not start background sharing — sharing works only while the app is open.'}
+                    </Text>
+                  )}
 
                   {/* Step 3: permanent denial — canAskAgain=false — show Settings path */}
                   {(showPermDeniedSettings || (gps.denied && !gps.canAskAgain)) && (
                     <View style={styles.gpsDeniedCard} testID="gps-denied-settings-card">
-                      <Ionicons name="location-outline" size={18} color="#B91C1C" />
+                      <Ionicons name="location-outline" size={18} color="#C73236" />
                       <View style={{ flex: 1 }}>
                         <Text style={styles.gpsDeniedTitle}>Location permission blocked</Text>
                         <Text style={styles.gpsDeniedBody}>
@@ -1733,7 +1876,7 @@ export default function HeadOut() {
                   </Pressable>
                   {helpReqState === 'failed' ? (
                     <>
-                      <Text style={[styles.disclosureNote, { color: '#B91C1C' }]} testID="headout-help-failed-note">
+                      <Text style={[styles.disclosureNote, { color: '#C73236' }]} testID="headout-help-failed-note">
                         Could not reach DHARA. Your circle was NOT told. Call 112 now.
                       </Text>
                       <Pressable
@@ -1761,7 +1904,7 @@ export default function HeadOut() {
                 <>
                   <Pressable
                     testID="headout-need-help-emergency"
-                    style={(s) => [styles.button, styles.alertButton, { marginTop: 10 }, focusRingStyle(s)]}
+                    style={(s) => [styles.button, styles.alertButton, { marginTop: 10, alignSelf: 'stretch' }, focusRingStyle(s)]}
                     onPress={() => router.push('/emergency')}
                     accessibilityRole="button"
                     accessibilityLabel="Need help — open emergency numbers"
@@ -1794,6 +1937,7 @@ export default function HeadOut() {
                 )
               )}
             </View>
+          </>
       )}
 
           <Pressable
@@ -1910,14 +2054,17 @@ export default function HeadOut() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
-  content: { padding: 20, gap: 16 },
-  note: { fontFamily: theme.fonts.body, fontSize: 14, color: c.muted, lineHeight: 21 },
+  content: { padding: 16, gap: 16 },
+  note: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18 },
   button: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, backgroundColor: c.navy, borderRadius: 14, paddingVertical: 16,
   },
-  buttonText: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: '#fff' },
+  buttonText: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: '#fff' },
   safeButton: { backgroundColor: c.verifiedGreen },
+  dwellCard: { borderWidth: 1.5, borderColor: c.navy, marginBottom: 12 },
+  dwellBody: { fontFamily: theme.fonts.body, fontSize: 14.5, color: c.ink, lineHeight: 21, marginBottom: 10 },
+  bgTrackingNote: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 17, marginTop: 4 },
   // P9 'Sharing is on' banner (v2.2 On the way header, green)
   sharingOnBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -1925,31 +2072,31 @@ const styles = StyleSheet.create({
     paddingVertical: 10, paddingHorizontal: 14, marginBottom: 12, minHeight: 48,
   },
   sharingOnDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.85)' },
-  sharingOnTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 15, color: '#fff' },
-  sharingOnBody: { fontFamily: theme.fonts.body, fontSize: 13, color: 'rgba(255,255,255,0.92)', marginTop: 1 },
+  sharingOnTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: '#fff' },
+  sharingOnBody: { fontFamily: theme.fonts.body, fontSize: 12, color: 'rgba(255,255,255,0.92)', marginTop: 1 },
   alertButton: { backgroundColor: c.emergencyRed },
   guardianBtn: { backgroundColor: c.navySoft, borderWidth: 1.5, borderColor: c.navy },
   activeCard: {
     backgroundColor: c.surface, borderRadius: 18, borderWidth: 1,
-    borderColor: c.lines, padding: 20, gap: 8, alignItems: 'center', marginBottom: 4,
+    borderColor: c.lines, padding: 16, gap: 8, alignItems: 'center', marginBottom: 4,
   },
-  expiredCard: { borderColor: c.emergencyRed, backgroundColor: '#FFF5F5' },
+  expiredCard: { borderColor: c.emergencyRed, backgroundColor: '#FFF0F0' },
   activeHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  activeTitle: { fontFamily: theme.fonts.displayBold, fontSize: 20, color: c.navy },
+  activeTitle: { fontFamily: theme.fonts.displayBold, fontSize: 17, color: c.navy },
   destTxt: {
-    fontFamily: theme.fonts.bodyBold, fontSize: 17, color: c.ink,
+    fontFamily: theme.fonts.bodyBold, fontSize: 15, color: c.ink,
     textAlign: 'center', paddingHorizontal: 8,
   },
   radiusTxt: {
     fontFamily: theme.fonts.body, fontSize: 12, color: c.muted,
-    textAlign: 'center', fontStyle: 'italic',
+    textAlign: 'center',
   },
-  timerLbl: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, marginTop: 8 },
+  timerLbl: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 8 },
   timerDisplay: {
-    fontFamily: theme.fonts.displayBold, fontSize: 56, color: c.navy,
-    letterSpacing: -2, lineHeight: 64,
+    fontFamily: theme.fonts.displayBold, fontSize: 48, color: c.navy,
+    letterSpacing: -2, lineHeight: 56,
   },
-  expiredTitle: { fontFamily: theme.fonts.displayBold, fontSize: 22, color: c.emergencyRed },
+  expiredTitle: { fontFamily: theme.fonts.displayBold, fontSize: 19, color: c.emergencyRed },
   disclosureNote: {
     fontFamily: theme.fonts.body, fontSize: 12, color: c.muted,
     textAlign: 'center', marginTop: 8,
@@ -1957,28 +2104,28 @@ const styles = StyleSheet.create({
   gpsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   gpsLabel: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, flex: 1, textAlign: 'center' },
   // handle_permissions_contract — pre-OS rationale card
-  gpsRationaleCard: { flexDirection: 'row', gap: 10, backgroundColor: '#EFF6FF', borderRadius: 10, padding: 12, marginTop: 10, alignItems: 'flex-start' },
-  gpsRationaleTitle: { fontFamily: theme.fonts.body, fontSize: 13, fontWeight: '600', color: '#1E3A8A', marginBottom: 3 },
-  gpsRationaleBody: { fontFamily: theme.fonts.body, fontSize: 12, color: '#1D4ED8', lineHeight: 17 },
-  gpsAllowBtn: { marginTop: 8, backgroundColor: '#1D4ED8', borderRadius: 8, minHeight: UI_V22_P9 ? 48 : 44, justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start' },
+  gpsRationaleCard: { flexDirection: 'row', gap: 10, backgroundColor: '#EEF5FF', borderRadius: 10, padding: 12, marginTop: 10, alignItems: 'flex-start' },
+  gpsRationaleTitle: { fontFamily: theme.fonts.body, fontSize: 12, fontWeight: '600', color: '#1E3A8A', marginBottom: 3 },
+  gpsRationaleBody: { fontFamily: theme.fonts.body, fontSize: 12, color: '#1E5BD0', lineHeight: 17 },
+  gpsAllowBtn: { marginTop: 8, backgroundColor: '#1E5BD0', borderRadius: 8, minHeight: UI_V22_P9 ? 48 : 44, justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start' },
   gpsAllowBtnText: { fontFamily: theme.fonts.body, fontSize: 12, color: '#fff', fontWeight: '600' },
   // handle_permissions_contract — permanent denial + Settings redirect
-  gpsDeniedCard: { flexDirection: 'row', gap: 10, backgroundColor: '#FEF2F2', borderRadius: 10, padding: 12, marginTop: 10, alignItems: 'flex-start' },
-  gpsDeniedTitle: { fontFamily: theme.fonts.body, fontSize: 13, fontWeight: '600', color: '#B91C1C', marginBottom: 3 },
-  gpsDeniedBody: { fontFamily: theme.fonts.body, fontSize: 12, color: '#7F1D1D', lineHeight: 17 },
-  gpsSettingsBtn: { marginTop: 8, backgroundColor: '#B91C1C', borderRadius: 8, paddingVertical: 7, paddingHorizontal: 14, alignSelf: 'flex-start' },
+  gpsDeniedCard: { flexDirection: 'row', gap: 10, backgroundColor: '#FFF0F0', borderRadius: 10, padding: 12, marginTop: 10, alignItems: 'flex-start' },
+  gpsDeniedTitle: { fontFamily: theme.fonts.body, fontSize: 12, fontWeight: '600', color: '#C73236', marginBottom: 3 },
+  gpsDeniedBody: { fontFamily: theme.fonts.body, fontSize: 12, color: '#690F16', lineHeight: 17 },
+  gpsSettingsBtn: { marginTop: 8, backgroundColor: '#C73236', borderRadius: 8, paddingVertical: 7, paddingHorizontal: 14, alignSelf: 'flex-start' },
   gpsSettingsBtnText: { fontFamily: theme.fonts.body, fontSize: 12, color: '#fff', fontWeight: '600' },
-  simOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  simOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 18 },
   simBox: { backgroundColor: '#fff', borderRadius: 18, padding: 22, width: '100%', maxWidth: 400, gap: 6 },
   simBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
     backgroundColor: c.navySoft, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, marginBottom: 6,
   },
   simBadgeTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.navy },
-  simTitle: { fontFamily: theme.fonts.displayBold, fontSize: 18, color: c.ink },
-  simHint: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 19, marginBottom: 6 },
+  simTitle: { fontFamily: theme.fonts.displayBold, fontSize: 16, color: c.ink },
+  simHint: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 17, marginBottom: 6 },
   simLabel: { fontFamily: theme.fonts.bodyBold, fontSize: 12, color: c.muted, marginTop: 6, textTransform: 'uppercase', letterSpacing: 0.4 },
-  simValue: { fontFamily: theme.fonts.body, fontSize: 14, color: c.ink, lineHeight: 20 },
+  simValue: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, lineHeight: 18 },
   // GO1C: live route / arrival / deviation
   buttonDisabled: { opacity: 0.6 },
   stopSharingBtn: { backgroundColor: c.surfaceSecondary, borderWidth: 1, borderColor: c.lines },
@@ -1989,9 +2136,9 @@ const styles = StyleSheet.create({
     borderRadius: 12, padding: 12, marginTop: 10,
   },
   statusCardLabel: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.muted },
-  statusCardValue: { fontFamily: theme.fonts.bodyBold, fontSize: 13.5, color: c.ink, marginTop: 1 },
+  statusCardValue: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: c.ink, marginTop: 1 },
   togglesHeader: {
-    fontFamily: theme.fonts.bodySemiBold, fontSize: 11, color: c.navy,
+    fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.navy,
     textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2,
   },
   notifyListBlock: { alignSelf: 'stretch', marginTop: 14, gap: 6 },
@@ -2000,8 +2147,8 @@ const styles = StyleSheet.create({
     backgroundColor: c.surface, borderWidth: 1, borderColor: c.lines,
     borderRadius: 10, padding: 10,
   },
-  notifyName: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.ink },
-  notifyEta: { fontFamily: theme.fonts.body, fontSize: 11.5, color: c.muted },
+  notifyName: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.ink },
+  notifyEta: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted },
   avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.navySoft },
   avatarFallback: {
     width: 28, height: 28, borderRadius: 14, backgroundColor: c.navySoft,
@@ -2009,17 +2156,17 @@ const styles = StyleSheet.create({
   },
   smsDivider: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'stretch', marginTop: 16, marginBottom: 2 },
   smsDividerLine: { flex: 1, height: 1, backgroundColor: c.lines },
-  smsDividerTxt: { fontFamily: theme.fonts.body, fontSize: 11.5, color: c.muted },
+  smsDividerTxt: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted },
   outlineAlertBtn: { backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.emergencyRed },
-  deviatedCard: { borderColor: '#B45309', backgroundColor: '#FFFBEB' },
-  areYouOkayTxt: { fontFamily: theme.fonts.bodyBold, color: c.ink, fontSize: 16 },
-  etaTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy, marginTop: 2 },
-  linkTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 14, color: c.navy, paddingVertical: 6 },
+  deviatedCard: { borderColor: '#8A6A1E', backgroundColor: '#FFF4E6' },
+  areYouOkayTxt: { fontFamily: theme.fonts.bodyBold, color: c.ink, fontSize: 14 },
+  etaTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.navy, marginTop: 2 },
+  linkTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy, paddingVertical: 6 },
   linkTxtUnderline: { textDecorationLine: 'underline' },
   inlineError: { fontFamily: theme.fonts.body, fontSize: 12, color: c.emergencyRed, textAlign: 'center' },
   changeDestInput: {
     backgroundColor: c.background, borderWidth: 1, borderColor: c.lines, borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 12, fontFamily: theme.fonts.body, fontSize: 15,
+    paddingHorizontal: 14, paddingVertical: 12, fontFamily: theme.fonts.body, fontSize: 13,
     color: c.ink, marginTop: 10, marginBottom: 10,
   },
   // ── Arrived card — side-by-side action buttons ──────────────────────────────
@@ -2030,33 +2177,33 @@ const styles = StyleSheet.create({
   // A30: server-alarm state
   alarmPendingBanner: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-    backgroundColor: '#fef3c7', borderWidth: 1, borderColor: '#fbbf24',
+    backgroundColor: '#FFF4E6', borderWidth: 1, borderColor: '#E8B956',
     borderRadius: 12, padding: 12, marginBottom: 10,
   },
   alarmOffBanner: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-    backgroundColor: '#fef2f2', borderWidth: 1.5, borderColor: c.emergencyRed,
+    backgroundColor: '#FFF0F0', borderWidth: 1.5, borderColor: c.emergencyRed,
     borderRadius: 12, padding: 12, marginBottom: 10,
   },
-  alarmOffCard: { alignItems: 'flex-start', backgroundColor: '#fef2f2', borderColor: c.emergencyRed },
-  alarmBannerTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: '#92400e' },
-  alarmBannerBody: { fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, lineHeight: 19, marginTop: 2 },
+  alarmOffCard: { alignItems: 'flex-start', backgroundColor: '#FFF0F0', borderColor: c.emergencyRed },
+  alarmBannerTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 13, color: '#8A6A1E' },
+  alarmBannerBody: { fontFamily: theme.fonts.body, fontSize: 12, color: c.ink, lineHeight: 17, marginTop: 2 },
   alarmRetryBtn: {
     alignSelf: 'flex-start', marginTop: 8, paddingVertical: 8, paddingHorizontal: 14,
     borderRadius: 10, borderWidth: 1.5, borderColor: c.navy, backgroundColor: c.surface, minHeight: UI_V22_P9 ? 48 : 44, justifyContent: 'center',
   },
-  alarmRetryTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13.5, color: c.navy },
+  alarmRetryTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy },
   alarmOnRow: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'stretch' },
-  alarmOnTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 12.5, color: c.muted },
+  alarmOnTxt: { flex: 1, fontFamily: theme.fonts.body, fontSize: 13, color: c.muted },
   demoBanner: {
-    backgroundColor: '#fef3c7', borderWidth: 1, borderColor: '#fbbf24',
+    backgroundColor: '#FFF4E6', borderWidth: 1, borderColor: '#E8B956',
     borderRadius: 12, padding: 12, marginBottom: 10,
   },
   demoBannerHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  demoBannerTitle: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: '#92400e', flex: 1 },
+  demoBannerTitle: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: '#8A6A1E', flex: 1 },
   demoBtnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   demoBtn: {
-    backgroundColor: '#fbbf24', borderRadius: 8,
+    backgroundColor: '#E8B956', borderRadius: 8,
     paddingHorizontal: 10, paddingVertical: 7,
   },
   demoBtnTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: '#78350f' },

@@ -2,6 +2,7 @@ import { Pressable, Text, StyleSheet } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useHeaderSosVisible } from '@/src/ui/headerSos';
 import { UI_V22_ONE_SOS } from '../../uiV22Flags';
 import { theme } from '@/src/theme';
 
@@ -32,7 +33,10 @@ export function isGlobalHelpHidden(pathname: string | null | undefined): boolean
   // language list. Help/emergency is one tap away again the moment the user is in.
   const isAuthOnboarding =
     pathname === '/login' || pathname === '/signup' ||
-    pathname === '/consent' || pathname === '/language';
+    pathname === '/consent' || pathname === '/language' ||
+    // Redesign v3: this screen has SOS in its own header row, so the floating
+    // button no longer covers the last point on the list.
+    pathname === '/how-it-helps';
   // Head Out wizard substeps (/women/head-out/destination|radius|circle) have
   // their own bottom footers and dropdown rows exactly where this FAB floats —
   // on step 3 it covered the "Notify my circle" dropdown (owner finding 10,
@@ -41,11 +45,22 @@ export function isGlobalHelpHidden(pathname: string | null | undefined): boolean
   return !!(pathname === '/emergency' || pathname?.startsWith('/oauth') || (pathname?.startsWith('/women') && !pathname?.startsWith('/women/head-out')) || isHeadOutWizardStep || pathname?.startsWith('/family-journey') || pathname?.startsWith('/guardian') || pathname?.startsWith('/admin-') || isHome || hideScan || isAuthOnboarding);
 }
 
+const TAB_GROUP_PATHS = new Set([
+  '/rights', '/myfiles', '/me', '/settings', '/saved', '/history', '/complaints',
+  '/discover', '/lookup', '/voter-roll', '/advocate',
+]);
+
 export function GlobalHelpButton({ docked = false }: { docked?: boolean } = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
+  const headerHasSos = useHeaderSosVisible();
   if (isGlobalHelpHidden(pathname)) return null;
+  // Redesign v3: one SOS per screen. If the focused screen's header shows
+  // SOS, this floating button stays away.
+  if (headerHasSos && !docked) return null;
+  // Tab-group screens have the 58-tall tab bar under them; other screens do not.
+  const overTabBar = TAB_GROUP_PATHS.has(pathname ?? '');
 
   return (
     <Pressable
@@ -60,7 +75,7 @@ export function GlobalHelpButton({ docked = false }: { docked?: boolean } = {}) 
       // 140 offset gives ~174px on modern iPhones — clears the full disclaimer
       // without rising into the screen content (the previous 180 was 52px too high
       // and overlapped the "Code phrase" ToolRow on the Women's Shield screen).
-      style={docked ? [styles.btn, styles.btnDocked] : [styles.btn, { bottom: insets.bottom + 140 }]}
+      style={docked ? [styles.btn, styles.btnDocked] : [styles.btn, { bottom: insets.bottom + (overTabBar ? 74 : 16) }]}
     >
       <Ionicons name="alert-circle" size={18} color="#fff" />
       <Text style={styles.txt}>{UI_V22_ONE_SOS ? 'SOS' : 'Help'}</Text>
@@ -88,5 +103,5 @@ const styles = StyleSheet.create({
   },
   // UI_V22_DOCK: sits in the bottom dock's row, in normal layout flow.
   btnDocked: { position: 'relative', right: undefined, bottom: undefined, minHeight: 48, elevation: 0, shadowOpacity: 0 },
-  txt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 14 },
+  txt: { color: '#fff', fontFamily: theme.fonts.bodyBold, fontSize: 13 },
 });

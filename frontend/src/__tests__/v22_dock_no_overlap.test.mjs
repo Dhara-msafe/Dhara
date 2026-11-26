@@ -28,12 +28,13 @@ const dock = read('src', 'components', 'dhara', 'FloatingDock.tsx');
 const help = read('src', 'components', 'dhara', 'GlobalHelpButton.tsx');
 const bug = read('src', 'components', 'IssueReporterButton.tsx');
 
-test('flag defaults OFF', () => {
-  assert.match(flags, /export const UI_V22_DOCK = process\.env\.EXPO_PUBLIC_UI_V22_DOCK === 'true';/);
+// Redesign v3, stage 2: the bottom dock is retired (SOS moved to the header).
+test('dock is retired: the flag is hard off', () => {
+  assert.match(flags, /export const UI_V22_DOCK: boolean = false;/);
 });
 
 test('flag OFF keeps the old floating layout exactly', () => {
-  assert.match(layout, /<View style=\{\{ flex: 1 \}\}>\s*\n\s*<Stack[^\n]*\/>\s*\n\s*<GlobalHelpButton \/>\s*\n\s*<IssueReporterButton \/>/);
+  assert.match(layout, /<View style=\{\{ flex: 1 \}\}>\s*\n\s*<QaInsetFrame>\s*\n\s*<AutoHeaderFrame>\s*\n\s*<Stack[^\n]*\/>\s*\n\s*<\/AutoHeaderFrame>\s*\n\s*<\/QaInsetFrame>\s*\n\s*<GlobalHelpButton \/>\s*\n\s*<IssueReporterButton \/>/);
 });
 
 test('flag ON on phones: the stack sits inside DockedStack (dock in layout flow)', () => {
@@ -69,8 +70,18 @@ test('Help hide rules unchanged (now a shared predicate)', () => {
   assert.match(help, /if \(isGlobalHelpHidden\(pathname\)\) return null;/);
 });
 
-test('bug button: production hidden when the flag is on (explicit opt-in)', () => {
-  assert.match(bug, /export const ISSUE_REPORTER_ENABLED = UI_V22_DOCK\s*\n[^\n]*\n[^\n]*\n\s*\? process\.env\.EXPO_PUBLIC_ENABLE_ISSUE_REPORTER === 'true'\s*\n\s*: process\.env\.EXPO_PUBLIC_ENABLE_ISSUE_REPORTER !== 'false';/);
+test('bug button: explicit opt-in, so production never ships it', () => {
+  // This used to depend on UI_V22_DOCK: with the dock off it fell back to
+  // `!== 'false'`, so an ABSENT variable counted as ON. A production build
+  // sets neither flag and therefore shipped the bug button to real users.
+  assert.match(
+    bug,
+    /export const ISSUE_REPORTER_ENABLED = process\.env\.EXPO_PUBLIC_ENABLE_ISSUE_REPORTER === 'true';/,
+  );
+  assert.ok(
+    !/EXPO_PUBLIC_ENABLE_ISSUE_REPORTER !== 'false'/.test(bug),
+    'the absent-means-on fallback must not come back',
+  );
 });
 
 test('desktop with the flag on: no floating Help pill, bug button kept', () => {

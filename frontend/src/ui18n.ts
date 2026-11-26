@@ -51,6 +51,12 @@ export const UI: Record<string, L> = {
   // ── Journey tiles ────────────────────────────────────────────────
   'j.shield':        { en: 'Women\u2019s Shield', hi: 'महिला सुरक्षा', mr: 'महिला सुरक्षा', ta: 'பெண்கள் கவசம்' },
   'j.shield.sub':    { en: 'महिला सुरक्षा', hi: 'महिला सुरक्षा' },
+  // UI_V22_HOME_SIMPLE: Head out and Family Journey become tiles in the Help
+  // journeys grid. English only on purpose — tr() falls back to en, and an
+  // invented Hindi/Marathi/Tamil string is worse than an English one. Both
+  // need a native check before the grid ships in those languages.
+  'j.headout':       { en: 'Head out safely' },
+  'j.family':        { en: 'Family Journey' },
   'j.missing':       { en: 'Missing person', hi: 'गुमशुदा व्यक्ति', mr: 'हरवलेली व्यक्ती', ta: 'காணாமல் போனவர்' },
   'j.missing.sub':   { en: 'गुमशुदा', hi: 'गुमशुदा' },
   'j.police':        { en: 'Police & FIR', hi: 'पुलिस और FIR', mr: 'पोलिस आणि FIR', ta: 'காவல் & FIR' },

@@ -55,7 +55,7 @@ export default function VoterRollTab() {
   // ── Welcome / intro screen ─────────────────────────────────────────────────
   if (currentQId === null && outcome === null) {
     return (
-      <SafeAreaView testID="voter-roll-screen" style={s.safe} edges={['top']}>
+      <SafeAreaView testID="voter-roll-screen" style={s.safe} edges={[]}>
         <ScrollView contentContainerStyle={s.scrollContent}>
           {/* Header */}
           <View style={s.header}>
@@ -97,10 +97,10 @@ export default function VoterRollTab() {
           >
             <Text style={s.secondaryBtnText}>
               {lang === 'hi'
-                ? '🔗 voters.eci.gov.in पर जाएं'
+                ? 'voters.eci.gov.in पर जाएं'
                 : lang === 'mr'
-                ? '🔗 voters.eci.gov.in वर जा'
-                : '🔗 Check status at voters.eci.gov.in'}
+                ? 'voters.eci.gov.in वर जा'
+                : 'Check status at voters.eci.gov.in'}
             </Text>
           </Pressable>
         </ScrollView>
@@ -114,7 +114,7 @@ export default function VoterRollTab() {
     const label = t(outcomeData.label, lang);
 
     return (
-      <SafeAreaView style={s.safe} edges={['top']}>
+      <SafeAreaView style={s.safe} edges={[]}>
         <ScrollView contentContainerStyle={s.scrollContent}>
           <Pressable testID="voter-outcome-back" onPress={reset} style={s.backBtn}>
             <Text style={s.backText}>← {lang === 'hi' ? 'वापस' : lang === 'mr' ? 'मागे' : 'Back'}</Text>
@@ -164,10 +164,10 @@ export default function VoterRollTab() {
                 >
                   <Text style={s.primaryBtnText}>
                     {lang === 'hi'
-                      ? '🔗 ECI पोर्टल खोलें'
+                      ? 'ECI पोर्टल खोलें'
                       : lang === 'mr'
-                      ? '🔗 ECI पोर्टल उघडा'
-                      : '🔗 Open ECI Portal'}
+                      ? 'ECI पोर्टल उघडा'
+                      : 'Open ECI Portal'}
                   </Text>
                 </Pressable>
               </>
@@ -196,7 +196,7 @@ export default function VoterRollTab() {
   const progress = ((qIndex) / questions.length) * 100;
 
   return (
-    <SafeAreaView style={s.safe} edges={['top']}>
+    <SafeAreaView style={s.safe} edges={[]}>
       <ScrollView contentContainerStyle={s.scrollContent}>
         <View style={s.progressRow}>
           <View style={s.progressBar}>
@@ -226,58 +226,58 @@ export default function VoterRollTab() {
 
 const s = StyleSheet.create({
   safe:            { flex: 1, backgroundColor: BG },
-  scrollContent:   { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 },
+  scrollContent:   { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 40 },
 
   header:          { marginBottom: 20 },
-  headerTitle:     { fontSize: 26, fontWeight: '700', color: NAVY, letterSpacing: -0.5 },
-  headerSub:       { fontSize: 14, color: '#666', marginTop: 4 },
+  headerTitle:     { fontSize: 22, fontFamily: 'InterBold', color: NAVY, letterSpacing: -0.5 },
+  headerSub:       { fontFamily: 'Inter', fontSize: 13, color: '#666', marginTop: 4 },
 
   disclaimerCard:  {
-    backgroundColor: '#FFF8E7',
+    backgroundColor: '#FFF4E6',
     borderLeftWidth: 4, borderLeftColor: GOLD,
-    borderRadius: 8, padding: 14, marginBottom: 24,
+    borderRadius: 8, padding: 14, marginBottom: 18,
   },
-  disclaimerText:  { fontSize: 12, color: '#555', lineHeight: 18 },
+  disclaimerText:  { fontFamily: 'Inter', fontSize: 12, color: '#555', lineHeight: 16 },
 
   primaryBtn:      {
     backgroundColor: NAVY, borderRadius: 12, paddingVertical: 16,
     alignItems: 'center', marginBottom: 12,
   },
-  primaryBtnText:  { color: '#FFF', fontWeight: '700', fontSize: 16 },
+  primaryBtnText:  { color: '#FFF', fontFamily: 'InterBold', fontSize: 14 },
 
   secondaryBtn:    {
     borderWidth: 1.5, borderColor: NAVY, borderRadius: 12, paddingVertical: 14,
     alignItems: 'center', marginBottom: 12,
   },
-  secondaryBtnText: { color: NAVY, fontWeight: '600', fontSize: 14 },
+  secondaryBtnText: { color: NAVY, fontFamily: 'InterSemiBold', fontSize: 13 },
 
   backBtn:          { marginBottom: 16 },
-  backText:         { color: NAVY, fontSize: 14, fontWeight: '600' },
+  backText:         { color: NAVY, fontSize: 13, fontFamily: 'InterSemiBold'},
 
   outcomeCard:      {
     backgroundColor: '#FFF', borderRadius: 16,
-    padding: 20, marginBottom: 20,
+    padding: 16, marginBottom: 20,
     shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  outcomeLabel:     { fontSize: 20, fontWeight: '700', color: NAVY, marginBottom: 12 },
-  outcomeBody:      { fontSize: 14, color: '#444', lineHeight: 22, marginBottom: 20 },
+  outcomeLabel:     { fontSize: 17, fontFamily: 'InterBold', color: NAVY, marginBottom: 12 },
+  outcomeBody:      { fontFamily: 'Inter', fontSize: 13, color: '#444', lineHeight: 19, marginBottom: 20 },
 
   progressRow:      { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  progressBar:      { flex: 1, height: 4, backgroundColor: '#E5E7EB', borderRadius: 2, marginRight: 10 },
+  progressBar:      { flex: 1, height: 4, backgroundColor: '#E6DFD1', borderRadius: 2, marginRight: 10 },
   progressFill:     { height: 4, backgroundColor: NAVY, borderRadius: 2 },
-  progressText:     { fontSize: 12, color: '#999', minWidth: 40, textAlign: 'right' },
+  progressText:     { fontFamily: 'Inter', fontSize: 12, color: '#999', minWidth: 40, textAlign: 'right' },
 
   questionCard:     {
-    backgroundColor: NAVY, borderRadius: 16, padding: 20, marginBottom: 20,
+    backgroundColor: NAVY, borderRadius: 16, padding: 16, marginBottom: 20,
   },
-  questionText:     { fontSize: 17, fontWeight: '600', color: '#FFF', lineHeight: 26 },
+  questionText:     { fontSize: 15, fontFamily: 'InterSemiBold', color: '#FFF', lineHeight: 23 },
 
   optionBtn:        {
     backgroundColor: '#FFF', borderRadius: 12, paddingVertical: 16, paddingHorizontal: 18,
-    marginBottom: 12, borderWidth: 1.5, borderColor: '#E5E7EB',
+    marginBottom: 12, borderWidth: 1.5, borderColor: '#E6DFD1',
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
-  optionText:       { fontSize: 15, color: '#222', lineHeight: 22 },
+  optionText:       { fontFamily: 'Inter', fontSize: 13, color: '#222', lineHeight: 19 },
 });

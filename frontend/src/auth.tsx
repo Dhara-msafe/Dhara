@@ -471,6 +471,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       'ws_head_out_session', 'dhara_head_out_recents_v1', 'dhara_head_out_wizard_draft',
       'dhara_loc_queue', 'issue_reports_pending_v1',
       'fir_active_session_v3', 'fir_selected_module_v1', 'fir_draft_lang_v3',
+      // B-76 (24 Nov): device-wide keys (not per account) that hold something
+      // about the person who just used the app, so they must not outlive the
+      // session on a shared phone. Also runs on account deletion
+      // (logoutAfterAccountDeletion calls logout):
+      //  - Women's Shield privacy log: timestamps of silent alerts, code-phrase
+      //    triggers and evidence recordings (src/women/privacyAuditLog.ts;
+      //    local-only, nothing in the app reads it);
+      //  - visitor mode: the visitor's own language and Indian state, and the
+      //    embassy they picked (reveals their nationality).
+      'ws_privacy_audit_v1', 'dhara_visitor_session', 'dhara_visitor_embassy_key',
     ]);
     // Guest scope lifecycle: touch lastSeenAt so the 30-day GC grace window
     // runs from the actual logout moment, not from an earlier cold start.
