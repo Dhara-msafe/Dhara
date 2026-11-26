@@ -1667,7 +1667,51 @@ export default function HeadOut() {
                 <Ionicons name="navigate-circle-outline" size={26} color={c.navy} />
                 <Text style={styles.activeTitle}>Journey active</Text>
               </View>
-              <Text style={styles.destTxt}>{session.destination}</Text>
+              {/* Polish (reference design): map first, then arrival time, then
+                  where from and where to, then the check-in timer. */}
+              {GO1C_LIVE_ROUTE_ENABLED && hasDestCoord && (
+                <ActiveJourneyMap
+                  testID="headout-active-map"
+                  currentLat={gps.latitude} currentLng={gps.longitude}
+                  destLat={session.latitude!} destLng={session.longitude!}
+                  radiusMeters={arrivalRadius} routePolyline={routeInfo?.polyline ?? null}
+                />
+              )}
+              {!!routeInfo && (
+                <View style={styles.etaRow} testID="headout-eta">
+                  <View style={styles.etaCell}>
+                    <Ionicons name="time-outline" size={20} color={c.navy} />
+                    <View>
+                      <Text style={styles.etaLbl}>Arriving in</Text>
+                      <Text style={styles.etaVal}>{routeInfo.provider === 'approximate' ? '~' : ''}{Math.max(1, Math.round(routeInfo.durationSeconds / 60))} min</Text>
+                    </View>
+                  </View>
+                  <View style={styles.etaDivider} />
+                  <View style={styles.etaCell}>
+                    <View>
+                      <Text style={styles.etaLbl}>{routeInfo.provider === 'approximate' ? 'ETA (estimated)' : 'ETA'}</Text>
+                      <Text style={styles.etaVal}>{new Date(Date.now() + routeInfo.durationSeconds * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+              <View style={styles.fromToCard} testID="headout-from-to">
+                <View style={styles.fromToRow}>
+                  <View style={styles.fromDot} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.fromToLbl}>From</Text>
+                    <Text style={styles.fromToVal}>Your current location</Text>
+                  </View>
+                </View>
+                <View style={styles.fromToLine} />
+                <View style={styles.fromToRow}>
+                  <Ionicons name="location" size={16} color={c.emergencyRed} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.fromToLbl}>To</Text>
+                    <Text style={styles.fromToVal} numberOfLines={2}>{session.destination}</Text>
+                  </View>
+                </View>
+              </View>
               {journeyAlarm === 'active' && (
                 <View style={styles.alarmOnRow} testID="headout-alarm-active">
                   <Ionicons name="shield-checkmark-outline" size={14} color={c.verifiedGreen} />
@@ -1688,23 +1732,10 @@ export default function HeadOut() {
                     : `Planned area: ${session.radiusMeters} m · Monitoring not active`}
                 </Text>
               )}
-              {GO1C_LIVE_ROUTE_ENABLED && hasDestCoord && (
-                <ActiveJourneyMap
-                  testID="headout-active-map"
-                  currentLat={gps.latitude} currentLng={gps.longitude}
-                  destLat={session.latitude!} destLng={session.longitude!}
-                  radiusMeters={arrivalRadius} routePolyline={routeInfo?.polyline ?? null}
-                />
-              )}
-              {!!routeInfo && (
-                <Text style={styles.etaTxt} testID="headout-eta">
-                  {routeInfo.provider === 'approximate' ? '~' : ''}Arriving in {Math.max(1, Math.round(routeInfo.durationSeconds / 60))} min
-                  {' · ETA '}{new Date(Date.now() + routeInfo.durationSeconds * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-                  {routeInfo.provider === 'approximate' ? ' (estimated)' : ''}
-                </Text>
-              )}
-              <Text style={styles.timerLbl}>Next check-in in</Text>
-              <Text testID="headout-timer" style={styles.timerDisplay}>{formatCountdown(secsLeft)}</Text>
+              <View style={styles.checkinBox}>
+                <Text style={styles.timerLbl}>Next check-in in</Text>
+                <Text testID="headout-timer" style={styles.timerDisplay}>{formatCountdown(secsLeft)}</Text>
+              </View>
               <Text style={styles.note}>{'Tap "I\'m safe" when you reach. DHARA will help you alert your circle if this timer runs out.'}</Text>
               {GUARDIAN_SHARE_ENABLED && hasCircleRecipients && (
                 <Pressable
@@ -2093,8 +2124,8 @@ const styles = StyleSheet.create({
   },
   timerLbl: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 8 },
   timerDisplay: {
-    fontFamily: theme.fonts.displayBold, fontSize: 48, color: c.navy,
-    letterSpacing: -2, lineHeight: 56,
+    fontFamily: theme.fonts.displayBold, fontSize: 40, color: c.navy,
+    lineHeight: 48,
   },
   expiredTitle: { fontFamily: theme.fonts.displayBold, fontSize: 19, color: c.emergencyRed },
   disclosureNote: {
@@ -2161,6 +2192,18 @@ const styles = StyleSheet.create({
   deviatedCard: { borderColor: '#8A6A1E', backgroundColor: '#FFF4E6' },
   areYouOkayTxt: { fontFamily: theme.fonts.bodyBold, color: c.ink, fontSize: 14 },
   etaTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.navy, marginTop: 2 },
+  etaRow: { alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', backgroundColor: c.soft, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12 },
+  etaCell: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  etaDivider: { width: 1, alignSelf: 'stretch', backgroundColor: c.lines, marginHorizontal: 12 },
+  etaLbl: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted },
+  etaVal: { fontFamily: theme.fonts.bodyBold, fontSize: 17, color: c.navy },
+  fromToCard: { alignSelf: 'stretch', borderWidth: 1, borderColor: c.lines, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12 },
+  fromToRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  fromDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: c.blue, borderWidth: 2, borderColor: c.blueBorder, marginHorizontal: 2 },
+  fromToLine: { width: 2, height: 14, backgroundColor: c.lines, marginLeft: 7, marginVertical: 2 },
+  fromToLbl: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted },
+  fromToVal: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: c.ink },
+  checkinBox: { alignSelf: 'stretch', alignItems: 'center', borderTopWidth: 1, borderTopColor: c.lines, paddingTop: 8, marginTop: 4 },
   linkTxt: { fontFamily: theme.fonts.bodySemiBold, fontSize: 13, color: c.navy, paddingVertical: 6 },
   linkTxtUnderline: { textDecorationLine: 'underline' },
   inlineError: { fontFamily: theme.fonts.body, fontSize: 12, color: c.emergencyRed, textAlign: 'center' },

@@ -427,7 +427,7 @@ export default function Settings() {
           </View>
           <Slider
             testID="tts-volume-slider"
-            style={{ alignSelf: 'stretch', height: 36, marginTop: theme.spacing.sm }}
+            style={{ alignSelf: 'stretch', height: 36, marginTop: theme.spacing.sm, marginHorizontal: 4 }}
             minimumValue={0}
             maximumValue={1}
             step={0.05}

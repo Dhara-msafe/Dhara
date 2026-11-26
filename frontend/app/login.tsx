@@ -301,8 +301,8 @@ const styles = StyleSheet.create({
   sub: { color: theme.colors.onSurfaceSecondary, marginTop: 4 },
   centred: { textAlign: 'center' },
   label: { color: theme.colors.onSurfaceSecondary, marginTop: theme.spacing.lg, marginBottom: theme.spacing.sm, fontFamily: 'InterSemiBold'},
-  input: { borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, padding: theme.spacing.md, fontFamily: 'Inter', fontSize: 14, color: theme.colors.onSurface, backgroundColor: theme.colors.surfaceSecondary },
-  pwWrap: { flexDirection: 'row', alignItems: 'center', overflow: 'hidden', borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceSecondary },
+  input: { borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, padding: theme.spacing.md, fontFamily: 'Inter', fontSize: 14, color: theme.colors.onSurface, backgroundColor: theme.colors.paper },
+  pwWrap: { flexDirection: 'row', alignItems: 'center', overflow: 'hidden', borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, backgroundColor: theme.colors.paper },
   // minWidth 0 lets the field shrink, so the eye button stays inside the box.
   pwInput: { flex: 1, minWidth: 0, padding: theme.spacing.md, fontFamily: 'Inter', fontSize: 14, color: theme.colors.onSurface },
   eyeBtn: { paddingHorizontal: theme.spacing.md, paddingVertical: theme.spacing.md, justifyContent: 'center', alignItems: 'center' },

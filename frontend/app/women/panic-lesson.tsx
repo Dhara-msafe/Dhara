@@ -31,17 +31,23 @@ type LessonConfig = { intro: string; steps: Step[]; note: string };
 export default function PanicLesson() {
   const router = useRouter();
   const [lesson, setLesson] = useState<LessonConfig | null>(null);
+  // Polish: a failed load used to leave the spinner turning forever.
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const speech = useScreenSpeech();
 
   useEffect(() => {
     // A6 — wording comes from the backend (never hard-coded on-device) so it
     // can be corrected centrally without shipping a new app build.
+    let alive = true;
+    setFailed(false);
     const platform = Platform.OS === 'ios' ? 'ios' : 'android';
     fetch(`${API_BASE}/api/women/panic-lesson?platform=${platform}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setLesson(d))
-      .catch(() => setLesson(null));
-  }, []);
+      .then((d) => { if (!alive) return; setLesson(d); if (!d) setFailed(true); })
+      .catch(() => { if (alive) { setLesson(null); setFailed(true); } });
+    return () => { alive = false; };
+  }, [attempt]);
 
   // This is a "voice lesson" — narrated on request. Never auto-plays: the
   // existing voice pipeline deliberately never speaks until the user taps
@@ -56,7 +62,22 @@ export default function PanicLesson() {
   const body = (
     <>
       <ScreenHeader title="20-second panic trigger" subtitle="Call 112 even with DHARA closed" />
-      {!lesson ? (
+      {!lesson && failed ? (
+        <View testID="panic-lesson-failed" style={styles.failedWrap}>
+          <Ionicons name="cloud-offline-outline" size={32} color={c.muted} />
+          <Text style={styles.failedTitle}>Couldn’t load the lesson</Text>
+          <Text style={styles.failedBody}>Check your internet connection and try again. In an emergency, call 112 now.</Text>
+          <Pressable
+            testID="panic-lesson-retry"
+            style={(s) => [styles.retryBtn, focusRingStyle(s)]}
+            onPress={() => setAttempt((n) => n + 1)}
+            accessibilityRole="button"
+            accessibilityLabel="Try loading the lesson again"
+          >
+            <Text style={styles.retryTxt}>Try again</Text>
+          </Pressable>
+        </View>
+      ) : !lesson ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={UI_V22_S4 ? shieldColors.text : c.navy} />
         </View>
@@ -112,6 +133,11 @@ export default function PanicLesson() {
 }
 
 const styles = StyleSheet.create({
+  failedWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 8 },
+  failedTitle: { fontFamily: theme.fonts.bodyBold, fontSize: 16, color: c.ink, textAlign: 'center', marginTop: 4 },
+  failedBody: { fontFamily: theme.fonts.body, fontSize: 13, lineHeight: 19, color: c.muted, textAlign: 'center' },
+  retryBtn: { marginTop: 8, minHeight: 48, paddingHorizontal: 24, borderRadius: 12, backgroundColor: c.navy, alignItems: 'center', justifyContent: 'center' },
+  retryTxt: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: '#FFFFFF' },
   root: { flex: 1, backgroundColor: UI_V22_S4 ? 'transparent' : c.background },
   intro: { fontFamily: theme.fonts.body, fontSize: 13, color: UI_V22_S4 ? shieldColors.textMuted : c.muted, lineHeight: 19, marginBottom: 18 },
   listenBtn: {
