@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { ADVOCATE_MODE_ENABLED } from '@/src/advocateMode/flags';
@@ -49,9 +50,7 @@ export default function AdvocateTab() {
   if (profile === 'loading') {
     return (
       <SafeAreaView style={s.safe} edges={[]}>
-        <View style={s.header}>
-          <Text style={s.headerTitle}>Lawyer Mode</Text>
-        </View>
+        <PageTitleRow title="Lawyer Mode" onBack={() => router.navigate('/(tabs)/me' as any)} backTestID="advocate-back" testID="advocate-title" />
         <View style={s.center}>
           <ActivityIndicator color={NAVY} />
         </View>
@@ -62,9 +61,7 @@ export default function AdvocateTab() {
   if (profile === 'none') {
     return (
       <SafeAreaView style={s.safe} edges={[]}>
-        <View style={s.header}>
-          <Text style={s.headerTitle}>Lawyer Mode</Text>
-        </View>
+        <PageTitleRow title="Lawyer Mode" onBack={() => router.navigate('/(tabs)/me' as any)} backTestID="advocate-back" testID="advocate-title" />
         <ScrollView contentContainerStyle={s.registerContainer}>
           <View style={s.iconWrap}>
             <Ionicons name="briefcase-outline" size={52} color={NAVY} />
@@ -127,22 +124,18 @@ export default function AdvocateTab() {
 
   return (
     <SafeAreaView style={s.safe} edges={[]}>
-      <View style={s.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>Lawyer Mode</Text>
-          {profile?.verified
-            ? (
-              <View style={s.verifiedBadge}>
-                <Ionicons name="checkmark-circle" size={13} color={NAVY} />
-                <Text style={s.verifiedText}>Reviewed</Text>
-              </View>
-            )
-            : <Text style={s.pendingText}>Pending Verification</Text>}
-        </View>
-        <Pressable onPress={() => router.push('/(tabs)/settings' as any)} style={s.settingsBtn}>
-          <Ionicons name="person-circle-outline" size={28} color={GOLD} />
-        </Pressable>
-      </View>
+      <PageTitleRow
+        title="Lawyer Mode"
+        subtitle={profile?.verified ? 'Reviewed' : 'Pending Verification'}
+        onBack={() => router.navigate('/(tabs)/me' as any)}
+        backTestID="advocate-back"
+        testID="advocate-title"
+        right={(
+          <Pressable onPress={() => router.push('/(tabs)/settings?from=me' as any)} style={s.settingsBtn} accessibilityRole="button" accessibilityLabel="Your profile and settings">
+            <Ionicons name="person-circle-outline" size={28} color={GOLD} />
+          </Pressable>
+        )}
+      />
 
       <ScrollView contentContainerStyle={s.dashScroll}>
 

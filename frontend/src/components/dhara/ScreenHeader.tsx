@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../theme';
 import { UI_V22_S2 } from '../../uiV22Flags';
 import { SosPill112, useLightStatusBar } from '../../ui/kit';
+import { useAutoHeaderShown } from '../../ui/AutoHeader';
+import { PageTitleRow } from '../../ui/PageTitleRow';
 
 const c = theme.colors;
 
@@ -13,6 +15,13 @@ export function ScreenHeader({ title, subtitle }: { title: string; subtitle?: st
   const insets = useSafeAreaInsets();
   const router = useRouter();
   useLightStatusBar();
+  // 26 Nov: under the shared DHARA header (AutoHeader.tsx list) this becomes
+  // a light title row: back + title, no second navy bar and no second SOS.
+  // 26 Nov: under the shared DHARA header this becomes the shared light
+  // title row (src/ui/PageTitleRow.tsx): no second navy bar, no second SOS.
+  if (useAutoHeaderShown()) {
+    return <PageTitleRow title={title} subtitle={subtitle} backTestID="screen-back" testID="screen-title-row" />;
+  }
   return (
     <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
       <Pressable onPress={() => router.back()} style={styles.back} testID="screen-back" accessibilityRole="button" accessibilityLabel="Go back">

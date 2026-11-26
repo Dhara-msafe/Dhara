@@ -46,7 +46,7 @@ export default function AlertDetail() {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: c.background }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={['bottom']}>
         <ScreenHeader title="Journey safety alert" />
         <View style={styles.center}><ActivityIndicator color={c.navy} /></View>
       </SafeAreaView>
@@ -54,7 +54,7 @@ export default function AlertDetail() {
   }
   if (!alert) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: c.background }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={['bottom']}>
         <ScreenHeader title="Journey safety alert" />
         <View style={styles.center}><Text style={styles.hint}>This alert could not be found.</Text></View>
       </SafeAreaView>

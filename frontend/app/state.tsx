@@ -7,6 +7,7 @@ import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { UI_REVISION_V1 } from '@/src/designRevision';
 import { focusRingStyle } from '@/src/a11yFocus';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
 
 type StateItem = { code: string; name: string; native: string; type: 'state' | 'ut' };
 
@@ -90,16 +91,27 @@ export default function StateSelect() {
   };
 
   return (
-    <SafeAreaView edges={['bottom']} style={styles.safe} testID="state-screen">
-      <View style={styles.header}>
-        <Text style={styles.brand}>Where do you live?</Text>
-        <Text style={styles.sub}>
-          Rent, liquor, stamp duty and traffic fine amounts are decided by your state. Pick it once
-          and Dhara adds the local rule to every answer.
-        </Text>
-      </View>
+    <SafeAreaView edges={['bottom']} style={[styles.safe, !onboarding && styles.safeLight]} testID="state-screen">
+      {onboarding ? (
+        <View style={styles.header}>
+          <Text style={styles.brand}>Where do you live?</Text>
+          <Text style={styles.sub}>
+            Rent, liquor, stamp duty and traffic fine amounts are decided by your state. Pick it once
+            and Dhara adds the local rule to every answer.
+          </Text>
+        </View>
+      ) : (
+        // 26 Nov: opened from Me: the shared title row like the other Me screens.
+        <PageTitleRow
+          title="Where do you live?"
+          subtitle="Rent, liquor, stamp duty and traffic fine amounts are decided by your state. Pick it once and Dhara adds the local rule to every answer."
+          onBack={done}
+          backTestID="state-back"
+          testID="state-title"
+        />
+      )}
 
-      <View style={styles.searchWrap}>
+      <View style={[styles.searchWrap, !onboarding && styles.cardLight, !onboarding && { marginTop: theme.spacing.md }]}>
         <Ionicons name="search" size={18} color={theme.colors.onSurfaceTertiary} />
         <TextInput
           testID="state-search"
@@ -121,7 +133,7 @@ export default function StateSelect() {
           return (
             <Pressable
               testID={`state-${item.code}`}
-              style={(s) => [styles.row, active && styles.rowActive, focusRingStyle(s)]}
+              style={(s) => [styles.row, !onboarding && !active && styles.cardLight, active && styles.rowActive, focusRingStyle(s)]}
               onPress={() => setSelected(item.code)}
               accessibilityRole="button"
               accessibilityLabel={`${item.name}${item.type === 'ut' ? ', Union Territory' : ''}`}
@@ -137,7 +149,7 @@ export default function StateSelect() {
         }}
       />
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, !onboarding && styles.footerLight]}>
         <Pressable
           testID="state-save"
           style={(s) => [styles.btn, (!selected || saving) && styles.btnDisabled, focusRingStyle(s)]}
@@ -160,7 +172,7 @@ export default function StateSelect() {
           accessibilityRole="button"
           accessibilityLabel={onboarding ? 'Skip for now' : 'Cancel'}
         >
-          <Text style={styles.skipText}>{onboarding ? 'Skip for now' : 'Cancel'}</Text>
+          <Text style={[styles.skipText, !onboarding && styles.skipTextLight]}>{onboarding ? 'Skip for now' : 'Cancel'}</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -169,6 +181,12 @@ export default function StateSelect() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.brand },
+  // 26 Nov: opened from Me the page sits under the light title row, so it
+  // uses the same cream page as the other Me screens (first run stays navy).
+  safeLight: { backgroundColor: theme.colors.background },
+  cardLight: { borderWidth: 1, borderColor: theme.colors.border },
+  footerLight: { borderTopColor: theme.colors.border },
+  skipTextLight: { color: theme.colors.navy },
   header: { paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.lg, paddingBottom: theme.spacing.md },
   brand: { fontFamily: theme.fonts.display, fontSize: 22, color: theme.colors.onBrandPrimary, fontWeight: '700', textAlign: 'center' },
   sub: { color: theme.colors.goldSoft, fontFamily: 'Inter', fontSize: 12, textAlign: 'center', marginTop: theme.spacing.sm, lineHeight: 17 },

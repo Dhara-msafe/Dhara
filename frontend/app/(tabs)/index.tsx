@@ -2024,7 +2024,7 @@ export default function ChatScreen() {
         <Pressable
           testID="header-lang-chip"
           style={(s) => [styles.toolChip, focusRingStyle(s)]}
-          onPress={() => router.push('/(tabs)/settings')}
+          onPress={() => router.push('/(tabs)/settings?from=ask' as any)}
           hitSlop={{ top: 6, bottom: 6 }}
           accessibilityRole="button"
           accessibilityLabel={`Change language. Current language: ${language.native}`}

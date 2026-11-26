@@ -7,6 +7,7 @@ import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { tabBackTarget } from '@/src/tabBackTarget';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
 import { UI_V22_ONE_SOS } from '@/src/uiV22Flags';
 import { focusRingStyle } from '@/src/a11yFocus';
 import { formatDateTimeDMY } from '@/src/dateFormat';
@@ -47,15 +48,7 @@ export default function History() {
   if (user?.is_guest) {
     return (
       <SafeAreaView style={styles.safe} edges={[]} testID="history-screen">
-        <View style={styles.header}>
-          <View style={styles.titleRow}>
-            <Pressable testID="history-back" onPress={() => router.navigate(tabBackTarget(from) as any)} hitSlop={8} style={(s) => [styles.backBtn, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
-              <Ionicons name="chevron-back" size={24} color={theme.colors.primary} />
-            </Pressable>
-            <Text style={styles.h1}>Your Conversations</Text>
-          </View>
-          <Text style={[styles.h2, styles.h2Indented]}>Every question you&apos;ve asked, saved.</Text>
-        </View>
+        <PageTitleRow title="Your Conversations" subtitle="Every question you've asked, saved." onBack={() => router.navigate(tabBackTarget(from) as any)} backTestID="history-back" testID="history-title" />
         <View style={styles.empty}>
           <Ionicons name="lock-closed-outline" size={64} color={theme.colors.brandSecondary} />
           <Text style={styles.emptyTitle}>Create a free account</Text>
@@ -70,15 +63,7 @@ export default function History() {
 
   return (
     <SafeAreaView style={styles.safe} edges={[]} testID="history-screen">
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Pressable testID="history-back" onPress={() => router.navigate(tabBackTarget(from) as any)} hitSlop={8} style={(s) => [styles.backBtn, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
-              <Ionicons name="chevron-back" size={24} color={theme.colors.primary} />
-            </Pressable>
-          <Text style={styles.h1}>Your Conversations</Text>
-        </View>
-        <Text style={[styles.h2, styles.h2Indented]}>Every question you&apos;ve asked, saved.</Text>
-      </View>
+      <PageTitleRow title="Your Conversations" subtitle="Every question you've asked, saved." onBack={() => router.navigate(tabBackTarget(from) as any)} backTestID="history-back" testID="history-title" />
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={theme.colors.brand} /></View>
       ) : sessions.length === 0 ? (
