@@ -13,8 +13,10 @@ import { VoiceSheet, driveVoiceLevel } from '@/src/chat/VoiceSheet';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useIsFocused } from '@react-navigation/native';
+// 26 Nov (Vivek): from Expo SDK 58, expo-router bundles its own React
+// Navigation; the separate @react-navigation/native package has no navigation
+// object here, so its useIsFocused crashed the Ask screen. Use expo-router's.
+import { useRouter, useLocalSearchParams, useIsFocused } from 'expo-router';
 import {
   AudioModule,
   RecordingPresets,

@@ -13,7 +13,7 @@ import { addNotificationTapListener } from '@/src/push';
 
 /**
  * Redesigned 5-tab shell: Home · Rights · Ask (raised gold mic) · My files · Me.
- * Every other legacy screen stays reachable (href:null) via navigation / the
+ * Every other legacy screen stays reachable (declared, no tab button) via navigation / the
  * All help hub / the Me hub, so no functionality is lost.
  */
 const HEADER_TAB_PATHS = new Set([
@@ -69,7 +69,13 @@ export default function TabsLayout() {
 
   if (!token) return null;
 
-  const hidden = { href: null as null };
+  // 26 Nov (Vivek): screens that open by navigation but have no button of
+  // their own in the bottom bar. Do NOT use `href: null` here: from Expo SDK
+  // 58, expo-router treats an `href: null` tab as hidden and redirects any
+  // visit to it to the first tab (Home), so Ask, Settings, Chat history,
+  // Saved, Advocates etc. could not be opened. AppTabBar only ever draws its
+  // five fixed buttons, so these screens still get no button.
+  const noTabButton = {};
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom']} testID="tabs-layout">
@@ -86,15 +92,15 @@ export default function TabsLayout() {
           <Tabs.Screen name="myfiles" options={{ title: 'My files' }} />
           <Tabs.Screen name="me" options={{ title: 'Me' }} />
           {/* Legacy screens — reachable, not shown as tabs */}
-          <Tabs.Screen name="index" options={hidden} />
-          <Tabs.Screen name="complaints" options={hidden} />
-          <Tabs.Screen name="discover" options={hidden} />
-          <Tabs.Screen name="lookup" options={hidden} />
-          <Tabs.Screen name="voter-roll" options={hidden} />
-          <Tabs.Screen name="saved" options={hidden} />
-          <Tabs.Screen name="advocate" options={hidden} />
-          <Tabs.Screen name="settings" options={hidden} />
-          <Tabs.Screen name="history" options={hidden} />
+          <Tabs.Screen name="index" options={noTabButton} />
+          <Tabs.Screen name="complaints" options={noTabButton} />
+          <Tabs.Screen name="discover" options={noTabButton} />
+          <Tabs.Screen name="lookup" options={noTabButton} />
+          <Tabs.Screen name="voter-roll" options={noTabButton} />
+          <Tabs.Screen name="saved" options={noTabButton} />
+          <Tabs.Screen name="advocate" options={noTabButton} />
+          <Tabs.Screen name="settings" options={noTabButton} />
+          <Tabs.Screen name="history" options={noTabButton} />
         </Tabs>
         </SafeAreaInsetsContext.Provider>
         {/* Global persistent SOS — visible on every tab screen except Home
