@@ -10,8 +10,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import {
   updateDwell, shouldPromptDwell, acknowledgeDwell, dwellMinutes,
   DWELL_THRESHOLD_MS, DWELL_RADIUS_METERS, DWELL_MAX_ACCURACY_METERS,
@@ -57,8 +56,10 @@ test('bad input never starts or breaks an episode', () => {
 });
 
 test('wiring: private by construction — prompt buttons use only existing paths, no new sends', () => {
-  const here = dirname(fileURLToPath(import.meta.url));
-  const idx = readFileSync(join(here, '..', '..', '..', 'app/women/head-out/index.tsx'), 'utf8');
+  // babel-jest transforms import.meta → ({env:process.env}), so .url/.dirname
+  // are undefined at runtime.  __dirname is available in the CJS output.
+  /* eslint-disable-next-line no-undef */
+  const idx = readFileSync(join(__dirname, '..', '..', '..', 'app/women/head-out/index.tsx'), 'utf8');
   assert.match(idx, /testID="headout-dwell-prompt"/);
   // Gated off while arrived/deviated prompts own the screen.
   assert.match(idx, /dwellPromptMinutes != null && journeyPhase === 'normal'/);
