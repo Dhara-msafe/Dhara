@@ -4,6 +4,8 @@
  */
 import React from 'react';
 import { useLightStatusBar, SosPill112 } from '@/src/ui/kit';
+import { useAutoHeaderShown } from '../ui/AutoHeader';
+import { PageTitleRow } from '../ui/PageTitleRow';
 import { View, Text, Pressable, StyleSheet, Modal, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -25,6 +27,12 @@ export function JourneyHeader({ title, subtitle }: { title: string; subtitle?: s
   useLightStatusBar(); // redesign v3: white status-bar icons over the dark header
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  // 26 Nov: under the shared DHARA header this becomes a light title row
+  // (back + title); the header above has the SOS.
+  // 26 Nov: under the shared DHARA header: the shared light title row.
+  if (useAutoHeaderShown()) {
+    return <PageTitleRow title={title} subtitle={subtitle} backTestID="fj-back" testID="fj-title-row" />;
+  }
   return (
     <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
       <Pressable onPress={() => router.back()} hitSlop={8} style={(s) => [styles.back, focusRingStyle(s)]} testID="fj-back" accessibilityRole="button" accessibilityLabel="Go back">

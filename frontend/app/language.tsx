@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, FlatList, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
+import { backFromMe } from '@/src/meBack';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth, Language } from '@/src/auth';
@@ -15,6 +17,9 @@ import { UI_V22_S10 } from '@/src/uiV22Flags';
 // before login and without a network round-trip.
 
 export default function LanguageSelect() {
+  // Top inset read here: 0 under the shared header (signed in), the real
+  // status-bar height on first launch (AutoHeader.tsx: AUTO_HEADER_SIGNED_IN).
+  const insets = useSafeAreaInsets();
   const { language, setLanguage, user } = useAuth();
   const router = useRouter();
   const { from } = useLocalSearchParams<{ from?: string }>();
@@ -49,31 +54,35 @@ export default function LanguageSelect() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} testID="language-screen">
-      {/* ── Top bar: shows back button when reached from home ── */}
-      <View style={styles.topbar}>
-        {isChange ? (
-          <Pressable
-            onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/home')}
-            style={(s) => [styles.iconBtn, focusRingStyle(s)]}
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-            testID="language-back"
-          >
-            <Ionicons name="arrow-back" size={20} color={theme.colors.navy} />
-          </Pressable>
-        ) : <View style={styles.iconBtnPlaceholder} />}
-        <Text style={styles.topbarTitle} numberOfLines={1}>Choose language</Text>
-        <View style={styles.iconBtnPlaceholder} />
-      </View>
-      {/* ── Step + heading + subtitle ── */}
-      <View style={styles.header}>
-        {!isChange && <Text style={styles.eyebrow}>STEP 1 OF 4</Text>}
-        <Text style={styles.title}>Choose your language</Text>
-        <Text style={styles.sub}>
-          DHARA speaks in the language you prefer. Which features work in each language is shown after you choose.
-        </Text>
-      </View>
+    <SafeAreaView style={[styles.safe, { paddingTop: insets.top }]} edges={['bottom', 'left', 'right']} testID="language-screen">
+      {isChange ? (
+        // 26 Nov: changing language (signed in, from Me or Home) uses the
+        // shared title row like every other screen opened from Me.
+        <PageTitleRow
+          title="Choose language"
+          subtitle="DHARA speaks in the language you prefer. Which features work in each language is shown after you choose."
+          onBack={() => backFromMe(router, from, () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/home')))}
+          backTestID="language-back"
+          testID="language-title"
+        />
+      ) : (
+        <>
+        {/* ── Top bar (first launch): title only; changing language uses the title row above ── */}
+        <View style={styles.topbar}>
+          <View style={styles.iconBtnPlaceholder} />
+          <Text style={styles.topbarTitle} numberOfLines={1}>Choose language</Text>
+          <View style={styles.iconBtnPlaceholder} />
+        </View>
+        {/* ── Step + heading + subtitle ── */}
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>STEP 1 OF 4</Text>
+          <Text style={styles.title}>Choose your language</Text>
+          <Text style={styles.sub}>
+            DHARA speaks in the language you prefer. Which features work in each language is shown after you choose.
+          </Text>
+        </View>
+        </>
+      )}
       {/* ── Search field ── */}
       <View style={styles.searchWrap}>
         <Ionicons name="search-outline" size={18} color={theme.colors.muted} style={styles.searchIcon} />

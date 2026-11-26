@@ -74,7 +74,7 @@ export default function LawyerHome() {
               ? <View style={s.badge}><Text style={s.badgeText}>✓ Reviewed</Text></View>
               : <Text style={s.pending}>Pending Review</Text>}
         </View>
-        <Pressable onPress={() => router.push('/(tabs)/settings' as any)} style={s.settingsBtn}>
+        <Pressable onPress={() => router.push('/(tabs)/settings?from=me' as any)} style={s.settingsBtn}>
           <Ionicons name="person-circle-outline" size={28} color={GOLD} />
         </Pressable>
       </View>
@@ -111,7 +111,7 @@ export default function LawyerHome() {
           <Ionicons name="home" size={22} color={NAVY} />
           <Text style={[s.tabLabel, { color: NAVY }]}>Lawyer Mode</Text>
         </Pressable>
-        <Pressable style={s.tabItem} onPress={() => router.push('/(tabs)/settings' as any)}>
+        <Pressable style={s.tabItem} onPress={() => router.push('/(tabs)/settings?from=me' as any)}>
           <Ionicons name="person-outline" size={22} color="#64788A" />
           <Text style={s.tabLabel}>Account</Text>
         </Pressable>

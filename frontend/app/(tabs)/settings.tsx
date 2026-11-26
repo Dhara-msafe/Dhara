@@ -1,10 +1,13 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, Platform, Switch, Animated, Linking, TextInput, ActivityIndicator } from 'react-native';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
 import { crossAlert } from '@/src/utils/crossAlert';
 import Slider from '@react-native-community/slider';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { tabBackTarget } from '@/src/tabBackTarget';
+import { useAndroidBack } from '@/src/useAndroidBack';
 import { useAuth, API_BASE, Language, TtsVoiceMode } from '@/src/auth';
 import { clearAccountLocalData } from '@/src/accountStorage';
 import { theme } from '@/src/theme';
@@ -25,6 +28,10 @@ export default function Settings() {
   const [voiceOn, setVoiceOn] = useState(isVoiceReadAloudOn());
   useFocusEffect(useCallback(() => { setVoiceOn(isVoiceReadAloudOn()); }, []));
   const router = useRouter();
+  // Back goes to the screen that opened Settings (Me by default, Ask with ?from=ask).
+  const { from } = useLocalSearchParams<{ from?: string }>();
+  // Android's Back goes where the on-screen arrow goes (not Home).
+  useAndroidBack(() => router.navigate(tabBackTarget(from) as any));
   const [langs, setLangs] = useState<Language[]>([]);
   const [showLang, setShowLang] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
@@ -261,10 +268,7 @@ export default function Settings() {
 
   return (
     <SafeAreaView style={styles.safe} edges={[]} testID="settings-screen">
-      <View style={styles.header}>
-        <Text style={styles.h1}>{t('settings.title', language.code)}</Text>
-        <Text style={styles.h2}>{t('settings.subtitle', language.code)}</Text>
-      </View>
+      <PageTitleRow title={t('settings.title', language.code)} subtitle={t('settings.subtitle', language.code)} onBack={() => router.navigate(tabBackTarget(from) as any)} backTestID="settings-back" testID="settings-title" />
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.profile}>
           <View style={styles.avatar}><Text style={styles.avatarTxt}>{user?.name?.[0]?.toUpperCase() || 'G'}</Text></View>

@@ -6,6 +6,8 @@ import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { tabBackTarget } from '@/src/tabBackTarget';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
+import { useAndroidBack } from '@/src/useAndroidBack';
 import { UI_V22_ONE_SOS } from '@/src/uiV22Flags';
 import { focusRingStyle } from '@/src/a11yFocus';
 import { Bookmark, loadLocal, removeBookmark, syncBookmarks } from '@/src/bookmarks';
@@ -15,6 +17,8 @@ export default function SavedScreen() {
   const { token, user } = useAuth();
   const router = useRouter();
   const { from } = useLocalSearchParams<{ from?: string }>();
+  // Android's Back goes where the on-screen arrow goes (not Home).
+  useAndroidBack(() => router.navigate(tabBackTarget(from) as any));
   const [items, setItems] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -50,15 +54,7 @@ export default function SavedScreen() {
   if (user?.is_guest) {
     return (
       <SafeAreaView style={styles.safe} edges={[]} testID="saved-screen">
-        <View style={styles.header}>
-          <View style={styles.titleRow}>
-            <Pressable testID="saved-back" onPress={() => router.navigate(tabBackTarget(from) as any)} hitSlop={8} style={(s) => [styles.backBtn, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
-              <Ionicons name="chevron-back" size={24} color={theme.colors.primary} />
-            </Pressable>
-            <Text style={styles.h1}>Saved answers</Text>
-          </View>
-          <Text style={[styles.h2, styles.h2Indented]}>Kept on this phone — opens without internet</Text>
-        </View>
+        <PageTitleRow title="Saved answers" subtitle="Kept on this phone — opens without internet" onBack={() => router.navigate(tabBackTarget(from) as any)} backTestID="saved-back" testID="saved-title" />
         <View style={styles.empty}>
           <Ionicons name="lock-closed-outline" size={56} color={theme.colors.brandSecondary} />
           <Text style={styles.emptyTitle}>Create a free account</Text>
@@ -80,15 +76,7 @@ export default function SavedScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={[]} testID="saved-screen">
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Pressable testID="saved-back" onPress={() => router.navigate(tabBackTarget(from) as any)} hitSlop={8} style={(s) => [styles.backBtn, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
-              <Ionicons name="chevron-back" size={24} color={theme.colors.primary} />
-            </Pressable>
-          <Text style={styles.h1}>Saved answers</Text>
-        </View>
-        <Text style={[styles.h2, styles.h2Indented]}>Kept on this phone — opens without internet</Text>
-      </View>
+      <PageTitleRow title="Saved answers" subtitle="Kept on this phone — opens without internet" onBack={() => router.navigate(tabBackTarget(from) as any)} backTestID="saved-back" testID="saved-title" />
 
       {items.length === 0 ? (
         <View style={styles.empty}>

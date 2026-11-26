@@ -7,8 +7,11 @@ import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { tabBackTarget } from '@/src/tabBackTarget';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
+import { useAndroidBack } from '@/src/useAndroidBack';
 import { UI_V22_ONE_SOS } from '@/src/uiV22Flags';
 import { focusRingStyle } from '@/src/a11yFocus';
+import { formatDateTimeDMY } from '@/src/dateFormat';
 
 type Session = { id: string; title: string; updated_at: string; language: string };
 
@@ -18,6 +21,8 @@ export default function History() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { from } = useLocalSearchParams<{ from?: string }>();
+  // Android's Back goes where the on-screen arrow goes (not Home).
+  useAndroidBack(() => router.navigate(tabBackTarget(from) as any));
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -46,15 +51,7 @@ export default function History() {
   if (user?.is_guest) {
     return (
       <SafeAreaView style={styles.safe} edges={[]} testID="history-screen">
-        <View style={styles.header}>
-          <View style={styles.titleRow}>
-            <Pressable testID="history-back" onPress={() => router.navigate(tabBackTarget(from) as any)} hitSlop={8} style={(s) => [styles.backBtn, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
-              <Ionicons name="chevron-back" size={24} color={theme.colors.primary} />
-            </Pressable>
-            <Text style={styles.h1}>Your Conversations</Text>
-          </View>
-          <Text style={[styles.h2, styles.h2Indented]}>Every question you&apos;ve asked, saved.</Text>
-        </View>
+        <PageTitleRow title="Your Conversations" subtitle="Every question you've asked, saved." onBack={() => router.navigate(tabBackTarget(from) as any)} backTestID="history-back" testID="history-title" />
         <View style={styles.empty}>
           <Ionicons name="lock-closed-outline" size={64} color={theme.colors.brandSecondary} />
           <Text style={styles.emptyTitle}>Create a free account</Text>
@@ -69,15 +66,7 @@ export default function History() {
 
   return (
     <SafeAreaView style={styles.safe} edges={[]} testID="history-screen">
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Pressable testID="history-back" onPress={() => router.navigate(tabBackTarget(from) as any)} hitSlop={8} style={(s) => [styles.backBtn, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
-              <Ionicons name="chevron-back" size={24} color={theme.colors.primary} />
-            </Pressable>
-          <Text style={styles.h1}>Your Conversations</Text>
-        </View>
-        <Text style={[styles.h2, styles.h2Indented]}>Every question you&apos;ve asked, saved.</Text>
-      </View>
+      <PageTitleRow title="Your Conversations" subtitle="Every question you've asked, saved." onBack={() => router.navigate(tabBackTarget(from) as any)} backTestID="history-back" testID="history-title" />
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={theme.colors.brand} /></View>
       ) : sessions.length === 0 ? (
@@ -99,7 +88,7 @@ export default function History() {
               <Ionicons name="document-text-outline" size={22} color={theme.colors.brand} />
               <View style={{ flex: 1, marginLeft: theme.spacing.md }}>
                 <Text style={styles.title} numberOfLines={2}>{item.title || 'Untitled'}</Text>
-                <Text style={styles.meta}>{new Date(item.updated_at).toLocaleString()}</Text>
+                <Text style={styles.meta}>{formatDateTimeDMY(item.updated_at)}</Text>
               </View>
               <Pressable testID={`delete-${item.id}`} onPress={() => remove(item.id)} hitSlop={10}>
                 <Ionicons name="trash-outline" size={20} color={theme.colors.error} />

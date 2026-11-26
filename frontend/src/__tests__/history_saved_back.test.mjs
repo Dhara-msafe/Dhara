@@ -13,9 +13,11 @@ const read = p => readFileSync(path.join(root, p), 'utf8');
 for (const [file, id] of [['app/(tabs)/history.tsx', 'history'], ['app/(tabs)/saved.tsx', 'saved']]) {
   test(`${id}: back arrow on the screen (signed in and guest views)`, () => {
     const src = read(file);
-    assert.equal(src.split(`testID="${id}-back"`).length - 1, 2);
+    assert.equal(src.split(`backTestID="${id}-back"`).length - 1, 2);
     assert.match(src, /router\.navigate\(tabBackTarget\(from\) as any\)/);
-    assert.match(src, /accessibilityLabel="Go back"/);
+    // 26 Nov: the arrow is the shared title row's, which carries the label.
+    assert.match(src, new RegExp(`<PageTitleRow [^\\n]*backTestID="${id}-back"`));
+    assert.match(read('src/ui/PageTitleRow.tsx'), /accessibilityLabel="Go back"/);
   });
 }
 

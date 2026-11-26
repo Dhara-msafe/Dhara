@@ -1755,6 +1755,16 @@ export default function ChatScreen() {
     stopRecording();
   }, [stopRecording, micPulse]);
 
+  /** Voice pop-up "Done". A recording started from Home's mic, the Ask tab
+   * or any other autostartMic entry is hands-free (locked), and
+   * onMicPressOut deliberately ignores a locked recording (a lifted finger
+   * must not end it), so Done did nothing there. Finish a locked recording
+   * like the locked bar's checkmark; a held one ends as before. */
+  const onVoiceSheetDone = useCallback(() => {
+    if (lockedRef.current) onLockedFinish();
+    else onMicPressOut();
+  }, [onLockedFinish, onMicPressOut]);
+
   // Consume each explicit voice-entry request once. A navigation tap starts
   // hands-free mode; it must not pretend a finger is still holding the old UI.
   useEffect(() => {
@@ -1975,7 +1985,7 @@ export default function ChatScreen() {
           elapsedSeconds={holdElapsed}
           level={voiceLevel}
           languageName={language.native}
-          onDone={onMicPressOut}
+          onDone={onVoiceSheetDone}
           onCancel={onLockedCancel}
         />
       )}
@@ -2018,7 +2028,7 @@ export default function ChatScreen() {
         <Pressable
           testID="header-lang-chip"
           style={(s) => [styles.toolChip, focusRingStyle(s)]}
-          onPress={() => router.push('/(tabs)/settings')}
+          onPress={() => router.push('/(tabs)/settings?from=ask' as any)}
           hitSlop={{ top: 6, bottom: 6 }}
           accessibilityRole="button"
           accessibilityLabel={`Change language. Current language: ${language.native}`}

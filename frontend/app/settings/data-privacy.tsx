@@ -15,7 +15,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator, Alert, Switch, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { UI_V22_P10 } from '@/src/uiV22Flags';
@@ -27,6 +27,8 @@ import { goBackOr } from '@/src/goBackOr';
 // NF-UI-REV-12 (Group J, DHARA UI Revision v2.2.1): presentation-only
 // rollback flag + visible keyboard-focus ring + missing a11y labels.
 import { UI_REVISION_V1 } from '@/src/designRevision';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
+import { backFromMe } from '@/src/meBack';
 import { focusRingStyle } from '@/src/a11yFocus';
 // B-70: the grievance officer used to be hardcoded here as its own local
 // value, different from the consent screen, my-data.tsx and /grievance. Now
@@ -105,6 +107,7 @@ function p10ChipTone(on: boolean) {
 
 export default function DataPrivacyScreen() {
   const router = useRouter();
+  const { from } = useLocalSearchParams<{ from?: string }>();
   const { token } = useAuth();
 
   const [sec1Open, setSec1Open] = useState(false);
@@ -308,19 +311,13 @@ export default function DataPrivacyScreen() {
 
   const handleDeleteAccount = () => {
     // Route to existing Danger Zone in main settings — deletion is not built here
-    router.push('/(tabs)/settings' as any);
+    router.push('/(tabs)/settings?from=me' as any);
   };
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>
       {/* ── Header ── */}
-      <View style={styles.header}>
-        <Pressable onPress={() => goBackOr(router, '/(tabs)/settings')} hitSlop={8} style={(s) => [styles.backBtn, focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
-          <Ionicons name="chevron-back" size={24} color={PRIMARY} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Data &amp; Privacy</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <PageTitleRow title="Data & Privacy" onBack={() => backFromMe(router, from, () => goBackOr(router, '/(tabs)/settings'))} testID="data-privacy-title" />
 
       <ScrollView
         style={styles.scroll}

@@ -19,7 +19,7 @@ export default function LookupHub() {
   const router = useRouter();
   return <SafeAreaView testID="lookup-hub" edges={[]} style={styles.safe}>
     <View style={styles.header}><View style={styles.heading}><Text testID="lookup-hub-title" style={styles.title}>Lookup</Text><Text testID="lookup-hub-subtitle" style={styles.subtitle}>Your legal discovery tools</Text></View>
-      <Pressable testID="lookup-profile" accessibilityRole="button" accessibilityLabel="Your profile" style={styles.profile} onPress={() => router.push('/(tabs)/settings')}><Ionicons name="person-outline" size={23} color={colors.primary} /></Pressable>
+      <Pressable testID="lookup-profile" accessibilityRole="button" accessibilityLabel="Your profile" style={styles.profile} onPress={() => router.push('/(tabs)/settings?from=me' as any)}><Ionicons name="person-outline" size={23} color={colors.primary} /></Pressable>
     </View>
     <ScrollView testID="lookup-tools" contentContainerStyle={styles.content}>
       {tools.map(tool => <Pressable key={tool.id} testID={`lookup-${tool.id}`} accessibilityRole="button" onPress={() => router.push(tool.route)} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
