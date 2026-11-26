@@ -96,7 +96,7 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
   // user interacts), so Unlock said "Enter at least 4 digits". On submit we
   // read the box's real value — Chrome releases it on that tap — and use it
   // only if it is 4–6 digits (an autofilled account password is ignored).
-  const pinInputRef = useRef<TextInput>(null);
+  const pinInputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
 
   useEffect(() => {
     hasPin()
@@ -1435,7 +1435,7 @@ export default function EvidenceLocker() {
         </Pressable>
       </Modal>
       {/* B5 (Phase 0.5): Change PIN modal — requires current PIN */}
-      <Modal visible={changePinVisible} transparent animationType="fade" onRequestClose={() => !cpBusy && setChangePinVisible(false)}>
+      <Modal visible={changePinVisible} transparent animationType="fade" onRequestClose={() => { if (!cpBusy) setChangePinVisible(false); }}>
         <Pressable style={styles.modalBackdrop} onPress={() => !cpBusy && setChangePinVisible(false)}>
           <Pressable style={styles.modalCard} onPress={e => e.stopPropagation()}>
             <Text style={styles.modalTitle}>Change PIN</Text>

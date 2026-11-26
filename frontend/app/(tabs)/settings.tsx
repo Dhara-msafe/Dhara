@@ -695,7 +695,7 @@ export default function Settings() {
         visible={showDeleteModal}
         transparent
         animationType="slide"
-        onRequestClose={() => (deleteLoading ? null : setShowDeleteModal(false))}
+        onRequestClose={() => { if (!deleteLoading) setShowDeleteModal(false); }}
         testID="delete-account-modal"
       >
         <Pressable

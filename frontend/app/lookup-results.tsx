@@ -306,7 +306,7 @@ export default function LookupResults() {
                   Showing all-India matches for this name. Use the state/district above as a guide to identify the right case.
                 </Text>
               </View>
-            ) : null
+            ) : undefined
           }
           ListEmptyComponent={
             <View style={styles.center}>
@@ -324,7 +324,7 @@ export default function LookupResults() {
                   Data sourced from eCourtsIndia public records. Please verify with your court before relying on this for legal action.
                 </Text>
               )
-            ) : null
+            ) : undefined
           }
         />
       )}

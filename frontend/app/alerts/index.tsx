@@ -102,7 +102,7 @@ export default function AlertsInbox() {
             <Ionicons name="notifications-outline" size={36} color={c.muted} />
             <Text style={styles.emptyTxt}>Nothing here yet.</Text>
           </View>
-        ) : null}
+        ) : undefined}
         renderItem={({ item }) => {
           const isInvite = item.kind === 'invite';
           const unread = isInvite ? true : !item.data.read_at;

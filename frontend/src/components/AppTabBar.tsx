@@ -1,7 +1,7 @@
 import { View, Text, Pressable, StyleSheet, useWindowDimensions, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import type { EdgeInsets } from 'react-native-safe-area-context';
 import { theme } from '../theme';
 import { useAuth } from '../auth';
 import { tr } from '../ui18n';
@@ -9,6 +9,17 @@ import { DisclaimerBanner } from './DisclaimerBanner';
 import { FONT_SCALE_CAP } from '../ui/sizeClass';
 
 const c = theme.colors;
+
+// expo-router 58 passes `navigateToTab` instead of `navigation` on its tabBar callback.
+// Use a loose structural type so the assignment is compatible with any tabBar prop signature.
+type TabBarProps = {
+  state: {
+    routes: Array<{ key: string; name: string; params?: object }>;
+    index: number;
+  };
+  navigateToTab: (routeKey: string) => void;
+  insets: EdgeInsets;
+};
 
 type Slot = { name: string; key: string; icon: any; activeIcon: any };
 const LEFT: Slot[] = [
@@ -20,7 +31,7 @@ const RIGHT: Slot[] = [
   { name: 'me',      key: 'nav.me',      icon: 'person-outline', activeIcon: 'person' },
 ];
 
-export function AppTabBar({ state, navigation }: BottomTabBarProps) {
+export function AppTabBar({ state, navigateToTab }: TabBarProps) {
   const router = useRouter();
   const { language } = useAuth();
   const { width } = useWindowDimensions();
@@ -32,7 +43,7 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
   if (Platform.OS === 'web' && width >= 768) return null;
 
   const renderTab = (slot: Slot) => {
-    const route = state.routes.find(r => r.name === slot.name);
+    const route = state.routes.find((r) => r.name === slot.name);
     if (!route) return null;
     const focused = state.routes[state.index].key === route.key;
     return (
@@ -43,10 +54,7 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
         accessibilityState={{ selected: focused }}
         accessibilityLabel={tr(slot.key, lang)}
         style={({ pressed }) => [styles.tab, pressed && { opacity: 0.65 }]}
-        onPress={() => {
-          const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-          if (!focused && !event.defaultPrevented) navigation.navigate(route.name, route.params as any);
-        }}
+        onPress={() => { if (!focused) navigateToTab(route.key); }}
       >
         <Ionicons name={focused ? slot.activeIcon : slot.icon} size={23} color={focused ? c.blue : c.tabInactive} />
         <Text style={[styles.label, focused && styles.labelActive]} numberOfLines={1} maxFontSizeMultiplier={FONT_SCALE_CAP.chrome}>{tr(slot.key, lang)}</Text>
