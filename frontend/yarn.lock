@@ -4088,7 +4088,7 @@ expo-system-ui@~55.0.22:
     "@react-native/normalize-colors" "0.83.10"
     debug "^4.3.2"
 
-expo-task-manager@~55.0.6:
+expo-task-manager@~55.0.20:
   version "55.0.20"
   resolved "https://registry.yarnpkg.com/expo-task-manager/-/expo-task-manager-55.0.20.tgz#952fae5a597c93fd2295efef4f21cb894f6c81ad"
   integrity sha512-yxiERbkqibZYDArQ1QKbezKn7YkCxLyaDeiIO8DcyOqopBvUmXDkF3b7FtesW+YnAlg3g223geV8YiW1I4Suew==
