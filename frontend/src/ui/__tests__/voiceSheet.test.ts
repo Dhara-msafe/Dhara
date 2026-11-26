@@ -21,7 +21,9 @@ test('voice pop-up: rings move by scale only, and respect reduce-motion', () => 
 
 test('Ask screen: pop-up is on by default with an off switch, old mic kept', () => {
   assert.match(ask, /const VOICE_SHEET = process\.env\.EXPO_PUBLIC_VOICE_SHEET !== 'false';/);
-  assert.match(ask, /onDone=\{onMicPressOut\}/);
+  // VOICE-DONE-01 (26 Nov): Done finishes a hands-free (locked) recording too.
+  assert.match(ask, /onDone=\{onVoiceSheetDone\}/);
+  assert.match(ask, /if \(lockedRef\.current\) onLockedFinish\(\);\s*else onMicPressOut\(\);/);
   assert.match(ask, /onCancel=\{onLockedCancel\}/);
   assert.match(ask, /\(Platform\.OS === 'web' \|\| VOICE_SHEET\) \? \(/);
   assert.match(ask, /micPanResponder/, 'press-and-hold code stays for the off switch');

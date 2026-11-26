@@ -44,6 +44,9 @@
  *   /app/memory/dhara_evidence/EVIDENCE_OOM_DESIGN.md
  */
 import { File } from 'expo-file-system';
+// 26 Nov (Vivek): expo-file-system 58 made write/writeBytes run in the background
+// (they return a Promise). The *Sync forms keep the SDK 55 behaviour: the file is
+// fully written before the next line runs (player / share / close / offset).
 import * as aesjs from 'aes-js';
 import * as Crypto from 'expo-crypto';
 import { getOrCreateKey } from './evidenceCrypto';
@@ -199,7 +202,7 @@ export async function encryptFileChunked(
   const headerPlaceholder = new Uint8Array(HEADER_SIZE);
   headerPlaceholder.set(ivBytes, 0);
   new DataView(headerPlaceholder.buffer).setUint32(48, chunkCount, false);
-  destFile.write(headerPlaceholder); // creates the file on disk
+  destFile.writeSync(headerPlaceholder); // creates the file on disk
 
   const dstHandle = destFile.open();
   dstHandle.offset = HEADER_SIZE;
@@ -221,10 +224,10 @@ export async function encryptFileChunked(
       const mac         = await computeChunkMac(iKey, oKey, i, cipherChunk);
       chunkMacs.push(mac);
 
-      dstHandle.writeBytes(u32be(i));
-      dstHandle.writeBytes(u32be(cipherChunk.length));
-      dstHandle.writeBytes(mac);
-      dstHandle.writeBytes(cipherChunk);
+      dstHandle.writeBytesSync(u32be(i));
+      dstHandle.writeBytesSync(u32be(cipherChunk.length));
+      dstHandle.writeBytesSync(mac);
+      dstHandle.writeBytesSync(cipherChunk);
 
       bytesProcessed += chunkSize;
     }
@@ -232,7 +235,7 @@ export async function encryptFileChunked(
     // Write root HMAC into the placeholder slot in the header.
     const rootMac = await computeRootMac(hmacKey, ivBytes, chunkCount, chunkMacs);
     dstHandle.offset = 16; // seek back — always within file size at this point
-    dstHandle.writeBytes(rootMac);
+    dstHandle.writeBytesSync(rootMac);
 
     return ivHex;
   } catch (err) {
@@ -267,7 +270,7 @@ export async function decryptFileChunked(
   const srcHandle = new File(cipherUri).open();
 
   // Create an empty temp file so the FileHandle can open it.
-  tempFile.write(new Uint8Array(0));
+  tempFile.writeSync(new Uint8Array(0));
   const dstHandle = tempFile.open();
   dstHandle.offset = 0;
 
@@ -325,7 +328,7 @@ export async function decryptFileChunked(
 
       // Decrypt and write only after MAC passes
       const plainChunk = aesCtr.decrypt(cipherChunk);
-      dstHandle.writeBytes(plainChunk);
+      dstHandle.writeBytesSync(plainChunk);
     }
 
     // ── Root HMAC verification ────────────────────────────────────────────

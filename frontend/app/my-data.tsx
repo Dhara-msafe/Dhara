@@ -24,6 +24,9 @@ import { useAuth, API_BASE } from '@/src/auth';
 import { theme } from '@/src/theme';
 import { goBackOr } from '@/src/goBackOr';
 import { File, Paths } from 'expo-file-system';
+// 26 Nov (Vivek): expo-file-system 58 made write/writeBytes run in the background
+// (they return a Promise). The *Sync forms keep the SDK 55 behaviour: the file is
+// fully written before the next line runs (player / share / close / offset).
 import * as Sharing from 'expo-sharing';
 // NF-UI-REV-12 (Group J, DHARA UI Revision v2.2.1): presentation-only
 // rollback flag + visible keyboard-focus ring + missing a11y labels. No
@@ -117,7 +120,7 @@ export default function MyDataScreen() {
         // share, then always delete the temp file — export contents unchanged.
         const tempFile = new File(Paths.cache, `dhara-my-data-${Date.now()}.json`);
         try {
-          tempFile.write(jsonStr);
+          tempFile.writeSync(jsonStr);
           const canShare = await Sharing.isAvailableAsync();
           if (canShare) {
             await Sharing.shareAsync(tempFile.uri, {

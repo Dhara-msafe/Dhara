@@ -16,6 +16,9 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { File, Paths } from 'expo-file-system';
+// 26 Nov (Vivek): expo-file-system 58 made write/writeBytes run in the background
+// (they return a Promise). The *Sync forms keep the SDK 55 behaviour: the file is
+// fully written before the next line runs (player / share / close / offset).
 import * as DocumentPicker from 'expo-document-picker';
 import { API_BASE, useAuth } from '@/src/auth';
 import {
@@ -1261,7 +1264,7 @@ ${data.bot_message}`);
         const file = new File(Paths.cache, `dhara-fir-tts-${msgId}-${index}.mp3`);
         try { file.delete(); } catch {}
         file.create();
-        file.write(b64, { encoding: 'base64' });
+        file.writeSync(b64, { encoding: 'base64' });
         return { uri: file.uri, cleanup: () => { try { file.delete(); } catch {} } };
       },
       createPlayer: (uri: string) => {

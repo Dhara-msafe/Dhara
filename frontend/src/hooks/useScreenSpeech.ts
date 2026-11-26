@@ -2,6 +2,9 @@ import { useCallback, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { File, Paths } from 'expo-file-system';
+// 26 Nov (Vivek): expo-file-system 58 made write/writeBytes run in the background
+// (they return a Promise). The *Sync forms keep the SDK 55 behaviour: the file is
+// fully written before the next line runs (player / share / close / offset).
 import { setAudioModeAsync } from 'expo-audio';
 import { useAuth } from '../auth';
 import { API_BASE } from '../apiBase';
@@ -27,7 +30,7 @@ async function writeAudioBuffer(
   file.create();
   // file.write(Uint8Array) is supported in expo-file-system ≥19 (SDK 54).
   // Cast via unknown to satisfy strict-null checks; the runtime type is correct.
-  (file.write as (c: Uint8Array) => void)(new Uint8Array(buffer));
+  (file.writeSync as (c: Uint8Array) => void)(new Uint8Array(buffer));
   return {
     uri: file.uri,
     cleanup: () => {
