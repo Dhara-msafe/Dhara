@@ -7,6 +7,7 @@ import { UI_V22_S2 } from '../../uiV22Flags';
 import { SosPill112, useLightStatusBar } from '../../ui/kit';
 import { useAutoHeaderShown } from '../../ui/AutoHeader';
 import { PageTitleRow } from '../../ui/PageTitleRow';
+import { FONT_SCALE_CAP } from '../../ui/sizeClass';
 
 const c = theme.colors;
 
@@ -28,8 +29,8 @@ export function ScreenHeader({ title, subtitle }: { title: string; subtitle?: st
         <Ionicons name="chevron-back" size={24} color="#fff" />
       </Pressable>
       <View style={{ flex: 1 }}>
-        <Text style={styles.title} numberOfLines={2}>{title}</Text>
-        {subtitle ? <Text style={styles.sub} numberOfLines={1}>{subtitle}</Text> : null}
+        <Text style={styles.title} numberOfLines={2} maxFontSizeMultiplier={FONT_SCALE_CAP.chrome}>{title}</Text>
+        {subtitle ? <Text style={styles.sub} numberOfLines={2} maxFontSizeMultiplier={FONT_SCALE_CAP.chrome}>{subtitle}</Text> : null}
       </View>
       {/* Redesign v3: SOS lives in the header on every screen (was a strip
           at the bottom of the screen). */}

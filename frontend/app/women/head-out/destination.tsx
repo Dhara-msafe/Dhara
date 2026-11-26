@@ -40,6 +40,7 @@ import { useHeadOutWizard } from '@/src/women/headOutWizardStore';
 import { getRecentDestinations, recordRecentDestination, type RecentDestination } from '@/src/women/headOutRecents';
 import type { DestinationValue } from '@/src/women/DestinationPicker';
 import { useLivePosition } from '@/src/women/useLivePosition';
+import { FONT_SCALE_CAP } from '@/src/ui/sizeClass';
 
 const c = theme.colors;
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -534,7 +535,7 @@ export default function ChooseDestination() {
       <StepStrip step={1} total={3} />
       <ScrollView scrollEnabled={!mapActive} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + headOutBottomGutter(110) }]} keyboardShouldPersistTaps="handled">
 
-        <Text style={styles.fieldLabel}>Where are you going?</Text>
+        <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.fieldLabel}>Where are you going?</Text>
         <View style={styles.searchRow}>
           <Ionicons name="search" size={18} color={c.muted} />
           <TextInput
@@ -559,7 +560,7 @@ export default function ChooseDestination() {
         {showAddressDropdown && addressSuggestions.length > 0 && (
           <View style={styles.suggestionsBox} testID="headout-address-suggestions">
             {suggestionSource === 'osm' && (
-              <Text style={styles.sourceNote} testID="headout-osm-source-note">
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.sourceNote} testID="headout-osm-source-note">
                 Showing OpenStreetMap results — Google address search is currently unavailable
               </Text>
             )}
@@ -573,7 +574,7 @@ export default function ChooseDestination() {
                 accessibilityLabel={`Select address ${s.label}`}
               >
                 <Ionicons name="location-outline" size={15} color={c.muted} />
-                <Text style={styles.suggestionTxt} numberOfLines={2}>{s.label}</Text>
+                <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.suggestionTxt} numberOfLines={2}>{s.label}</Text>
               </Pressable>
             ))}
           </View>
@@ -593,7 +594,7 @@ export default function ChooseDestination() {
               accessibilityRole="tab"
               accessibilityState={{ selected: tab === t.key }}
             >
-              <Text style={[styles.tabTxt, tab === t.key && styles.tabTxtActive]}>{t.label}</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={[styles.tabTxt, tab === t.key && styles.tabTxtActive]}>{t.label}</Text>
             </Pressable>
           ))}
         </View>
@@ -602,10 +603,10 @@ export default function ChooseDestination() {
           <View style={styles.listSection}>
             {loadingSaved && <ActivityIndicator size="small" color={c.muted} style={{ marginVertical: 10 }} />}
             {!loadingSaved && !authToken && (
-              <Text style={styles.emptyTxt}>Sign in to see and save your places.</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.emptyTxt}>Sign in to see and save your places.</Text>
             )}
             {!loadingSaved && authToken && filteredSaved.length === 0 && (
-              <Text style={styles.emptyTxt}>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.emptyTxt}>
                 {savedPlaces.length === 0 ? 'No saved places yet — manage these from Trusted Circle settings.' : 'No saved places match your search.'}
               </Text>
             )}
@@ -619,7 +620,7 @@ export default function ChooseDestination() {
                 accessibilityLabel={`${p.label}, ${p.radius_label} arrival area`}
               >
                 <View style={styles.placeIcon}><Ionicons name={iconForLabel(p.label)} size={18} color={c.navy} /></View>
-                <Text style={styles.placeLabel}>{p.label}</Text>
+                <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.placeLabel}>{p.label}</Text>
               </Pressable>
             ))}
             <Pressable
@@ -630,7 +631,7 @@ export default function ChooseDestination() {
               accessibilityLabel="Use typed text as a custom destination"
             >
               <Ionicons name="add-circle-outline" size={20} color={c.darkGold} />
-              <Text style={styles.customTxt}>Add a custom destination</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.customTxt}>Add a custom destination</Text>
             </Pressable>
           </View>
         )}
@@ -638,7 +639,7 @@ export default function ChooseDestination() {
         {tab === 'recent' && (
           <View style={styles.listSection}>
             {filteredRecents.length === 0 && (
-              <Text style={styles.emptyTxt}>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.emptyTxt}>
                 {recents.length === 0 ? 'Destinations you use show up here.' : 'No recent destinations match your search.'}
               </Text>
             )}
@@ -652,17 +653,17 @@ export default function ChooseDestination() {
                 accessibilityLabel={r.label}
               >
                 <View style={styles.placeIcon}><Ionicons name="time-outline" size={18} color={c.navy} /></View>
-                <Text style={styles.placeLabel}>{r.label}</Text>
+                <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.placeLabel}>{r.label}</Text>
               </Pressable>
             ))}
           </View>
         )}
 
         {tab === 'map' && (
-          <Text style={styles.mapHint}>Tap or drag the pin on the map below to set your destination.</Text>
+          <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.mapHint}>Tap or drag the pin on the map below to set your destination.</Text>
         )}
 
-        <Text style={styles.fieldLabel}>Pin location (optional)</Text>
+        <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.fieldLabel}>Pin location (optional)</Text>
 
         {/* ── Use my current location ─────────────────────────────────── */}
         <Pressable
@@ -682,7 +683,7 @@ export default function ChooseDestination() {
             size={18}
             color={live.status === 'granted' ? c.navy : c.darkGold}
           />
-          <Text style={[styles.locationBtnTxt, live.status === 'granted' && coordsAreDefaultUi && styles.locationBtnTxtActive]}>
+          <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={[styles.locationBtnTxt, live.status === 'granted' && coordsAreDefaultUi && styles.locationBtnTxtActive]}>
             {live.status === 'granted' && coordsAreDefaultUi && value.latitude != null
               ? 'Using your location'
               : live.status === 'granted' && value.label.trim()
@@ -696,19 +697,19 @@ export default function ChooseDestination() {
 
         {/* Status line — only shown when there is something worth telling the user */}
         {live.status === 'asking' && !locationTimedOut && (
-          <Text style={styles.locationStatus}>Getting your location…</Text>
+          <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.locationStatus}>Getting your location…</Text>
         )}
         {locationTimedOut && (
-          <Text style={styles.locationStatusWarn}>Could not get your location. Tap to retry.</Text>
+          <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.locationStatusWarn}>Could not get your location. Tap to retry.</Text>
         )}
         {live.status === 'denied' && (
-          <Text style={styles.locationStatusWarn}>
+          <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.locationStatusWarn}>
             Location access denied. Tap the button above to try again.
           </Text>
         )}
         {live.status === 'blocked' && (
           <View style={styles.locationBlockedRow}>
-            <Text style={styles.locationStatusWarn}>Location access is blocked.</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.locationStatusWarn}>Location access is blocked.</Text>
             {live.canOpenSettings && (
               <Pressable
                 testID="headout-dest-open-settings"
@@ -717,13 +718,13 @@ export default function ChooseDestination() {
                 accessibilityRole="button"
                 accessibilityLabel="Open settings to allow location access"
               >
-                <Text style={styles.openSettingsTxt}>Open settings</Text>
+                <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.openSettingsTxt}>Open settings</Text>
               </Pressable>
             )}
           </View>
         )}
         {live.status === 'unavailable' && (
-          <Text style={styles.locationStatusWarn}>Location is not available on this device.</Text>
+          <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.locationStatusWarn}>Location is not available on this device.</Text>
         )}
 
         <DestinationMapPicker
@@ -741,8 +742,8 @@ export default function ChooseDestination() {
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
         {pendingConfirm ? (
           <View testID="headout-confirm-point" style={styles.confirmBox}>
-            <Text style={styles.confirmTitle}>Is this the right spot?</Text>
-            <Text style={styles.confirmMatch} numberOfLines={2}>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.confirmTitle}>Is this the right spot?</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.confirmMatch} numberOfLines={2}>
               Best match for “{value.label.trim()}”: {pendingConfirm.matchedLabel}. The pin on the map shows it — you can drag it to adjust.
             </Text>
             <View style={styles.confirmBtnRow}>
@@ -753,7 +754,7 @@ export default function ChooseDestination() {
                 accessibilityRole="button"
                 accessibilityLabel="Yes, that is the spot — continue"
               >
-                <Text style={styles.nextBtnTxt}>Yes, that’s the spot</Text>
+                <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.nextBtnTxt}>Yes, that’s the spot</Text>
               </Pressable>
               <Pressable
                 testID="headout-confirm-point-no"
@@ -762,7 +763,7 @@ export default function ChooseDestination() {
                 accessibilityRole="button"
                 accessibilityLabel="No — continue without a map point"
               >
-                <Text style={styles.confirmNoTxt}>No — continue without a map point</Text>
+                <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.confirmNoTxt}>No — continue without a map point</Text>
               </Pressable>
             </View>
           </View>
@@ -777,7 +778,7 @@ export default function ChooseDestination() {
           >
             {geocoding
               ? <ActivityIndicator size="small" color="#FFFFFF" />
-              : <Text style={styles.nextBtnTxt}>Next</Text>}
+              : <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.nextBtnTxt}>Next</Text>}
           </Pressable>
         )}
       </View>

@@ -42,6 +42,7 @@ import { openExternal } from '@/src/outbound';
 // keyboard-focus ring only — accessibility roles/labels/touch-targets were
 // already compliant on this screen. No journey/GPS/alert logic changes.
 import { focusRingStyle } from '@/src/a11yFocus';
+import { FONT_SCALE_CAP } from '@/src/ui/sizeClass';
 const c = theme.colors;
 const GUARDIAN_SHARE_ENABLED   = process.env.EXPO_PUBLIC_GUARDIAN_SHARE === 'true';
 // GO1B: Live GPS tracking — default OFF; guardian status page shows last known area
@@ -1202,8 +1203,8 @@ export default function HeadOut() {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface, padding: 18, gap: 10 }} testID="headout-marked-safe">
         <Ionicons name="checkmark-circle" size={56} color={c.verifiedGreen} />
-        <Text style={styles.activeTitle}>{"You're marked safe"}</Text>
-        <Text style={[styles.note, { textAlign: 'center' }]}>
+        <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={styles.activeTitle}>{"You're marked safe"}</Text>
+        <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={[styles.note, { textAlign: 'center' }]}>
           Your journey has ended. If your Trusted Circle was following it, they can no longer see your location.
         </Text>
         <Pressable
@@ -1217,7 +1218,7 @@ export default function HeadOut() {
           accessibilityRole="button"
           accessibilityLabel="Done"
         >
-          <Text style={styles.buttonText}>Done</Text>
+          <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={styles.buttonText}>Done</Text>
         </Pressable>
         <Pressable
           testID="headout-safe-new-journey"
@@ -1226,7 +1227,7 @@ export default function HeadOut() {
           accessibilityRole="button"
           accessibilityLabel="Plan another journey"
         >
-          <Text style={[styles.linkTxt, styles.linkTxtUnderline]}>Plan another journey</Text>
+          <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={[styles.linkTxt, styles.linkTxtUnderline]}>Plan another journey</Text>
         </Pressable>
       </View>
     );
@@ -1240,26 +1241,26 @@ export default function HeadOut() {
   const hasCircleRecipients = (session.recipientLinkIds?.length ?? 0) > 0;
 
   return (
+    <View style={styles.root}>
+      {/* 26 Nov: the header stays fixed above the scroll, edge to edge, so
+          content never slides under the status bar. */}
+      <ScreenHeader
+        title="Head out safely"
+        subtitle={authToken ? 'Your trusted circle is told only as per your settings' : 'Set a check-in timer — nothing is sent automatically'}
+      />
     <ScrollView
-      style={styles.root}
+      style={{ flex: 1 }}
       contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + headOutBottomGutter(32) }]}
       keyboardShouldPersistTaps="handled"
       testID="head-out-screen"
     >
-      {/* Stage 10: the header sits inside the padded scroll, so pull it out to the screen edges. */}
-      <View style={{ marginHorizontal: -16, marginTop: -16 }}>
-        <ScreenHeader
-          title="Head out safely"
-          subtitle={authToken ? 'Your trusted circle is told only as per your settings' : 'Set a check-in timer — nothing is sent automatically'}
-        />
-      </View>
 
       {/* ── Demo controller banner — QA only, never shown in production ──── */}
       {HEADOUT_DEMO_ENABLED && (
         <View style={styles.demoBanner} testID="headout-demo-banner">
           <View style={styles.demoBannerHeader}>
             <Ionicons name="flask-outline" size={14} color="#8A6A1E" />
-            <Text style={styles.demoBannerTitle}>Demo mode · simulated location, nothing is sent</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.demoBannerTitle}>Demo mode · simulated location, nothing is sent</Text>
           </View>
           <View style={styles.demoBtnRow}>
             <Pressable
@@ -1269,7 +1270,7 @@ export default function HeadOut() {
               accessibilityRole="button"
               accessibilityLabel="Demo: start simulated route"
             >
-              <Text style={styles.demoBtnTxt}>Start route</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.demoBtnTxt}>Start route</Text>
             </Pressable>
             <Pressable
               testID="headout-demo-enter-zone"
@@ -1278,7 +1279,7 @@ export default function HeadOut() {
               accessibilityRole="button"
               accessibilityLabel="Demo: enter arrival zone"
             >
-              <Text style={styles.demoBtnTxt}>Enter arrival zone</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.demoBtnTxt}>Enter arrival zone</Text>
             </Pressable>
             <Pressable
               testID="headout-demo-off-route"
@@ -1287,7 +1288,7 @@ export default function HeadOut() {
               accessibilityRole="button"
               accessibilityLabel="Demo: go off route"
             >
-              <Text style={styles.demoBtnTxt}>Go off route</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.demoBtnTxt}>Go off route</Text>
             </Pressable>
             <Pressable
               testID="headout-demo-miss-checkin"
@@ -1296,7 +1297,7 @@ export default function HeadOut() {
               accessibilityRole="button"
               accessibilityLabel="Demo: miss check-in"
             >
-              <Text style={styles.demoBtnTxt}>Miss check-in</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.demoBtnTxt}>Miss check-in</Text>
             </Pressable>
           </View>
         </View>
@@ -1307,8 +1308,8 @@ export default function HeadOut() {
         <View style={styles.alarmPendingBanner} testID="headout-alarm-connecting" accessibilityLiveRegion="polite">
           <Ionicons name="sync-outline" size={18} color="#8A6A1E" />
           <View style={{ flex: 1 }}>
-            <Text style={styles.alarmBannerTitle}>{ALARM_COPY.connecting.title}</Text>
-            <Text style={styles.alarmBannerBody}>{ALARM_COPY.connecting.body}</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.alarmBannerTitle}>{ALARM_COPY.connecting.title}</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.alarmBannerBody}>{ALARM_COPY.connecting.body}</Text>
           </View>
         </View>
       )}
@@ -1316,8 +1317,8 @@ export default function HeadOut() {
         <View style={styles.alarmOffBanner} testID="headout-alarm-not-active" accessibilityRole="alert">
           <Ionicons name="warning-outline" size={20} color={c.emergencyRed} />
           <View style={{ flex: 1 }}>
-            <Text style={[styles.alarmBannerTitle, { color: c.emergencyRed }]}>{ALARM_COPY.not_active.title}</Text>
-            <Text style={styles.alarmBannerBody}>{ALARM_COPY.not_active.body}</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={[styles.alarmBannerTitle, { color: c.emergencyRed }]}>{ALARM_COPY.not_active.title}</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.alarmBannerBody}>{ALARM_COPY.not_active.body}</Text>
             <Pressable
               testID="headout-alarm-retry"
               disabled={creatingJourney}
@@ -1326,7 +1327,7 @@ export default function HeadOut() {
               accessibilityRole="button"
               accessibilityLabel="Try again to reach DHARA's server"
             >
-              <Text style={styles.alarmRetryTxt}>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.alarmRetryTxt}>
                 {creatingJourney ? ALARM_COPY.not_active.retrying : ALARM_COPY.not_active.retry}
               </Text>
             </Pressable>
@@ -1339,8 +1340,8 @@ export default function HeadOut() {
         <View style={styles.alarmOffBanner} testID="headout-journey-closed" accessibilityRole="alert">
           <Ionicons name="information-circle-outline" size={20} color={c.emergencyRed} />
           <View style={{ flex: 1 }}>
-            <Text style={[styles.alarmBannerTitle, { color: c.emergencyRed }]}>This journey has ended</Text>
-            <Text style={styles.alarmBannerBody}>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={[styles.alarmBannerTitle, { color: c.emergencyRed }]}>This journey has ended</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.alarmBannerBody}>
               DHARA&apos;s server closed it, so your location is no longer being shared and no one will
               be alerted for it. Start a new journey if you are still on your way.
             </Text>
@@ -1353,8 +1354,8 @@ export default function HeadOut() {
         <View style={styles.alarmOffBanner} testID="headout-safe-pending" accessibilityRole="alert">
           <Ionicons name="warning-outline" size={20} color={c.emergencyRed} />
           <View style={{ flex: 1 }}>
-            <Text style={[styles.alarmBannerTitle, { color: c.emergencyRed }]}>{CLOSE_COPY.safe_pending.title}</Text>
-            <Text style={styles.alarmBannerBody}>{CLOSE_COPY.safe_pending.body}</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={[styles.alarmBannerTitle, { color: c.emergencyRed }]}>{CLOSE_COPY.safe_pending.title}</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.alarmBannerBody}>{CLOSE_COPY.safe_pending.body}</Text>
             <Pressable
               testID="headout-safe-retry"
               disabled={closingJourney}
@@ -1363,7 +1364,7 @@ export default function HeadOut() {
               accessibilityRole="button"
               accessibilityLabel="Try again to tell DHARA's server you are safe"
             >
-              <Text style={styles.alarmRetryTxt}>{closingJourney ? CLOSE_COPY.retrying : CLOSE_COPY.retry}</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.alarmRetryTxt}>{closingJourney ? CLOSE_COPY.retrying : CLOSE_COPY.retry}</Text>
             </Pressable>
           </View>
         </View>
@@ -1372,8 +1373,8 @@ export default function HeadOut() {
         <View style={styles.alarmOffBanner} testID="headout-revoke-pending" accessibilityRole="alert">
           <Ionicons name="warning-outline" size={20} color={c.emergencyRed} />
           <View style={{ flex: 1 }}>
-            <Text style={[styles.alarmBannerTitle, { color: c.emergencyRed }]}>{CLOSE_COPY.revoke_pending.title}</Text>
-            <Text style={styles.alarmBannerBody}>{CLOSE_COPY.revoke_pending.body}</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={[styles.alarmBannerTitle, { color: c.emergencyRed }]}>{CLOSE_COPY.revoke_pending.title}</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.alarmBannerBody}>{CLOSE_COPY.revoke_pending.body}</Text>
             <Pressable
               testID="headout-revoke-retry"
               disabled={revokingShare}
@@ -1382,7 +1383,7 @@ export default function HeadOut() {
               accessibilityRole="button"
               accessibilityLabel="Try again to stop sharing"
             >
-              <Text style={styles.alarmRetryTxt}>{revokingShare ? CLOSE_COPY.retrying : CLOSE_COPY.retry}</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.alarmRetryTxt}>{revokingShare ? CLOSE_COPY.retrying : CLOSE_COPY.retry}</Text>
             </Pressable>
           </View>
         </View>
@@ -1391,8 +1392,8 @@ export default function HeadOut() {
       {expired ? (
             <View style={[styles.activeCard, styles.expiredCard]} testID="headout-expired-card">
               <Ionicons name="cloud-offline-outline" size={32} color={c.emergencyRed} />
-              <Text style={styles.expiredTitle}>Check-in not received</Text>
-              <Text style={styles.note}>{"We haven't received your check-in."}</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={styles.expiredTitle}>Check-in not received</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.note}>{"We haven't received your check-in."}</Text>
 
               {GO1B_GPS_ENABLED && (
                 <View style={styles.statusCard} testID="headout-phone-status">
@@ -1401,8 +1402,8 @@ export default function HeadOut() {
                     size={20} color={gps.lastFixAt && Date.now() - gps.lastFixAt < OFFLINE_THRESHOLD_MS ? c.verifiedGreen : '#8A6A1E'}
                   />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.statusCardLabel}>Phone status</Text>
-                    <Text style={styles.statusCardValue}>
+                    <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.statusCardLabel}>Phone status</Text>
+                    <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.statusCardValue}>
                       {gps.lastFixAt == null
                         ? 'No location received yet'
                         : Date.now() - gps.lastFixAt < OFFLINE_THRESHOLD_MS
@@ -1419,8 +1420,8 @@ export default function HeadOut() {
                 <View style={[styles.statusCard, styles.alarmOffCard]} testID="headout-alarm-not-active-expired" accessibilityRole="alert">
                   <Ionicons name="warning-outline" size={20} color={c.emergencyRed} />
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.statusCardValue, { color: c.emergencyRed }]}>{ALARM_COPY.expired_not_active.title}</Text>
-                    <Text style={styles.alarmBannerBody}>{ALARM_COPY.expired_not_active.body}</Text>
+                    <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={[styles.statusCardValue, { color: c.emergencyRed }]}>{ALARM_COPY.expired_not_active.title}</Text>
+                    <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.alarmBannerBody}>{ALARM_COPY.expired_not_active.body}</Text>
                   </View>
                 </View>
               )}
@@ -1429,8 +1430,8 @@ export default function HeadOut() {
                 <View style={styles.statusCard} testID="headout-server-alert-status">
                   <Ionicons name="time-outline" size={20} color={c.navy} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.statusCardLabel}>Server alert status</Text>
-                    <Text style={styles.statusCardValue} testID="headout-server-alert-text">
+                    <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.statusCardLabel}>Server alert status</Text>
+                    <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.statusCardValue} testID="headout-server-alert-text">
                       {alertStatusText({
                         state: alertReport, autoNotifyOff, pendingSafe,
                         graceCountdown: formatCountdown(graceSecsLeft ?? 0),
@@ -1442,7 +1443,7 @@ export default function HeadOut() {
 
               {notifyRecipients.length > 0 && (
                 <View style={styles.notifyListBlock} testID="headout-notify-list">
-                  <Text style={styles.togglesHeader}>Your Trusted Circle</Text>
+                  <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.togglesHeader}>Your Trusted Circle</Text>
                   {notifyRecipients.map(link => {
                     const uri = !failedNotifyPhotos[link.id] ? notifyPhotoUri(link.invitee_user_id) : null;
                     return (
@@ -1452,9 +1453,9 @@ export default function HeadOut() {
                         ) : (
                           <View style={styles.avatarFallback}><Ionicons name="person" size={16} color={c.muted} /></View>
                         )}
-                        <Text style={styles.notifyName}>{link.contact_name}</Text>
+                        <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.notifyName}>{link.contact_name}</Text>
                         <View style={{ flex: 1 }} />
-                        <Text style={styles.notifyEta}>
+                        <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.notifyEta}>
                           {recipientAlertLabel({
                             state: alertReport, linkId: link.id, autoNotifyOff, pendingSafe,
                             graceCountdown: formatCountdown(graceSecsLeft ?? 0),
@@ -1476,13 +1477,13 @@ export default function HeadOut() {
                 accessibilityLabel="Check in now"
               >
                 <Ionicons name="checkmark-done-outline" size={18} color="#fff" />
-                <Text style={styles.buttonText}>{extending ? 'Checking in…' : 'Check in now'}</Text>
+                <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={styles.buttonText}>{extending ? 'Checking in…' : 'Check in now'}</Text>
               </Pressable>
-              {!!extendError && <Text style={styles.inlineError}>{extendError}</Text>}
+              {!!extendError && <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.inlineError}>{extendError}</Text>}
 
               {TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && journeyToken && selectedRecipients.length > 0 && alertReport.report === 'idle' && graceSecsLeft !== 0 && !pendingSafe && (
                 <Pressable testID="headout-raise-alert-now" onPress={raiseAlertNow} style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Raise alert now">
-                  <Text style={[styles.linkTxt, styles.linkTxtUnderline]}>Raise alert now</Text>
+                  <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={[styles.linkTxt, styles.linkTxtUnderline]}>Raise alert now</Text>
                 </Pressable>
               )}
 
@@ -1492,7 +1493,7 @@ export default function HeadOut() {
                   read as a duplicate of the automated flow above it. */}
               <View style={styles.smsDivider}>
                 <View style={styles.smsDividerLine} />
-                <Text style={styles.smsDividerTxt}>or text someone directly</Text>
+                <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.smsDividerTxt}>or text someone directly</Text>
                 <View style={styles.smsDividerLine} />
               </View>
               <Pressable
@@ -1503,7 +1504,7 @@ export default function HeadOut() {
                 accessibilityLabel="Text my emergency contacts"
               >
                 <Ionicons name="chatbubble-outline" size={18} color={c.emergencyRed} />
-                <Text style={[styles.buttonText, { color: c.emergencyRed }]}>Text my emergency contacts</Text>
+                <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={[styles.buttonText, { color: c.emergencyRed }]}>Text my emergency contacts</Text>
               </Pressable>
             </View>
       ) : journeyPhase === 'arrived' ? (
@@ -1517,8 +1518,8 @@ export default function HeadOut() {
                 />
               )}
               <Ionicons name="checkmark-circle-outline" size={28} color={c.verifiedGreen} />
-              <Text style={styles.activeTitle}>{"You're at your destination"}</Text>
-              <Text style={styles.note}>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={styles.activeTitle}>{"You're at your destination"}</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.note}>
                 {`We've detected you're within the arrival zone (${Math.round(arrivalRadius)} m) of "${session.destination}". This doesn't automatically mean you're safe — confirm below.`}
               </Text>
               {/* Arrived action row — two equal buttons side by side */}
@@ -1531,7 +1532,7 @@ export default function HeadOut() {
                   accessibilityLabel="Confirm I arrived"
                 >
                   <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
-                  <Text style={styles.buttonText}>I arrived</Text>
+                  <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={styles.buttonText}>I arrived</Text>
                 </Pressable>
                 <Pressable
                   testID="headout-not-here-yet"
@@ -1540,7 +1541,7 @@ export default function HeadOut() {
                   accessibilityRole="button"
                   accessibilityLabel="Not there yet"
                 >
-                  <Text style={[styles.buttonText, { color: c.navy }]}>Not there yet</Text>
+                  <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={[styles.buttonText, { color: c.navy }]}>Not there yet</Text>
                 </Pressable>
               </View>
               <Pressable
@@ -1551,9 +1552,9 @@ export default function HeadOut() {
                 accessibilityRole="button"
                 accessibilityLabel="Extend check-in time by 15 minutes"
               >
-                <Text style={[styles.linkTxt, styles.linkTxtUnderline]}>{extending ? 'Extending…' : 'Extend time (+15 min)'}</Text>
+                <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={[styles.linkTxt, styles.linkTxtUnderline]}>{extending ? 'Extending…' : 'Extend time (+15 min)'}</Text>
               </Pressable>
-              {!!extendError && <Text style={styles.inlineError}>{extendError}</Text>}
+              {!!extendError && <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.inlineError}>{extendError}</Text>}
             </View>
       ) : journeyPhase === 'deviated' ? (
             <View style={[styles.activeCard, styles.deviatedCard]} testID="headout-deviated-card">
@@ -1566,9 +1567,9 @@ export default function HeadOut() {
                 />
               )}
               <Ionicons name="warning-outline" size={28} color="#8A6A1E" />
-              <Text style={styles.activeTitle}>Your journey changed</Text>
-              <Text style={styles.note}>You are outside the expected route or moving away from your destination.</Text>
-              <Text style={[styles.note, styles.areYouOkayTxt]}>Are you okay?</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={styles.activeTitle}>Your journey changed</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.note}>You are outside the expected route or moving away from your destination.</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={[styles.note, styles.areYouOkayTxt]}>Are you okay?</Text>
               <Pressable
                 testID="headout-im-okay"
                 style={(s) => [styles.button, styles.safeButton, focusRingStyle(s)]}
@@ -1577,7 +1578,7 @@ export default function HeadOut() {
                 accessibilityLabel="I'm okay"
               >
                 <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
-                <Text style={styles.buttonText}>{"I'm okay"}</Text>
+                <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={styles.buttonText}>{"I'm okay"}</Text>
               </Pressable>
               <Pressable
                 testID="headout-change-destination"
@@ -1586,7 +1587,7 @@ export default function HeadOut() {
                 accessibilityRole="button"
                 accessibilityLabel="Change destination"
               >
-                <Text style={[styles.buttonText, { color: c.navy }]}>Change destination</Text>
+                <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={[styles.buttonText, { color: c.navy }]}>Change destination</Text>
               </Pressable>
               {TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && journeyToken && selectedRecipients.length > 0 && (
                 <Pressable
@@ -1597,10 +1598,10 @@ export default function HeadOut() {
                   accessibilityLabel="Request help from your Trusted Circle"
                 >
                   <Ionicons name="warning-outline" size={18} color="#fff" />
-                  <Text style={styles.buttonText}>Need help</Text>
+                  <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={styles.buttonText}>Need help</Text>
                 </Pressable>
               )}
-              <Text style={styles.disclosureNote}>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.disclosureNote}>
                 {session.autoNotifyOnNoResponse === false
                   ? 'Your Trusted Circle is not told about this automatically — you chose "Do nothing" for missed responses in Step 3. They\'re only notified if you tap "Need help" above.'
                   : 'A route change alone never alerts your Trusted Circle. They are only told if you miss your check-in or tap "Need help".'}
@@ -1620,9 +1621,9 @@ export default function HeadOut() {
               <View style={[styles.activeCard, styles.dwellCard]} testID="headout-dwell-prompt">
                 <View style={styles.activeHeader}>
                   <Ionicons name="time-outline" size={24} color={c.navy} />
-                  <Text style={styles.activeTitle}>Are you okay?</Text>
+                  <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={styles.activeTitle}>Are you okay?</Text>
                 </View>
-                <Text style={styles.dwellBody}>
+                <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.dwellBody}>
                   {`You haven't moved for about ${dwellPromptMinutes} minute${dwellPromptMinutes === 1 ? '' : 's'}. Just checking in — this stays between you and DHARA.`}
                 </Text>
                 <Pressable
@@ -1632,7 +1633,7 @@ export default function HeadOut() {
                   accessibilityRole="button"
                   accessibilityLabel="I'm okay — continue the journey"
                 >
-                  <Text style={styles.buttonText}>{"I'm okay — continue"}</Text>
+                  <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={styles.buttonText}>{"I'm okay — continue"}</Text>
                 </Pressable>
                 <Pressable
                   testID="headout-dwell-need-help"
@@ -1642,9 +1643,9 @@ export default function HeadOut() {
                   accessibilityLabel="Need help — ask your Trusted Circle for help"
                 >
                   <Ionicons name="warning-outline" size={18} color="#fff" />
-                  <Text style={styles.buttonText}>Need help</Text>
+                  <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={styles.buttonText}>Need help</Text>
                 </Pressable>
-                <Text style={styles.disclosureNote}>
+                <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.disclosureNote}>
                   {'Nobody is told about this pause automatically. Your Trusted Circle is only alerted if you tap "Need help" or miss your check-in deadline.'}
                 </Text>
               </View>
@@ -1658,14 +1659,14 @@ export default function HeadOut() {
                 <View style={styles.sharingOnBanner} testID="headout-sharing-on" accessibilityRole="text">
                   <View style={styles.sharingOnDot} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.sharingOnTitle}>Sharing is on</Text>
-                    <Text style={styles.sharingOnBody}>The people you chose can see this journey.</Text>
+                    <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.sharingOnTitle}>Sharing is on</Text>
+                    <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.sharingOnBody}>The people you chose can see this journey.</Text>
                   </View>
                 </View>
               )}
               <View style={styles.activeHeader}>
                 <Ionicons name="navigate-circle-outline" size={26} color={c.navy} />
-                <Text style={styles.activeTitle}>Journey active</Text>
+                <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={styles.activeTitle}>Journey active</Text>
               </View>
               {/* Polish (reference design): map first, then arrival time, then
                   where from and where to, then the check-in timer. */}
@@ -1682,15 +1683,15 @@ export default function HeadOut() {
                   <View style={styles.etaCell}>
                     <Ionicons name="time-outline" size={20} color={c.navy} />
                     <View>
-                      <Text style={styles.etaLbl}>Arriving in</Text>
-                      <Text style={styles.etaVal}>{routeInfo.provider === 'approximate' ? '~' : ''}{Math.max(1, Math.round(routeInfo.durationSeconds / 60))} min</Text>
+                      <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.etaLbl}>Arriving in</Text>
+                      <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={styles.etaVal}>{routeInfo.provider === 'approximate' ? '~' : ''}{Math.max(1, Math.round(routeInfo.durationSeconds / 60))} min</Text>
                     </View>
                   </View>
                   <View style={styles.etaDivider} />
                   <View style={styles.etaCell}>
                     <View>
-                      <Text style={styles.etaLbl}>{routeInfo.provider === 'approximate' ? 'ETA (estimated)' : 'ETA'}</Text>
-                      <Text style={styles.etaVal}>{new Date(Date.now() + routeInfo.durationSeconds * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</Text>
+                      <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.etaLbl}>{routeInfo.provider === 'approximate' ? 'ETA (estimated)' : 'ETA'}</Text>
+                      <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={styles.etaVal}>{new Date(Date.now() + routeInfo.durationSeconds * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</Text>
                     </View>
                   </View>
                 </View>
@@ -1699,32 +1700,32 @@ export default function HeadOut() {
                 <View style={styles.fromToRow}>
                   <View style={styles.fromDot} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.fromToLbl}>From</Text>
-                    <Text style={styles.fromToVal}>Your current location</Text>
+                    <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.fromToLbl}>From</Text>
+                    <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.fromToVal}>Your current location</Text>
                   </View>
                 </View>
                 <View style={styles.fromToLine} />
                 <View style={styles.fromToRow}>
                   <Ionicons name="location" size={16} color={c.emergencyRed} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.fromToLbl}>To</Text>
-                    <Text style={styles.fromToVal} numberOfLines={2}>{session.destination}</Text>
+                    <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.fromToLbl}>To</Text>
+                    <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.fromToVal} numberOfLines={2}>{session.destination}</Text>
                   </View>
                 </View>
               </View>
               {journeyAlarm === 'active' && (
                 <View style={styles.alarmOnRow} testID="headout-alarm-active">
                   <Ionicons name="shield-checkmark-outline" size={14} color={c.verifiedGreen} />
-                  <Text style={styles.alarmOnTxt}>{ALARM_COPY.active.body}</Text>
+                  <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.alarmOnTxt}>{ALARM_COPY.active.body}</Text>
                 </View>
               )}
               {GO1C_LIVE_ROUTE_ENABLED && gps.tracking && !(fixIsFresh && fixIsAccurate) && (
-                <Text style={styles.note} testID="headout-location-uncertain">
+                <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.note} testID="headout-location-uncertain">
                   {"Location uncertain — DHARA can't confirm your arrival from this reading. Tap \"I'm safe\" or \"Need help\" yourself."}
                 </Text>
               )}
               {!!session.radiusMeters && (
-                <Text style={styles.radiusTxt}>
+                <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.radiusTxt}>
                   {GO1B_GPS_ENABLED
                     // GPS row below already states the real tracking status — don't
                     // also assert "not active" here, that would contradict it.
@@ -1733,10 +1734,10 @@ export default function HeadOut() {
                 </Text>
               )}
               <View style={styles.checkinBox}>
-                <Text style={styles.timerLbl}>Next check-in in</Text>
-                <Text testID="headout-timer" style={styles.timerDisplay}>{formatCountdown(secsLeft)}</Text>
+                <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.timerLbl}>Next check-in in</Text>
+                <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} testID="headout-timer" style={styles.timerDisplay} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{formatCountdown(secsLeft)}</Text>
               </View>
-              <Text style={styles.note}>{'Tap "I\'m safe" when you reach. DHARA will help you alert your circle if this timer runs out.'}</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.note}>{'Tap "I\'m safe" when you reach. DHARA will help you alert your circle if this timer runs out.'}</Text>
               {GUARDIAN_SHARE_ENABLED && hasCircleRecipients && (
                 <Pressable
                   testID="headout-notify-guardian"
@@ -1757,7 +1758,7 @@ export default function HeadOut() {
                   accessibilityLabel="Notify your guardian about this journey"
                 >
                   <Ionicons name="people-outline" size={18} color={c.navy} />
-                  <Text style={[styles.buttonText, { color: c.navy }]}>Notify your guardian</Text>
+                  <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={[styles.buttonText, { color: c.navy }]}>Notify your guardian</Text>
                 </Pressable>
               )}
               {/* GO1B: GPS permission-contract UI (handle_permissions_contract) */}
@@ -1768,8 +1769,8 @@ export default function HeadOut() {
                     <View style={styles.gpsRationaleCard} testID="gps-rationale-card">
                       <Ionicons name="location-outline" size={18} color="#1E5BD0" />
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.gpsRationaleTitle}>Share your location with your guardian?</Text>
-                        <Text style={styles.gpsRationaleBody}>
+                        <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.gpsRationaleTitle}>Share your location with your guardian?</Text>
+                        <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.gpsRationaleBody}>
                           DHARA will share your approximate area with your Trusted Circle while this journey is active. Location stops when you mark yourself safe.
                         </Text>
                         <Pressable
@@ -1785,7 +1786,7 @@ export default function HeadOut() {
                           accessibilityRole="button"
                           accessibilityLabel="Allow location sharing for this journey"
                         >
-                          <Text style={styles.gpsAllowBtnText}>Allow for this journey</Text>
+                          <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.gpsAllowBtnText}>Allow for this journey</Text>
                         </Pressable>
                       </View>
                     </View>
@@ -1803,7 +1804,7 @@ export default function HeadOut() {
                         size={14}
                         color={gps.tracking ? '#087951' : c.muted}
                       />
-                      <Text style={[styles.gpsLabel, gps.tracking && { color: '#087951' }]}>
+                      <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={[styles.gpsLabel, gps.tracking && { color: '#087951' }]}>
                         {gps.denied
                           ? 'Location access denied — guardian page will not show your area'
                           : gps.error
@@ -1816,7 +1817,7 @@ export default function HeadOut() {
                   )}
                   {/* D-42: say plainly whether tracking survives the app closing. */}
                   {bgTrackingOffered && locationConsentGiven && bgTracking !== 'off' && (
-                    <Text style={styles.bgTrackingNote} testID="headout-bg-tracking-note">
+                    <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.bgTrackingNote} testID="headout-bg-tracking-note">
                       {bgTracking === 'on'
                         ? 'Live sharing stays on even if you close the app or lock the screen — a notification shows the whole time.'
                         : bgTracking === 'bg_denied'
@@ -1832,8 +1833,8 @@ export default function HeadOut() {
                     <View style={styles.gpsDeniedCard} testID="gps-denied-settings-card">
                       <Ionicons name="location-outline" size={18} color="#C73236" />
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.gpsDeniedTitle}>Location permission blocked</Text>
-                        <Text style={styles.gpsDeniedBody}>
+                        <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.gpsDeniedTitle}>Location permission blocked</Text>
+                        <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.gpsDeniedBody}>
                           Your device has blocked location access for DHARA. Your guardian&apos;s page will not show your area during this journey. To enable it, open Settings and allow location access.
                         </Text>
                         <Pressable
@@ -1843,7 +1844,7 @@ export default function HeadOut() {
                           accessibilityRole="button"
                           accessibilityLabel="Open device Settings to allow location access"
                         >
-                          <Text style={styles.gpsSettingsBtnText}>Open Settings</Text>
+                          <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.gpsSettingsBtnText}>Open Settings</Text>
                         </Pressable>
                       </View>
                     </View>
@@ -1860,17 +1861,17 @@ export default function HeadOut() {
                 accessibilityRole="button"
                 accessibilityLabel="Extend check-in time by 15 minutes"
               >
-                <Text style={[styles.linkTxt, styles.linkTxtUnderline]}>{extending ? 'Extending…' : 'Extend time (+15 min)'}</Text>
+                <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={[styles.linkTxt, styles.linkTxtUnderline]}>{extending ? 'Extending…' : 'Extend time (+15 min)'}</Text>
               </Pressable>
-              {!!extendError && <Text style={styles.inlineError}>{extendError}</Text>}
+              {!!extendError && <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.inlineError}>{extendError}</Text>}
               {/* Fix 5: with nobody in the circle, prompt to add a person
                   instead of silently hiding every circle action. */}
               {TRUSTED_CIRCLE_RECIPIENT && GO1B_GPS_ENABLED && journeyToken && !hasCircleRecipients && (
                 <View style={styles.gpsRationaleCard} testID="headout-empty-circle-prompt">
                   <Ionicons name="people-outline" size={18} color={c.navy} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.gpsRationaleTitle}>No one is in your Trusted Circle</Text>
-                    <Text style={styles.gpsRationaleBody}>
+                    <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.gpsRationaleTitle}>No one is in your Trusted Circle</Text>
+                    <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.gpsRationaleBody}>
                       Nobody will be told if you need help on this journey. Add a person so someone has your back.
                     </Text>
                     <Pressable
@@ -1880,7 +1881,7 @@ export default function HeadOut() {
                       accessibilityRole="button"
                       accessibilityLabel="Add a person to your Trusted Circle"
                     >
-                      <Text style={styles.gpsAllowBtnText}>Add a person</Text>
+                      <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.gpsAllowBtnText}>Add a person</Text>
                     </Pressable>
                   </View>
                 </View>
@@ -1903,11 +1904,11 @@ export default function HeadOut() {
                     {helpReqState === 'sending'
                       ? <ActivityIndicator size="small" color="#fff" />
                       : <Ionicons name="warning-outline" size={18} color="#fff" />}
-                    <Text style={styles.buttonText}>{helpReqState === 'failed' ? 'Need help — try again' : 'Need help'}</Text>
+                    <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={styles.buttonText}>{helpReqState === 'failed' ? 'Need help — try again' : 'Need help'}</Text>
                   </Pressable>
                   {helpReqState === 'failed' ? (
                     <>
-                      <Text style={[styles.disclosureNote, { color: '#C73236' }]} testID="headout-help-failed-note">
+                      <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={[styles.disclosureNote, { color: '#C73236' }]} testID="headout-help-failed-note">
                         Could not reach DHARA. Your circle was NOT told. Call 112 now.
                       </Text>
                       <Pressable
@@ -1918,11 +1919,11 @@ export default function HeadOut() {
                         accessibilityLabel="Open emergency numbers"
                       >
                         <Ionicons name="call-outline" size={18} color="#fff" />
-                        <Text style={styles.buttonText}>Open emergency numbers</Text>
+                        <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={styles.buttonText}>Open emergency numbers</Text>
                       </Pressable>
                     </>
                   ) : (
-                    <Text style={styles.disclosureNote}>
+                    <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.disclosureNote}>
                       {helpReqState === 'sent'
                         ? 'Your Trusted Circle has been asked for help with your latest shared location.'
                         : helpReqState === 'sending'
@@ -1941,16 +1942,16 @@ export default function HeadOut() {
                     accessibilityLabel="Need help — open emergency numbers"
                   >
                     <Ionicons name="warning-outline" size={18} color="#fff" />
-                    <Text style={styles.buttonText}>Need help</Text>
+                    <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={styles.buttonText}>Need help</Text>
                   </Pressable>
-                  <Text style={styles.disclosureNote}>
+                  <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.disclosureNote}>
                     Opens emergency help with numbers like 112 and 181. No one in your Trusted Circle is alerted — nobody is selected for this journey.
                   </Text>
                 </>
               )}
               {journeyToken && hasCircleRecipients && (
                 sharingRevoked ? (
-                  <Text style={styles.disclosureNote} testID="headout-sharing-revoked-note">
+                  <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.disclosureNote} testID="headout-sharing-revoked-note">
                     {"Sharing stopped. Your trusted circle can no longer see this journey's location or status."}
                   </Text>
                 ) : (
@@ -1963,7 +1964,7 @@ export default function HeadOut() {
                     accessibilityLabel="Stop sharing this journey with your trusted circle"
                   >
                     <Ionicons name="stop-circle-outline" size={18} color={c.muted} />
-                    <Text style={[styles.buttonText, { color: c.muted }]}>{revokingShare ? 'Stopping…' : 'Stop sharing'}</Text>
+                    <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={[styles.buttonText, { color: c.muted }]}>{revokingShare ? 'Stopping…' : 'Stop sharing'}</Text>
                   </Pressable>
                 )
               )}
@@ -1979,10 +1980,10 @@ export default function HeadOut() {
             accessibilityLabel="I'm safe"
           >
             <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
-            <Text style={styles.buttonText}>{"I'm safe"}</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={styles.buttonText}>{"I'm safe"}</Text>
           </Pressable>
 
-      <Text style={styles.disclosureNote}>
+      <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.disclosureNote}>
         {journeyToken && (session.recipientLinkIds?.length ?? 0) > 0
           ? (session.autoNotifyOnNoResponse === false
               ? 'Your selected trusted circle was told this journey started. They are not alerted automatically if you miss a check-in.'
@@ -2004,18 +2005,18 @@ export default function HeadOut() {
           <View style={styles.simBox} testID="headout-sim-preview-modal">
             <View style={styles.simBadge}>
               <Ionicons name="flask-outline" size={14} color={c.navy} />
-              <Text style={styles.simBadgeTxt}>Simulated — nothing sent</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.simBadgeTxt}>Simulated — nothing sent</Text>
             </View>
-            <Text style={styles.simTitle}>Pilot preview of your alert</Text>
-            <Text style={styles.simHint}>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.simTitle}>Pilot preview of your alert</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.simHint}>
               This is a pilot simulation. No SMS, call, or notification has been sent to anyone.
             </Text>
-            <Text style={styles.simLabel}>Would be sent to:</Text>
-            <Text style={styles.simValue}>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.simLabel}>Would be sent to:</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.simValue}>
               {simPreview && simPreview.recipients.length > 0 ? simPreview.recipients.join(', ') : 'No trusted circle contacts set up'}
             </Text>
-            <Text style={styles.simLabel}>Message:</Text>
-            <Text style={styles.simValue}>{simPreview?.body}</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.simLabel}>Message:</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.simValue}>{simPreview?.body}</Text>
             <Pressable
               style={(s) => [styles.button, { marginTop: 8 }, focusRingStyle(s)]}
               onPress={() => setSimPreview(null)}
@@ -2023,7 +2024,7 @@ export default function HeadOut() {
               accessibilityLabel="Close simulated alert preview"
               testID="headout-sim-preview-close"
             >
-              <Text style={styles.buttonText}>Close</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={styles.buttonText}>Close</Text>
             </Pressable>
           </View>
         </View>
@@ -2039,7 +2040,7 @@ export default function HeadOut() {
       >
         <View style={styles.simOverlay}>
           <View style={styles.simBox} testID="headout-change-dest-modal">
-            <Text style={styles.simTitle}>Change destination</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.simTitle}>Change destination</Text>
             <TextInput
               testID="headout-change-dest-input"
               value={changeDestLabel}
@@ -2056,7 +2057,7 @@ export default function HeadOut() {
               onPositionChange={(lat, lng) => setChangeDestCoord({ lat, lng })}
               mapHeight={180}
             />
-            {!!changeDestError && <Text style={styles.inlineError}>{changeDestError}</Text>}
+            {!!changeDestError && <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.inlineError}>{changeDestError}</Text>}
             <Pressable
               testID="headout-change-dest-save"
               disabled={changingDest || !changeDestLabel.trim()}
@@ -2065,7 +2066,7 @@ export default function HeadOut() {
               accessibilityRole="button"
               accessibilityLabel="Save new destination"
             >
-              <Text style={styles.buttonText}>{changingDest ? 'Saving…' : 'Save new destination'}</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} style={styles.buttonText}>{changingDest ? 'Saving…' : 'Save new destination'}</Text>
             </Pressable>
             <Pressable
               testID="headout-change-dest-cancel"
@@ -2074,12 +2075,13 @@ export default function HeadOut() {
               accessibilityRole="button"
               accessibilityLabel="Cancel"
             >
-              <Text style={styles.linkTxt}>Cancel</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.linkTxt}>Cancel</Text>
             </Pressable>
           </View>
         </View>
       </Modal>
     </ScrollView>
+    </View>
   );
 }
 
@@ -2087,11 +2089,15 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background },
   content: { padding: 16, gap: 16 },
   note: { fontFamily: theme.fonts.body, fontSize: 13, color: c.muted, lineHeight: 18 },
+  // 26 Nov: buttons fill the card (the cards centre their children, which
+  // shrank each button to its label) and keep side padding, so long labels
+  // wrap inside the button instead of running past its edges.
   button: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, backgroundColor: c.navy, borderRadius: 14, paddingVertical: 16,
+    gap: 8, backgroundColor: c.navy, borderRadius: 14, paddingVertical: 14,
+    paddingHorizontal: 16, minHeight: 52, alignSelf: 'stretch',
   },
-  buttonText: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: '#fff' },
+  buttonText: { fontFamily: theme.fonts.bodyBold, fontSize: 14, color: '#fff', textAlign: 'center', flexShrink: 1 },
   safeButton: { backgroundColor: c.verifiedGreen },
   dwellCard: { borderWidth: 1.5, borderColor: c.navy, marginBottom: 12 },
   dwellBody: { fontFamily: theme.fonts.body, fontSize: 14.5, color: c.ink, lineHeight: 21, marginBottom: 10 },
@@ -2125,7 +2131,7 @@ const styles = StyleSheet.create({
   timerLbl: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, marginTop: 8 },
   timerDisplay: {
     fontFamily: theme.fonts.displayBold, fontSize: 40, color: c.navy,
-    lineHeight: 48,
+    lineHeight: 48, textAlign: 'center', alignSelf: 'stretch', fontVariant: ['tabular-nums'],
   },
   expiredTitle: { fontFamily: theme.fonts.displayBold, fontSize: 19, color: c.emergencyRed },
   disclosureNote: {
@@ -2213,7 +2219,7 @@ const styles = StyleSheet.create({
     color: c.ink, marginTop: 10, marginBottom: 10,
   },
   // ── Arrived card — side-by-side action buttons ──────────────────────────────
-  arrivedBtnRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  arrivedBtnRow: { flexDirection: 'row', gap: 10, marginTop: 4, alignSelf: 'stretch' },
   arrivedHalf: { flex: 1 },
   outlineNavyBtn: { backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.navy },
   // ── Demo simulator banner ────────────────────────────────────────────────────

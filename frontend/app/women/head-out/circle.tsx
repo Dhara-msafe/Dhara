@@ -35,6 +35,7 @@ import {
   listAcceptedRecipients, listInvitations, updateLinkPermissions, getPhotoViewToken,
   type InviteLink, type Permissions,
 } from '@/src/trustedCircle/api';
+import { FONT_SCALE_CAP } from '@/src/ui/sizeClass';
 
 const c = theme.colors;
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -230,19 +231,19 @@ export default function TrustedCircleAndRules() {
 
         {RECIPIENTS_ENABLED && (
           <>
-            <Text style={styles.fieldLabel}>Select who to notify</Text>
-            <Text style={styles.sectionNote}>Select up to {MAX_RECIPIENTS} people. They&apos;ll be notified based on their current settings below.</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.fieldLabel}>Select who to notify</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.sectionNote}>Select up to {MAX_RECIPIENTS} people. They&apos;ll be notified based on their current settings below.</Text>
             {loadingCircle && <ActivityIndicator size="small" color={c.muted} style={{ marginVertical: 10 }} />}
 
             {!loadingCircle && accepted.length === 0 && pending.length === 0 && (
               <View style={styles.emptyCard}>
                 <Ionicons name="people-outline" size={20} color={c.darkGold} />
-                <Text style={styles.emptyTxt}>Your trusted circle is empty. Add people so DHARA can notify them during this journey.</Text>
+                <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.emptyTxt}>Your trusted circle is empty. Add people so DHARA can notify them during this journey.</Text>
               </View>
             )}
 
             {accepted.length > 0 && (
-              <Text style={styles.fieldLabel}>What will they receive?</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.fieldLabel}>What will they receive?</Text>
             )}
             {accepted.map(link => {
               const sel = selectedRecipientIds.includes(link.id);
@@ -265,9 +266,9 @@ export default function TrustedCircleAndRules() {
                     )}
                     <View style={{ flex: 1 }}>
                       <View style={styles.personNameRow}>
-                        <Text style={styles.personName}>{link.contact_name}</Text>
-                        {!!link.relationship && <Text style={styles.personRelationship}>{link.relationship}</Text>}
-                        <View style={styles.confirmedPill}><Text style={styles.confirmedPillTxt}>Confirmed</Text></View>
+                        <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.personName}>{link.contact_name}</Text>
+                        {!!link.relationship && <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.personRelationship}>{link.relationship}</Text>}
+                        <View style={styles.confirmedPill}><Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.confirmedPillTxt}>Confirmed</Text></View>
                       </View>
                     </View>
                   </Pressable>
@@ -286,7 +287,7 @@ export default function TrustedCircleAndRules() {
                     accessibilityRole="button"
                     accessibilityLabel={`${expandedToggles[link.id] ? 'Hide' : 'Show'} what ${link.contact_name} receives`}
                   >
-                    <Text style={styles.togglesSummaryTxt}>What {link.contact_name.split(' ')[0]} receives from now on</Text>
+                    <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.togglesSummaryTxt}>What {link.contact_name.split(' ')[0]} receives from now on</Text>
                     <Ionicons name={expandedToggles[link.id] ? 'chevron-up' : 'chevron-down'} size={16} color={c.muted} />
                   </Pressable>
 
@@ -298,8 +299,8 @@ export default function TrustedCircleAndRules() {
                           <View key={t.key} style={styles.toggleRow}>
                             <Ionicons name={t.icon} size={16} color={c.muted} style={{ marginTop: 1 }} />
                             <View style={{ flex: 1 }}>
-                              <Text style={styles.toggleLabel}>{t.label}</Text>
-                              <Text style={styles.toggleSub}>{t.sub}</Text>
+                              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.toggleLabel}>{t.label}</Text>
+                              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.toggleSub}>{t.sub}</Text>
                             </View>
                             {pendingToggleKey === comboKey
                               ? <ActivityIndicator size="small" color={c.muted} />
@@ -328,23 +329,23 @@ export default function TrustedCircleAndRules() {
                 <View style={styles.avatarFallback}><Ionicons name="person" size={16} color={c.muted} /></View>
                 <View style={{ flex: 1 }}>
                   <View style={styles.personNameRow}>
-                    <Text style={[styles.personName, { color: c.muted }]}>{link.contact_name}</Text>
-                    {!!link.relationship && <Text style={styles.personRelationship}>{link.relationship}</Text>}
-                    <View style={styles.pendingPill}><Text style={styles.pendingPillTxt}>Pending</Text></View>
+                    <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={[styles.personName, { color: c.muted }]}>{link.contact_name}</Text>
+                    {!!link.relationship && <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.personRelationship}>{link.relationship}</Text>}
+                    <View style={styles.pendingPill}><Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.pendingPillTxt}>Pending</Text></View>
                   </View>
-                  <Text style={styles.personMeta}>{"Hasn't accepted your invite yet"}</Text>
+                  <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.personMeta}>{"Hasn't accepted your invite yet"}</Text>
                 </View>
               </View>
             ))}
 
             {!canSelectMore && (
-              <Text style={styles.capNote}>You&apos;ve selected {MAX_RECIPIENTS} people — the most for one journey.</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.capNote}>You&apos;ve selected {MAX_RECIPIENTS} people — the most for one journey.</Text>
             )}
 
             {!!permissionError && (
               <View style={styles.errorBox}>
                 <Ionicons name="warning-outline" size={14} color={c.emergencyRed} />
-                <Text style={styles.errorTxt}>{permissionError}</Text>
+                <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.errorTxt}>{permissionError}</Text>
               </View>
             )}
 
@@ -356,13 +357,13 @@ export default function TrustedCircleAndRules() {
               accessibilityLabel="Add or manage trusted circle members"
             >
               <Ionicons name="add-circle-outline" size={20} color={c.darkGold} />
-              <Text style={styles.manageTxt}>Add another person</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.manageTxt}>Add another person</Text>
             </Pressable>
           </>
         )}
 
-        <Text style={styles.fieldLabel}>Check-in settings</Text>
-        <Text style={styles.sectionNote}>How long until your check-in timer runs out.</Text>
+        <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.fieldLabel}>Check-in settings</Text>
+        <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.sectionNote}>How long until your check-in timer runs out.</Text>
         <View style={styles.durationRow}>
           {DURATIONS.map(d => (
             <Pressable
@@ -373,7 +374,7 @@ export default function TrustedCircleAndRules() {
               accessibilityRole="radio"
               accessibilityState={{ checked: durationMins === d.mins }}
             >
-              <Text style={[styles.durTxt, durationMins === d.mins && styles.durTxtActive]}>{d.label}</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={[styles.durTxt, durationMins === d.mins && styles.durTxtActive]}>{d.label}</Text>
             </Pressable>
           ))}
         </View>
@@ -385,9 +386,9 @@ export default function TrustedCircleAndRules() {
           accessibilityRole="button"
           accessibilityLabel="Remind me before alerting"
         >
-          <Text style={styles.optionLabel}>Remind me before alerting</Text>
+          <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.optionLabel}>Remind me before alerting</Text>
           <View style={styles.optionValuePill}>
-            <Text style={styles.optionValueTxt}>{REMIND_OPTIONS.find(o => o.mins === remindBeforeMins)?.label ?? 'No reminder'}</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.optionValueTxt}>{REMIND_OPTIONS.find(o => o.mins === remindBeforeMins)?.label ?? 'No reminder'}</Text>
             <Ionicons name="chevron-down" size={14} color={c.navy} />
           </View>
         </Pressable>
@@ -400,9 +401,9 @@ export default function TrustedCircleAndRules() {
             accessibilityRole="button"
             accessibilityLabel="If I don't respond"
           >
-            <Text style={styles.optionLabel}>{"If I don't respond"}</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.optionLabel}>{"If I don't respond"}</Text>
             <View style={styles.optionValuePill}>
-              <Text style={styles.optionValueTxt}>{RESPONSE_OPTIONS.find(o => o.value === autoNotifyOnNoResponse)?.label}</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.optionValueTxt}>{RESPONSE_OPTIONS.find(o => o.value === autoNotifyOnNoResponse)?.label}</Text>
               <Ionicons name="chevron-down" size={14} color={c.navy} />
             </View>
           </Pressable>
@@ -410,7 +411,7 @@ export default function TrustedCircleAndRules() {
 
         <View style={styles.disclosure}>
           <Ionicons name="information-circle-outline" size={15} color={c.muted} />
-          <Text style={styles.disclosureTxt}>
+          <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.disclosureTxt}>
             {RECIPIENTS_ENABLED && autoNotifyOnNoResponse
               ? "When this timer runs out, DHARA automatically alerts your selected trusted circle members (the ones with \"Emergency alert\" or \"Late arrival alert\" turned on above) — this is the only thing above that can send something without you tapping anything else first."
               : 'When this timer runs out, DHARA will prompt you to prepare an alert for your trusted circle — it never sends anything automatically.'}
@@ -423,7 +424,7 @@ export default function TrustedCircleAndRules() {
       <Modal visible={!!openPicker} transparent animationType="fade" onRequestClose={() => setOpenPicker(null)}>
         <Pressable style={styles.pickerOverlay} onPress={() => setOpenPicker(null)}>
           <View style={styles.pickerSheet} testID="headout-circle-picker-sheet">
-            <Text style={styles.pickerTitle}>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.pickerTitle}>
               {openPicker === 'remind' ? 'Remind me before alerting' : "If I don't respond"}
             </Text>
             {(openPicker === 'remind' ? REMIND_OPTIONS : RESPONSE_OPTIONS).map((opt: any) => {
@@ -441,7 +442,7 @@ export default function TrustedCircleAndRules() {
                   accessibilityRole="radio"
                   accessibilityState={{ checked: selected }}
                 >
-                  <Text style={[styles.pickerOptionTxt, selected && styles.pickerOptionTxtSelected]}>{opt.label}</Text>
+                  <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={[styles.pickerOptionTxt, selected && styles.pickerOptionTxtSelected]}>{opt.label}</Text>
                   {selected && <Ionicons name="checkmark" size={18} color={c.navy} />}
                 </Pressable>
               );
@@ -456,7 +457,7 @@ export default function TrustedCircleAndRules() {
       <Modal visible={showRecap} transparent animationType="slide" onRequestClose={() => setShowRecap(false)}>
         <View style={styles.recapBackdrop}>
           <View style={[styles.recapSheet, { paddingBottom: insets.bottom + 14 }]} testID="headout-recap">
-            <Text style={styles.recapTitle}>Review your journey</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.recapTitle}>Review your journey</Text>
 
             <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 10 }}>
               <RecapRow
@@ -519,7 +520,7 @@ export default function TrustedCircleAndRules() {
             >
               {starting
                 ? <ActivityIndicator size="small" color="#fff" />
-                : <Text style={styles.startBtnTxt}>Start journey</Text>}
+                : <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.startBtnTxt}>Start journey</Text>}
             </Pressable>
             <Pressable
               testID="headout-recap-back"
@@ -528,7 +529,7 @@ export default function TrustedCircleAndRules() {
               accessibilityRole="button"
               accessibilityLabel="Go back and edit"
             >
-              <Text style={styles.recapBackTxt}>Go back</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.recapBackTxt}>Go back</Text>
             </Pressable>
           </View>
         </View>
@@ -543,7 +544,7 @@ export default function TrustedCircleAndRules() {
           accessibilityRole="button"
           accessibilityLabel="Review and start journey"
         >
-          <Text style={styles.startBtnTxt}>Review & start</Text>
+          <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.startBtnTxt}>Review & start</Text>
         </Pressable>
       </View>
     </View>
@@ -559,11 +560,11 @@ function RecapRow({ icon, label, value, editLabel, onEdit }: {
     <View style={styles.recapRow}>
       <Ionicons name={icon} size={18} color={c.navy} style={{ marginTop: 2 }} />
       <View style={{ flex: 1 }}>
-        <Text style={styles.recapLabel}>{label}</Text>
-        <Text style={styles.recapValue}>{value}</Text>
+        <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.recapLabel}>{label}</Text>
+        <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.recapValue}>{value}</Text>
       </View>
       <Pressable onPress={onEdit} accessibilityRole="button" accessibilityLabel={editLabel} style={(s) => [styles.recapEditBtn, focusRingStyle(s)]}>
-        <Text style={styles.recapEditTxt}>Edit</Text>
+        <Text maxFontSizeMultiplier={FONT_SCALE_CAP.body} style={styles.recapEditTxt}>Edit</Text>
       </Pressable>
     </View>
   );
