@@ -51,3 +51,34 @@ test('disabled buttons use the design system disabled colour', () => {
 test('fraud checklist shows no placeholder clock before it starts', () => {
   assert.match(read('app/fraud-checklist.tsx'), /\{startedAt \? <Text style=\{\[styles\.timer/);
 });
+
+// ── Batch A, re-audit of 27 Nov ──────────────────────────────────────────────
+test('navy header never cuts the title to one line', () => {
+  const h = read('src/components/dhara/ScreenHeader.tsx');
+  assert.match(h, /styles\.title\} numberOfLines=\{2\}/);
+  assert.doesNotMatch(h, /numberOfLines=\{subtitle \? 1 : 2\}/);
+});
+
+test('Pay by UPI matches the sign-in pages and has SOS 112', () => {
+  const s = read('app/pay-upi.tsx');
+  assert.match(s, /<SosPill112 testID="pay-upi-sos"/);
+  assert.doesNotMatch(s, />Dhara<\/Text>/);
+});
+
+test('Sign up keeps the password eye inside its box', () => {
+  const s = read('app/signup.tsx');
+  assert.match(s, /pwWrap: \{[^}]*overflow: 'hidden'/);
+  assert.match(s, /pwInput: \{ flex: 1, minWidth: 0/);
+});
+
+test('more screens use the shared title row', () => {
+  for (const f of ['app/drafts/history.tsx', 'app/(tabs)/lookup.tsx', 'app/fir-draft/index.tsx', 'app/missing/index.tsx']) {
+    assert.match(read(f), /<PageTitleRow/, f);
+  }
+});
+
+test('small chips and the Shield header buttons are 44 px tall', () => {
+  assert.match(read('app/fir-draft/index.tsx'), /langChip: \{\s*paddingHorizontal: 14, paddingVertical: 8, minHeight: 44/);
+  assert.match(read('app/(tabs)/myfiles.tsx'), /filterChip:\s+\{[^}]*minHeight: 44/);
+  assert.match(read('app/women-shield.tsx'), /backBtn: \{ width: 44, height: 44/);
+});

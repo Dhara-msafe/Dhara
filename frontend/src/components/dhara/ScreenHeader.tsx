@@ -29,10 +29,10 @@ export function ScreenHeader({ title, subtitle }: { title: string; subtitle?: st
         <Ionicons name="chevron-back" size={24} color="#fff" />
       </Pressable>
       <View style={{ flex: 1 }}>
-        {/* 27 Nov: at most three lines in all — with a subtitle, the title keeps
-            to one line (shrinking a little if needed) so the header can't
-            grow to four lines on small phones. */}
-        <Text style={styles.title} numberOfLines={subtitle ? 1 : 2} adjustsFontSizeToFit={!!subtitle} minimumFontScale={0.8} maxFontSizeMultiplier={FONT_SCALE_CAP.chrome}>{title}</Text>
+        {/* 27 Nov (re-audit): never cut a title or a safety subtitle short.
+            Both may use two lines; a one-line title limit cut "20-second
+            panic trigger" to "20-second panic t…" on 360 px phones. */}
+        <Text style={styles.title} numberOfLines={2} maxFontSizeMultiplier={FONT_SCALE_CAP.chrome}>{title}</Text>
         {subtitle ? <Text style={styles.sub} numberOfLines={2} maxFontSizeMultiplier={FONT_SCALE_CAP.chrome}>{subtitle}</Text> : null}
       </View>
       {/* Redesign v3: SOS lives in the header on every screen (was a strip

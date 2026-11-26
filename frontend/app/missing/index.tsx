@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/src/auth';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/src/theme';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
 import interviewData from '@/src/content/missing_interview.json';
 import { trackEvent } from '@/src/analytics';
 
@@ -48,11 +49,10 @@ export default function MissingEntryScreen() {
 
   return (
     <SafeAreaView testID="missing-entry-screen" style={s.safe} edges={['bottom']}>
+      <PageTitleRow title={t(first.title, lang)} onBack={() => router.back()} backTestID="missing-entry-back" testID="missing-title-row" />
       <ScrollView contentContainerStyle={s.scroll}>
-        <Pressable testID="missing-entry-back" accessibilityRole="button" accessibilityLabel="Back" style={s.back} onPress={() => router.back()}><Ionicons name="chevron-back" size={24} color={NAVY} /></Pressable>
         {/* Header */}
         <View style={s.header}>
-          <Text style={s.title}>{t(first.title, lang)}</Text>
           <View style={s.urgentBadge}>
             <Text style={s.urgentText}>{t(first.urgent_note, lang)}</Text>
           </View>

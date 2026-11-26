@@ -187,7 +187,7 @@ function ScanHeader({
       </Pressable>
       <View style={{ flex: 1 }}>
         <Text style={headerStyles.title} numberOfLines={1}>{title}</Text>
-        {sub ? <Text style={headerStyles.sub} numberOfLines={1}>{sub}</Text> : null}
+        {sub ? <Text style={headerStyles.sub} numberOfLines={2}>{sub}</Text> : null}
       </View>
       <SosPill112 testID="scan-header-sos" />
     </View>

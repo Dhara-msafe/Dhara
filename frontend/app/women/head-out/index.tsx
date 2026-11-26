@@ -2144,7 +2144,7 @@ const styles = StyleSheet.create({
   gpsRationaleCard: { flexDirection: 'row', gap: 10, backgroundColor: '#EEF5FF', borderRadius: 10, padding: 12, marginTop: 10, alignItems: 'flex-start' },
   gpsRationaleTitle: { fontFamily: theme.fonts.body, fontSize: 12, fontWeight: '600', color: '#1E3A8A', marginBottom: 3 },
   gpsRationaleBody: { fontFamily: theme.fonts.body, fontSize: 12, color: '#1E5BD0', lineHeight: 17 },
-  gpsAllowBtn: { marginTop: 8, backgroundColor: '#1E5BD0', borderRadius: 8, minHeight: UI_V22_P9 ? 48 : 44, justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start' },
+  gpsAllowBtn: { marginTop: 8, backgroundColor: c.navy, borderRadius: 8, minHeight: UI_V22_P9 ? 48 : 44, justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start' },
   gpsAllowBtnText: { fontFamily: theme.fonts.body, fontSize: 12, color: '#fff', fontWeight: '600' },
   // handle_permissions_contract — permanent denial + Settings redirect
   gpsDeniedCard: { flexDirection: 'row', gap: 10, backgroundColor: '#FFF0F0', borderRadius: 10, padding: 12, marginTop: 10, alignItems: 'flex-start' },

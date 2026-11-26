@@ -16,6 +16,7 @@ import {
   useAudioRecorder, RecordingPresets, setAudioModeAsync, AudioModule,
 } from 'expo-audio';
 import { theme } from '@/src/theme';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
 import {
   STATES_UTS, DISTRICTS, CNR_STATE_CODES, CNR_COURT_CODES,
 } from '@/src/courtData';
@@ -377,13 +378,7 @@ export default function LookupScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={[]}>
       {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <Ionicons name="search-outline" size={20} color={NAVY} />
-          <Text style={styles.headerTitle}>Dhara Lookup</Text>
-        </View>
-        <Text style={styles.headerSub}>Search Indian court cases via eCourtsIndia</Text>
-      </View>
+      <PageTitleRow title="Dhara Lookup" subtitle="Search Indian court cases via eCourtsIndia" backTestID="lookup-back" testID="lookup-title-row" />
 
       <KeyboardSafeView style={{ flex: 1 }} behavior="padding">
         <ScrollView
@@ -609,7 +604,7 @@ export default function LookupScreen() {
             onPress={handleSearch}
             disabled={!canSearch}
           >
-            <Ionicons name="search" size={16} color="#fff" />
+            <Ionicons name="search" size={16} color={NAVY} />
             <Text style={styles.searchBtnText}>Search eCourts</Text>
           </Pressable>
 

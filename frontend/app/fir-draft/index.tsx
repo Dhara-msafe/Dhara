@@ -39,6 +39,7 @@ import { trackEvent } from '@/src/analytics';
 import { dateValidationError } from '@/src/dateValidation';
 import { splitBold, stripBold } from '@/src/chat/boldMarkdown';
 import { theme } from '@/src/theme';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
 import FirSectionDrawer, { SectionItem, DroppedSection } from '@/src/components/FirSectionDrawer';
 import { MarqueeBanner } from '@/src/components/MarqueeBanner';
 
@@ -1353,12 +1354,7 @@ ${data.bot_message}`);
     }
     return (
       <SafeAreaView edges={['bottom']} testID="fir-start-screen" style={[styles.root, { backgroundColor: theme.colors.background }]}>
-        <View style={styles.preHeader}>
-          <Pressable testID="fir-start-back" onPress={() => router.back()} style={(s) => [styles.backBtn, focusRingStyle(s)]} hitSlop={12} accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="chevron-back" size={24} color={NAVY} />
-          </Pressable>
-          <Text style={styles.preTitle}>FIR Draft Assistant</Text>
-        </View>
+        <PageTitleRow title="FIR Draft Assistant" onBack={() => router.back()} backTestID="fir-start-back" testID="fir-start-title-row" />
         <MarqueeBanner variant="light" />
         <ScrollView contentContainerStyle={styles.preBody}>
           {resumeError ? <Text testID="fir-resume-error" accessibilityRole="alert" style={{ color: theme.colors.error, lineHeight: 19 }}>{resumeError}</Text> : null}
@@ -2397,7 +2393,7 @@ const styles = StyleSheet.create({
   langLabel: { fontSize: 13, fontFamily: 'InterSemiBold', color: NAVY, marginBottom: 10 },
   langRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
   langChip: {
-    paddingHorizontal: 14, paddingVertical: 8,
+    paddingHorizontal: 14, paddingVertical: 8, minHeight: 44, justifyContent: 'center',
     borderRadius: 20, borderWidth: 1.5, borderColor: BORDER,
     backgroundColor: SURFACE,
   },
