@@ -52,7 +52,7 @@ export default function InterpreterScreen() {
   const [currentTranscript, setCurrentTranscript] = useState('');
   const [currentTranslation, setCurrentTranslation] = useState('');
   const [statusText, setStatusText] = useState('');
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
 
   // Native: expo-audio recorder. Web: browser MediaRecorder (expo-audio can't record on web).
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);

@@ -77,7 +77,6 @@ export default function TabsLayout() {
       <View style={styles.content}>
         <SafeAreaInsetsContext.Provider value={showHeader ? { ...insets, top: 0 } : insets}>
         <Tabs
-          initialRouteName="home"
           tabBar={props => <AppTabBar {...props} />}
           safeAreaInsets={{ bottom: 0 }}
           screenOptions={{ headerShown: false }}

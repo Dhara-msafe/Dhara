@@ -28,7 +28,7 @@ export default function LookupWebView() {
   const { url, title } = useLocalSearchParams<{ url: string; title: string }>();
   const decodedUrl = decodeURIComponent(url ?? '');
   const [loading, setLoading] = useState(true);
-  const webRef = useRef<WebView>(null);
+  const webRef = useRef<React.ComponentRef<typeof WebView>>(null);
 
   if (!decodedUrl) {
     return (

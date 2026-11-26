@@ -85,7 +85,7 @@ export default function WebPortal() {
   const [langCode,  setLangCode]  = useState('en');
   const [error,     setError]     = useState<string | null>(null);
 
-  const scrollRef   = useRef<ScrollView>(null);
+  const scrollRef   = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const convKeyRef  = useRef(0);
 
   const selectedLang = LANGUAGES.find((l) => l.code === langCode) ?? LANGUAGES[0];

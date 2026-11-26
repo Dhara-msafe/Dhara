@@ -296,7 +296,7 @@ export default function FirDraftScreen() {
   const [holdElapsed, setHoldElapsed] = useState(0);
   const holdTimerRef = useRef<any>(null);
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
 
   // Live waveform while recording — purely visual Animated loops, same as
   // the Home screen (no dependency on native audio-level metering, which is
@@ -2318,7 +2318,7 @@ function EmergencyOverlay({
 
 const eStyles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.82)',
     justifyContent: 'center',
     alignItems: 'center',
