@@ -7,6 +7,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Platform, Alert, Clipboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
 import { Ionicons } from '@expo/vector-icons';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -254,6 +255,7 @@ pre{white-space:pre-wrap;font-size:13px;line-height:1.7;font-family:'Courier New
   if (draftError || !draftText) {
     return (
       <SafeAreaView edges={['bottom']} testID="fir-result-error" style={styles.root}>
+        <PageTitleRow title="FIR draft" onBack={() => router.back()} backTestID="fir-result-error-back-top" testID="fir-result-error-title-row" />
         <View style={styles.center}>
           <Ionicons name="alert-circle-outline" size={48} color={RED} />
           <Text style={[styles.loadingText, { color: RED, marginTop: 12 }]}>{draftError || 'Draft could not be loaded.'}</Text>

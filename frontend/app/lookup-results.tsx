@@ -233,7 +233,7 @@ export default function LookupResults() {
     <SafeAreaView style={styles.safe} edges={[]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={10}>
-          <Ionicons name="arrow-back-outline" size={22} color={GOLD} />
+          <Ionicons name="chevron-back" size={24} color="#fff" />
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle} numberOfLines={1}>
@@ -255,7 +255,7 @@ export default function LookupResults() {
           <Ionicons name={noSearchTerm ? 'search-outline' : 'alert-circle-outline'} size={40} color={noSearchTerm ? HINT : '#C73236'} />
           <Text style={styles.errorText}>{errorMsg}</Text>
           <Pressable style={styles.retryBtn} onPress={handleRetry} testID="lookup-results-retry">
-            <Ionicons name={noSearchTerm ? 'arrow-back' : 'refresh'} size={16} color="#fff" />
+            <Ionicons name={noSearchTerm ? 'chevron-back' : 'refresh'} size={16} color="#fff" />
             <Text style={styles.retryBtnText}>{noSearchTerm ? 'Go Back' : 'Try Again'}</Text>
           </Pressable>
         </View>

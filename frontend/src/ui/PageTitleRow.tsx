@@ -20,6 +20,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
 import { focusRingStyle } from '../a11yFocus';
+import { HEADER_TITLE_IN_BAR, HeaderBarContext, useHeaderTitle } from './headerTitle';
 
 const c = theme.colors;
 
@@ -47,7 +48,23 @@ export function PageTitleRow({
   testID?: string;
 }) {
   const router = useRouter();
+  const underBar = React.useContext(HeaderBarContext);
   const goBack = onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/me')));
+  // 27 Nov: under the shared DHARA bar, the title and the back arrow move
+  // into the bar (src/ui/headerTitle.ts). What stays here is only the
+  // subtitle; the right-hand control moves into the bar too.
+  const inBar = HEADER_TITLE_IN_BAR && underBar;
+  useHeaderTitle(inBar, title, goBack, backTestID, right);
+  if (inBar) {
+    if (!subtitle) return null;
+    return (
+      <View style={s.slim} testID={testID}>
+        <Text style={s.slimSubtitle} numberOfLines={PAGE_TITLE.subtitleLines} ellipsizeMode="tail" accessibilityLabel={subtitle} maxFontSizeMultiplier={1.4}>
+          {subtitle}
+        </Text>
+      </View>
+    );
+  }
   return (
     <View style={s.row} testID={testID}>
       <Pressable
@@ -92,6 +109,8 @@ const s = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: c.border,
   },
+  slim: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6, backgroundColor: c.background },
+  slimSubtitle: { color: c.onSurfaceSecondary, fontFamily: theme.fonts.body, fontSize: PAGE_TITLE.subtitleSize, lineHeight: PAGE_TITLE.subtitleLine },
   back: { width: PAGE_TITLE.backSize, height: PAGE_TITLE.backSize, alignItems: 'center', justifyContent: 'center' },
   text: { flex: 1, minWidth: 0 },
   title: { color: c.navy, fontFamily: theme.fonts.displayBold, fontSize: PAGE_TITLE.titleSize, lineHeight: PAGE_TITLE.titleLine },

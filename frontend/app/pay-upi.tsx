@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { API_BASE, useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
+import { SosPill112 } from '@/src/ui/kit';
 import { openExternal } from '@/src/outbound';
 import { formatDateDMY } from '@/src/dateFormat';
 
@@ -154,7 +155,7 @@ export default function PayUpi() {
     return (
       <SafeAreaView style={styles.safe} testID="pay-upi-native-blocked">
         <View style={styles.scroll}>
-          <Text style={styles.brand}>Dhara</Text>
+          <Text style={styles.brand}>DHARA</Text>
           <View style={styles.card}>
             <Ionicons name="globe-outline" size={32} color={theme.colors.brand} />
             <Text style={styles.heading}>Open this link in your browser</Text>
@@ -175,7 +176,11 @@ export default function PayUpi() {
         keyboardShouldPersistTaps="handled"
         bottomOffset={24}
       >
-        <Text style={styles.brand}>Dhara</Text>
+        {/* 27 Nov: SOS 112 at the top, like every other screen (was the floating SOS). */}
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', minHeight: 48 }}>
+          <SosPill112 testID="pay-upi-sos" />
+        </View>
+        <Text style={styles.brand}>DHARA</Text>
         <Text style={styles.tag}>Upgrade to Dhara Pro — pay by UPI</Text>
 
         {configLoading ? (
@@ -329,14 +334,13 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.brand },
   scroll: { flexGrow: 1, padding: theme.spacing.xl, paddingTop: theme.spacing.xxl },
   brand: {
-    fontFamily: theme.fonts.display,
+    fontFamily: theme.fonts.brand, letterSpacing: 1.5,
     fontSize: 28,
     color: theme.colors.onBrandPrimary,
     textAlign: 'center',
-    fontWeight: '700',
     marginTop: theme.spacing.lg,
   },
-  tag: { color: theme.colors.brandSecondary, textAlign: 'center', marginTop: 4, fontFamily: 'Inter', fontSize: 13 },
+  tag: { color: theme.colors.headerTagline, textAlign: 'center', marginTop: 4, fontFamily: 'Inter', fontSize: 13 },
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,
@@ -378,7 +382,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     fontFamily: 'Inter', fontSize: 14,
     color: theme.colors.onSurface,
-    backgroundColor: theme.colors.surfaceSecondary,
+    backgroundColor: theme.colors.paper,
     minHeight: 48,
   },
   noteInput: { minHeight: 52, textAlignVertical: 'top' },

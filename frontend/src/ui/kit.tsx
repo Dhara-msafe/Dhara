@@ -82,8 +82,12 @@ export function SosPill112({ onPress, testID = 'header-sos' }: { onPress?: () =>
 
 export function AppHeader({
   showBack = true, onBack, tagline = 'Your legal rights. Always with you.', showSos = true, right, testID = 'app-header',
+  title, backTestID = 'header-back',
 }: {
   showBack?: boolean; onBack?: () => void; tagline?: string; showSos?: boolean; right?: React.ReactNode; testID?: string;
+  /** 27 Nov: a page title shown in the bar itself, under a small DHARA line,
+   *  so inner pages need no second title row. */
+  title?: string; backTestID?: string;
 }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -100,9 +104,9 @@ export function AppHeader({
       <View style={s.headerLeft}>
         {showBack && (
           <Pressable
-            testID="header-back"
+            testID={backTestID}
             accessibilityRole="button"
-            accessibilityLabel="Back"
+            accessibilityLabel="Go back"
             hitSlop={8}
             onPress={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/home')))}
             style={({ pressed }) => [s.back, pressed && s.pressed]}
@@ -110,15 +114,32 @@ export function AppHeader({
             <Ionicons name="chevron-back" size={22} color="#fff" />
           </Pressable>
         )}
-        <View style={s.brandWrap}>
-          <Text style={s.brand} maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} numberOfLines={1}>DHARA</Text>
-          {!size.short && !!tagline && (
-            <Text style={s.tagline} maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} numberOfLines={1}>{tagline}</Text>
-          )}
-        </View>
+        {title ? (
+          <View style={s.brandWrap}>
+            <Text style={s.brandEyebrow} maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} numberOfLines={1}>DHARA</Text>
+            <Text
+              testID="header-title"
+              style={s.barTitle}
+              accessibilityRole="header"
+              maxFontSizeMultiplier={FONT_SCALE_CAP.chrome}
+              numberOfLines={2}
+            >
+              {title}
+            </Text>
+          </View>
+        ) : (
+          <View style={s.brandWrap}>
+            <Text style={s.brand} maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} numberOfLines={1}>DHARA</Text>
+            {!size.short && !!tagline && (
+              <Text style={s.tagline} maxFontSizeMultiplier={FONT_SCALE_CAP.chrome} numberOfLines={1}>{tagline}</Text>
+            )}
+          </View>
+        )}
       </View>
       <View style={s.headerRight}>
-        {right}
+        {/* A page's own control (history, listen, profile) was drawn for a
+            light page, so in the navy bar it sits on a white disc. */}
+        {title && right ? <View style={s.barRight}>{right}</View> : right}
         {showSos && <SosPill112 />}
       </View>
     </LinearGradient>
@@ -363,13 +384,16 @@ const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: c.cream },
   footer: { paddingTop: 10, backgroundColor: c.cream, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
 
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 13 },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingBottom: 13 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1, minWidth: 0 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   back: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.13)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.33)' },
-  brandWrap: { flexShrink: 1 },
+  brandWrap: { flexShrink: 1, minWidth: 0 },
   brand: { color: '#fff', fontFamily: f.brand, fontSize: 22, letterSpacing: 1.3 },
   tagline: { color: c.headerTagline, fontFamily: f.body, fontSize: 12, marginTop: 1 },
+  barRight: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  brandEyebrow: { color: c.headerTagline, fontFamily: f.brand, fontSize: 12, letterSpacing: 2.2 },
+  barTitle: { color: '#fff', fontFamily: f.displayBold, fontSize: 17, lineHeight: 22, marginTop: 1 },
   sos: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 44, paddingHorizontal: 13, borderRadius: 999, backgroundColor: c.sosRed, borderWidth: 1, borderColor: c.sosBorder },
   sosText: { color: '#fff', fontFamily: f.displayBold, fontSize: 13 },
 

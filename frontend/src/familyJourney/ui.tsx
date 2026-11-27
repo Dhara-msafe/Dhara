@@ -203,7 +203,7 @@ export const fjStyles = StyleSheet.create({
   cardSub: { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted, lineHeight: 17 },
   label: { fontFamily: theme.fonts.bodySemiBold, fontSize: 12, color: c.ink, marginTop: 6 },
   input: {
-    backgroundColor: c.surfaceSecondary, borderRadius: theme.radius.sm, borderWidth: 1, borderColor: c.border,
+    backgroundColor: c.paper, borderRadius: theme.radius.sm, borderWidth: 1, borderColor: c.border,
     paddingHorizontal: 12, paddingVertical: 10, fontFamily: theme.fonts.body, fontSize: 13, color: c.ink, minHeight: 44,
   },
   primary: { backgroundColor: c.navy, borderRadius: 14, minHeight: 52, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },

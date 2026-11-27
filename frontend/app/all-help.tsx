@@ -64,7 +64,11 @@ export default function AllHelp() {
   return (
     <View style={styles.root}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-        <View style={styles.headRow}>
+        <View style={[styles.headRow, { justifyContent: 'flex-start' }]}>
+          {/* 27 Nov: this screen had no way back. */}
+          <Pressable testID="all-help-back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/home'))} style={(st) => [{ width: 48, height: 48, marginLeft: -12, alignItems: 'center', justifyContent: 'center' }, focusRingStyle(st)]} accessibilityRole="button" accessibilityLabel="Go back">
+            <Ionicons name="chevron-back" size={24} color={c.navy} />
+          </Pressable>
           <Text style={styles.title}>{tr('all.title', lang)} <Text style={styles.titleHi}>सारी मदद</Text></Text>
         </View>
 

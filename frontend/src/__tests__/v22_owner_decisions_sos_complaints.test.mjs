@@ -39,7 +39,9 @@ test('(2) Complaints header "+" hidden only with SWEEP on AND an empty list', ()
   const s = read('app', 'complaints.tsx');
   assert.match(s, /const hideHeaderAdd = UI_V22_SWEEP && listEmpty;/);
   assert.match(s, /const \[listEmpty, setListEmpty\] = useState\(false\);/); // starts shown
-  assert.match(s, /\{hideHeaderAdd \? <View style=\{styles\.icon\} \/> : \(\s*\n\s*<Pressable testID="complaints-create"/);
+  // 27 Nov: the "+" now rides in the shared title row's right slot; the
+  // rule is the same (hidden only when hideHeaderAdd).
+  assert.match(s, /right=\{hideHeaderAdd \? undefined : \(\s*\n\s*<Pressable testID="complaints-create"/);
   assert.match(s, /<ComplaintsList all onEmptyChange=\{setListEmpty\} \/>/);
 });
 

@@ -756,7 +756,7 @@ const s = StyleSheet.create({
   },
   // NF-UI-REV-02: paddingVertical 7 (~30px tall) was below the 44px minimum
   // touch target for these quick-search suggestion chips.
-  chip:    { backgroundColor: '#EEF5FF', paddingHorizontal: 12, paddingVertical: UI_REVISION_V1 ? 12 : 7, borderRadius: 20 },
+  chip:    { backgroundColor: '#EEF5FF', paddingHorizontal: 12, paddingVertical: UI_REVISION_V1 ? 12 : 7, minHeight: 44, justifyContent: 'center', borderRadius: 22 },
   chipTxt: { fontSize: 12, fontFamily: 'InterSemiBold', color: NAVY },
 
   disclaimer: {

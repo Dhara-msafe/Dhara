@@ -6,6 +6,7 @@ import { useState, useCallback } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
 import { useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
 import triageData from '@/src/content/voter_triage.json';
@@ -57,18 +58,15 @@ export default function VoterRollTab() {
     return (
       <SafeAreaView testID="voter-roll-screen" style={s.safe} edges={[]}>
         <ScrollView contentContainerStyle={s.scrollContent}>
-          {/* Header */}
-          <View style={s.header}>
-            <Text style={s.headerTitle}>
-              {lang === 'hi' ? 'मतदाता सूची' : lang === 'mr' ? 'मतदार यादी' : 'Voter Roll'}
-            </Text>
-            <Text style={s.headerSub}>
-              {lang === 'hi'
-                ? 'फॉर्म 6 व फॉर्म 8 ड्राफ्ट सहायता'
-                : lang === 'mr'
-                ? 'फॉर्म 6 व फॉर्म 8 मसुदा मदत'
-                : 'Form 6 & Form 8 Draft Assistance'}
-            </Text>
+          {/* 27 Nov: shared title row — this screen had no way back. */}
+          <View style={{ marginHorizontal: -16, marginTop: -16, marginBottom: 12 }}>
+            <PageTitleRow
+              title={lang === 'hi' ? 'मतदाता सूची' : lang === 'mr' ? 'मतदार यादी' : 'Voter Roll'}
+              subtitle={lang === 'hi' ? 'फॉर्म 6 व फॉर्म 8 ड्राफ्ट सहायता' : lang === 'mr' ? 'फॉर्म 6 व फॉर्म 8 मसुदा मदत' : 'Form 6 & Form 8 Draft Assistance'}
+              onBack={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/home'))}
+              backTestID="voter-roll-back"
+              testID="voter-roll-title-row"
+            />
           </View>
 
           {/* Disclaimer card */}

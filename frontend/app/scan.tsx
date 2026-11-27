@@ -181,13 +181,14 @@ function ScanHeader({
         onPress={showBack ? handleBack : undefined}
         style={[headerStyles.back, !showBack && { opacity: 0 }]}
         testID="screen-back"
+        accessibilityRole="button"
         accessibilityLabel="Go back"
       >
         <Ionicons name="chevron-back" size={24} color="#fff" />
       </Pressable>
       <View style={{ flex: 1 }}>
         <Text style={headerStyles.title} numberOfLines={1}>{title}</Text>
-        {sub ? <Text style={headerStyles.sub} numberOfLines={1}>{sub}</Text> : null}
+        {sub ? <Text style={headerStyles.sub} numberOfLines={2}>{sub}</Text> : null}
       </View>
       <SosPill112 testID="scan-header-sos" />
     </View>

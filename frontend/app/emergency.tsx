@@ -49,6 +49,10 @@ export default function Emergency() {
       <ScrollView contentContainerStyle={{ paddingBottom: 12 }} showsVerticalScrollIndicator={false}>
         <View style={styles.topRow}>
           <View style={styles.dangerRow}>
+            {/* 27 Nov: a way back to the screen you came from (Quick exit goes to Home). */}
+            <Pressable testID="emergency-back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/home'))} style={{ width: 44, height: 44, marginLeft: -10, alignItems: 'center', justifyContent: 'center' }} accessibilityRole="button" accessibilityLabel="Go back">
+              <Ionicons name="chevron-back" size={24} color="#fff" />
+            </Pressable>
             <Ionicons name="warning-outline" size={22} color="#fff" />
             <Text style={styles.danger}>{tr('em.danger', lang)}</Text>
           </View>

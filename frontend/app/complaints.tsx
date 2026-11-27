@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { ComplaintsList } from '@/src/home/ComplaintsList';
 import { UI_V22_SWEEP } from '@/src/uiV22Flags';
 import { theme } from '@/src/theme';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
 import { MissingDraftShortcut } from '@/src/missing/MissingDraftShortcut';
 
 const colors = theme.colors;
@@ -17,13 +18,15 @@ export default function Complaints() {
   const [listEmpty, setListEmpty] = useState(false);
   const hideHeaderAdd = UI_V22_SWEEP && listEmpty;
   return <SafeAreaView style={styles.safe} edges={[]} testID="complaints-screen">
-    <View style={styles.header}>
-      <Pressable testID="complaints-back" accessibilityRole="button" accessibilityLabel="Back to Home" style={styles.icon} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/home')}><Ionicons name="chevron-back" size={24} color={colors.primary} /></Pressable>
-      <Text testID="complaints-title" style={styles.title}>Your complaints</Text>
-      {hideHeaderAdd ? <View style={styles.icon} /> : (
-      <Pressable testID="complaints-create" accessibilityRole="button" accessibilityLabel="Start a complaint" style={styles.icon} onPress={() => router.push('/fir-draft')}><Ionicons name="add" size={26} color={colors.primary} /></Pressable>
+    <PageTitleRow
+      title="Your complaints"
+      onBack={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/home'))}
+      backTestID="complaints-back"
+      testID="complaints-title"
+      right={hideHeaderAdd ? undefined : (
+        <Pressable testID="complaints-create" accessibilityRole="button" accessibilityLabel="Start a complaint" style={styles.icon} onPress={() => router.push('/fir-draft')}><Ionicons name="add" size={26} color={colors.primary} /></Pressable>
       )}
-    </View>
+    />
     <ScrollView testID="complaints-scroll" contentContainerStyle={styles.content}><MissingDraftShortcut /><ComplaintsList all onEmptyChange={setListEmpty} /></ScrollView>
   </SafeAreaView>;
 }

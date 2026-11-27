@@ -590,7 +590,7 @@ const styles = StyleSheet.create({
 
   // Filter bar
   filterRow:          { gap: 8, paddingBottom: 16, alignItems: 'center' },
-  filterChip:         { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, borderWidth: 1, borderColor: c.lines, backgroundColor: c.surface },
+  filterChip:         { flexDirection: 'row', alignItems: 'center', minHeight: 44, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, borderWidth: 1, borderColor: c.lines, backgroundColor: c.surface },
   filterChipActive:   { backgroundColor: c.navy, borderColor: c.navy },
   filterTxt:          { fontFamily: theme.fonts.body, fontSize: 12, color: c.muted },
   filterTxtActive:    { color: '#fff', fontFamily: theme.fonts.bodySemiBold },

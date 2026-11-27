@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { theme } from '@/src/theme';
+import { PageTitleRow } from '@/src/ui/PageTitleRow';
 import { draftByType } from '@/src/drafts';
 import { DraftHistoryItem, loadHistory, removeFromHistory } from '@/src/draftHistory';
 import { formatDateDMY } from '@/src/dateFormat';
@@ -59,13 +60,7 @@ export default function DraftHistoryScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={[]} testID="draft-history-screen">
-      <View style={styles.header}>
-        <Pressable testID="draft-history-back" onPress={() => router.back()} hitSlop={12} style={(s) => [focusRingStyle(s)]} accessibilityRole="button" accessibilityLabel="Go back">
-          <Ionicons name="chevron-back" size={26} color={theme.colors.navy} />
-        </Pressable>
-        <Text style={styles.h1}>Notice history</Text>
-        <View style={{ width: 26 }} />
-      </View>
+      <PageTitleRow title="Notice history" onBack={() => router.back()} backTestID="draft-history-back" testID="draft-history-title-row" />
 
       {items.length === 0 ? (
         <View style={styles.empty}>

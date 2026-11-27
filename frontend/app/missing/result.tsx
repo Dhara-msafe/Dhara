@@ -330,7 +330,7 @@ ${card.rights.map(r => `<div class="panel"><div class="phead">${t(r.heading, lan
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Text style={s.backText}>←</Text>
+          <Ionicons name="chevron-back" size={24} color={NAVY} />
         </Pressable>
 
         <View style={s.banner}>
@@ -469,7 +469,7 @@ const s = StyleSheet.create({
   safe:           { flex: 1, backgroundColor: BG },
   scroll:         { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60 },
   centred:        { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  backBtn:        { marginBottom: 12, minHeight: UI_REVISION_V1 ? 48 : 44, minWidth: UI_REVISION_V1 ? 48 : 44, justifyContent: 'center' },
+  backBtn:        { marginBottom: 12, marginLeft: -12, height: 48, width: 48, alignItems: 'center', justifyContent: 'center' },
   backText:       { color: NAVY, fontSize: 13, fontFamily: 'InterSemiBold'},
   banner:         {
     backgroundColor: NAVY, borderRadius: 16, padding: 18, alignItems: 'center', marginBottom: 20,

@@ -68,7 +68,12 @@ export default function Signup() {
           keyboardShouldPersistTaps="handled"
         >
         {/* 27 Nov: SOS 112 at the top, like every other screen (was the floating SOS). */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minHeight: 48 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48 }}>
+          {/* 27 Nov: a way back at the top (there was only a link at the bottom). */}
+          <Pressable testID="signup-back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/login'))} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44 }} accessibilityRole="button" accessibilityLabel="Go back">
+            <Ionicons name="chevron-back" size={22} color={theme.colors.onBrandPrimary} />
+            <Text style={{ color: theme.colors.onBrandPrimary, fontSize: 13, fontFamily: 'InterSemiBold' }}>Back to sign in</Text>
+          </Pressable>
           <SosPill112 testID="signup-sos" />
         </View>
         <Text style={styles.brand}>DHARA</Text>
@@ -171,8 +176,9 @@ const styles = StyleSheet.create({
   sub: { color: theme.colors.onSurfaceSecondary, marginTop: 4 },
   label: { color: theme.colors.onSurfaceSecondary, marginTop: theme.spacing.lg, marginBottom: theme.spacing.sm, fontFamily: 'InterSemiBold'},
   input: { borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, padding: theme.spacing.md, fontFamily: 'Inter', fontSize: 14, color: theme.colors.onSurface, backgroundColor: theme.colors.paper },
-  pwWrap: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, backgroundColor: theme.colors.paper },
-  pwInput: { flex: 1, padding: theme.spacing.md, fontFamily: 'Inter', fontSize: 14, color: theme.colors.onSurface },
+  // overflow + minWidth 0 (below) keep the eye button inside the box on small phones.
+  pwWrap: { flexDirection: 'row', alignItems: 'center', overflow: 'hidden', borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, backgroundColor: theme.colors.paper },
+  pwInput: { flex: 1, minWidth: 0, padding: theme.spacing.md, fontFamily: 'Inter', fontSize: 14, color: theme.colors.onSurface },
   eyeBtn: { paddingHorizontal: theme.spacing.md, paddingVertical: theme.spacing.md, justifyContent: 'center', alignItems: 'center' },
   termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing.sm, marginTop: theme.spacing.lg, padding: theme.spacing.md, backgroundColor: theme.colors.surfaceSecondary, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.border },
   checkbox: { width: 22, height: 22, borderRadius: 4, borderWidth: 2, borderColor: theme.colors.brand, alignItems: 'center', justifyContent: 'center', marginTop: 2 },

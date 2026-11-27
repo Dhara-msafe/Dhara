@@ -9,6 +9,8 @@ import { SosPill } from '@/src/components/dhara/SosPill';
 import { UI_V22_ONE_SOS } from '@/src/uiV22Flags';
 import { WEB_CHAT_MAX_WIDTH } from '@/src/chat/chatStyles';
 import { useAuth } from '@/src/auth';
+import { PageAwareHeader } from '@/src/ui/AutoHeader';
+import { HeaderBarContext } from '@/src/ui/headerTitle';
 import { addNotificationTapListener } from '@/src/push';
 
 /**
@@ -79,8 +81,9 @@ export default function TabsLayout() {
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom']} testID="tabs-layout">
-      {showHeader && <AppHeader showBack={false} testID="tabs-header" />}
+      {showHeader && <PageAwareHeader testID="tabs-header" />}
       <View style={styles.content}>
+        <HeaderBarContext.Provider value={showHeader}>
         <SafeAreaInsetsContext.Provider value={showHeader ? { ...insets, top: 0 } : insets}>
         <Tabs
           tabBar={props => <AppTabBar {...props} />}
@@ -103,6 +106,7 @@ export default function TabsLayout() {
           <Tabs.Screen name="history" options={noTabButton} />
         </Tabs>
         </SafeAreaInsetsContext.Provider>
+        </HeaderBarContext.Provider>
         {/* Global persistent SOS — visible on every tab screen except Home
             (moved there into the Me tab, see me.tsx), never scrolls away.
             B-122: on web this used to anchor to the raw browser-window edge
