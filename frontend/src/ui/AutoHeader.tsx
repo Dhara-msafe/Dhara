@@ -18,6 +18,7 @@ import { usePathname } from 'expo-router';
 import { useSafeAreaInsets, SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { AppHeader } from './kit';
 import { useAuth } from '../auth';
+import { HEADER_TITLE_IN_BAR, HeaderBarContext, useHeaderTitleEntry } from './headerTitle';
 
 /** A route matches when it equals an entry or sits under it. */
 export const AUTO_HEADER_ROUTES: readonly string[] = [
@@ -55,15 +56,27 @@ export function useAutoHeaderShown(): boolean {
   return autoHeaderFor(pathname, !!token) && !(Platform.OS === 'web' && width >= 768);
 }
 
+/** The DHARA bar. On an inner page it shows that page's back arrow and
+ *  title (27 Nov, src/ui/headerTitle.ts); otherwise the brand and tagline. */
+export function PageAwareHeader({ testID }: { testID: string }) {
+  const page = useHeaderTitleEntry();
+  if (HEADER_TITLE_IN_BAR && page) {
+    return <AppHeader showBack onBack={page.onBack} title={page.title} backTestID={page.backTestID} right={page.right} testID={testID} />;
+  }
+  return <AppHeader showBack={false} testID={testID} />;
+}
+
 export function AutoHeaderFrame({ children }: { children: React.ReactNode }) {
   const insets = useSafeAreaInsets();
   const show = useAutoHeaderShown();
   return (
     <View style={{ flex: 1 }}>
-      {show && <AppHeader showBack={false} testID="auto-header" />}
+      {show && <PageAwareHeader testID="auto-header" />}
+      <HeaderBarContext.Provider value={show}>
       <SafeAreaInsetsContext.Provider value={show ? { ...insets, top: 0 } : insets}>
         <View style={{ flex: 1 }}>{children}</View>
       </SafeAreaInsetsContext.Provider>
+      </HeaderBarContext.Provider>
     </View>
   );
 }

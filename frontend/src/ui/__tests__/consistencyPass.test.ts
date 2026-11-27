@@ -105,3 +105,21 @@ test('no text-arrow back buttons are left', () => {
     assert.match(s, /chevron-back/, f);
   }
 });
+
+// ── One bar: page title and back arrow inside the DHARA bar, 27 Nov ─────────
+test('the DHARA bar shows the focused page title and back arrow', () => {
+  const reg = read('src/ui/headerTitle.ts');
+  assert.match(reg, /EXPO_PUBLIC_HEADER_TITLE_IN_BAR !== 'false'/); // backup switch
+  assert.match(reg, /if \(owner === id\) \{ owner = null; current = null; emit\(\); \}/); // only the owner clears
+  const auto = read('src/ui/AutoHeader.tsx');
+  assert.match(auto, /export function PageAwareHeader/);
+  assert.match(auto, /<AppHeader showBack onBack=\{page\.onBack\} title=\{page\.title\}/);
+  assert.match(read('app/(tabs)/_layout.tsx'), /<PageAwareHeader testID="tabs-header" \/>/);
+});
+
+test('the title row steps aside under the bar but keeps the old row as backup', () => {
+  const row = read('src/ui/PageTitleRow.tsx');
+  assert.match(row, /const inBar = HEADER_TITLE_IN_BAR && underBar;/);
+  assert.match(row, /if \(!subtitle\) return null;/);
+  assert.match(row, /<View style=\{s\.row\} testID=\{testID\}>/); // old two-row layout still there
+});
