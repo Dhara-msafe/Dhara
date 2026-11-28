@@ -1,8 +1,14 @@
 // @ts-nocheck
-import { ScrollViewStyleReset } from "expo-router/html";
+import { ScrollViewStyleReset, useServerDocumentContext } from "expo-router/html";
 import type { PropsWithChildren } from "react";
 
 export default function Root({ children }: PropsWithChildren) {
+  // useServerDocumentContext provides headNodes (CSS/JS preloads) and bodyNodes
+  // (the client-side bundle <script> tag) injected by Expo Router's SSR renderer.
+  // Without rendering these, the web preview stays stuck on the loading spinner
+  // because the client JS bundle is never loaded and React never hydrates.
+  const { headNodes, bodyNodes } = useServerDocumentContext?.() ?? {};
+
   return (
     <html lang="en" style={{ height: "100%" }}>
       <head>
@@ -18,6 +24,8 @@ export default function Root({ children }: PropsWithChildren) {
           set `overflow: auto` on the body style below.
         */}
         <ScrollViewStyleReset />
+        {/* SSR-injected head nodes: CSS assets, JS preload hints */}
+        {headNodes}
         {/* ── Icon fonts ─────────────────────────────────────────────────────
             @expo/vector-icons injects its own font-face asynchronously via JS,
             so the very first render can show empty squares for all icons.
@@ -61,6 +69,8 @@ export default function Root({ children }: PropsWithChildren) {
         }}
       >
         {children}
+        {/* SSR-injected body nodes: the client-side bundle <script defer src="..."> */}
+        {bodyNodes}
       </body>
     </html>
   );
